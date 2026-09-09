@@ -13,5 +13,6 @@ public class EminusFabricClient implements ClientModInitializer {
         Eminus.LOGGER.info("Eminus initializing");
         Platforms.set(new FabricPlatform());
         SettingsService.set(SettingsService.load(Platforms.get().configDir()));
+        FabricSessionHooks.register();
     }
 }

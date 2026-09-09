@@ -1,5 +1,6 @@
 package com.eminus;
 
+import com.eminus.client.NeoForgeSessionHooks;
 import com.eminus.platform.NeoForgePlatform;
 import com.eminus.platform.Platforms;
 import com.eminus.settings.SettingsService;
@@ -9,6 +10,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+import net.neoforged.neoforge.common.NeoForge;
 
 @Mod(value = Eminus.MODID, dist = Dist.CLIENT)
 public class EminusNeoForge {
@@ -18,5 +20,6 @@ public class EminusNeoForge {
         SettingsService.set(SettingsService.load(Platforms.get().configDir()));
         modContainer.registerExtensionPoint(IConfigScreenFactory.class,
                 (container, modListScreen) -> new SettingsScreen(modListScreen));
+        NeoForgeSessionHooks.register(NeoForge.EVENT_BUS);
     }
 }
