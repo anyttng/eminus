@@ -1,5 +1,7 @@
 package com.eminus.platform;
 
+import java.nio.file.Path;
+
 public interface Platform {
     boolean isClient();
 
@@ -8,4 +10,6 @@ public interface Platform {
     String loaderName();
 
     String loaderVersion();
+
+    Path configDir();
 }

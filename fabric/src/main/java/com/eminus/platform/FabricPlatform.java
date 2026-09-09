@@ -1,5 +1,7 @@
 package com.eminus.platform;
 
+import java.nio.file.Path;
+
 import com.eminus.Eminus;
 
 import net.fabricmc.api.EnvType;
@@ -26,6 +28,11 @@ public final class FabricPlatform implements Platform {
     @Override
     public String loaderVersion() {
         return versionOf(LOADER_MOD_ID);
+    }
+
+    @Override
+    public Path configDir() {
+        return FabricLoader.getInstance().getConfigDir();
     }
 
     private static String versionOf(String modId) {
