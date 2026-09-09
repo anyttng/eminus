@@ -8,8 +8,9 @@ import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 public final class Cell {
     private static final int VOXELS = DetailLevel.VOXELS_PER_CELL;
     private static final int COORDINATE_MASK = DetailLevel.VOXELS_PER_SIDE - 1;
-    private static final int INDEX_MASK = 0xFFFF;
-    private static final int MAX_PALETTE = INDEX_MASK + 1;
+    public static final int MAX_PALETTE = 0x1_0000;
+
+    private static final int INDEX_MASK = MAX_PALETTE - 1;
     private static final int ABSENT = -1;
     private static final int INITIAL_PALETTE_CAPACITY = 16;
 
@@ -55,6 +56,14 @@ public final class Cell {
 
     public int paletteSize() {
         return paletteSize;
+    }
+
+    public long[] copyPalette() {
+        return Arrays.copyOf(palette, paletteSize);
+    }
+
+    public short[] indices() {
+        return indices;
     }
 
     public long get(int x, int y, int z) {

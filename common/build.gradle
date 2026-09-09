@@ -24,6 +24,12 @@ dependencies {
     compileOnly "io.github.llamalad7:mixinextras-common:${mixinextras_version}"
 }
 
+// The cell store's fixed stack. This module compiles and tests against them; the loader modules bundle them.
+dependencies {
+    implementation "org.xerial:sqlite-jdbc:${sqlite_jdbc_version}"
+    implementation "io.airlift:aircompressor:${aircompressor_version}"
+}
+
 // Plain JUnit on the NeoForm vanilla classpath: NeoForm mode has no FML, hence no junit run-type and no applied
 // mixins — a test that needs a mixin at runtime belongs to a loader module.
 neoForge.addModdingDependenciesTo(sourceSets.test)

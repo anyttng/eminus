@@ -21,6 +21,7 @@ public final class EminusInstance {
     public static final int BUILD_WEIGHT = 10;
 
     private final Path storeBase;
+    private final int lowestStoredLevel;
     private final LongSupplier clock;
     private final WorkerPool pool;
     private final WorkService<Void> ingest;
@@ -31,8 +32,9 @@ public final class EminusInstance {
 
     private boolean running = true;
 
-    private EminusInstance(Path storeBase, LongSupplier clock, WorkerPool pool) {
+    private EminusInstance(Path storeBase, int lowestStoredLevel, LongSupplier clock, WorkerPool pool) {
         this.storeBase = storeBase;
+        this.lowestStoredLevel = lowestStoredLevel;
         this.clock = clock;
         this.pool = pool;
         ingest = pool.register(INGEST_SERVICE, INGEST_WEIGHT, WorkService.UNLIMITED, () -> null);
@@ -40,8 +42,9 @@ public final class EminusInstance {
         build = pool.register(BUILD_SERVICE, BUILD_WEIGHT, WorkService.UNLIMITED, () -> null);
     }
 
-    public static EminusInstance start(Path storeBase, int threadCount, LongSupplier clock) {
-        EminusInstance instance = new EminusInstance(storeBase, clock, WorkerPool.start(threadCount));
+    public static EminusInstance start(Path storeBase, int threadCount, int lowestStoredLevel, LongSupplier clock) {
+        EminusInstance instance =
+                new EminusInstance(storeBase, lowestStoredLevel, clock, WorkerPool.start(threadCount));
         instance.cleaner.start();
         Eminus.LOGGER.info("Session started on {} worker threads, store under {}", threadCount, storeBase);
         return instance;
@@ -109,6 +112,7 @@ public final class EminusInstance {
         DimensionRuntime runtime = new DimensionRuntime(
                 identity, StoreFolders.dimensionFolder(storeBase, identity), new CellFrame(minBlockY));
         runtime.createFolder();
+        runtime.openStore(lowestStoredLevel);
         Eminus.LOGGER.info("Dimension runtime opened for {} at {}", identity.dimension(), runtime.folder());
         return runtime;
     }

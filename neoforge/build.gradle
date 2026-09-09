@@ -74,6 +74,21 @@ neoForge {
 dependencies {
     implementation project(':common')
 
+    // The cell store's fixed stack, bundled into the jar. The open range is a floor, not a pin — where another mod
+    // already carries a newer copy, JarJar keeps that one and ours is dropped.
+    jarJar(implementation("org.xerial:sqlite-jdbc")) {
+        version {
+            require "[${sqlite_jdbc_version},)"
+            prefer "${sqlite_jdbc_version}"
+        }
+    }
+    jarJar(implementation("io.airlift:aircompressor")) {
+        version {
+            require "[${aircompressor_version},)"
+            prefer "${aircompressor_version}"
+        }
+    }
+
     testImplementation platform("org.junit:junit-bom:${junit_version}")
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

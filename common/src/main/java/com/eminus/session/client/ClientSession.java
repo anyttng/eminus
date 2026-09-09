@@ -7,6 +7,7 @@ import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 import com.eminus.session.StoreFolders;
 import com.eminus.session.WorldIdentity;
+import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
 
 import net.minecraft.client.Minecraft;
@@ -27,9 +28,11 @@ public final class ClientSession {
 
         Minecraft minecraft = Minecraft.getInstance();
         world = worldName(minecraft);
+        Settings settings = SettingsService.get().settings();
         instance = EminusInstance.start(
                 storeBase(minecraft),
-                SettingsService.get().settings().workerThreads(),
+                settings.workerThreads(),
+                settings.lowestStoredLevel(),
                 System::currentTimeMillis);
     }
 

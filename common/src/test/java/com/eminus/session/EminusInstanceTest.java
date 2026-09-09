@@ -22,6 +22,7 @@ class EminusInstanceTest {
     private static final long SEED = 8675309L;
     private static final int MIN_BLOCK_Y = -64;
     private static final int WORKER_THREADS = 1;
+    private static final int LOWEST_STORED_LEVEL = 0;
 
     @TempDir
     Path storeBase;
@@ -121,7 +122,7 @@ class EminusInstanceTest {
     }
 
     private void start() {
-        instance = EminusInstance.start(storeBase, WORKER_THREADS, clock::get);
+        instance = EminusInstance.start(storeBase, WORKER_THREADS, LOWEST_STORED_LEVEL, clock::get);
     }
 
     private static WorldIdentity identity(String dimension) {

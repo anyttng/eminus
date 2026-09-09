@@ -50,6 +50,10 @@ dependencies {
 
     // Bundled into the jar for production; no annotation processor — with no remapping there is no refmap to generate.
     include(implementation("io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"))
+
+    // The cell store's fixed stack, bundled the same way; Loom wraps a plain library jar as a nested mod itself.
+    include(implementation("org.xerial:sqlite-jdbc:${sqlite_jdbc_version}"))
+    include(implementation("io.airlift:aircompressor:${aircompressor_version}"))
 }
 
 tasks.named('jar', Jar) {

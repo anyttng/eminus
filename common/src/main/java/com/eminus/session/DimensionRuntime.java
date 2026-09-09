@@ -6,12 +6,15 @@ import java.nio.file.Path;
 
 import com.eminus.Eminus;
 import com.eminus.cell.CellFrame;
+import com.eminus.store.CellStore;
+import com.eminus.store.SqliteCellStore;
 
 public final class DimensionRuntime {
     private final WorldIdentity identity;
     private final Path folder;
     private final CellFrame frame;
 
+    private CellStore store;
     private int references;
     private long idleSince;
     private boolean closed;
@@ -46,6 +49,15 @@ public final class DimensionRuntime {
         }
     }
 
+    void openStore(int lowestStoredLevel) {
+        try {
+            store = SqliteCellStore.open(folder, lowestStoredLevel);
+        } catch (RuntimeException failure) {
+            Eminus.LOGGER.error("Could not open the cell store in {}; {} runs without one.",
+                    folder, identity.dimension(), failure);
+        }
+    }
+
     void acquire() {
         references++;
     }
@@ -63,6 +75,17 @@ public final class DimensionRuntime {
 
     void close() {
         closed = true;
+        if (store == null) {
+            return;
+        }
+
+        try {
+            store.close();
+        } catch (RuntimeException failure) {
+            Eminus.LOGGER.error("Could not close the cell store in {}.", folder, failure);
+        } finally {
+            store = null;
+        }
     }
 
     int references() {
