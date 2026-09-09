@@ -1,0 +1,5 @@
+// Bare aggregator: the mod is built by the loader subprojects — 'common' (vanilla-only code and resources),
+// 'neoforge' and 'fabric' (entrypoint, platform glue, final jar).
+plugins {
+    id 'idea'
+}

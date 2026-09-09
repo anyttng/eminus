@@ -1,0 +1,46 @@
+# NeoForge mod metadata. Placeholders are expanded from gradle.properties at build time.
+
+# The license for the mod (mandatory).
+license="${mod_license}"
+
+# A list of mods.
+[[mods]] #mandatory
+
+# The modid of the mod.
+modId="${mod_id}" #mandatory
+
+# The version number of the mod.
+version="${mod_version}" #mandatory
+
+# A display name for the mod.
+displayName="${mod_name}" #mandatory
+
+# A file name (in the root of the mod JAR) containing a logo for display.
+logoFile="logo.png"
+
+# The authors of the mod, displayed in the mod UI.
+authors="Anyttng"
+
+# The description text for the mod (multi line!).
+description='''
+Terrain far beyond the render distance: a coarse, persistent copy of every chunk you have seen, drawn as a far layer behind the game's own terrain, on OpenGL and Vulkan alike.
+'''
+
+# NeoForge dependency. The mod is client-only: a dedicated server loads the jar and runs nothing of it.
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neo_version},)"
+    ordering="NONE"
+    side="CLIENT"
+
+# Minecraft dependency.
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="CLIENT"
+
+[[mixins]]
+config="eminus.mixins.json"

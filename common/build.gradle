@@ -1,0 +1,59 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev'
+    id 'idea'
+}
+
+version = eminus_version
+group = mod_group_id
+
+// Mojang ships Java 25 to end users, so mods should target Java 25.
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+// NeoForm mode: plain vanilla (Mojmap) on the classpath, no loader — the compile-time proof that this module is
+// loader-free.
+neoForge {
+    neoFormVersion = project.neoform_version
+}
+
+// NeoForm brings only vanilla; the mixin annotations the sources carry come from the same artifacts the NeoForge
+// runtime ships (pinned in gradle.properties from the neo_version userdev config). compileOnly — applying them is
+// the loaders' business.
+dependencies {
+    compileOnly "net.fabricmc:sponge-mixin:${mixin_version}"
+    compileOnly "io.github.llamalad7:mixinextras-common:${mixinextras_version}"
+}
+
+// Plain JUnit on the NeoForm vanilla classpath: NeoForm mode has no FML, hence no junit run-type and no applied
+// mixins — a test that needs a mixin at runtime belongs to a loader module.
+neoForge.addModdingDependenciesTo(sourceSets.test)
+
+dependencies {
+    testImplementation platform("org.junit:junit-bom:${junit_version}")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    filter {
+        // A --tests pattern that names nothing in this module is a zero-test run, not a failed one.
+        failOnNoMatchingTests = false
+    }
+    // The vanilla log4j config writes logs/latest.log into the working directory — kept under build/, as FML does.
+    workingDir = layout.buildDirectory.dir('test-run').get().asFile
+    doFirst { workingDir.mkdirs() }
+    // The working directory is not the module, so a test that writes a report is told where the module's reports go.
+    systemProperty 'eminus.reports', layout.buildDirectory.dir('reports').get().asFile.absolutePath
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}
