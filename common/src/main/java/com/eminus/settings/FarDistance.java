@@ -1,7 +1,9 @@
 package com.eminus.settings;
 
+import com.eminus.cell.DetailLevel;
+
 public final class FarDistance {
-    public static final int BLOCKS_PER_TOP_LEVEL_CELL = 512;
+    public static final int BLOCKS_PER_TOP_LEVEL_CELL = DetailLevel.blocksPerCell(DetailLevel.MAX);
     public static final int BLOCKS_PER_CHUNK = 16;
     public static final int CHUNKS_PER_TOP_LEVEL_CELL = BLOCKS_PER_TOP_LEVEL_CELL / BLOCKS_PER_CHUNK;
 
