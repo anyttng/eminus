@@ -17,8 +17,11 @@ public record Settings(
     public static final int MIN_DETAIL_LEVEL = 0;
     public static final int MAX_DETAIL_LEVEL = 4;
     public static final int MIN_FAR_RENDER_CELLS = 1;
+    public static final int MAX_FAR_RENDER_CELLS = 64;
     public static final int MIN_WORKER_THREADS = 1;
-    public static final int MIN_SUBDIVISION_SIZE = 1;
+    public static final int MAX_WORKER_THREADS = 32;
+    public static final int MIN_SUBDIVISION_SIZE = 8;
+    public static final int MAX_SUBDIVISION_SIZE = 256;
 
     private static final double CORES_PER_WORKER = 1.5;
 
@@ -33,6 +36,6 @@ public record Settings(
     }
 
     public static int defaultWorkerThreads(int cores) {
-        return Math.max(MIN_WORKER_THREADS, (int) (cores / CORES_PER_WORKER));
+        return Math.clamp((int) (cores / CORES_PER_WORKER), MIN_WORKER_THREADS, MAX_WORKER_THREADS);
     }
 }

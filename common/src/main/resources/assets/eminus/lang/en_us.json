@@ -1,0 +1,18 @@
+{
+  "gui.eminus.settings.title": "Eminus Settings",
+  "gui.eminus.settings.ingestion": "Ingestion",
+  "gui.eminus.settings.ingestion.hint": "Convert the chunks you see into far-terrain cells. With it off, nothing new reaches the store.",
+  "gui.eminus.settings.lowest_stored_level": "Lowest stored level",
+  "gui.eminus.settings.lowest_stored_level.hint": "The finest detail kept on disk: one voxel covers 2^level blocks. 0 keeps single blocks — a flower, a torch — at the far layer's nearest edge; 1 drops that level and cuts the store to about a seventh.",
+  "gui.eminus.settings.far_render_cells": "Far render distance",
+  "gui.eminus.settings.far_render_cells.hint": "How far the far layer reaches. Work grows with the square of this distance: more meshes walked each frame, and more of them in video memory.",
+  "gui.eminus.settings.worker_threads": "Worker threads",
+  "gui.eminus.settings.worker_threads.hint": "Background threads that build far terrain. Higher catches up faster and competes harder with the game's own chunk builders; lower is the other way round.",
+  "gui.eminus.settings.subdivision_size": "Subdivision size",
+  "gui.eminus.settings.subdivision_size.hint": "How large a piece of far terrain may look on screen before finer pieces replace it. Measured in screen pixels, so a higher resolution goes finer at the same number. Smaller brings detail closer and costs more.",
+  "gui.eminus.settings.fog_mode": "Fog mode",
+  "gui.eminus.settings.fog_mode.hint": "What the far layer does where it ends. The game's own distance fog is pushed away while the far layer runs, so this is the only fog out there.",
+  "gui.eminus.settings.fog_mode.fog_and_fade": "Fog and fade",
+  "gui.eminus.settings.fog_mode.fog": "Fog",
+  "gui.eminus.settings.fog_mode.fade": "Fade"
+}

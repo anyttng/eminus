@@ -80,6 +80,23 @@ class SettingsFileTest {
     }
 
     @Test
+    void aValueAboveItsMaximumFallsBackToItsDefault() throws IOException {
+        Settings defaults = Settings.defaults();
+        Settings loaded = loadJson("""
+                {
+                  "far_render_cells": %d,
+                  "worker_threads": %d,
+                  "subdivision_size": %d
+                }
+                """.formatted(Settings.MAX_FAR_RENDER_CELLS + 1, Settings.MAX_WORKER_THREADS + 1,
+                Settings.MAX_SUBDIVISION_SIZE + 1));
+
+        assertEquals(defaults.farRenderCells(), loaded.farRenderCells());
+        assertEquals(defaults.workerThreads(), loaded.workerThreads());
+        assertEquals(defaults.subdivisionSize(), loaded.subdivisionSize());
+    }
+
+    @Test
     void aMissingValueFallsBackToItsDefault() throws IOException {
         Settings defaults = Settings.defaults();
         Settings loaded = loadJson("{\"subdivision_size\": 16}");

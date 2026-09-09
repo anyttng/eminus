@@ -1,0 +1,18 @@
+{
+  "gui.eminus.settings.title": "Eminus 设置",
+  "gui.eminus.settings.ingestion": "采集",
+  "gui.eminus.settings.ingestion.hint": "把你看到的区块转换为远景单元。关闭后，不再有新内容进入存储。",
+  "gui.eminus.settings.lowest_stored_level": "存储的最细层级",
+  "gui.eminus.settings.lowest_stored_level.hint": "保存在磁盘上的最细细节层级：一个体素覆盖 2^层级 个方块。0 会在远景层最近的边缘保留单个方块——一朵花、一支火把；1 舍弃该层级，把存储量减少到约七分之一。",
+  "gui.eminus.settings.far_render_cells": "远景渲染距离",
+  "gui.eminus.settings.far_render_cells.hint": "远景层能延伸多远。工作量随该距离的平方增长：每帧遍历的网格更多，显存中的网格也更多。",
+  "gui.eminus.settings.worker_threads": "工作线程",
+  "gui.eminus.settings.worker_threads.hint": "在后台构建远景地形的线程。线程越多，追赶得越快，与游戏自身的区块构建争抢也越厉害；越少则相反。",
+  "gui.eminus.settings.subdivision_size": "细分尺寸",
+  "gui.eminus.settings.subdivision_size.hint": "一块远景地形在被更细的地形替换之前，在屏幕上可以显得多大。以屏幕像素计量，因此分辨率越高，同一数值细分得越细。数值越小，细节越近，开销也越大。",
+  "gui.eminus.settings.fog_mode": "雾效模式",
+  "gui.eminus.settings.fog_mode.hint": "远景层在其尽头的表现。远景层运行时，游戏自身的视距雾会被推远，所以那里只有这一种雾。",
+  "gui.eminus.settings.fog_mode.fog_and_fade": "雾和淡出",
+  "gui.eminus.settings.fog_mode.fog": "雾",
+  "gui.eminus.settings.fog_mode.fade": "淡出"
+}

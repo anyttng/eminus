@@ -1,0 +1,18 @@
+{
+  "gui.eminus.settings.title": "Paramètres d'Eminus",
+  "gui.eminus.settings.ingestion": "Capture",
+  "gui.eminus.settings.ingestion.hint": "Convertit les tronçons que vous voyez en cellules de terrain lointain. Désactivée, plus rien de neuf n'entre dans le stockage.",
+  "gui.eminus.settings.lowest_stored_level": "Niveau le plus fin conservé",
+  "gui.eminus.settings.lowest_stored_level.hint": "Le détail le plus fin gardé sur le disque : un voxel couvre 2^niveau blocs. 0 conserve les blocs isolés — une fleur, une torche — au bord le plus proche de la couche lointaine ; 1 supprime ce niveau et réduit le stockage à environ un septième.",
+  "gui.eminus.settings.far_render_cells": "Distance d'affichage lointain",
+  "gui.eminus.settings.far_render_cells.hint": "Jusqu'où porte la couche lointaine. Le travail croît avec le carré de cette distance : plus de maillages parcourus par image, et davantage en mémoire vidéo.",
+  "gui.eminus.settings.worker_threads": "Fils d'exécution",
+  "gui.eminus.settings.worker_threads.hint": "Fils en arrière-plan qui construisent le terrain lointain. Plus nombreux, ils rattrapent plus vite et concurrencent davantage les constructeurs de tronçons du jeu ; moins nombreux, l'inverse.",
+  "gui.eminus.settings.subdivision_size": "Taille de subdivision",
+  "gui.eminus.settings.subdivision_size.hint": "Quelle taille un morceau de terrain lointain peut atteindre à l'écran avant d'être remplacé par des morceaux plus fins. Mesurée en pixels d'écran : à résolution plus élevée, le même nombre subdivise plus finement. Plus petit rapproche le détail et coûte plus cher.",
+  "gui.eminus.settings.fog_mode": "Mode de brouillard",
+  "gui.eminus.settings.fog_mode.hint": "Ce que fait la couche lointaine là où elle s'arrête. Le brouillard de distance du jeu est repoussé tant que la couche lointaine tourne, c'est donc le seul brouillard là-bas.",
+  "gui.eminus.settings.fog_mode.fog_and_fade": "Brouillard et fondu",
+  "gui.eminus.settings.fog_mode.fog": "Brouillard",
+  "gui.eminus.settings.fog_mode.fade": "Fondu"
+}

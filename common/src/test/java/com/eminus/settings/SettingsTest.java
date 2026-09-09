@@ -32,4 +32,9 @@ class SettingsTest {
         assertEquals(1, Settings.defaultWorkerThreads(1));
         assertEquals(1, Settings.defaultWorkerThreads(2));
     }
+
+    @Test
+    void workerThreadsNeverRiseAboveTheMaximum() {
+        assertEquals(Settings.MAX_WORKER_THREADS, Settings.defaultWorkerThreads(1024));
+    }
 }

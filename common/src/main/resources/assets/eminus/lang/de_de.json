@@ -1,0 +1,18 @@
+{
+  "gui.eminus.settings.title": "Eminus-Einstellungen",
+  "gui.eminus.settings.ingestion": "Erfassung",
+  "gui.eminus.settings.ingestion.hint": "Wandelt die Chunks, die du siehst, in Zellen des Fernbereichs um. Ist sie aus, gelangt nichts Neues in den Speicher.",
+  "gui.eminus.settings.lowest_stored_level": "Feinste gespeicherte Stufe",
+  "gui.eminus.settings.lowest_stored_level.hint": "Die feinste Detailstufe, die auf der Festplatte bleibt: ein Voxel deckt 2^Stufe Blöcke ab. 0 behält einzelne Blöcke — eine Blume, eine Fackel — am nächsten Rand der Fernschicht; 1 lässt diese Stufe weg und verkleinert den Speicher auf etwa ein Siebtel.",
+  "gui.eminus.settings.far_render_cells": "Fernsichtweite",
+  "gui.eminus.settings.far_render_cells.hint": "Wie weit die Fernschicht reicht. Der Aufwand wächst mit dem Quadrat dieser Entfernung: mehr Meshes pro Bild und mehr davon im Videospeicher.",
+  "gui.eminus.settings.worker_threads": "Arbeitsthreads",
+  "gui.eminus.settings.worker_threads.hint": "Hintergrundthreads, die das ferne Gelände bauen. Mehr holt schneller auf und konkurriert stärker mit den Chunk-Buildern des Spiels; weniger umgekehrt.",
+  "gui.eminus.settings.subdivision_size": "Unterteilungsgröße",
+  "gui.eminus.settings.subdivision_size.hint": "Wie groß ein Stück fernes Gelände auf dem Bildschirm sein darf, bevor feinere Stücke es ersetzen. In Bildschirmpixeln gemessen, daher unterteilt eine höhere Auflösung beim gleichen Wert feiner. Kleiner holt Details näher heran und kostet mehr.",
+  "gui.eminus.settings.fog_mode": "Nebelmodus",
+  "gui.eminus.settings.fog_mode.hint": "Was die Fernschicht tut, wo sie endet. Der eigene Sichtweitennebel des Spiels wird weggeschoben, solange die Fernschicht läuft, also ist dies der einzige Nebel dort draußen.",
+  "gui.eminus.settings.fog_mode.fog_and_fade": "Nebel und Ausblenden",
+  "gui.eminus.settings.fog_mode.fog": "Nebel",
+  "gui.eminus.settings.fog_mode.fade": "Ausblenden"
+}

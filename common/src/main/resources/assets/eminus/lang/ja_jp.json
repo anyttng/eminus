@@ -1,0 +1,18 @@
+{
+  "gui.eminus.settings.title": "Eminus の設定",
+  "gui.eminus.settings.ingestion": "取り込み",
+  "gui.eminus.settings.ingestion.hint": "見えているチャンクを遠景セルに変換します。オフにすると、新しいものは保存されません。",
+  "gui.eminus.settings.lowest_stored_level": "保存する最小レベル",
+  "gui.eminus.settings.lowest_stored_level.hint": "ディスクに残す最も細かい詳細レベル。1 ボクセルが 2^レベル ブロックを覆います。0 は単一ブロック（花やたいまつ）を遠景層の手前の縁で残し、1 はそのレベルを捨てて保存量をおよそ 7 分の 1 にします。",
+  "gui.eminus.settings.far_render_cells": "遠景描画距離",
+  "gui.eminus.settings.far_render_cells.hint": "遠景層が届く距離。処理量はこの距離の 2 乗で増え、1 フレームあたりに辿るメッシュも、ビデオメモリに置くメッシュも増えます。",
+  "gui.eminus.settings.worker_threads": "ワーカースレッド",
+  "gui.eminus.settings.worker_threads.hint": "遠景を構築するバックグラウンドスレッド。多いほど追いつくのが速くなり、ゲーム自身のチャンク構築と強く競合します。少ないほどその逆です。",
+  "gui.eminus.settings.subdivision_size": "分割サイズ",
+  "gui.eminus.settings.subdivision_size.hint": "遠景の一片が、より細かい片に置き換わるまでに画面上で占めてよい大きさ。画面ピクセルで測るため、解像度が高いほど同じ数値でもより細かく分割されます。小さいほど詳細が手前まで来て、負荷も増えます。",
+  "gui.eminus.settings.fog_mode": "霧モード",
+  "gui.eminus.settings.fog_mode.hint": "遠景層が終わる場所での振る舞い。遠景層の動作中はゲーム自身の描画距離の霧が遠くへ押しやられるため、そこに見える霧はこれだけです。",
+  "gui.eminus.settings.fog_mode.fog_and_fade": "霧とフェード",
+  "gui.eminus.settings.fog_mode.fog": "霧",
+  "gui.eminus.settings.fog_mode.fade": "フェード"
+}

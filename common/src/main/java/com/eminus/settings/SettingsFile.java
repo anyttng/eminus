@@ -73,11 +73,11 @@ public final class SettingsFile {
                 bounded(json, LOWEST_STORED_LEVEL_KEY, defaults.lowestStoredLevel(),
                         Settings.MIN_DETAIL_LEVEL, Settings.MAX_DETAIL_LEVEL),
                 bounded(json, FAR_RENDER_CELLS_KEY, defaults.farRenderCells(),
-                        Settings.MIN_FAR_RENDER_CELLS, Integer.MAX_VALUE),
+                        Settings.MIN_FAR_RENDER_CELLS, Settings.MAX_FAR_RENDER_CELLS),
                 bounded(json, WORKER_THREADS_KEY, defaults.workerThreads(),
-                        Settings.MIN_WORKER_THREADS, Integer.MAX_VALUE),
+                        Settings.MIN_WORKER_THREADS, Settings.MAX_WORKER_THREADS),
                 bounded(json, SUBDIVISION_SIZE_KEY, defaults.subdivisionSize(),
-                        Settings.MIN_SUBDIVISION_SIZE, Integer.MAX_VALUE),
+                        Settings.MIN_SUBDIVISION_SIZE, Settings.MAX_SUBDIVISION_SIZE),
                 fogMode(json, defaults.fogMode()));
     }
 

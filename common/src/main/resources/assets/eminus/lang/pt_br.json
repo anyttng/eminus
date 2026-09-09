@@ -1,0 +1,18 @@
+{
+  "gui.eminus.settings.title": "Configurações do Eminus",
+  "gui.eminus.settings.ingestion": "Captura",
+  "gui.eminus.settings.ingestion.hint": "Converte os chunks que você vê em células de terreno distante. Desativada, nada de novo chega ao armazenamento.",
+  "gui.eminus.settings.lowest_stored_level": "Nível mais fino armazenado",
+  "gui.eminus.settings.lowest_stored_level.hint": "O detalhe mais fino mantido em disco: um voxel cobre 2^nível blocos. 0 preserva blocos isolados — uma flor, uma tocha — na borda mais próxima da camada distante; 1 descarta esse nível e reduz o armazenamento a cerca de um sétimo.",
+  "gui.eminus.settings.far_render_cells": "Distância de renderização distante",
+  "gui.eminus.settings.far_render_cells.hint": "Até onde a camada distante alcança. O trabalho cresce com o quadrado dessa distância: mais malhas percorridas por quadro e mais delas na memória de vídeo.",
+  "gui.eminus.settings.worker_threads": "Threads de trabalho",
+  "gui.eminus.settings.worker_threads.hint": "Threads em segundo plano que constroem o terreno distante. Mais threads alcançam o atraso mais rápido e competem mais com os construtores de chunks do próprio jogo; menos, o contrário.",
+  "gui.eminus.settings.subdivision_size": "Tamanho da subdivisão",
+  "gui.eminus.settings.subdivision_size.hint": "Quão grande um pedaço de terreno distante pode aparecer na tela antes de ser substituído por pedaços mais finos. Medido em pixels da tela, então uma resolução maior subdivide mais no mesmo número. Menor traz o detalhe para mais perto e custa mais.",
+  "gui.eminus.settings.fog_mode": "Modo de névoa",
+  "gui.eminus.settings.fog_mode.hint": "O que a camada distante faz onde termina. A névoa de distância do próprio jogo é afastada enquanto a camada distante funciona, então essa é a única névoa lá longe.",
+  "gui.eminus.settings.fog_mode.fog_and_fade": "Névoa e esmaecimento",
+  "gui.eminus.settings.fog_mode.fog": "Névoa",
+  "gui.eminus.settings.fog_mode.fade": "Esmaecimento"
+}
