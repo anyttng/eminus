@@ -11,7 +11,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.eminus.VanillaBootstrap;
+
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -31,6 +34,11 @@ class EminusInstanceTest {
     private final AtomicLong clock = new AtomicLong();
 
     private EminusInstance instance;
+
+    @BeforeAll
+    static void bootstrapVanilla() {
+        VanillaBootstrap.ensure();
+    }
 
     @AfterEach
     void stopTheInstance() {

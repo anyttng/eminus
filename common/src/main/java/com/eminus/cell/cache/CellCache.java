@@ -13,7 +13,7 @@ import com.eminus.work.WorkerPool;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
-public final class CellCache {
+public final class CellCache implements CellAccess {
     private final CellStore store;
     private final CellSaver saves;
     private final LongSupplier clock;
@@ -27,6 +27,7 @@ public final class CellCache {
         this.clock = clock;
     }
 
+    @Override
     public CellHandle open(long key) {
         WorkerPool.requireWorkerThread("Opening a cell");
 
@@ -59,6 +60,7 @@ public final class CellCache {
         return handle;
     }
 
+    @Override
     public void release(CellHandle handle) {
         WorkerPool.requireWorkerThread("Releasing a cell");
 

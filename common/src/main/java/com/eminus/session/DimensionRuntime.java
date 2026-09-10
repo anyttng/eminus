@@ -7,7 +7,11 @@ import java.util.function.LongSupplier;
 
 import com.eminus.Eminus;
 import com.eminus.cell.CellFrame;
+import com.eminus.cell.Dictionary;
+import com.eminus.cell.StateTable;
 import com.eminus.cell.cache.CellCache;
+import com.eminus.ingest.CellMerger;
+import com.eminus.ingest.SectionConverter;
 import com.eminus.store.CellStore;
 import com.eminus.store.EmptyCellStore;
 import com.eminus.store.SaveService;
@@ -18,18 +22,23 @@ public final class DimensionRuntime {
     private final WorldIdentity identity;
     private final Path folder;
     private final CellFrame frame;
+    private final int lowestStoredLevel;
 
     private CellStore store;
     private SaveService saves;
     private CellCache cells;
+    private StateTable states;
+    private Dictionary<String> biomes;
+    private CellMerger merger;
     private int references;
     private long idleSince;
     private boolean closed;
 
-    DimensionRuntime(WorldIdentity identity, Path folder, CellFrame frame) {
+    DimensionRuntime(WorldIdentity identity, Path folder, CellFrame frame, int lowestStoredLevel) {
         this.identity = identity;
         this.folder = folder;
         this.frame = frame;
+        this.lowestStoredLevel = lowestStoredLevel;
     }
 
     public WorldIdentity identity() {
@@ -48,6 +57,18 @@ public final class DimensionRuntime {
         return cells;
     }
 
+    public StateTable states() {
+        return states;
+    }
+
+    public Dictionary<String> biomes() {
+        return biomes;
+    }
+
+    public CellMerger merger() {
+        return merger;
+    }
+
     public boolean closed() {
         return closed;
     }
@@ -60,7 +81,7 @@ public final class DimensionRuntime {
         }
     }
 
-    void openStore(int lowestStoredLevel) {
+    void openStore() {
         try {
             store = SqliteCellStore.open(folder, lowestStoredLevel);
         } catch (RuntimeException failure) {
@@ -71,8 +92,29 @@ public final class DimensionRuntime {
     }
 
     void openCells(WorkService<Void> saveService, LongSupplier clock) {
+        Dictionary<String> stateIds = openDictionary(StateTable.DICTIONARY_NAME);
+        Dictionary<String> biomeIds = openDictionary(SectionConverter.DICTIONARY_NAME);
+
         saves = new SaveService(store, saveService);
         cells = new CellCache(store, saves, clock);
+        states = new StateTable(stateIds);
+        biomes = biomeIds;
+        merger = new CellMerger(cells, frame, lowestStoredLevel, (handle, faceMask) -> cells.release(handle));
+    }
+
+    private Dictionary<String> openDictionary(String name) {
+        Dictionary<String> dictionary = new Dictionary<>((id, value) -> store.putDictionaryEntry(name, id, value));
+
+        try {
+            store.readDictionary(name, dictionary::load);
+        } catch (RuntimeException failure) {
+            Eminus.LOGGER.error("Could not read the {} dictionary in {}; {} runs without a store rather than "
+                    + "reassigning ids over the cells already there.", name, folder, identity.dimension(), failure);
+            closeStore();
+            store = EmptyCellStore.INSTANCE;
+        }
+
+        return dictionary;
     }
 
     void acquire() {
@@ -98,13 +140,15 @@ public final class DimensionRuntime {
 
         saves.flush();
         cells.flush();
+        closeStore();
+        store = null;
+    }
 
+    private void closeStore() {
         try {
             store.close();
         } catch (RuntimeException failure) {
             Eminus.LOGGER.error("Could not close the cell store in {}.", folder, failure);
-        } finally {
-            store = null;
         }
     }
 

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.eminus.VanillaBootstrap;
 import com.eminus.cell.Cell;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
@@ -18,6 +19,7 @@ import com.eminus.work.WorkerHarness;
 import com.eminus.work.WorkerPool;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -41,6 +43,11 @@ class DimensionRuntimeTest {
     private final WorkerPool parked = WorkerPool.start(0);
 
     private DimensionRuntime runtime;
+
+    @BeforeAll
+    static void bootstrapVanilla() {
+        VanillaBootstrap.ensure();
+    }
 
     @AfterEach
     void stopThePools() {
@@ -79,9 +86,9 @@ class DimensionRuntimeTest {
 
     private void openRuntime() {
         runtime = new DimensionRuntime(
-                new WorldIdentity(WORLD, SEED, DIMENSION), folder, new CellFrame(MIN_BLOCK_Y));
+                new WorldIdentity(WORLD, SEED, DIMENSION), folder, new CellFrame(MIN_BLOCK_Y), LOWEST_STORED_LEVEL);
         runtime.createFolder();
-        runtime.openStore(LOWEST_STORED_LEVEL);
+        runtime.openStore();
         runtime.openCells(parked.register("save", 1, WorkService.UNLIMITED, () -> null), clock::get);
     }
 
