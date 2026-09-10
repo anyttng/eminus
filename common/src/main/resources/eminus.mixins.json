@@ -6,7 +6,9 @@
   "client": [
     "BiomeManagerAccessor",
     "ClientLevelMixin",
-    "ClientPacketListenerMixin"
+    "ClientPacketListenerMixin",
+    "SpriteContentsAccessor",
+    "StairBlockAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

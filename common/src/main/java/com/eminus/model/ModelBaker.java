@@ -1,0 +1,105 @@
+package com.eminus.model;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.eminus.mixin.StairBlockAccessor;
+
+import net.minecraft.client.color.block.BlockColors;
+import net.minecraft.client.renderer.block.BlockStateModelSet;
+import net.minecraft.client.renderer.block.ModelBlockRenderer;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FluidState;
+
+public final class ModelBaker implements StateBaker {
+    private static final long BAKE_SEED = 0L;
+    private static final boolean CUTOUT_LEAVES = false;
+    private static final int ALPHA_MASK = 0xFF00_0000;
+    private static final Direction[] FACES = Direction.values();
+
+    private final BlockStateModelSet blockModels;
+    private final BlockColors blockColors;
+    private final FluidBaker fluids;
+    private final SolidSprites sprites;
+    private final BiomeColours colours;
+    private final FaceRasterizer rasterizer = new FaceRasterizer();
+    private final RandomSource random = RandomSource.create();
+    private final List<BlockStateModelPart> parts = new ArrayList<>();
+    private final List<BakedQuad> quads = new ArrayList<>();
+
+    public ModelBaker(BlockStateModelSet blockModels, BlockColors blockColors, FluidBaker fluids,
+            SolidSprites sprites, BiomeColours colours) {
+        this.blockModels = blockModels;
+        this.blockColors = blockColors;
+        this.fluids = fluids;
+        this.sprites = sprites;
+        this.colours = colours;
+    }
+
+    @Override
+    public BakedModel bake(BlockState state) {
+        BlockState shape = baseOf(state);
+        collect(shape);
+
+        if (quads.isEmpty()) {
+            FluidState fluid = state.getFluidState();
+            return fluid.isEmpty() ? BakedModel.empty() : tinted(fluids.bake(fluid), state, state);
+        }
+
+        BakedModel model = rasterizer.rasterize(quads, texels(shape), layer -> blockColors.getTintSource(shape, layer));
+        return tinted(model, shape, state);
+    }
+
+    private BakedModel tinted(BakedModel model, BlockState shape, BlockState state) {
+        if (model.tint() != null) {
+            colours.fill(model.tint(), shape);
+        }
+
+        return emissive(model, state);
+    }
+
+    private void collect(BlockState state) {
+        quads.clear();
+        if (state.getRenderShape() == RenderShape.INVISIBLE) {
+            return;
+        }
+
+        parts.clear();
+        random.setSeed(BAKE_SEED);
+        blockModels.get(state).collectParts(random, parts);
+
+        for (BlockStateModelPart part : parts) {
+            quads.addAll(part.getQuads(null));
+            for (Direction face : FACES) {
+                quads.addAll(part.getQuads(face));
+            }
+        }
+    }
+
+    private QuadTexels texels(BlockState state) {
+        return ModelBlockRenderer.forceOpaque(CUTOUT_LEAVES, state)
+                ? (quad, u, v) -> sprites.argb(quad.materialInfo().sprite(), u, v) | ALPHA_MASK
+                : (quad, u, v) -> sprites.argb(quad.materialInfo().sprite(), u, v);
+    }
+
+    private static BlockState baseOf(BlockState state) {
+        return state.getBlock() instanceof StairBlock stairs
+                ? ((StairBlockAccessor) stairs).eminus$baseState()
+                : state;
+    }
+
+    private static BakedModel emissive(BakedModel model, BlockState state) {
+        if (state.getLightEmission() == 0 || ModelMetadata.has(model.metadata(), ModelMetadata.SELF_LIT)) {
+            return model;
+        }
+
+        return new BakedModel(model.faces(), model.insets(), model.bounds(),
+                model.metadata() | ModelMetadata.SELF_LIT, model.tint());
+    }
+}
