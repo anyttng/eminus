@@ -10,6 +10,7 @@ import java.util.function.LongSupplier;
 import com.eminus.Eminus;
 import com.eminus.cell.CellFrame;
 import com.eminus.ingest.SectionPyramid;
+import com.eminus.mesh.MeshScratch;
 import com.eminus.work.ShutdownMode;
 import com.eminus.work.WorkService;
 import com.eminus.work.WorkerPool;
@@ -29,7 +30,7 @@ public final class EminusInstance {
     private final WorkerPool pool;
     private final WorkService<SectionPyramid> ingest;
     private final WorkService<Void> save;
-    private final WorkService<Void> build;
+    private final WorkService<MeshScratch> build;
     private final Map<WorldIdentity, DimensionRuntime> runtimes = new HashMap<>();
     private final WorldCleaner cleaner = new WorldCleaner(this);
 
@@ -42,7 +43,7 @@ public final class EminusInstance {
         this.pool = pool;
         ingest = pool.register(INGEST_SERVICE, INGEST_WEIGHT, WorkService.UNLIMITED, SectionPyramid::new);
         save = pool.register(SAVE_SERVICE, SAVE_WEIGHT, WorkService.UNLIMITED, () -> null);
-        build = pool.register(BUILD_SERVICE, BUILD_WEIGHT, WorkService.UNLIMITED, () -> null);
+        build = pool.register(BUILD_SERVICE, BUILD_WEIGHT, WorkService.UNLIMITED, MeshScratch::new);
     }
 
     public static EminusInstance start(Path storeBase, int threadCount, int lowestStoredLevel, LongSupplier clock) {
@@ -55,6 +56,10 @@ public final class EminusInstance {
 
     public Path storeBase() {
         return storeBase;
+    }
+
+    public WorkService<MeshScratch> build() {
+        return build;
     }
 
     public synchronized DimensionRuntime acquire(WorldIdentity identity, int minBlockY) {

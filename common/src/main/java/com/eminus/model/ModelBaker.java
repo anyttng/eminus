@@ -95,11 +95,13 @@ public final class ModelBaker implements StateBaker {
     }
 
     private static BakedModel emissive(BakedModel model, BlockState state) {
-        if (state.getLightEmission() == 0 || ModelMetadata.has(model.metadata(), ModelMetadata.SELF_LIT)) {
+        int baked = ModelMetadata.emission(model.metadata());
+        int emission = Math.max(baked, state.getLightEmission());
+        if (emission == baked) {
             return model;
         }
 
         return new BakedModel(model.faces(), model.insets(), model.bounds(),
-                model.metadata() | ModelMetadata.SELF_LIT, model.tint());
+                ModelMetadata.withEmission(model.metadata(), emission), model.tint());
     }
 }

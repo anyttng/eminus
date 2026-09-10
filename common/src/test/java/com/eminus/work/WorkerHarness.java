@@ -21,6 +21,10 @@ public final class WorkerHarness implements AutoCloseable {
         return service;
     }
 
+    public <C> WorkService<C> register(String name, Supplier<C> scratchFactory) {
+        return pool.register(name, 1, WorkService.UNLIMITED, scratchFactory);
+    }
+
     public <T> T call(Supplier<T> body) {
         AtomicReference<T> result = new AtomicReference<>();
         AtomicReference<RuntimeException> failure = new AtomicReference<>();

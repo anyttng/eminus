@@ -6,16 +6,19 @@ public final class ModelMetadata {
     public static final int PRESENT_SHIFT = 0;
     public static final int OCCLUDING_SHIFT = 6;
     public static final int OCCLUDABLE_SHIFT = 12;
+    public static final int EMISSION_SHIFT = 18;
 
-    public static final int SELF_LIT = 1 << 18;
-    public static final int TINTED = 1 << 19;
-    public static final int TRANSLUCENT = 1 << 20;
-    public static final int FLAGS = SELF_LIT | TINTED | TRANSLUCENT;
+    public static final int MAX_EMISSION = 15;
 
-    public static int pack(int present, int occluding, int occludable, int flags) {
+    public static final int TINTED = 1 << 22;
+    public static final int TRANSLUCENT = 1 << 23;
+    public static final int FLAGS = TINTED | TRANSLUCENT;
+
+    public static int pack(int present, int occluding, int occludable, int emission, int flags) {
         return (present & FaceMask.ALL) << PRESENT_SHIFT
                 | (occluding & FaceMask.ALL) << OCCLUDING_SHIFT
                 | (occludable & FaceMask.ALL) << OCCLUDABLE_SHIFT
+                | (emission & MAX_EMISSION) << EMISSION_SHIFT
                 | flags & FLAGS;
     }
 
@@ -29,6 +32,14 @@ public final class ModelMetadata {
 
     public static int occludable(int word) {
         return word >>> OCCLUDABLE_SHIFT & FaceMask.ALL;
+    }
+
+    public static int emission(int word) {
+        return word >>> EMISSION_SHIFT & MAX_EMISSION;
+    }
+
+    public static int withEmission(int word, int emission) {
+        return word & ~(MAX_EMISSION << EMISSION_SHIFT) | (emission & MAX_EMISSION) << EMISSION_SHIFT;
     }
 
     public static boolean has(int word, int flag) {

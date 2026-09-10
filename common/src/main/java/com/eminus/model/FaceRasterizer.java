@@ -86,7 +86,7 @@ public final class FaceRasterizer {
 
         int tintLayer = tintLayer(quads);
         BlockTintSource tint = tintLayer == NO_TINT_LAYER ? null : tints.apply(tintLayer);
-        int metadata = ModelMetadata.pack(present, occluding, occludable, flags(quads, tint));
+        int metadata = ModelMetadata.pack(present, occluding, occludable, emission(quads), flags(quads, tint));
         return new BakedModel(faces, insets, bounds(quads), metadata, tint);
     }
 
@@ -195,16 +195,22 @@ public final class FaceRasterizer {
         int flags = tint == null ? 0 : ModelMetadata.TINTED;
 
         for (BakedQuad quad : quads) {
-            if (quad.materialInfo().lightEmission() > 0) {
-                flags |= ModelMetadata.SELF_LIT;
-            }
-
             if (quad.materialInfo().layer().translucent()) {
                 flags |= ModelMetadata.TRANSLUCENT;
             }
         }
 
         return flags;
+    }
+
+    private static int emission(List<BakedQuad> quads) {
+        int emission = 0;
+
+        for (BakedQuad quad : quads) {
+            emission = Math.max(emission, quad.materialInfo().lightEmission());
+        }
+
+        return Math.min(emission, ModelMetadata.MAX_EMISSION);
     }
 
     private static float[] bounds(List<BakedQuad> quads) {

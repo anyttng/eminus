@@ -19,6 +19,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.LevelResource;
 
+import org.jspecify.annotations.Nullable;
+
 public final class ClientSession {
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
@@ -49,6 +51,14 @@ public final class ClientSession {
         runtime = null;
         instance.shutdown();
         instance = null;
+    }
+
+    public static @Nullable EminusInstance instance() {
+        return instance;
+    }
+
+    public static @Nullable DimensionRuntime runtime() {
+        return runtime;
     }
 
     public static void tick() {

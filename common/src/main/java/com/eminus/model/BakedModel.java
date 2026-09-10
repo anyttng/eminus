@@ -31,7 +31,7 @@ public record BakedModel(int[] faces, float[] insets, float[] bounds, int metada
     public static BakedModel solid(int argb) {
         int[] faces = new int[FACE_COUNT * FACE_TEXELS];
         Arrays.fill(faces, argb);
-        int metadata = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0);
+        int metadata = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0);
         return new BakedModel(faces, new float[FACE_COUNT], fullBounds(), metadata, null);
     }
 

@@ -32,7 +32,7 @@ public final class FluidBaker {
         BlockTintSource tint = model.tintSource();
         int flags = (translucent ? ModelMetadata.TRANSLUCENT : 0) | (tint == null ? 0 : ModelMetadata.TINTED);
         int occluding = !translucent && opaque(side) ? FaceMask.ALL : FaceMask.NONE;
-        int metadata = ModelMetadata.pack(FaceMask.ALL, occluding, FaceMask.ALL, flags);
+        int metadata = ModelMetadata.pack(FaceMask.ALL, occluding, FaceMask.ALL, 0, flags);
 
         return new BakedModel(
                 faces, new float[BakedModel.FACE_COUNT], BakedModel.fullBounds(), metadata, tint);

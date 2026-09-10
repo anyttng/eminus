@@ -3,30 +3,20 @@ package com.eminus.model.client;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import com.eminus.Eminus;
 import com.eminus.model.BakedModel;
-import com.eminus.model.BakeLevel;
 import com.eminus.model.BiomeColours;
-import com.eminus.model.FluidBaker;
-import com.eminus.model.ModelBaker;
 import com.eminus.model.ModelBakery;
 import com.eminus.model.ModelMetadata;
 import com.eminus.model.ModelSheet;
-import com.eminus.model.SolidSprites;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
-import net.minecraft.client.resources.model.ModelManager;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -63,11 +53,9 @@ public final class ModelDump {
         Path file = client.gameDirectory.toPath().resolve(FILE_NAME);
         Eminus.LOGGER.info("{} dump states={} models={} file={}", PROBE, states.size(), models, file);
 
-        ModelManager manager = client.getModelManager();
-        SolidSprites sprites = new SolidSprites();
-        BiomeColours colours = new BiomeColours(levels(client.level));
-        ModelBakery bakery = ModelBakery.start(new ModelBaker(manager.getBlockStateModelSet(), client.getBlockColors(),
-                new FluidBaker(manager.getFluidStateModelSet(), sprites), sprites, colours));
+        ClientBakery baking = ClientBakery.start(client);
+        ModelBakery bakery = baking.bakery();
+        BiomeColours colours = baking.colours();
 
         try {
             bake(bakery, states, models);
@@ -75,7 +63,7 @@ public final class ModelDump {
             upload(bakery, colours);
             return sheet(bakery, file);
         } finally {
-            bakery.stop();
+            baking.stop();
         }
     }
 
@@ -170,17 +158,6 @@ public final class ModelDump {
         List<BlockState> states = new ArrayList<>();
         BuiltInRegistries.BLOCK.forEach(block -> states.addAll(block.getStateDefinition().getPossibleStates()));
         return states;
-    }
-
-    private static Map<String, BlockAndTintGetter> levels(ClientLevel level) {
-        Map<String, BlockAndTintGetter> levels = new HashMap<>();
-        if (level == null) {
-            return levels;
-        }
-
-        level.registryAccess().lookupOrThrow(Registries.BIOME).listElements().forEach(biome ->
-                levels.put(biome.key().identifier().toString(), new BakeLevel(biome.value())));
-        return levels;
     }
 
     private ModelDump() {

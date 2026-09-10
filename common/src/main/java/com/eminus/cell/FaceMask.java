@@ -1,5 +1,7 @@
 package com.eminus.cell;
 
+import net.minecraft.core.Direction;
+
 public final class FaceMask {
     public static final int NONE = 0;
     public static final int DOWN = 1;
@@ -11,6 +13,10 @@ public final class FaceMask {
     public static final int ALL = DOWN | UP | NORTH | SOUTH | WEST | EAST;
 
     private static final int LAST_VOXEL = DetailLevel.VOXELS_PER_SIDE - 1;
+
+    public static int bit(Direction face) {
+        return 1 << face.ordinal();
+    }
 
     public static int of(int voxelX, int voxelY, int voxelZ) {
         int mask = NONE;
