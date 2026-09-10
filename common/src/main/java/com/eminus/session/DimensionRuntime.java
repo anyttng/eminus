@@ -3,6 +3,7 @@ package com.eminus.session;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
 import com.eminus.Eminus;
@@ -10,6 +11,7 @@ import com.eminus.cell.CellFrame;
 import com.eminus.cell.Dictionary;
 import com.eminus.cell.StateTable;
 import com.eminus.cell.cache.CellCache;
+import com.eminus.ingest.CellChangeListener;
 import com.eminus.ingest.CellMerger;
 import com.eminus.ingest.IngestService;
 import com.eminus.ingest.SectionConverter;
@@ -25,6 +27,8 @@ public final class DimensionRuntime {
     private final Path folder;
     private final CellFrame frame;
     private final int lowestStoredLevel;
+
+    private final AtomicReference<CellChangeListener> changes = new AtomicReference<>();
 
     private CellStore store;
     private SaveService saves;
@@ -80,6 +84,15 @@ public final class DimensionRuntime {
         return closed;
     }
 
+    // A listener that takes the handle replaces the one that releases it, so a cell reaches exactly one owner.
+    public void listenTo(CellChangeListener listener) {
+        changes.set(listener);
+    }
+
+    public void stopListening() {
+        changes.set((handle, faceMask) -> cells.release(handle));
+    }
+
     void createFolder() {
         try {
             Files.createDirectories(folder);
@@ -106,7 +119,8 @@ public final class DimensionRuntime {
         cells = new CellCache(store, saves, clock);
         states = new StateTable(stateIds);
         biomes = biomeIds;
-        merger = new CellMerger(cells, frame, lowestStoredLevel, (handle, faceMask) -> cells.release(handle));
+        changes.set((handle, faceMask) -> cells.release(handle));
+        merger = new CellMerger(cells, frame, lowestStoredLevel, (handle, faceMask) -> changes.get().changed(handle, faceMask));
         ingest = new IngestService(ingestService, states, biomes, merger);
     }
 

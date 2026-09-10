@@ -3,6 +3,7 @@ package com.eminus.render.arena.client;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.MeshSlot;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
@@ -15,10 +16,12 @@ public final class MeshRecords implements AutoCloseable {
     private static final String LABEL = "eminus-mesh-records";
     private static final int USAGE = GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER | GpuBuffer.USAGE_COPY_DST;
     private static final int KEY_SHIFT = 32;
+    private static final int MAX_BLOCKS_PER_MESH = ArenaAllocator.blocksFor(ArenaUploader.MAX_QUADS);
 
     private final GpuBuffer buffer;
     private final int capacity;
-    private final ByteBuffer scratch = ByteBuffer.allocateDirect(BYTES).order(ByteOrder.nativeOrder());
+    private final ByteBuffer scratch =
+            ByteBuffer.allocateDirect(MAX_BLOCKS_PER_MESH * BYTES).order(ByteOrder.nativeOrder());
 
     private MeshRecords(GpuBuffer buffer, int capacity) {
         this.buffer = buffer;
@@ -39,17 +42,22 @@ public final class MeshRecords implements AutoCloseable {
         return capacity;
     }
 
-    public void write(int slot, MeshSlot mesh) {
+    // Every block of the mesh carries the record, so the vertex stage reads it by the quad's own block.
+    public void write(MeshSlot mesh) {
         RenderSystem.assertOnRenderThread();
+        int blocks = ArenaAllocator.blocksFor(mesh.quads());
         scratch.clear();
-        scratch.putInt((int) mesh.key())
-                .putInt((int) (mesh.key() >>> KEY_SHIFT))
-                .putInt(mesh.baseQuad())
-                .putInt(mesh.quads());
-        scratch.flip();
 
+        for (int block = 0; block < blocks; block++) {
+            scratch.putInt((int) mesh.key())
+                    .putInt((int) (mesh.key() >>> KEY_SHIFT))
+                    .putInt(mesh.baseQuad())
+                    .putInt(mesh.quads());
+        }
+
+        scratch.flip();
         RenderSystem.getDevice().createCommandEncoder()
-                .writeToBuffer(buffer.slice((long) slot * BYTES, BYTES), scratch);
+                .writeToBuffer(buffer.slice((long) mesh.block() * BYTES, blocks * BYTES), scratch);
     }
 
     @Override

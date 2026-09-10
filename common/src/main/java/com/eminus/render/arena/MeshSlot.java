@@ -22,6 +22,14 @@ public record MeshSlot(long key, int block, int quads, int[] groupStart, int[] g
         return block * ArenaAllocator.QUADS_PER_BLOCK;
     }
 
+    public int groupStart(int group) {
+        return groupStart[group];
+    }
+
+    public int groupCount(int group) {
+        return groupCount[group];
+    }
+
     public void bounds(CellFrame frame, float[] target) {
         int level = CellKey.level(key);
         int side = DetailLevel.blocksPerCell(level);

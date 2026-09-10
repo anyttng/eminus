@@ -4,6 +4,7 @@ import java.nio.file.Path;
 
 import com.eminus.ingest.IngestService;
 import com.eminus.mixin.BiomeManagerAccessor;
+import com.eminus.render.far.client.FarRenderer;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 import com.eminus.session.StoreFolders;
@@ -24,6 +25,7 @@ import org.jspecify.annotations.Nullable;
 public final class ClientSession {
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
+    private static FarRenderer renderer;
     private static ClientLevel level;
     private static String world = "";
 
@@ -47,10 +49,17 @@ public final class ClientSession {
             return;
         }
 
+        stopRenderer();
         level = null;
         runtime = null;
         instance.shutdown();
         instance = null;
+    }
+
+    public static void drawFarLayer() {
+        if (renderer != null) {
+            renderer.frame(Minecraft.getInstance());
+        }
     }
 
     public static @Nullable EminusInstance instance() {
@@ -101,6 +110,7 @@ public final class ClientSession {
 
     private static void swapLevel(ClientLevel current) {
         level = current;
+        stopRenderer();
 
         if (runtime != null) {
             instance.release(runtime);
@@ -109,6 +119,14 @@ public final class ClientSession {
 
         if (current != null) {
             runtime = instance.acquire(identityOf(current), current.getMinY());
+            renderer = FarRenderer.start(Minecraft.getInstance(), instance, runtime);
+        }
+    }
+
+    private static void stopRenderer() {
+        if (renderer != null) {
+            renderer.close();
+            renderer = null;
         }
     }
 

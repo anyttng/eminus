@@ -13,6 +13,7 @@ import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.systems.DeviceFeatures;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderPassDescriptor;
@@ -53,6 +54,11 @@ public final class BackendCheck {
 
         if (arenaBytes <= 0 || arenaBytes > device.getDeviceInfo().limits().maxMemoryAllocationSize()) {
             return refuse(BackendLimitation.ARENA_MEMORY, depth);
+        }
+
+        DeviceFeatures features = device.getDeviceInfo().features();
+        if (!features.drawIndirect() || !features.multiDrawIndirect()) {
+            return refuse(BackendLimitation.DRAW_INDIRECT, depth);
         }
 
         RenderPipeline probe = probePipeline(depth);
