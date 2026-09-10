@@ -5,6 +5,7 @@ import com.eminus.cell.DetailLevel;
 import com.eminus.mesh.client.MeshDump;
 import com.eminus.model.client.ModelDump;
 import com.eminus.render.arena.client.ArenaDump;
+import com.eminus.render.tree.client.TreeDump;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -21,6 +22,7 @@ public final class NeoForgeCommandHooks {
     private static final String BAKE = "bake";
     private static final String MESH = "mesh";
     private static final String ARENA = "arena";
+    private static final String TREE = "tree";
     private static final String MODELS = "models";
     private static final String LEVEL = "level";
     private static final int MIN_MODELS = 1;
@@ -39,7 +41,9 @@ public final class NeoForgeCommandHooks {
                         .then(Commands.literal(ARENA)
                                 .then(Commands.argument(LEVEL,
                                                 IntegerArgumentType.integer(DetailLevel.MIN, DetailLevel.MAX))
-                                        .executes(NeoForgeCommandHooks::arena)))));
+                                        .executes(NeoForgeCommandHooks::arena)))
+                        .then(Commands.literal(TREE)
+                                .executes(NeoForgeCommandHooks::tree))));
     }
 
     private static int sample(CommandContext<CommandSourceStack> context) {
@@ -56,6 +60,10 @@ public final class NeoForgeCommandHooks {
 
     private static int arena(CommandContext<CommandSourceStack> context) {
         return answer(context, ArenaDump.at(IntegerArgumentType.getInteger(context, LEVEL)));
+    }
+
+    private static int tree(CommandContext<CommandSourceStack> context) {
+        return answer(context, TreeDump.at());
     }
 
     private static int answer(CommandContext<CommandSourceStack> context, Component result) {

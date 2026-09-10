@@ -37,6 +37,14 @@ public final class MeshService {
         submit(MeshTask.carrying(key, held, references));
     }
 
+    public void release(CellHandle held, int references) {
+        work.enqueue(scratch -> {
+            for (int reference = 0; reference < references; reference++) {
+                cells.release(held);
+            }
+        });
+    }
+
     public int backlog() {
         return queue.size();
     }
@@ -63,9 +71,9 @@ public final class MeshService {
 
         try {
             handles[0] = held == null ? cells.open(task.key()) : held;
-            handles[0].withCell(cell -> {
+            int occupancy = handles[0].withCell(cell -> {
                 scratch.voxels().load(cell);
-                return null;
+                return cell.occupancy();
             });
 
             for (Direction face : FACES) {
@@ -77,7 +85,8 @@ public final class MeshService {
                 });
             }
 
-            CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), opacity, () -> submit(task.retry()));
+            CellMesh mesh = new CellMesher(scratch, models)
+                    .mesh(task.key(), occupancy, opacity, () -> submit(task.retry()));
             if (mesh != null) {
                 listener.meshed(mesh);
             }

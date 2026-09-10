@@ -15,6 +15,7 @@ import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongList;
 
 import org.jspecify.annotations.Nullable;
 
@@ -106,6 +107,14 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         for (ArenaUpload dropped : uploader.upload(quads, uploads)) {
             release(dropped.mesh().key());
             refused++;
+        }
+    }
+
+    public void evict(LongList keys) {
+        RenderSystem.assertOnRenderThread();
+
+        for (int at = 0; at < keys.size(); at++) {
+            release(keys.getLong(at));
         }
     }
 

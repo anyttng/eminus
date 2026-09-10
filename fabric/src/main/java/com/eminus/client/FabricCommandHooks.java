@@ -5,6 +5,7 @@ import com.eminus.cell.DetailLevel;
 import com.eminus.mesh.client.MeshDump;
 import com.eminus.model.client.ModelDump;
 import com.eminus.render.arena.client.ArenaDump;
+import com.eminus.render.tree.client.TreeDump;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -20,6 +21,7 @@ public final class FabricCommandHooks {
     private static final String BAKE = "bake";
     private static final String MESH = "mesh";
     private static final String ARENA = "arena";
+    private static final String TREE = "tree";
     private static final String MODELS = "models";
     private static final String LEVEL = "level";
     private static final int MIN_MODELS = 1;
@@ -38,7 +40,9 @@ public final class FabricCommandHooks {
                         .then(ClientCommands.literal(ARENA)
                                 .then(ClientCommands.argument(LEVEL,
                                                 IntegerArgumentType.integer(DetailLevel.MIN, DetailLevel.MAX))
-                                        .executes(FabricCommandHooks::arena)))));
+                                        .executes(FabricCommandHooks::arena)))
+                        .then(ClientCommands.literal(TREE)
+                                .executes(FabricCommandHooks::tree))));
     }
 
     private static int sample(CommandContext<FabricClientCommandSource> context) {
@@ -55,6 +59,10 @@ public final class FabricCommandHooks {
 
     private static int arena(CommandContext<FabricClientCommandSource> context) {
         return answer(context, ArenaDump.at(IntegerArgumentType.getInteger(context, LEVEL)));
+    }
+
+    private static int tree(CommandContext<FabricClientCommandSource> context) {
+        return answer(context, TreeDump.at());
     }
 
     private static int answer(CommandContext<FabricClientCommandSource> context, Component result) {

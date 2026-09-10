@@ -60,6 +60,10 @@ public final class DimensionRuntime {
         return frame;
     }
 
+    public int lowestStoredLevel() {
+        return lowestStoredLevel;
+    }
+
     public CellCache cells() {
         return cells;
     }

@@ -53,6 +53,13 @@ public final class CellKey {
         };
     }
 
+    public static long child(long key, int octant) {
+        return pack(level(key) - 1,
+                x(key) * 2 + OccupancyMask.x(octant),
+                y(key) * 2 + OccupancyMask.y(octant),
+                z(key) * 2 + OccupancyMask.z(octant));
+    }
+
     private static long biasHorizontal(int coordinate) {
         return (long) coordinate - MIN_HORIZONTAL;
     }

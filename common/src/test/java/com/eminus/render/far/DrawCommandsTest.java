@@ -115,6 +115,6 @@ class DrawCommandsTest {
     }
 
     private static CellMesh mesh(long key) {
-        return new CellMesh(key, new long[0], new int[QuadGroups.COUNT], new int[QuadGroups.COUNT]);
+        return CellMesh.empty(key);
     }
 }

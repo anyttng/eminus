@@ -56,6 +56,17 @@ class CellKeyTest {
     }
 
     @Test
+    void eachOctantChildIsOneLevelFinerInItsOwnCorner() {
+        long key = CellKey.pack(2, 1, 2, 3);
+
+        assertEquals(CellKey.pack(1, 2, 4, 6), CellKey.child(key, OccupancyMask.octantOf(0, 0, 0)));
+        assertEquals(CellKey.pack(1, 3, 4, 6), CellKey.child(key, OccupancyMask.octantOf(16, 0, 0)));
+        assertEquals(CellKey.pack(1, 2, 5, 6), CellKey.child(key, OccupancyMask.octantOf(0, 16, 0)));
+        assertEquals(CellKey.pack(1, 2, 4, 7), CellKey.child(key, OccupancyMask.octantOf(0, 0, 16)));
+        assertEquals(CellKey.pack(1, 3, 5, 7), CellKey.child(key, OccupancyMask.octantOf(16, 16, 16)));
+    }
+
+    @Test
     void keysOrderByLevelThenPosition() {
         long[] ordered = {
                 CellKey.pack(0, -1, 0, 0),

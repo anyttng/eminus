@@ -181,7 +181,7 @@ class CellMesherTest {
         around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
 
         return new CellMesher(scratch, models)
-                .mesh(CellKey.pack(level, 0, 0, 0), opacity, () -> bakeRequests++);
+                .mesh(CellKey.pack(level, 0, 0, 0), centre.occupancy(), opacity, () -> bakeRequests++);
     }
 
     private static Cell blank() {

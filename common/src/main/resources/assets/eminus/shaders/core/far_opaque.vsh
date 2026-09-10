@@ -63,17 +63,18 @@ void main() {
 
     vec3 local = vec3(voxel);
     local[normalAxis] += (face & 1) == 1 ? 1.0 - insets[face] : insets[face];
-    local[widthAxis] += unit.x * float(width - 1) + mix(boundsMin[widthAxis], boundsMax[widthAxis], unit.x);
-    local[heightAxis] += unit.y * float(height - 1) + mix(boundsMin[heightAxis], boundsMax[heightAxis], unit.y);
+    vec2 extent = vec2(unit.x * float(width - 1) + mix(boundsMin[widthAxis], boundsMax[widthAxis], unit.x),
+                       unit.y * float(height - 1) + mix(boundsMin[heightAxis], boundsMax[heightAxis], unit.y));
+    local[widthAxis] += extent.x;
+    local[heightAxis] += extent.y;
 
     int cellBlocks = VOXELS_PER_SIDE << level;
     ivec3 origin = ivec3(cellX * cellBlocks, cellY * cellBlocks + MinBlockY, cellZ * cellBlocks);
     vec3 position = vec3(origin - CameraBlockPos) + CameraOffset + local * float(1 << level);
     gl_Position = FarProjView * vec4(position, 1.0);
 
-    vec2 span = unit * vec2(float(width), float(height));
-    faceUV = vec2(face == 2 || face == 5 ? float(width) - span.x : span.x,
-                  face == 1 ? float(height) - span.y : span.y);
+    faceUV = vec2(face == 2 || face == 5 ? float(width) - extent.x : extent.x,
+                  face == 1 ? float(height) - extent.y : extent.y);
 
     int slot = modelId * MODEL_FACES + face;
     atlasCell = ivec2(slot % AtlasCells, slot / AtlasCells);

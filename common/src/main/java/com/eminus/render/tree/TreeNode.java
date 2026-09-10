@@ -1,29 +1,120 @@
 package com.eminus.render.tree;
 
+import com.eminus.cell.CellKey;
+import com.eminus.cell.OccupancyMask;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.mesh.CellMesh;
 
 import org.jspecify.annotations.Nullable;
 
 public final class TreeNode {
-    private final long key;
+    static final int NO_OCTANT = -1;
 
+    private final long key;
+    private final int level;
+    private final @Nullable TreeNode parent;
+    private final int octant;
+
+    private @Nullable TreeNode @Nullable [] children;
     private @Nullable CellMesh mesh;
     private @Nullable CellHandle pending;
     private int pendingReferences;
+    private int requestedOctants;
+    private long lastSeen;
     private boolean building;
     private boolean rebuild;
 
-    TreeNode(long key) {
+    TreeNode(long key, @Nullable TreeNode parent, int octant) {
         this.key = key;
+        this.level = CellKey.level(key);
+        this.parent = parent;
+        this.octant = octant;
+    }
+
+    static TreeNode root(long key) {
+        return new TreeNode(key, null, NO_OCTANT);
     }
 
     public long key() {
         return key;
     }
 
+    public int level() {
+        return level;
+    }
+
     public @Nullable CellMesh mesh() {
         return mesh;
+    }
+
+    public boolean isRoot() {
+        return parent == null;
+    }
+
+    @Nullable TreeNode parent() {
+        return parent;
+    }
+
+    int octant() {
+        return octant;
+    }
+
+    int occupancy() {
+        return mesh == null ? OccupancyMask.EMPTY : mesh.occupancy();
+    }
+
+    @Nullable TreeNode child(int at) {
+        return children == null ? null : children[at];
+    }
+
+    int requestedOctants() {
+        return requestedOctants;
+    }
+
+    int missingOctants() {
+        return occupancy() & ~requestedOctants;
+    }
+
+    boolean childrenReady() {
+        int occupied = occupancy();
+
+        for (int at = 0; at < OccupancyMask.OCTANTS; at++) {
+            if (!OccupancyMask.isSet(occupied, at)) {
+                continue;
+            }
+
+            TreeNode child = child(at);
+            if (child == null || child.mesh == null) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    void attach(TreeNode child) {
+        if (children == null) {
+            children = new TreeNode[OccupancyMask.OCTANTS];
+        }
+
+        children[child.octant] = child;
+        requestedOctants = OccupancyMask.set(requestedOctants, child.octant);
+    }
+
+    void detach(int at) {
+        if (children != null) {
+            children[at] = null;
+        }
+
+        requestedOctants = OccupancyMask.clear(requestedOctants, at);
+    }
+
+    long lastSeen() {
+        return lastSeen;
+    }
+
+    void seen(long walk) {
+        lastSeen = walk;
     }
 
     boolean building() {

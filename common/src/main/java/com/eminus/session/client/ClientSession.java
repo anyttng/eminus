@@ -70,6 +70,10 @@ public final class ClientSession {
         return runtime;
     }
 
+    public static @Nullable FarRenderer renderer() {
+        return renderer;
+    }
+
     public static void tick() {
         if (instance == null) {
             return;
@@ -119,7 +123,7 @@ public final class ClientSession {
 
         if (current != null) {
             runtime = instance.acquire(identityOf(current), current.getMinY());
-            renderer = FarRenderer.start(Minecraft.getInstance(), instance, runtime);
+            renderer = FarRenderer.start(Minecraft.getInstance(), instance, runtime, current.getHeight());
         }
     }
 

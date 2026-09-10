@@ -34,7 +34,7 @@ public final class MeshBuffer {
         unaddressable++;
     }
 
-    public CellMesh freeze(long key) {
+    public CellMesh freeze(long key, int occupancy) {
         report(key);
 
         int total = 0;
@@ -43,7 +43,7 @@ public final class MeshBuffer {
         }
 
         if (total == 0) {
-            return CellMesh.empty(key);
+            return CellMesh.empty(key, occupancy);
         }
 
         long[] packed = new long[total];
@@ -59,7 +59,7 @@ public final class MeshBuffer {
             at += quads.size();
         }
 
-        return new CellMesh(key, packed, starts, counts);
+        return new CellMesh(key, occupancy, packed, starts, counts);
     }
 
     public void reset() {

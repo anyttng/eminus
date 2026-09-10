@@ -1,8 +1,14 @@
 package com.eminus.mesh;
 
-public record CellMesh(long key, long[] quads, int[] groupStart, int[] groupCount) {
+import com.eminus.cell.OccupancyMask;
+
+public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount) {
     public static CellMesh empty(long key) {
-        return new CellMesh(key, new long[0], new int[QuadGroups.COUNT], new int[QuadGroups.COUNT]);
+        return empty(key, OccupancyMask.EMPTY);
+    }
+
+    public static CellMesh empty(long key, int occupancy) {
+        return new CellMesh(key, occupancy, new long[0], new int[QuadGroups.COUNT], new int[QuadGroups.COUNT]);
     }
 
     public int quadCount() {

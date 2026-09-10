@@ -9,6 +9,8 @@ public final class FarProjection {
     public static final float NEAR = 16.0F;
     public static final float FAR = 48_000.0F;
 
+    private static final double HALF = 0.5;
+
     private final Projection projection = new Projection();
     private final Matrix4f rotation = new Matrix4f();
 
@@ -16,5 +18,10 @@ public final class FarProjection {
         projection.setupPerspective(NEAR, FAR, camera.getFov(), width, height);
         projection.getMatrix(target);
         return target.mul(camera.getViewRotationMatrix(rotation));
+    }
+
+    // The detail metric follows the fov the player set, so a spyglass or a sprint moves no level.
+    public static float focalPixels(int fovDegrees, float height) {
+        return (float) (height * HALF / Math.tan(Math.toRadians(fovDegrees) * HALF));
     }
 }

@@ -9,4 +9,10 @@ public sealed interface TreeMessage {
 
     record CellMeshed(CellMesh mesh) implements TreeMessage {
     }
+
+    record FrameReady() implements TreeMessage {
+    }
+
+    record Describe(long[] keys) implements TreeMessage {
+    }
 }

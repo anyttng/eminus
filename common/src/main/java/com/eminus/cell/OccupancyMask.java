@@ -22,6 +22,18 @@ public final class OccupancyMask {
         return (mask & (1 << octant)) != 0;
     }
 
+    public static int x(int octant) {
+        return octant & 1;
+    }
+
+    public static int y(int octant) {
+        return (octant >> 2) & 1;
+    }
+
+    public static int z(int octant) {
+        return (octant >> 1) & 1;
+    }
+
     public static boolean isEmpty(int mask) {
         return mask == EMPTY;
     }
