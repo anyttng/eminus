@@ -2,6 +2,7 @@ package com.eminus.client;
 
 import com.eminus.session.client.ClientSession;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 
@@ -10,6 +11,7 @@ public final class FabricSessionHooks {
         ClientPlayConnectionEvents.JOIN.register((listener, sender, client) -> ClientSession.login());
         ClientPlayConnectionEvents.DISCONNECT.register(
                 (listener, client) -> client.execute(ClientSession::disconnect));
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ClientSession.disconnect());
         ClientTickEvents.END_CLIENT_TICK.register(client -> ClientSession.tick());
     }
 

@@ -1,5 +1,6 @@
 package com.eminus.session;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -119,6 +120,17 @@ class EminusInstanceTest {
         assertTrue(runtime.closed());
         assertEquals(0, instance.runtimeCount());
         assertThrows(IllegalStateException.class, () -> instance.acquire(identity(NETHER), MIN_BLOCK_Y));
+    }
+
+    @Test
+    void aSecondShutdownIsASilentNoOp() {
+        start();
+        DimensionRuntime runtime = instance.acquire(identity(OVERWORLD), MIN_BLOCK_Y);
+        instance.shutdown();
+
+        assertDoesNotThrow(instance::shutdown);
+        assertTrue(runtime.closed());
+        assertEquals(0, instance.runtimeCount());
     }
 
     private void start() {
