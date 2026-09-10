@@ -1,5 +1,7 @@
 package com.eminus.cell;
 
+import net.minecraft.core.Direction;
+
 public final class CellKey {
     public static final int HORIZONTAL_BITS = 24;
     public static final int VERTICAL_BITS = 12;
@@ -38,6 +40,17 @@ public final class CellKey {
 
     public static int z(long key) {
         return (int) ((key >>> Z_SHIFT) & HORIZONTAL_MASK) + MIN_HORIZONTAL;
+    }
+
+    public static long neighbour(long key, Direction face) {
+        int level = level(key);
+        int step = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1 : -1;
+
+        return switch (face.getAxis()) {
+            case X -> pack(level, x(key) + step, y(key), z(key));
+            case Y -> pack(level, x(key), y(key) + step, z(key));
+            case Z -> pack(level, x(key), y(key), z(key) + step);
+        };
     }
 
     private static long biasHorizontal(int coordinate) {

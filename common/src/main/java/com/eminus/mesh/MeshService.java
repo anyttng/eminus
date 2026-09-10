@@ -8,6 +8,8 @@ import com.eminus.work.WorkService;
 
 import net.minecraft.core.Direction;
 
+import org.jspecify.annotations.Nullable;
+
 public final class MeshService {
     private static final Direction[] FACES = Direction.values();
 
@@ -29,6 +31,10 @@ public final class MeshService {
 
     public void request(long key) {
         submit(MeshTask.fresh(key));
+    }
+
+    public void request(long key, @Nullable CellHandle held, int references) {
+        submit(MeshTask.carrying(key, held, references));
     }
 
     public int backlog() {
@@ -53,16 +59,17 @@ public final class MeshService {
 
     void build(MeshTask task, MeshScratch scratch) {
         CellHandle[] handles = new CellHandle[FACES.length + 1];
+        CellHandle held = task.held();
 
         try {
-            handles[0] = cells.open(task.key());
+            handles[0] = held == null ? cells.open(task.key()) : held;
             handles[0].withCell(cell -> {
                 scratch.voxels().load(cell);
                 return null;
             });
 
             for (Direction face : FACES) {
-                CellHandle handle = cells.open(neighbourKey(task.key(), face));
+                CellHandle handle = cells.open(CellKey.neighbour(task.key(), face));
                 handles[face.ordinal() + 1] = handle;
                 handle.withCell(cell -> {
                     scratch.voxels().loadNeighbour(face, cell);
@@ -76,6 +83,13 @@ public final class MeshService {
             }
         } finally {
             release(handles);
+            releaseCarried(held, task.references());
+        }
+    }
+
+    private void releaseCarried(@Nullable CellHandle held, int references) {
+        for (int extra = 1; extra < references; extra++) {
+            cells.release(held);
         }
     }
 
@@ -85,16 +99,5 @@ public final class MeshService {
                 cells.release(handle);
             }
         }
-    }
-
-    static long neighbourKey(long key, Direction face) {
-        int level = CellKey.level(key);
-        int step = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1 : -1;
-
-        return switch (face.getAxis()) {
-            case X -> CellKey.pack(level, CellKey.x(key) + step, CellKey.y(key), CellKey.z(key));
-            case Y -> CellKey.pack(level, CellKey.x(key), CellKey.y(key) + step, CellKey.z(key));
-            case Z -> CellKey.pack(level, CellKey.x(key), CellKey.y(key), CellKey.z(key) + step);
-        };
     }
 }

@@ -14,11 +14,10 @@ import com.eminus.cell.StateOpacity;
 import com.eminus.cell.StateTable;
 import com.eminus.cell.VoxelEntry;
 import com.eminus.cell.cache.CellCache;
+import com.eminus.cell.cache.CellHandle;
 import com.eminus.model.ModelMetadata;
 import com.eminus.store.FakeCellStore;
 import com.eminus.work.WorkerHarness;
-
-import net.minecraft.core.Direction;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -86,13 +85,36 @@ class MeshServiceTest {
     }
 
     @Test
-    void eachNeighbourKeyStepsOneCellAlongItsOwnAxis() {
-        assertEquals(CellKey.pack(LEVEL, 1, 2, 2), MeshService.neighbourKey(KEY, Direction.NORTH));
-        assertEquals(CellKey.pack(LEVEL, 1, 2, 4), MeshService.neighbourKey(KEY, Direction.SOUTH));
-        assertEquals(CellKey.pack(LEVEL, 0, 2, 3), MeshService.neighbourKey(KEY, Direction.WEST));
-        assertEquals(CellKey.pack(LEVEL, 2, 2, 3), MeshService.neighbourKey(KEY, Direction.EAST));
-        assertEquals(CellKey.pack(LEVEL, 1, 1, 3), MeshService.neighbourKey(KEY, Direction.DOWN));
-        assertEquals(CellKey.pack(LEVEL, 1, 3, 3), MeshService.neighbourKey(KEY, Direction.UP));
+    void aCarriedReferenceIsReleasedByTheBuildTask() {
+        models.define(STONE, STONE_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
+        seedCube();
+
+        harness.run(() -> {
+            CellHandle handle = cache.open(KEY);
+            service.build(MeshTask.carrying(KEY, handle, 1), new MeshScratch());
+        });
+
+        assertNotNull(delivered.get());
+        assertEquals(0, cache.liveCount());
+        assertEquals(OPENED_CELLS, cache.parkedCount());
+    }
+
+    @Test
+    void everyCarriedReferenceIsReleasedByTheBuildTask() {
+        models.define(STONE, STONE_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
+        seedCube();
+
+        harness.run(() -> {
+            CellHandle handle = cache.open(KEY);
+            cache.open(KEY);
+            cache.open(KEY);
+            service.build(MeshTask.carrying(KEY, handle, 3), new MeshScratch());
+        });
+
+        assertEquals(0, cache.liveCount());
+        assertEquals(OPENED_CELLS, cache.parkedCount());
     }
 
     private void seedCube() {

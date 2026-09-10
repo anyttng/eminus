@@ -1,0 +1,12 @@
+package com.eminus.render.tree;
+
+import com.eminus.cell.cache.CellHandle;
+import com.eminus.mesh.CellMesh;
+
+public sealed interface TreeMessage {
+    record CellChanged(CellHandle handle, int faceMask) implements TreeMessage {
+    }
+
+    record CellMeshed(CellMesh mesh) implements TreeMessage {
+    }
+}

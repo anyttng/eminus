@@ -3,6 +3,8 @@ package com.eminus.cell;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import net.minecraft.core.Direction;
+
 import org.junit.jupiter.api.Test;
 
 class CellKeyTest {
@@ -39,6 +41,18 @@ class CellKeyTest {
                 }
             }
         }
+    }
+
+    @Test
+    void eachNeighbourStepsOneCellAlongItsOwnAxis() {
+        long key = CellKey.pack(1, 1, 2, 3);
+
+        assertEquals(CellKey.pack(1, 1, 2, 2), CellKey.neighbour(key, Direction.NORTH));
+        assertEquals(CellKey.pack(1, 1, 2, 4), CellKey.neighbour(key, Direction.SOUTH));
+        assertEquals(CellKey.pack(1, 0, 2, 3), CellKey.neighbour(key, Direction.WEST));
+        assertEquals(CellKey.pack(1, 2, 2, 3), CellKey.neighbour(key, Direction.EAST));
+        assertEquals(CellKey.pack(1, 1, 1, 3), CellKey.neighbour(key, Direction.DOWN));
+        assertEquals(CellKey.pack(1, 1, 3, 3), CellKey.neighbour(key, Direction.UP));
     }
 
     @Test
