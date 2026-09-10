@@ -111,7 +111,7 @@ class CellMergerTest {
     }
 
     private void record(CellHandle handle, int faceMask) {
-        changes.add(new Change(faceMask, handle.dirty(), handle.cell().isEmpty()));
+        changes.add(new Change(faceMask, handle.dirty(), handle.withCell(cell -> cell.isEmpty())));
         cells.release(handle);
     }
 

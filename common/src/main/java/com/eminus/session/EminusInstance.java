@@ -9,6 +9,7 @@ import java.util.function.LongSupplier;
 
 import com.eminus.Eminus;
 import com.eminus.cell.CellFrame;
+import com.eminus.ingest.SectionPyramid;
 import com.eminus.work.ShutdownMode;
 import com.eminus.work.WorkService;
 import com.eminus.work.WorkerPool;
@@ -26,7 +27,7 @@ public final class EminusInstance {
     private final int lowestStoredLevel;
     private final LongSupplier clock;
     private final WorkerPool pool;
-    private final WorkService<Void> ingest;
+    private final WorkService<SectionPyramid> ingest;
     private final WorkService<Void> save;
     private final WorkService<Void> build;
     private final Map<WorldIdentity, DimensionRuntime> runtimes = new HashMap<>();
@@ -39,7 +40,7 @@ public final class EminusInstance {
         this.lowestStoredLevel = lowestStoredLevel;
         this.clock = clock;
         this.pool = pool;
-        ingest = pool.register(INGEST_SERVICE, INGEST_WEIGHT, WorkService.UNLIMITED, () -> null);
+        ingest = pool.register(INGEST_SERVICE, INGEST_WEIGHT, WorkService.UNLIMITED, SectionPyramid::new);
         save = pool.register(SAVE_SERVICE, SAVE_WEIGHT, WorkService.UNLIMITED, () -> null);
         build = pool.register(BUILD_SERVICE, BUILD_WEIGHT, WorkService.UNLIMITED, () -> null);
     }
@@ -81,7 +82,7 @@ public final class EminusInstance {
 
         cleaner.stop();
         build.stop(ShutdownMode.DRAIN);
-        ingest.stop(ShutdownMode.DRAIN);
+        ingest.stop(ShutdownMode.DISCARD);
         save.stop(ShutdownMode.INLINE);
         closeRuntimes();
         pool.shutdown();
@@ -128,7 +129,7 @@ public final class EminusInstance {
                 StoreFolders.dimensionFolder(storeBase, identity), new CellFrame(minBlockY), lowestStoredLevel);
         runtime.createFolder();
         runtime.openStore();
-        runtime.openCells(save, clock);
+        runtime.openCells(save, ingest, clock);
         Eminus.LOGGER.info("Dimension runtime opened for {} at {}", identity.dimension(), runtime.folder());
         return runtime;
     }

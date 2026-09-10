@@ -12,6 +12,7 @@ import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.VoxelEntry;
 import com.eminus.cell.cache.CellHandle;
+import com.eminus.ingest.SectionPyramid;
 import com.eminus.store.CellStore;
 import com.eminus.store.SqliteCellStore;
 import com.eminus.work.WorkService;
@@ -60,7 +61,7 @@ class DimensionRuntimeTest {
         openRuntime();
         harness.run(() -> {
             CellHandle handle = runtime.cells().open(KEY);
-            handle.cell().set(1, 2, 3, ENTRY);
+            handle.withCell(cell -> cell.set(1, 2, 3, ENTRY));
             handle.markDirty();
             runtime.cells().release(handle);
         });
@@ -75,7 +76,7 @@ class DimensionRuntimeTest {
         openRuntime();
         harness.run(() -> {
             CellHandle handle = runtime.cells().open(KEY);
-            handle.cell().set(1, 2, 3, ENTRY);
+            handle.withCell(cell -> cell.set(1, 2, 3, ENTRY));
             handle.markDirty();
         });
 
@@ -89,7 +90,8 @@ class DimensionRuntimeTest {
                 new WorldIdentity(WORLD, SEED, DIMENSION), folder, new CellFrame(MIN_BLOCK_Y), LOWEST_STORED_LEVEL);
         runtime.createFolder();
         runtime.openStore();
-        runtime.openCells(parked.register("save", 1, WorkService.UNLIMITED, () -> null), clock::get);
+        runtime.openCells(parked.register("save", 1, WorkService.UNLIMITED, () -> null),
+                parked.register("ingest", 1, WorkService.UNLIMITED, SectionPyramid::new), clock::get);
     }
 
     private long storedEntry() {

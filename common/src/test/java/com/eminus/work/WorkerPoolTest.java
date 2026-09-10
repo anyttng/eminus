@@ -160,6 +160,22 @@ class WorkerPoolTest {
     }
 
     @Test
+    void discardDropsTheQueuedJobsAndReturns() {
+        WorkerPool pool = WorkerPool.start(0);
+        WorkService<Object> service = pool.register("discarded", 1, WorkService.UNLIMITED, Object::new);
+        AtomicInteger ran = new AtomicInteger();
+
+        for (int job = 0; job < 500; job++) {
+            service.enqueue(scratch -> ran.incrementAndGet());
+        }
+
+        service.stop(ShutdownMode.DISCARD);
+        pool.shutdown();
+
+        assertEquals(0, ran.get());
+    }
+
+    @Test
     void shutdownJoinsEveryWorkerThread() {
         WorkerPool pool = WorkerPool.start(4);
         WorkService<Object> service = pool.register("joined", 1, WorkService.UNLIMITED, Object::new);

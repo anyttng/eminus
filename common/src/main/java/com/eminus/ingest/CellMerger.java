@@ -8,6 +8,8 @@ import com.eminus.cell.cache.CellAccess;
 import com.eminus.cell.cache.CellHandle;
 
 public final class CellMerger {
+    private static final int UNCHANGED = -1;
+
     private final CellAccess cells;
     private final CellFrame frame;
     private final int lowestStoredLevel;
@@ -34,12 +36,25 @@ public final class CellMerger {
 
     private boolean mergeLevel(SectionPyramid pyramid, int level, int blockX, int blockY, int blockZ) {
         CellHandle handle = cells.open(frame.keyAt(level, blockX, blockY, blockZ));
-        Cell cell = handle.cell();
         long[] source = pyramid.level(level);
         int side = SectionPyramid.sideOf(level);
         int originX = frame.voxelX(blockX, level);
         int originY = frame.voxelY(blockY, level);
         int originZ = frame.voxelZ(blockZ, level);
+
+        int faceMask = handle.withCell(cell -> writeLevel(cell, source, side, originX, originY, originZ));
+
+        if (faceMask == UNCHANGED) {
+            cells.release(handle);
+            return false;
+        }
+
+        handle.markDirty();
+        listener.changed(handle, faceMask);
+        return true;
+    }
+
+    private static int writeLevel(Cell cell, long[] source, int side, int originX, int originY, int originZ) {
         int faceMask = FaceMask.NONE;
         boolean changed = false;
 
@@ -58,13 +73,6 @@ public final class CellMerger {
             }
         }
 
-        if (!changed) {
-            cells.release(handle);
-            return false;
-        }
-
-        handle.markDirty();
-        listener.changed(handle, faceMask);
-        return true;
+        return changed ? faceMask : UNCHANGED;
     }
 }

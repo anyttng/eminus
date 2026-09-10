@@ -55,11 +55,21 @@ public final class WorkService<C> implements ServiceSelector.Selectable {
     public void stop(ShutdownMode mode) {
         accepting = false;
 
-        if (mode == ShutdownMode.INLINE) {
-            pool.runRemainderInline(this);
+        switch (mode) {
+            case INLINE -> pool.runRemainderInline(this);
+            case DISCARD -> pool.discardRemainder(this);
+            case DRAIN -> { }
         }
 
         pool.awaitFinished(this);
+    }
+
+    void discardQueued() {
+        int dropped = queue.size();
+        queue.clear();
+        if (dropped > 0) {
+            Eminus.LOGGER.info("Service {} dropped {} queued jobs on shutdown.", name, dropped);
+        }
     }
 
     Job<C> claim() {

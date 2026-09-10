@@ -2,6 +2,7 @@ package com.eminus.session.client;
 
 import java.nio.file.Path;
 
+import com.eminus.ingest.IngestService;
 import com.eminus.mixin.BiomeManagerAccessor;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
@@ -13,6 +14,9 @@ import com.eminus.settings.SettingsService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.LevelResource;
 
 public final class ClientSession {
@@ -53,10 +57,39 @@ public final class ClientSession {
         }
 
         ClientLevel current = Minecraft.getInstance().level;
-        if (current == level) {
-            return;
+        if (current != level) {
+            swapLevel(current);
         }
 
+        IngestService ingest = ingestFor(level);
+        if (ingest != null) {
+            ingest.pollDebounce(level, System.currentTimeMillis());
+        }
+    }
+
+    public static void submitChunk(LevelChunk chunk) {
+        IngestService ingest = ingestFor(chunk.getLevel());
+        if (ingest != null) {
+            ingest.submitChunk(chunk);
+        }
+    }
+
+    public static void blockChanged(ClientLevel source, BlockPos pos) {
+        IngestService ingest = ingestFor(source);
+        if (ingest != null) {
+            ingest.markBlockChange(pos, System.currentTimeMillis());
+        }
+    }
+
+    private static IngestService ingestFor(Level source) {
+        if (runtime == null || source != level) {
+            return null;
+        }
+
+        return SettingsService.get().settings().ingestion() ? runtime.ingest() : null;
+    }
+
+    private static void swapLevel(ClientLevel current) {
         level = current;
 
         if (runtime != null) {

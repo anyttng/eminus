@@ -11,7 +11,9 @@ import com.eminus.cell.Dictionary;
 import com.eminus.cell.StateTable;
 import com.eminus.cell.cache.CellCache;
 import com.eminus.ingest.CellMerger;
+import com.eminus.ingest.IngestService;
 import com.eminus.ingest.SectionConverter;
+import com.eminus.ingest.SectionPyramid;
 import com.eminus.store.CellStore;
 import com.eminus.store.EmptyCellStore;
 import com.eminus.store.SaveService;
@@ -30,6 +32,7 @@ public final class DimensionRuntime {
     private StateTable states;
     private Dictionary<String> biomes;
     private CellMerger merger;
+    private IngestService ingest;
     private int references;
     private long idleSince;
     private boolean closed;
@@ -69,6 +72,10 @@ public final class DimensionRuntime {
         return merger;
     }
 
+    public IngestService ingest() {
+        return ingest;
+    }
+
     public boolean closed() {
         return closed;
     }
@@ -91,7 +98,7 @@ public final class DimensionRuntime {
         }
     }
 
-    void openCells(WorkService<Void> saveService, LongSupplier clock) {
+    void openCells(WorkService<Void> saveService, WorkService<SectionPyramid> ingestService, LongSupplier clock) {
         Dictionary<String> stateIds = openDictionary(StateTable.DICTIONARY_NAME);
         Dictionary<String> biomeIds = openDictionary(SectionConverter.DICTIONARY_NAME);
 
@@ -100,6 +107,7 @@ public final class DimensionRuntime {
         states = new StateTable(stateIds);
         biomes = biomeIds;
         merger = new CellMerger(cells, frame, lowestStoredLevel, (handle, faceMask) -> cells.release(handle));
+        ingest = new IngestService(ingestService, states, biomes, merger);
     }
 
     private Dictionary<String> openDictionary(String name) {
@@ -134,6 +142,7 @@ public final class DimensionRuntime {
 
     void close() {
         closed = true;
+        ingest.stop();
         if (store == null) {
             return;
         }

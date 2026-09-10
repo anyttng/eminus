@@ -4,7 +4,9 @@
   "package": "com.eminus.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "BiomeManagerAccessor"
+    "BiomeManagerAccessor",
+    "ClientLevelMixin",
+    "ClientPacketListenerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

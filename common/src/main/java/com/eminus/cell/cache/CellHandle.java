@@ -1,5 +1,7 @@
 package com.eminus.cell.cache;
 
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 
 import com.eminus.Eminus;
@@ -16,6 +18,7 @@ public final class CellHandle {
 
     private final long key;
     private final LongSupplier clock;
+    private final ReentrantLock cellLock = new ReentrantLock();
 
     private Cell cell;
     private int references;
@@ -34,9 +37,16 @@ public final class CellHandle {
         return key;
     }
 
-    public synchronized Cell cell() {
+    // The handle monitor is taken before this lock, never the other way round.
+    public <T> T withCell(Function<Cell, T> action) {
         awaitLoaded();
-        return cell;
+        cellLock.lock();
+
+        try {
+            return action.apply(cell);
+        } finally {
+            cellLock.unlock();
+        }
     }
 
     public synchronized void markDirty() {
@@ -58,6 +68,8 @@ public final class CellHandle {
             return;
         }
 
+        cellLock.lock();
+
         try {
             store.write(cell);
             dirty = false;
@@ -70,6 +82,8 @@ public final class CellHandle {
                 Eminus.LOGGER.error("Could not save the cell at level {} ({}, {}, {}); it stays dirty.",
                         CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key), failure);
             }
+        } finally {
+            cellLock.unlock();
         }
     }
 

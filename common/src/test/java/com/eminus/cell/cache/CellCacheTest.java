@@ -43,9 +43,9 @@ class CellCacheTest {
     void anAbsentCellOpensAsEmptyAir() {
         CellHandle handle = harness.call(() -> cache.open(KEY));
 
-        Cell cell = handle.cell();
-        assertTrue(cell.isEmpty());
-        assertEquals(VoxelEntry.AIR, cell.get(0, 0, 0));
+        assertTrue(handle.withCell(Cell::isEmpty));
+        long entry = handle.withCell(cell -> cell.get(0, 0, 0));
+        assertEquals(VoxelEntry.AIR, entry);
         assertEquals(1, store.reads());
     }
 

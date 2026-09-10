@@ -92,6 +92,16 @@ public final class WorkerPool {
         }
     }
 
+    void discardRemainder(WorkService<?> service) {
+        lock.lock();
+
+        try {
+            service.discardQueued();
+        } finally {
+            lock.unlock();
+        }
+    }
+
     void runRemainderInline(WorkService<?> service) {
         Object scratch = null;
 
