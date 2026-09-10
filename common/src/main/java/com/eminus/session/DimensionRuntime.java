@@ -3,11 +3,16 @@ package com.eminus.session;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.function.LongSupplier;
 
 import com.eminus.Eminus;
 import com.eminus.cell.CellFrame;
+import com.eminus.cell.cache.CellCache;
 import com.eminus.store.CellStore;
+import com.eminus.store.EmptyCellStore;
+import com.eminus.store.SaveService;
 import com.eminus.store.SqliteCellStore;
+import com.eminus.work.WorkService;
 
 public final class DimensionRuntime {
     private final WorldIdentity identity;
@@ -15,6 +20,8 @@ public final class DimensionRuntime {
     private final CellFrame frame;
 
     private CellStore store;
+    private SaveService saves;
+    private CellCache cells;
     private int references;
     private long idleSince;
     private boolean closed;
@@ -37,6 +44,10 @@ public final class DimensionRuntime {
         return frame;
     }
 
+    public CellCache cells() {
+        return cells;
+    }
+
     public boolean closed() {
         return closed;
     }
@@ -53,9 +64,15 @@ public final class DimensionRuntime {
         try {
             store = SqliteCellStore.open(folder, lowestStoredLevel);
         } catch (RuntimeException failure) {
+            store = EmptyCellStore.INSTANCE;
             Eminus.LOGGER.error("Could not open the cell store in {}; {} runs without one.",
                     folder, identity.dimension(), failure);
         }
+    }
+
+    void openCells(WorkService<Void> saveService, LongSupplier clock) {
+        saves = new SaveService(store, saveService);
+        cells = new CellCache(store, saves, clock);
     }
 
     void acquire() {
@@ -78,6 +95,9 @@ public final class DimensionRuntime {
         if (store == null) {
             return;
         }
+
+        saves.flush();
+        cells.flush();
 
         try {
             store.close();

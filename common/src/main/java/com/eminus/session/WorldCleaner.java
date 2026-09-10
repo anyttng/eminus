@@ -36,6 +36,7 @@ final class WorldCleaner {
                 return;
             }
 
+            instance.sweepRuntimes();
             instance.closeIdleRuntimes();
         }
     }

@@ -1,7 +1,9 @@
 package com.eminus.session;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.LongSupplier;
 
@@ -86,6 +88,19 @@ public final class EminusInstance {
         Eminus.LOGGER.info("Session stopped");
     }
 
+    void sweepRuntimes() {
+        List<DimensionRuntime> open;
+        synchronized (this) {
+            open = new ArrayList<>(runtimes.values());
+        }
+
+        for (DimensionRuntime runtime : open) {
+            if (!runtime.closed()) {
+                runtime.cells().sweep();
+            }
+        }
+    }
+
     synchronized void closeIdleRuntimes() {
         long now = clock.getAsLong();
         runtimes.values().removeIf(runtime -> {
@@ -113,6 +128,7 @@ public final class EminusInstance {
                 identity, StoreFolders.dimensionFolder(storeBase, identity), new CellFrame(minBlockY));
         runtime.createFolder();
         runtime.openStore(lowestStoredLevel);
+        runtime.openCells(save, clock);
         Eminus.LOGGER.info("Dimension runtime opened for {} at {}", identity.dimension(), runtime.folder());
         return runtime;
     }

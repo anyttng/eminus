@@ -102,6 +102,14 @@ class EminusInstanceTest {
     }
 
     @Test
+    void theSweepReachesTheCacheOfEveryOpenRuntime() {
+        start();
+        instance.acquire(identity(OVERWORLD), MIN_BLOCK_Y);
+
+        assertDoesNotThrow(instance::sweepRuntimes);
+    }
+
+    @Test
     void releasingMoreOftenThanAcquiredIsRefused() {
         start();
         DimensionRuntime runtime = instance.acquire(identity(OVERWORLD), MIN_BLOCK_Y);

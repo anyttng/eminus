@@ -12,6 +12,8 @@ public final class WorkerPool {
     public static final String THREAD_NAME_PREFIX = "eminus-worker-";
     public static final int THREAD_PRIORITY = Thread.NORM_PRIORITY - 1;
 
+    private static final ThreadLocal<Boolean> ON_WORKER_THREAD = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition work = lock.newCondition();
     private final Condition idle = lock.newCondition();
@@ -22,6 +24,17 @@ public final class WorkerPool {
     private boolean running = true;
 
     private WorkerPool() {
+    }
+
+    public static boolean onWorkerThread() {
+        return ON_WORKER_THREAD.get();
+    }
+
+    public static void requireWorkerThread(String operation) {
+        if (!onWorkerThread()) {
+            throw new IllegalStateException(
+                    operation + " runs on a worker thread only, not on " + Thread.currentThread().getName() + ".");
+        }
     }
 
     public static WorkerPool start(int threadCount) {
@@ -172,6 +185,8 @@ public final class WorkerPool {
 
         @Override
         public void run() {
+            ON_WORKER_THREAD.set(Boolean.TRUE);
+
             while (true) {
                 Claim claim = awaitClaim();
                 if (claim == null) {
