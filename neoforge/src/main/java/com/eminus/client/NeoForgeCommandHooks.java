@@ -4,6 +4,7 @@ import com.eminus.Eminus;
 import com.eminus.cell.DetailLevel;
 import com.eminus.mesh.client.MeshDump;
 import com.eminus.model.client.ModelDump;
+import com.eminus.render.arena.client.ArenaDump;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -19,6 +20,7 @@ import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 public final class NeoForgeCommandHooks {
     private static final String BAKE = "bake";
     private static final String MESH = "mesh";
+    private static final String ARENA = "arena";
     private static final String MODELS = "models";
     private static final String LEVEL = "level";
     private static final int MIN_MODELS = 1;
@@ -33,7 +35,11 @@ public final class NeoForgeCommandHooks {
                         .then(Commands.literal(MESH)
                                 .then(Commands.argument(LEVEL,
                                                 IntegerArgumentType.integer(DetailLevel.MIN, DetailLevel.MAX))
-                                        .executes(NeoForgeCommandHooks::mesh)))));
+                                        .executes(NeoForgeCommandHooks::mesh)))
+                        .then(Commands.literal(ARENA)
+                                .then(Commands.argument(LEVEL,
+                                                IntegerArgumentType.integer(DetailLevel.MIN, DetailLevel.MAX))
+                                        .executes(NeoForgeCommandHooks::arena)))));
     }
 
     private static int sample(CommandContext<CommandSourceStack> context) {
@@ -46,6 +52,10 @@ public final class NeoForgeCommandHooks {
 
     private static int mesh(CommandContext<CommandSourceStack> context) {
         return answer(context, MeshDump.at(IntegerArgumentType.getInteger(context, LEVEL)));
+    }
+
+    private static int arena(CommandContext<CommandSourceStack> context) {
+        return answer(context, ArenaDump.at(IntegerArgumentType.getInteger(context, LEVEL)));
     }
 
     private static int answer(CommandContext<CommandSourceStack> context, Component result) {
