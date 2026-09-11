@@ -15,9 +15,11 @@ import com.eminus.model.client.ClientBakery;
 import com.eminus.render.arena.ArenaSizing;
 import com.eminus.render.backend.BackendSupport;
 import com.eminus.render.backend.client.BackendCheck;
+import com.eminus.render.far.client.FarProjection;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 import com.eminus.session.client.ClientSession;
+import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
 
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -50,7 +52,7 @@ public final class ArenaDump {
 
         Eminus.LOGGER.info("{} run level={} cells={}", PROBE, level, CELLS);
 
-        long bytes = size();
+        long bytes = size(client, runtime);
         BackendSupport support = BackendCheck.run(bytes);
         GeometryArena arena = GeometryArena.create(support, bytes);
         if (arena == null) {
@@ -64,8 +66,12 @@ public final class ArenaDump {
         }
     }
 
-    private static long size() {
-        long wanted = ArenaSizing.wanted(SettingsService.get().settings().farRenderCells());
+    private static long size(Minecraft client, DimensionRuntime runtime) {
+        Settings settings = SettingsService.get().settings();
+        float focalPixels = FarProjection.focalPixels(client.options.fov().get(),
+                client.gameRenderer.mainRenderTarget().height);
+        long wanted = ArenaSizing.wanted(settings.farRenderCells(), settings.subdivisionSize(), focalPixels,
+                runtime.lowestStoredLevel());
         long limit = RenderSystem.getDevice().getDeviceInfo().limits().maxMemoryAllocationSize();
         return ArenaSizing.fitted(wanted, limit);
     }

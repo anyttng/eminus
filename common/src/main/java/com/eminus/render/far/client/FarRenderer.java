@@ -96,7 +96,12 @@ public final class FarRenderer implements AutoCloseable {
             VisibleSections visible, int levelHeight) {
         RenderSystem.assertOnRenderThread();
 
-        long bytes = ArenaSizing.fitted(ArenaSizing.wanted(SettingsService.get().settings().farRenderCells()),
+        Settings settings = SettingsService.get().settings();
+        RenderTarget main = client.gameRenderer.mainRenderTarget();
+        long bytes = ArenaSizing.fitted(
+                ArenaSizing.wanted(settings.farRenderCells(), settings.subdivisionSize(),
+                        FarProjection.focalPixels(client.options.fov().get(), main.height),
+                        runtime.lowestStoredLevel()),
                 RenderSystem.getDevice().getDeviceInfo().limits().maxMemoryAllocationSize());
         BackendSupport support = BackendCheck.run(bytes);
         GeometryArena arena = GeometryArena.create(support, bytes);
@@ -104,7 +109,6 @@ public final class FarRenderer implements AutoCloseable {
             return null;
         }
 
-        RenderTarget main = client.gameRenderer.mainRenderTarget();
         ClientBakery baking = ClientBakery.start(client);
         FarRenderer renderer = new FarRenderer(runtime, baking,
                 ModelPublisher.start(baking.bakery(), baking.colours(), runtime.biomes()), arena,
@@ -165,9 +169,9 @@ public final class FarRenderer implements AutoCloseable {
         FarProjection.gameViewProjection(levelProjection.projection(), viewRotation, gameViewProjection);
 
         Settings settings = SettingsService.get().settings();
-        tree.frame(new CameraFrame(eye.x, eye.y, eye.z, new Matrix4f(farViewProjection),
-                FarProjection.focalPixels(client.options.fov().get(), main.height), settings.farRenderCells(),
-                settings.subdivisionSize(), arena.refused() > 0));
+        float focalPixels = FarProjection.focalPixels(client.options.fov().get(), main.height);
+        tree.frame(new CameraFrame(eye.x, eye.y, eye.z, new Matrix4f(farViewProjection), focalPixels,
+                settings.farRenderCells(), settings.subdivisionSize(), arena.pressure()));
 
         FogData gameFog = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData;
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;

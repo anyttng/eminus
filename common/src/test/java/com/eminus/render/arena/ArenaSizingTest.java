@@ -3,6 +3,7 @@ package com.eminus.render.arena;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.eminus.cell.DetailLevel;
 import com.eminus.settings.Settings;
 
 import org.junit.jupiter.api.Test;
@@ -10,30 +11,85 @@ import org.junit.jupiter.api.Test;
 class ArenaSizingTest {
     private static final long ROOMY_DEVICE = 8L * 1024 * 1024 * 1024;
     private static final long CRAMPED_DEVICE = 64L * 1024 * 1024;
+    private static final float FOCAL_PIXELS = 978.0F;
+    private static final int FAR_CELLS = Settings.DEFAULT_FAR_RENDER_CELLS;
+    private static final int SUBDIVISION = Settings.DEFAULT_SUBDIVISION_SIZE;
+    private static final int LOWEST_LEVEL = Settings.DEFAULT_LOWEST_STORED_LEVEL;
 
     @Test
-    void theSmallestRenderDistanceStillAsksForTheMinimum() {
-        assertEquals(ArenaSizing.MIN_BYTES, ArenaSizing.wanted(Settings.MIN_FAR_RENDER_CELLS));
+    void aBudgetBelowTheFloorIsLiftedToIt() {
+        assertEquals(ArenaSizing.MIN_BYTES, ArenaSizing.wanted(Settings.MIN_FAR_RENDER_CELLS,
+                Settings.MAX_SUBDIVISION_SIZE, FOCAL_PIXELS, DetailLevel.MAX));
+    }
+
+    @Test
+    void theSmallestRenderDistanceStillPaysForTheFinestShell() {
+        long bytes = ArenaSizing.wanted(Settings.MIN_FAR_RENDER_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+
+        assertTrue(bytes > ArenaSizing.MIN_BYTES,
+                "The level-0 shell reaches past the shortest far distance, so the floor does not bind: " + bytes);
     }
 
     @Test
     void theLargestRenderDistanceIsCappedAtTheMaximum() {
-        assertEquals(ArenaSizing.MAX_BYTES, ArenaSizing.wanted(Settings.MAX_FAR_RENDER_CELLS));
+        assertEquals(ArenaSizing.MAX_BYTES,
+                ArenaSizing.wanted(Settings.MAX_FAR_RENDER_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL));
     }
 
     @Test
-    void theDefaultRenderDistanceLandsBetweenTheBounds() {
-        long bytes = ArenaSizing.wanted(Settings.DEFAULT_FAR_RENDER_CELLS);
+    void theDefaultSettingsLandBetweenTheBounds() {
+        long bytes = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
 
         assertTrue(bytes > ArenaSizing.MIN_BYTES, "The default asks for more than the minimum: " + bytes);
         assertTrue(bytes < ArenaSizing.MAX_BYTES, "The default asks for less than the maximum: " + bytes);
     }
 
     @Test
-    void aRoomyDeviceGetsWhatWasWanted() {
-        long wanted = ArenaSizing.wanted(Settings.DEFAULT_FAR_RENDER_CELLS);
+    void theBudgetHoldsTheCellsTheTraversalCanAskFor() {
+        long cells = 0;
 
-        assertEquals(wanted, ArenaSizing.fitted(wanted, ROOMY_DEVICE));
+        for (int level = DetailLevel.MIN; level <= DetailLevel.MAX; level++) {
+            cells += (long) ArenaDemand.columns(level, FOCAL_PIXELS, SUBDIVISION, FAR_CELLS)
+                    * ArenaDemand.cellsPerColumn(level);
+        }
+
+        long bytes = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+
+        assertEquals(cells, bytes / (ArenaSizing.BUDGETED_QUADS_PER_CELL * ArenaSizing.QUAD_BYTES));
+    }
+
+    @Test
+    void halvingTheSubdivisionSizeAsksForAboutFourTimesAsMuch() {
+        long coarse = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION * 2, FOCAL_PIXELS, LOWEST_LEVEL);
+        long fine = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+
+        assertTrue(fine > 3 * coarse && fine < 5 * coarse,
+                "A twice finer subdivision asks for " + fine + " against " + coarse);
+    }
+
+    @Test
+    void aTallerWindowAsksForMore() {
+        long shortWindow = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS / 2, LOWEST_LEVEL);
+        long tallWindow = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+
+        assertTrue(tallWindow > shortWindow,
+                "A twice taller window asks for " + tallWindow + " against " + shortWindow);
+    }
+
+    @Test
+    void aHigherLowestStoredLevelDropsTheFinestLevelFromTheBudget() {
+        long whole = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, DetailLevel.MIN);
+        long withoutTheFinest = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, DetailLevel.MIN + 1);
+
+        assertTrue(whole > withoutTheFinest,
+                "Storing level 0 asks for " + whole + " against " + withoutTheFinest + " without it");
+    }
+
+    @Test
+    void aRoomyDeviceGetsWhatWasWantedDownToTheBlock() {
+        long wanted = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+
+        assertEquals(wanted - wanted % ArenaSizing.BLOCK_BYTES, ArenaSizing.fitted(wanted, ROOMY_DEVICE));
     }
 
     @Test

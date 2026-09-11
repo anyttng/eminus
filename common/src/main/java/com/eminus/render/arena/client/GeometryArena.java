@@ -23,6 +23,9 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     private static final String LABEL = "eminus-geometry-arena";
     private static final int USAGE =
             GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER | GpuBuffer.USAGE_COPY_DST;
+    private static final long WARNING_PERIOD_NANOS = 1_000_000_000L;
+    private static final int HIGH_WATER_PERCENT = 85;
+    private static final int WHOLE_PERCENT = 100;
 
     private final GpuBuffer quads;
     private final ArenaAllocator allocator;
@@ -31,6 +34,9 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     private final Long2ObjectOpenHashMap<MeshSlot> held = new Long2ObjectOpenHashMap<>();
 
     private int refused;
+    private int refusedSinceWarning;
+    private int refusedQuadsMax;
+    private long lastWarning = System.nanoTime() - WARNING_PERIOD_NANOS;
 
     private GeometryArena(GpuBuffer quads, ArenaAllocator allocator, MeshRecords records, ArenaUploader uploader) {
         this.quads = quads;
@@ -74,6 +80,11 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         return refused;
     }
 
+    public boolean pressure() {
+        return refused > 0
+                || (long) allocator.usedBlocks() * WHOLE_PERCENT >= (long) allocator.blocks() * HIGH_WATER_PERCENT;
+    }
+
     public int uploaded() {
         return uploader.uploaded();
     }
@@ -97,7 +108,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
 
             ArenaUpload placed = place(mesh);
             if (placed == null) {
-                refused++;
+                refuse(mesh.quadCount());
                 continue;
             }
 
@@ -106,7 +117,11 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
 
         for (ArenaUpload dropped : uploader.upload(quads, uploads)) {
             release(dropped.mesh().key());
-            refused++;
+            refuse(dropped.mesh().quadCount());
+        }
+
+        if (refused > 0) {
+            warnAboutRefusals();
         }
     }
 
@@ -121,8 +136,6 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     private @Nullable ArenaUpload place(CellMesh mesh) {
         int block = allocator.allocate(mesh.quadCount());
         if (block == ArenaAllocator.NO_BLOCK) {
-            Eminus.LOGGER.warn("Cell {} of {} quads does not fit the {} free blocks of the arena and is dropped",
-                    mesh.key(), mesh.quadCount(), allocator.freeBlocks());
             return null;
         }
 
@@ -131,6 +144,27 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         records.write(placed);
 
         return new ArenaUpload(mesh, block, block * ArenaSizing.BLOCK_BYTES);
+    }
+
+    private void refuse(int quads) {
+        refused++;
+        refusedSinceWarning++;
+        refusedQuadsMax = Math.max(refusedQuadsMax, quads);
+    }
+
+    private void warnAboutRefusals() {
+        long now = System.nanoTime();
+        if (now - lastWarning < WARNING_PERIOD_NANOS) {
+            return;
+        }
+
+        lastWarning = now;
+        Eminus.LOGGER.warn("{} cells of up to {} quads do not fit the arena and are dropped: {} free blocks, "
+                        + "largest free run {} blocks, {} free runs",
+                refusedSinceWarning, refusedQuadsMax, allocator.freeBlocks(), allocator.largestFreeRun(),
+                allocator.freeRuns());
+        refusedSinceWarning = 0;
+        refusedQuadsMax = 0;
     }
 
     private void release(long key) {
