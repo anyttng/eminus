@@ -2,6 +2,7 @@ package com.eminus.session.client;
 
 import java.nio.file.Path;
 
+import com.eminus.Eminus;
 import com.eminus.handoff.NearFieldOverride;
 import com.eminus.handoff.client.VanillaVisibleSections;
 import com.eminus.ingest.IngestService;
@@ -20,6 +21,7 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.LevelResource;
@@ -28,9 +30,12 @@ import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 
 public final class ClientSession {
+    public static final Identifier RELOAD_ID = Identifier.fromNamespaceAndPath(Eminus.MODID, "far_renderer");
+
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
     private static FarRenderer renderer;
+    private static Settings rendered;
     private static ClientLevel level;
     private static String world = "";
 
@@ -59,6 +64,18 @@ public final class ClientSession {
         runtime = null;
         instance.shutdown();
         instance = null;
+    }
+
+    public static void resourcesReloaded() {
+        if (renderer != null) {
+            restartRenderer();
+        }
+    }
+
+    public static void settingsChanged(Settings updated) {
+        if (runtime != null && FarRenderer.recreates(rendered, updated)) {
+            restartRenderer();
+        }
     }
 
     public static void captureLevelProjection(Matrix4fc levelProjection, Matrix4fc cameraProjection) {
@@ -145,11 +162,21 @@ public final class ClientSession {
         }
 
         if (current != null) {
-            Minecraft minecraft = Minecraft.getInstance();
             runtime = instance.acquire(identityOf(current), current.getMinY());
-            renderer = FarRenderer.start(minecraft, instance, runtime,
-                    new VanillaVisibleSections(minecraft.levelRenderer), current.getHeight());
+            startRenderer();
         }
+    }
+
+    private static void restartRenderer() {
+        stopRenderer();
+        startRenderer();
+    }
+
+    private static void startRenderer() {
+        Minecraft minecraft = Minecraft.getInstance();
+        rendered = SettingsService.get().settings();
+        renderer = FarRenderer.start(minecraft, instance, runtime, new VanillaVisibleSections(minecraft.levelRenderer),
+                level.getHeight(), rendered);
     }
 
     private static void stopRenderer() {

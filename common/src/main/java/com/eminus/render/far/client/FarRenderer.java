@@ -93,10 +93,9 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     public static @Nullable FarRenderer start(Minecraft client, EminusInstance instance, DimensionRuntime runtime,
-            VisibleSections visible, int levelHeight) {
+            VisibleSections visible, int levelHeight, Settings settings) {
         RenderSystem.assertOnRenderThread();
 
-        Settings settings = SettingsService.get().settings();
         RenderTarget main = client.gameRenderer.mainRenderTarget();
         long bytes = ArenaSizing.fitted(
                 ArenaSizing.wanted(settings.farRenderCells(), settings.subdivisionSize(),
@@ -124,6 +123,11 @@ public final class FarRenderer implements AutoCloseable {
         Eminus.LOGGER.info("Far renderer started for {}", runtime.identity().dimension());
 
         return renderer;
+    }
+
+    public static boolean recreates(Settings built, Settings updated) {
+        return built.farRenderCells() != updated.farRenderCells()
+                || built.subdivisionSize() != updated.subdivisionSize();
     }
 
     public void captureLevelProjection(Matrix4fc levelProjection, Matrix4fc cameraProjection) {

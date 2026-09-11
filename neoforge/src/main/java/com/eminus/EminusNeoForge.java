@@ -22,6 +22,7 @@ public class EminusNeoForge {
         modContainer.registerExtensionPoint(IConfigScreenFactory.class,
                 (container, modListScreen) -> new SettingsScreen(modListScreen));
         NeoForgeSessionHooks.register(NeoForge.EVENT_BUS);
+        NeoForgeSessionHooks.registerReload(modContainer.getEventBus());
         NeoForgeCommandHooks.register(NeoForge.EVENT_BUS);
     }
 }
