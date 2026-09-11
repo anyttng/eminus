@@ -20,6 +20,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.LevelResource;
 
+import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 
 public final class ClientSession {
@@ -54,6 +55,12 @@ public final class ClientSession {
         runtime = null;
         instance.shutdown();
         instance = null;
+    }
+
+    public static void captureLevelProjection(Matrix4fc levelProjection, Matrix4fc cameraProjection) {
+        if (renderer != null) {
+            renderer.captureLevelProjection(levelProjection, cameraProjection);
+        }
     }
 
     public static void drawFarLayer() {

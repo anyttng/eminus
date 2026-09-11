@@ -8,6 +8,7 @@
     "ChunkSectionsToRenderMixin",
     "ClientLevelMixin",
     "ClientPacketListenerMixin",
+    "GameRendererMixin",
     "SpriteContentsAccessor",
     "StairBlockAccessor"
   ],

@@ -36,6 +36,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 
 public final class FarRenderer implements AutoCloseable {
@@ -53,8 +54,10 @@ public final class FarRenderer implements AutoCloseable {
     private final IndirectCommands indirect;
     private final DrawCommands commands = new DrawCommands(COMMAND_CAPACITY);
     private final FarProjection projection = new FarProjection();
+    private final LevelProjection levelProjection = new LevelProjection();
     private final Matrix4f farViewProjection = new Matrix4f();
     private final Matrix4f gameViewProjection = new Matrix4f();
+    private final Matrix4f viewRotation = new Matrix4f();
     private final TreeManager tree;
 
     private volatile MeshService meshes;
@@ -106,6 +109,10 @@ public final class FarRenderer implements AutoCloseable {
         return renderer;
     }
 
+    public void captureLevelProjection(Matrix4fc levelProjection, Matrix4fc cameraProjection) {
+        this.levelProjection.capture(levelProjection, cameraProjection);
+    }
+
     public void frame(Minecraft client) {
         RenderSystem.assertOnRenderThread();
         if (stopped) {
@@ -129,8 +136,10 @@ public final class FarRenderer implements AutoCloseable {
 
         Camera camera = client.gameRenderer.mainCamera();
         Vec3 eye = camera.position();
-        projection.viewProjection(camera, main.width, main.height, farViewProjection);
-        camera.getViewRotationProjectionMatrix(gameViewProjection);
+        camera.getViewRotationMatrix(viewRotation);
+        projection.viewProjection(camera.getFov(), levelProjection.fold(), viewRotation, main.width, main.height,
+                farViewProjection);
+        FarProjection.gameViewProjection(levelProjection.projection(), viewRotation, gameViewProjection);
 
         Settings settings = SettingsService.get().settings();
         tree.frame(new CameraFrame(eye.x, eye.y, eye.z, new Matrix4f(farViewProjection),
