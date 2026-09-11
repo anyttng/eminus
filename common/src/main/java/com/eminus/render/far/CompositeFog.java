@@ -10,7 +10,7 @@ public record CompositeFog(float fogStart, float fogEnd, float fadeStart, float 
     public static CompositeFog of(FogMode mode, float environmentalStart, float environmentalEnd, float nearBlocks,
             int farCells) {
         float farBlocks = (float) farCells * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
-        boolean skip = mode.fogs() && environmentalEnd <= nearBlocks;
+        boolean skip = skipped(mode, environmentalEnd, nearBlocks);
 
         return new CompositeFog(
                 mode.fogs() ? stretchedStart(environmentalStart, environmentalEnd, nearBlocks, farBlocks) : NONE,
@@ -18,6 +18,10 @@ public record CompositeFog(float fogStart, float fogEnd, float fadeStart, float 
                 mode.fades() ? farBlocks - FADE_BAND_BLOCKS : NONE,
                 mode.fades() ? farBlocks : NONE,
                 skip);
+    }
+
+    public static boolean skipped(FogMode mode, float environmentalEnd, float nearBlocks) {
+        return mode.fogs() && environmentalEnd <= nearBlocks;
     }
 
     // The line through the game's fog value at the near edge and full fog at the far render distance.

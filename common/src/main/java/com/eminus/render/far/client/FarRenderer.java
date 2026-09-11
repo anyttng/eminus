@@ -126,6 +126,15 @@ public final class FarRenderer implements AutoCloseable {
         this.levelProjection.capture(levelProjection, cameraProjection);
     }
 
+    public boolean covers(FogData gameFog, int renderDistanceChunks) {
+        if (stopped) {
+            return false;
+        }
+
+        return !CompositeFog.skipped(SettingsService.get().settings().fogMode(), gameFog.environmentalEnd,
+                renderDistanceChunks * FarDistance.BLOCKS_PER_CHUNK);
+    }
+
     public void frame(Minecraft client) {
         RenderSystem.assertOnRenderThread();
         if (stopped) {

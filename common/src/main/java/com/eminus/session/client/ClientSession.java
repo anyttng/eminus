@@ -2,6 +2,7 @@ package com.eminus.session.client;
 
 import java.nio.file.Path;
 
+import com.eminus.handoff.NearFieldOverride;
 import com.eminus.handoff.client.VanillaVisibleSections;
 import com.eminus.ingest.IngestService;
 import com.eminus.mixin.BiomeManagerAccessor;
@@ -16,6 +17,8 @@ import com.eminus.settings.SettingsService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.renderer.fog.FogData;
+import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -67,6 +70,18 @@ public final class ClientSession {
     public static void drawFarLayer() {
         if (renderer != null) {
             renderer.frame(Minecraft.getInstance());
+        }
+    }
+
+    public static void overrideNearField() {
+        if (renderer == null) {
+            return;
+        }
+
+        GameRenderState state = Minecraft.getInstance().gameRenderer.gameRenderState();
+        FogData fog = state.levelRenderState.cameraRenderState.fogData;
+        if (renderer.covers(fog, state.optionsRenderState.renderDistance)) {
+            NearFieldOverride.apply(fog, state.optionsRenderState);
         }
     }
 

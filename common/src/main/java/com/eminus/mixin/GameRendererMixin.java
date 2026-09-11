@@ -22,6 +22,11 @@ public class GameRendererMixin {
             + "Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lorg/joml/Matrix4fc;"
             + "Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;Z)V";
 
+    @Inject(method = "extract", at = @At("RETURN"))
+    private void eminus$overrideNearField(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo callback) {
+        ClientSession.overrideNearField();
+    }
+
     @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = LEVEL_RENDER))
     private void eminus$captureLevelProjection(DeltaTracker deltaTracker, CallbackInfo callback,
             @Local Matrix4f levelProjection, @Local CameraRenderState cameraState) {

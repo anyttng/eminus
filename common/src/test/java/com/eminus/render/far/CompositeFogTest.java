@@ -112,6 +112,13 @@ class CompositeFogTest {
         assertEquals(CompositeFog.FADE_BAND_BLOCKS, fog.fadeEnd());
     }
 
+    @Test
+    void theSkipPredicateAnswersForTheFogModeAndTheFogEnd() {
+        assertTrue(CompositeFog.skipped(FogMode.FOG_AND_FADE, NETHER_FOG_END, NEAR_12_CHUNKS));
+        assertFalse(CompositeFog.skipped(FogMode.FOG_AND_FADE, OVERWORLD_FOG_END, NEAR_12_CHUNKS));
+        assertFalse(CompositeFog.skipped(FogMode.FADE, NETHER_FOG_END, NEAR_12_CHUNKS));
+    }
+
     private static float valueAt(CompositeFog fog, float distance) {
         return (distance - fog.fogStart()) / (fog.fogEnd() - fog.fogStart());
     }
