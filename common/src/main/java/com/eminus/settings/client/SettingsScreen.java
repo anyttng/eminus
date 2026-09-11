@@ -76,9 +76,12 @@ public class SettingsScreen extends OptionsSubScreen {
 
     @Override
     protected void addOptions() {
-        this.list.addSmall(this.ingestion, this.lowestStoredLevel);
-        this.list.addSmall(this.farRenderCells, this.workerThreads);
-        this.list.addSmall(this.subdivisionSize, this.fogMode);
+        this.list.addBig(this.ingestion);
+        this.list.addBig(this.lowestStoredLevel);
+        this.list.addBig(this.farRenderCells);
+        this.list.addBig(this.workerThreads);
+        this.list.addBig(this.subdivisionSize);
+        this.list.addBig(this.fogMode);
     }
 
     // Vanilla's OptionsSubScreen rewrites options.txt here, and this screen owns no vanilla option.
