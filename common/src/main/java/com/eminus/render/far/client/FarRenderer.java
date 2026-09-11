@@ -13,6 +13,7 @@ import com.eminus.render.arena.MeshSlot;
 import com.eminus.render.arena.client.GeometryArena;
 import com.eminus.render.backend.BackendSupport;
 import com.eminus.render.backend.client.BackendCheck;
+import com.eminus.render.far.CompositeFog;
 import com.eminus.render.far.DrawCommands;
 import com.eminus.render.tree.CameraFrame;
 import com.eminus.render.tree.RenderList;
@@ -32,6 +33,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 
@@ -146,13 +148,21 @@ public final class FarRenderer implements AutoCloseable {
                 FarProjection.focalPixels(client.options.fov().get(), main.height), settings.farRenderCells(),
                 settings.subdivisionSize(), arena.refused() > 0));
 
+        FogData gameFog = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData;
+        float nearBlocks = client.options.getEffectiveRenderDistance() * FarDistance.BLOCKS_PER_CHUNK;
+        CompositeFog fog = CompositeFog.of(settings.fogMode(), gameFog.environmentalStart, gameFog.environmentalEnd,
+                nearBlocks, settings.farRenderCells());
+        if (fog.skip()) {
+            return;
+        }
+
         commands.write(renderList, arena, runtime.frame(), eye.x, eye.y, eye.z);
 
         if (commands.count() > 0) {
             GpuBufferSlice written = indirect.write(commands);
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(), written, commands.count(),
                     farViewProjection, runtime.frame().minBlockY());
-            composite.draw(target, main, farViewProjection, gameViewProjection);
+            composite.draw(target, main, farViewProjection, gameViewProjection, fog, gameFog.color);
         }
     }
 
