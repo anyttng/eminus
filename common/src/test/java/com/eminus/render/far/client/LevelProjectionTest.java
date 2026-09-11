@@ -3,6 +3,8 @@ package com.eminus.render.far.client;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.eminus.handoff.NearPlane;
+
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector4f;
@@ -47,7 +49,7 @@ class LevelProjectionTest {
     void theFarLayerAndTheGameMoveOnePointTogether() {
         Matrix4f bob = new Matrix4f().translate(0.0F, -0.15F, 0.0F).rotateZ(0.08F);
         Matrix4f rotation = new Matrix4f().rotateY(0.7F).rotateX(0.2F);
-        Matrix4f far = new Matrix4f().setPerspective(FOV, ASPECT, FarProjection.NEAR, FarProjection.FAR);
+        Matrix4f far = new Matrix4f().setPerspective(FOV, ASPECT, NearPlane.BLOCKS, FarProjection.FAR);
         Vector4f point = new Vector4f(120.0F, 30.0F, -4000.0F, 1.0F);
 
         levelProjection.capture(camera.mul(bob, new Matrix4f()), camera);

@@ -4,6 +4,10 @@ import com.eminus.Eminus;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.cache.CellHandle;
+import com.eminus.handoff.CoverageSections;
+import com.eminus.handoff.NearPlane;
+import com.eminus.handoff.VisibleSections;
+import com.eminus.handoff.client.CoveragePass;
 import com.eminus.mesh.BakeryModels;
 import com.eminus.mesh.MeshService;
 import com.eminus.model.ModelIndex;
@@ -51,9 +55,13 @@ public final class FarRenderer implements AutoCloseable {
     private final ModelPublisher models;
     private final GeometryArena arena;
     private final FarTarget target;
+    private final FarFrame frame;
+    private final CoveragePass coverage;
     private final OpaquePass opaque;
     private final CompositePass composite;
     private final IndirectCommands indirect;
+    private final VisibleSections visible;
+    private final CoverageSections sections = new CoverageSections();
     private final DrawCommands commands = new DrawCommands(COMMAND_CAPACITY);
     private final FarProjection projection = new FarProjection();
     private final LevelProjection levelProjection = new LevelProjection();
@@ -67,22 +75,25 @@ public final class FarRenderer implements AutoCloseable {
     private boolean stopped;
 
     private FarRenderer(DimensionRuntime runtime, ClientBakery baking, ModelPublisher models, GeometryArena arena,
-            FarTarget target, OpaquePass opaque, CompositePass composite, IndirectCommands indirect,
-            int heightCells) {
+            FarTarget target, FarFrame frame, CoveragePass coverage, OpaquePass opaque, CompositePass composite,
+            IndirectCommands indirect, VisibleSections visible, int heightCells) {
         this.runtime = runtime;
         this.baking = baking;
         this.models = models;
         this.arena = arena;
         this.target = target;
+        this.frame = frame;
+        this.coverage = coverage;
         this.opaque = opaque;
         this.composite = composite;
         this.indirect = indirect;
+        this.visible = visible;
         tree = TreeManager.start(new Builds(),
                 new TreeExtent(runtime.frame(), heightCells, runtime.lowestStoredLevel()));
     }
 
     public static @Nullable FarRenderer start(Minecraft client, EminusInstance instance, DimensionRuntime runtime,
-            int levelHeight) {
+            VisibleSections visible, int levelHeight) {
         RenderSystem.assertOnRenderThread();
 
         long bytes = ArenaSizing.fitted(ArenaSizing.wanted(SettingsService.get().settings().farRenderCells()),
@@ -97,9 +108,9 @@ public final class FarRenderer implements AutoCloseable {
         ClientBakery baking = ClientBakery.start(client);
         FarRenderer renderer = new FarRenderer(runtime, baking,
                 ModelPublisher.start(baking.bakery(), baking.colours(), runtime.biomes()), arena,
-                FarTarget.create(support.depthStencilFormat(), main.width, main.height),
-                OpaquePass.create(support.depth()), CompositePass.create(support.depth()),
-                IndirectCommands.create(COMMAND_CAPACITY),
+                FarTarget.create(support.depthStencilFormat(), main.width, main.height), FarFrame.create(),
+                CoveragePass.create(FarTarget.COLOUR_FORMAT), OpaquePass.create(support.depth()), CompositePass.create(support.depth()),
+                IndirectCommands.create(COMMAND_CAPACITY), visible,
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
 
         renderer.meshes = new MeshService(instance.build(), runtime.cells(),
@@ -136,11 +147,12 @@ public final class FarRenderer implements AutoCloseable {
         RenderTarget main = client.gameRenderer.mainRenderTarget();
         target.resize(main.width, main.height);
 
+        int renderDistance = client.options.getEffectiveRenderDistance();
         Camera camera = client.gameRenderer.mainCamera();
         Vec3 eye = camera.position();
         camera.getViewRotationMatrix(viewRotation);
-        projection.viewProjection(camera.getFov(), levelProjection.fold(), viewRotation, main.width, main.height,
-                farViewProjection);
+        projection.viewProjection(NearPlane.blocks(renderDistance), camera.getFov(), levelProjection.fold(),
+                viewRotation, main.width, main.height, farViewProjection);
         FarProjection.gameViewProjection(levelProjection.projection(), viewRotation, gameViewProjection);
 
         Settings settings = SettingsService.get().settings();
@@ -149,7 +161,7 @@ public final class FarRenderer implements AutoCloseable {
                 settings.subdivisionSize(), arena.refused() > 0));
 
         FogData gameFog = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData;
-        float nearBlocks = client.options.getEffectiveRenderDistance() * FarDistance.BLOCKS_PER_CHUNK;
+        float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
         CompositeFog fog = CompositeFog.of(settings.fogMode(), gameFog.environmentalStart, gameFog.environmentalEnd,
                 nearBlocks, settings.farRenderCells());
         if (fog.skip()) {
@@ -160,8 +172,13 @@ public final class FarRenderer implements AutoCloseable {
 
         if (commands.count() > 0) {
             GpuBufferSlice written = indirect.write(commands);
+            frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide());
+            sections.clear();
+            visible.collect(sections);
+            coverage.draw(target.coverageView(), target.colourView(), target.width(), target.height(), frame.buffer(),
+                    sections);
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(), written, commands.count(),
-                    farViewProjection, runtime.frame().minBlockY());
+                    frame.buffer());
             composite.draw(target, main, farViewProjection, gameViewProjection, fog, gameFog.color);
         }
     }
@@ -193,7 +210,8 @@ public final class FarRenderer implements AutoCloseable {
 
         indirect.close();
         composite.close();
-        opaque.close();
+        coverage.close();
+        frame.close();
         target.close();
         models.close();
         arena.close();

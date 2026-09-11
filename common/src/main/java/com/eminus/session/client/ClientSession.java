@@ -2,6 +2,7 @@ package com.eminus.session.client;
 
 import java.nio.file.Path;
 
+import com.eminus.handoff.client.VanillaVisibleSections;
 import com.eminus.ingest.IngestService;
 import com.eminus.mixin.BiomeManagerAccessor;
 import com.eminus.render.far.client.FarRenderer;
@@ -129,8 +130,10 @@ public final class ClientSession {
         }
 
         if (current != null) {
+            Minecraft minecraft = Minecraft.getInstance();
             runtime = instance.acquire(identityOf(current), current.getMinY());
-            renderer = FarRenderer.start(Minecraft.getInstance(), instance, runtime, current.getHeight());
+            renderer = FarRenderer.start(minecraft, instance, runtime,
+                    new VanillaVisibleSections(minecraft.levelRenderer), current.getHeight());
         }
     }
 

@@ -7,6 +7,7 @@ layout(std140) uniform FarFrame {
 };
 
 uniform sampler2D Atlas;
+uniform sampler2D Coverage;
 
 in vec2 faceUV;
 in vec4 vertexColor;
@@ -15,6 +16,10 @@ flat in ivec2 atlasCell;
 out vec4 fragColor;
 
 void main() {
+    if (gl_FragCoord.z > texelFetch(Coverage, ivec2(gl_FragCoord.xy), 0).r) {
+        discard;
+    }
+
     vec2 cell = vec2(1.0) / float(AtlasCells);
     float margin = 0.5 / float(FACE_SIDE);
     vec2 within = clamp(fract(faceUV), margin, 1.0 - margin);

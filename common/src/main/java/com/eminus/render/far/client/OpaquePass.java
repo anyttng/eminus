@@ -13,6 +13,7 @@ import com.eminus.render.backend.DepthConvention;
 
 import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.BindGroupLayout;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
@@ -29,11 +30,10 @@ import com.mojang.blaze3d.textures.GpuTextureView;
 import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.resources.Identifier;
 
-import org.joml.Matrix4fc;
 import org.joml.Vector4f;
 import org.joml.Vector4fc;
 
-public final class OpaquePass implements AutoCloseable {
+public final class OpaquePass {
     public static final float ALPHA_CUTOUT = 0.5F;
 
     // The near field bakes these into its vertex colour through BlockModelLighter.AdjacencyInfo.
@@ -55,46 +55,41 @@ public final class OpaquePass implements AutoCloseable {
             .withUniform("TintColours", UniformType.TEXEL_BUFFER, GpuFormat.R32_UINT)
             .withSampler("Atlas")
             .withSampler("Lightmap")
+            .withSampler("Coverage")
             .build();
 
     private final RenderPipeline pipeline;
-    private final FarFrame frame;
 
-    private OpaquePass(RenderPipeline pipeline, FarFrame frame) {
+    private OpaquePass(RenderPipeline pipeline) {
         this.pipeline = pipeline;
-        this.frame = frame;
     }
 
     public static OpaquePass create(DepthConvention depth) {
         RenderSystem.assertOnRenderThread();
-        return new OpaquePass(pipeline(depth), FarFrame.create());
+        return new OpaquePass(pipeline(depth));
     }
 
     public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, GpuTextureView lightmap,
-            GpuBufferSlice commands, int drawCount, Matrix4fc viewProjection, int minBlockY) {
+            GpuBufferSlice commands, int drawCount, GpuBuffer frame) {
         RenderSystem.assertOnRenderThread();
-        frame.write(viewProjection, minBlockY, models.atlas().cellsPerSide());
 
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(target))) {
             pass.setPipeline(pipeline);
             pass.setUniform("Globals", RenderSystem.getGlobalSettingsUniform());
-            pass.setUniform("FarFrame", frame.buffer());
+            pass.setUniform("FarFrame", frame);
             pass.setUniform("Quads", arena.quads());
             pass.setUniform("MeshRecords", arena.records().buffer());
             pass.setUniform("ModelRecords", models.records().buffer());
             pass.setUniform("TintColours", models.tints().buffer());
             pass.bindTexture("Atlas", models.atlasView(), atlasSampler());
             pass.bindTexture("Lightmap", lightmap, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+            pass.bindTexture("Coverage", target.coverageView(),
+                    RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
 
             if (drawCount > 0) {
                 pass.drawIndirect(commands, drawCount);
             }
         }
-    }
-
-    @Override
-    public void close() {
-        frame.close();
     }
 
     private static GpuSampler atlasSampler() {

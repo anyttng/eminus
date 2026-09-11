@@ -6,16 +6,15 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 
 public final class FarProjection {
-    public static final float NEAR = 16.0F;
     public static final float FAR = 48_000.0F;
 
     private static final double HALF = 0.5;
 
     private final Projection projection = new Projection();
 
-    public Matrix4f viewProjection(float fov, Matrix4fc fold, Matrix4fc rotation, float width, float height,
-            Matrix4f target) {
-        projection.setupPerspective(NEAR, FAR, fov, width, height);
+    public Matrix4f viewProjection(float near, float fov, Matrix4fc fold, Matrix4fc rotation, float width,
+            float height, Matrix4f target) {
+        projection.setupPerspective(near, FAR, fov, width, height);
         projection.getMatrix(target);
         return target.mul(fold).mul(rotation);
     }
