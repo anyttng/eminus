@@ -44,3 +44,6 @@ Terrain far beyond the render distance: a coarse, persistent copy of every chunk
 
 [[mixins]]
 config="eminus.mixins.json"
+
+[[mixins]]
+config="eminus.compat.sodium.mixins.json"

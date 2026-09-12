@@ -19,7 +19,8 @@
     ]
   },
   "mixins": [
-    "eminus.mixins.json"
+    "eminus.mixins.json",
+    "eminus.compat.sodium.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.5",
