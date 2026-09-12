@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 
 class ModelBakeryTest {
     private static final int WHITE = 0xFFFF_FFFF;
+    private static final int BLUE = 0xFF00_00FF;
+    private static final int BOTH_MODELS = 2;
     private static final int SECONDS = 5;
 
     private static BlockState stone;
@@ -31,7 +33,7 @@ class ModelBakeryTest {
 
     @Test
     void twoStatesThatBakeToTheSameResultShareOneModelId() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(state -> BakedModel.solid(WHITE));
+        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
 
         try {
             awaitBake(bakery, stone);
@@ -46,7 +48,7 @@ class ModelBakeryTest {
 
     @Test
     void aRequestForAnUnbakedStateIsAnsweredOnceItIsServed() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(state -> BakedModel.solid(WHITE));
+        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
 
         try {
             CountDownLatch served = new CountDownLatch(1);
@@ -64,7 +66,7 @@ class ModelBakeryTest {
         CountDownLatch release = new CountDownLatch(1);
         ModelBakery bakery = ModelBakery.start(state -> {
             await(release);
-            return BakedModel.solid(WHITE);
+            return new BakedState(BakedModel.solid(WHITE), null);
         });
 
         try {
@@ -88,7 +90,7 @@ class ModelBakeryTest {
                 throw new IllegalStateException("no model for " + state);
             }
 
-            return BakedModel.solid(WHITE);
+            return new BakedState(BakedModel.solid(WHITE), null);
         });
 
         try {
@@ -97,6 +99,54 @@ class ModelBakeryTest {
 
             awaitBake(bakery, dirt);
             assertEquals(BakedModel.solid(WHITE), bakery.model(bakery.modelId(dirt)));
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void aStateWithNoFluidPublishesNoFluidModel() throws InterruptedException {
+        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
+
+        try {
+            awaitBake(bakery, stone);
+
+            assertEquals(ModelBakery.NO_FLUID, bakery.fluidModelId(stone));
+            assertEquals(1, bakery.modelCount());
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void aStateWithAFluidPublishesASecondModelId() throws InterruptedException {
+        ModelBakery bakery = ModelBakery.start(
+                state -> new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE)));
+
+        try {
+            awaitBake(bakery, stone);
+
+            assertNotEquals(ModelBakery.MISSING, bakery.fluidModelId(stone));
+            assertNotEquals(bakery.modelId(stone), bakery.fluidModelId(stone));
+            assertEquals(BakedModel.solid(BLUE), bakery.model(bakery.fluidModelId(stone)));
+            assertEquals(BOTH_MODELS, bakery.modelCount());
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void twoStatesWithTheSameBlockAndFluidShareBothIds() throws InterruptedException {
+        ModelBakery bakery = ModelBakery.start(
+                state -> new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE)));
+
+        try {
+            awaitBake(bakery, stone);
+            awaitBake(bakery, dirt);
+
+            assertEquals(bakery.modelId(stone), bakery.modelId(dirt));
+            assertEquals(bakery.fluidModelId(stone), bakery.fluidModelId(dirt));
+            assertEquals(BOTH_MODELS, bakery.modelCount());
         } finally {
             bakery.stop();
         }

@@ -1,6 +1,7 @@
 package com.eminus.mesh;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -33,12 +34,18 @@ class CellMesherTest {
     private static final int LAVA = 3;
     private static final int TINT_A = 4;
     private static final int TINT_B = 5;
+    private static final int WATER = 6;
+    private static final int WATERLOGGED = 7;
+    private static final int WET_LEAVES = 8;
 
     private static final int STONE_MODEL = 10;
     private static final int GLASS_MODEL = 11;
     private static final int LAVA_MODEL = 12;
     private static final int TINT_A_MODEL = 13;
     private static final int TINT_B_MODEL = 14;
+    private static final int WATER_MODEL = 15;
+    private static final int WATERLOGGED_MODEL = 16;
+    private static final int WET_LEAVES_MODEL = 17;
 
     private static final int BIOME = 3;
     private static final int FULL_SKY = 15;
@@ -49,6 +56,7 @@ class CellMesherTest {
     private static final int CUBE_SIDE = 2;
     private static final int CUBE_FACES = 6;
     private static final int NEIGHBOUR_X = 2;
+    private static final int WATERLOGGED_FACES = QuadGroups.FACE_COUNT * 2;
 
     private final Map<Integer, Integer> opacities = new HashMap<>();
     private final FakeModels models = new FakeModels();
@@ -205,6 +213,84 @@ class CellMesherTest {
         assertEquals(1, models.requests());
     }
 
+    @Test
+    void aWaterloggedBlockShowsItsOwnFacesAndTheWaters() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(5, 5, 5, block(WATERLOGGED));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertEquals(WATERLOGGED_FACES, mesh.quadCount());
+        assertEquals(QuadGroups.FACE_COUNT, mesh.groupCount(QuadGroups.TRANSLUCENT));
+        assertTrue(has(mesh, Direction.EAST, 5, 5, 5, WATERLOGGED_MODEL));
+        assertTrue(has(mesh, Direction.EAST, 5, 5, 5, WATER_MODEL));
+    }
+
+    @Test
+    void aPureWaterBlockAsksForNoSecondModel() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(5, 5, 5, block(WATER));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertEquals(QuadGroups.FACE_COUNT, mesh.quadCount());
+        assertEquals(QuadGroups.FACE_COUNT, mesh.groupCount(QuadGroups.TRANSLUCENT));
+    }
+
+    @Test
+    void twoWaterloggedNeighboursShareNoWaterSurface() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(1, 1, 1, block(WATERLOGGED));
+        cell.set(NEIGHBOUR_X, 1, 1, block(WATERLOGGED));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertFalse(has(mesh, Direction.EAST, 1, 1, 1, WATER_MODEL));
+        assertFalse(has(mesh, Direction.WEST, NEIGHBOUR_X, 1, 1, WATER_MODEL));
+        assertTrue(has(mesh, Direction.WEST, 1, 1, 1, WATER_MODEL));
+        assertTrue(has(mesh, Direction.EAST, NEIGHBOUR_X, 1, 1, WATER_MODEL));
+    }
+
+    @Test
+    void aWaterBlockShowsNoSurfaceTowardsAWaterloggedNeighbour() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(1, 1, 1, block(WATERLOGGED));
+        cell.set(NEIGHBOUR_X, 1, 1, block(WATER));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertFalse(has(mesh, Direction.WEST, NEIGHBOUR_X, 1, 1, WATER_MODEL));
+        assertFalse(has(mesh, Direction.EAST, 1, 1, 1, WATER_MODEL));
+        assertTrue(has(mesh, Direction.EAST, NEIGHBOUR_X, 1, 1, WATER_MODEL));
+    }
+
+    @Test
+    void anOpaqueWaterloggedBlockStillShowsItsWater() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(5, 5, 5, block(WET_LEAVES));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertEquals(WATERLOGGED_FACES, mesh.quadCount());
+        assertEquals(QuadGroups.FACE_COUNT, mesh.groupCount(QuadGroups.TRANSLUCENT));
+    }
+
+    @Test
+    void anUnbakedFluidAbortsTheMeshAndAsksForTheBake() {
+        defineBlocks();
+        models.unbakeFluid(WATERLOGGED);
+        Cell cell = blank();
+        cell.set(1, 1, 1, block(WATERLOGGED));
+
+        assertNull(mesh(cell, airAround(), 0));
+        assertEquals(1, models.requests());
+    }
+
     private void defineBlocks() {
         int solid = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0);
         int clear = ModelMetadata.pack(FaceMask.ALL, FaceMask.NONE, FaceMask.ALL, 0, 0);
@@ -217,9 +303,15 @@ class CellMesherTest {
         models.define(LAVA, LAVA_MODEL, glowing);
         models.define(TINT_A, TINT_A_MODEL, translucent);
         models.define(TINT_B, TINT_B_MODEL, translucent);
+        models.define(WATER, WATER_MODEL, translucent);
+        models.define(WATERLOGGED, WATERLOGGED_MODEL, clear);
+        models.define(WET_LEAVES, WET_LEAVES_MODEL, solid);
+        models.defineFluid(WATERLOGGED, WATER_MODEL, translucent);
+        models.defineFluid(WET_LEAVES, WATER_MODEL, translucent);
 
         opacities.put(STONE, StateTable.FULL_OPACITY);
         opacities.put(LAVA, StateTable.FULL_OPACITY);
+        opacities.put(WET_LEAVES, StateTable.FULL_OPACITY);
     }
 
     private CellMesh mesh(Cell centre, Map<Direction, Cell> around, int level) {

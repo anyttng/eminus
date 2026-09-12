@@ -6,6 +6,8 @@ public final class MeshScratch {
     private final RowMasks masks = new RowMasks();
     private final FacePlane negative = new FacePlane();
     private final FacePlane positive = new FacePlane();
+    private final FacePlane negativeFluid = new FacePlane();
+    private final FacePlane positiveFluid = new FacePlane();
     private final GreedyMerger merger = new GreedyMerger();
 
     public CellVoxels voxels() {
@@ -26,6 +28,14 @@ public final class MeshScratch {
 
     public FacePlane positivePlane() {
         return positive;
+    }
+
+    public FacePlane negativeFluidPlane() {
+        return negativeFluid;
+    }
+
+    public FacePlane positiveFluidPlane() {
+        return positiveFluid;
     }
 
     public GreedyMerger merger() {

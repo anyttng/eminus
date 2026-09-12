@@ -7,8 +7,10 @@ import java.util.Set;
 
 final class FakeModels implements MeshModels {
     private final Map<Integer, Integer> ids = new HashMap<>();
+    private final Map<Integer, Integer> fluidIds = new HashMap<>();
     private final Map<Integer, Integer> words = new HashMap<>();
     private final Set<Integer> unbaked = new HashSet<>();
+    private final Set<Integer> unbakedFluids = new HashSet<>();
 
     private int requests;
     private boolean throwOnMetadata;
@@ -18,8 +20,17 @@ final class FakeModels implements MeshModels {
         words.put(modelId, metadata);
     }
 
+    void defineFluid(int stateId, int fluidModelId, int metadata) {
+        fluidIds.put(stateId, fluidModelId);
+        words.put(fluidModelId, metadata);
+    }
+
     void unbake(int stateId) {
         unbaked.add(stateId);
+    }
+
+    void unbakeFluid(int stateId) {
+        unbakedFluids.add(stateId);
     }
 
     void throwOnMetadata() {
@@ -39,6 +50,17 @@ final class FakeModels implements MeshModels {
 
         Integer modelId = ids.get(stateId);
         return modelId == null ? MISSING : modelId;
+    }
+
+    @Override
+    public int fluidModelId(int stateId, Runnable whenBaked) {
+        if (unbakedFluids.contains(stateId)) {
+            requests++;
+            return MISSING;
+        }
+
+        Integer fluidModelId = fluidIds.get(stateId);
+        return fluidModelId == null ? NO_FLUID : fluidModelId;
     }
 
     @Override

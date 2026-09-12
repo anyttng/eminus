@@ -16,7 +16,7 @@ public final class FacePasses {
 
     private static final int SIDE = DetailLevel.VOXELS_PER_SIDE;
     private static final int NO_METADATA = 0;
-    private static final int AIR_MODEL = -2;
+    private static final int AIR_MODEL = -3;
     private static final Direction[] TOWARDS_LOW = new Direction[Direction.Axis.values().length];
     private static final Direction[] TOWARDS_HIGH = new Direction[Direction.Axis.values().length];
 
@@ -58,29 +58,40 @@ public final class FacePasses {
             scratch.masks().build(scratch.voxels(), opacity, along);
 
             for (int plane = 0; plane < SIDE; plane++) {
-                FacePlane negative = scratch.negativePlane();
-                FacePlane positive = scratch.positivePlane();
-                negative.clear();
-                positive.clear();
+                clearPlanes();
 
-                if (!fill(plane, negative, positive)) {
+                if (!fill(plane)) {
                     return false;
                 }
 
-                if (!negative.isEmpty()) {
-                    sink.accept(towardsLow, plane, negative);
-                }
-
-                if (!positive.isEmpty()) {
-                    sink.accept(towardsHigh, plane, positive);
-                }
+                flush(plane);
             }
         }
 
         return true;
     }
 
-    private boolean fill(int plane, FacePlane negative, FacePlane positive) {
+    private void clearPlanes() {
+        scratch.negativePlane().clear();
+        scratch.positivePlane().clear();
+        scratch.negativeFluidPlane().clear();
+        scratch.positiveFluidPlane().clear();
+    }
+
+    private void flush(int plane) {
+        send(towardsLow, plane, scratch.negativePlane());
+        send(towardsHigh, plane, scratch.positivePlane());
+        send(towardsLow, plane, scratch.negativeFluidPlane());
+        send(towardsHigh, plane, scratch.positiveFluidPlane());
+    }
+
+    private void send(Direction face, int plane, FacePlane quads) {
+        if (!quads.isEmpty()) {
+            sink.accept(face, plane, quads);
+        }
+    }
+
+    private boolean fill(int plane) {
         CellVoxels voxels = scratch.voxels();
         RowMasks masks = scratch.masks();
 
@@ -97,43 +108,93 @@ public final class FacePasses {
                     return false;
                 }
 
-                if (!Quad.fitsModelId(modelId)) {
-                    scratch.buffer().dropUnaddressable();
-                    continue;
-                }
-
                 long low = RowMasks.entryAt(voxels, axis, u, v, plane - 1);
                 long high = RowMasks.entryAt(voxels, axis, u, v, plane + 1);
-                int metadata = models.metadata(modelId);
 
-                if (masks.opaque(row, plane)) {
-                    if (masks.facesNegative(row, plane)) {
-                        negative.set(u, v, data(owner, low, metadata, modelId));
-                    }
-
-                    if (masks.facesPositive(row, plane)) {
-                        positive.set(u, v, data(owner, high, metadata, modelId));
-                    }
-
-                    continue;
-                }
-
-                int lowModel = facingModel(low);
-                int highModel = facingModel(high);
-                if (lowModel == MeshModels.MISSING || highModel == MeshModels.MISSING) {
+                if (!blockFaces(u, v, plane, row, owner, low, high, modelId)) {
                     return false;
                 }
 
-                if (!sameTranslucent(metadata, modelId, lowModel)
-                        && visible(metadata, metadataOf(lowModel), towardsLow)) {
-                    negative.set(u, v, data(owner, low, metadata, modelId));
-                }
-
-                if (!sameTranslucent(metadata, modelId, highModel)
-                        && visible(metadata, metadataOf(highModel), towardsHigh)) {
-                    positive.set(u, v, data(owner, high, metadata, modelId));
+                if (!fluidFaces(u, v, owner, low, high)) {
+                    return false;
                 }
             }
+        }
+
+        return true;
+    }
+
+    private boolean blockFaces(int u, int v, int plane, int row, long owner, long low, long high, int modelId) {
+        if (!Quad.fitsModelId(modelId)) {
+            scratch.buffer().dropUnaddressable();
+            return true;
+        }
+
+        RowMasks masks = scratch.masks();
+        int metadata = models.metadata(modelId);
+
+        if (masks.opaque(row, plane)) {
+            if (masks.facesNegative(row, plane)) {
+                scratch.negativePlane().set(u, v, data(owner, low, metadata, modelId));
+            }
+
+            if (masks.facesPositive(row, plane)) {
+                scratch.positivePlane().set(u, v, data(owner, high, metadata, modelId));
+            }
+
+            return true;
+        }
+
+        int lowModel = facingModel(low);
+        int highModel = facingModel(high);
+        if (lowModel == MeshModels.MISSING || highModel == MeshModels.MISSING) {
+            return false;
+        }
+
+        if (!facingHoldsSameTranslucent(metadata, modelId, lowModel, low)
+                && visible(metadata, metadataOf(lowModel), towardsLow)) {
+            scratch.negativePlane().set(u, v, data(owner, low, metadata, modelId));
+        }
+
+        if (!facingHoldsSameTranslucent(metadata, modelId, highModel, high)
+                && visible(metadata, metadataOf(highModel), towardsHigh)) {
+            scratch.positivePlane().set(u, v, data(owner, high, metadata, modelId));
+        }
+
+        return true;
+    }
+
+    private boolean fluidFaces(int u, int v, long owner, long low, long high) {
+        int fluidModel = models.fluidModelId(VoxelEntry.state(owner), whenBaked);
+        if (fluidModel == MeshModels.MISSING) {
+            return false;
+        }
+
+        if (fluidModel == MeshModels.NO_FLUID) {
+            return true;
+        }
+
+        if (!Quad.fitsModelId(fluidModel)) {
+            scratch.buffer().dropUnaddressable();
+            return true;
+        }
+
+        int lowModel = facingFluidModel(low);
+        int highModel = facingFluidModel(high);
+        if (lowModel == MeshModels.MISSING || highModel == MeshModels.MISSING) {
+            return false;
+        }
+
+        int metadata = models.metadata(fluidModel);
+
+        if (!facingHoldsSameTranslucent(metadata, fluidModel, lowModel, low)
+                && visible(metadata, metadataOf(lowModel), towardsLow)) {
+            scratch.negativeFluidPlane().set(u, v, data(owner, low, metadata, fluidModel));
+        }
+
+        if (!facingHoldsSameTranslucent(metadata, fluidModel, highModel, high)
+                && visible(metadata, metadataOf(highModel), towardsHigh)) {
+            scratch.positiveFluidPlane().set(u, v, data(owner, high, metadata, fluidModel));
         }
 
         return true;
@@ -143,12 +204,26 @@ public final class FacePasses {
         return VoxelEntry.isAir(entry) ? AIR_MODEL : models.modelId(VoxelEntry.state(entry), whenBaked);
     }
 
+    private int facingFluidModel(long entry) {
+        if (VoxelEntry.isAir(entry)) {
+            return AIR_MODEL;
+        }
+
+        int stateId = VoxelEntry.state(entry);
+        int fluidModel = models.fluidModelId(stateId, whenBaked);
+        return fluidModel == MeshModels.NO_FLUID ? models.modelId(stateId, whenBaked) : fluidModel;
+    }
+
     private int metadataOf(int modelId) {
         return modelId == AIR_MODEL ? NO_METADATA : models.metadata(modelId);
     }
 
-    private static boolean sameTranslucent(int metadata, int modelId, int facingModel) {
-        return modelId == facingModel && ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT);
+    private boolean facingHoldsSameTranslucent(int metadata, int modelId, int facingModel, long facing) {
+        if (!ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT)) {
+            return false;
+        }
+
+        return modelId == facingModel || modelId == facingFluidModel(facing);
     }
 
     private long data(long owner, long facing, int metadata, int modelId) {

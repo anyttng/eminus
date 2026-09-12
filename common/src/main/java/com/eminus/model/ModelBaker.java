@@ -43,17 +43,21 @@ public final class ModelBaker implements StateBaker {
     }
 
     @Override
-    public BakedModel bake(BlockState state) {
+    public BakedState bake(BlockState state) {
         BlockState shape = baseOf(state);
         collect(shape);
+        FluidState fluid = state.getFluidState();
 
         if (quads.isEmpty()) {
-            FluidState fluid = state.getFluidState();
-            return fluid.isEmpty() ? BakedModel.empty() : tinted(fluids.bake(fluid), state, state);
+            return new BakedState(fluid.isEmpty() ? BakedModel.empty() : fluidModel(fluid, state), null);
         }
 
         BakedModel model = rasterizer.rasterize(quads, texels(shape), layer -> blockColors.getTintSource(shape, layer));
-        return tinted(model, shape, state);
+        return new BakedState(tinted(model, shape, state), fluid.isEmpty() ? null : fluidModel(fluid, state));
+    }
+
+    private BakedModel fluidModel(FluidState fluid, BlockState state) {
+        return tinted(fluids.bake(fluid), state, state);
     }
 
     private BakedModel tinted(BakedModel model, BlockState shape, BlockState state) {

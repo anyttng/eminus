@@ -16,6 +16,7 @@ import net.minecraft.world.level.block.state.BlockState;
 public final class ModelBakery implements ModelSource {
     public static final String THREAD_NAME = "eminus-bakery";
     public static final int MISSING = Dictionary.MISSING;
+    public static final int NO_FLUID = -2;
     public static final int PLACEHOLDER_COLOUR = 0xFFFF_00FF;
 
     private static final int THREAD_PRIORITY = Thread.NORM_PRIORITY - 1;
@@ -23,6 +24,7 @@ public final class ModelBakery implements ModelSource {
     private final StateBaker baker;
     private final Dictionary<BakedModel> models = new Dictionary<>((id, model) -> { });
     private final Map<BlockState, Integer> idByState = new ConcurrentHashMap<>();
+    private final Map<BlockState, Integer> fluidIdByState = new ConcurrentHashMap<>();
     private final BlockingQueue<BlockState> requests = new LinkedBlockingQueue<>();
     private final Map<BlockState, List<Runnable>> waiting = new HashMap<>();
     private final Thread thread = new Thread(this::serve, THREAD_NAME);
@@ -44,6 +46,11 @@ public final class ModelBakery implements ModelSource {
 
     public int modelId(BlockState state) {
         Integer known = idByState.get(state);
+        return known == null ? MISSING : known;
+    }
+
+    public int fluidModelId(BlockState state) {
+        Integer known = fluidIdByState.get(state);
         return known == null ? MISSING : known;
     }
 
@@ -109,17 +116,19 @@ public final class ModelBakery implements ModelSource {
         }
     }
 
-    private BakedModel bake(BlockState state) {
+    private BakedState bake(BlockState state) {
         try {
             return baker.bake(state);
         } catch (Throwable failure) {
             Eminus.LOGGER.error("Baking {} threw; the placeholder model stands in.", state, failure);
-            return placeholder;
+            return new BakedState(placeholder, null);
         }
     }
 
-    private void publish(BlockState state, BakedModel model) {
-        idByState.put(state, models.register(model));
+    private void publish(BlockState state, BakedState baked) {
+        BakedModel fluid = baked.fluid();
+        fluidIdByState.put(state, fluid == null ? NO_FLUID : models.register(fluid));
+        idByState.put(state, models.register(baked.block()));
 
         List<Runnable> waiters;
         synchronized (waiting) {

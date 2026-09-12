@@ -15,6 +15,16 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     }
 
     @Override
+    public int fluidModelId(int stateId, Runnable whenBaked) {
+        int fluidId = index.fluidModelId(stateId, whenBaked);
+        if (fluidId == ModelBakery.MISSING) {
+            return MISSING;
+        }
+
+        return fluidId == ModelBakery.NO_FLUID ? NO_FLUID : fluidId;
+    }
+
+    @Override
     public int metadata(int modelId) {
         BakedModel model = models.model(modelId);
         return model == null ? NO_METADATA : model.metadata();
