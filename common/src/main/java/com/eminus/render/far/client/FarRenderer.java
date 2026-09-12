@@ -4,10 +4,8 @@ import com.eminus.Eminus;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.cache.CellHandle;
-import com.eminus.handoff.CoverageSections;
 import com.eminus.handoff.NearPlane;
-import com.eminus.handoff.VisibleSections;
-import com.eminus.handoff.client.CoveragePass;
+import com.eminus.handoff.client.NearMaskPass;
 import com.eminus.mesh.BakeryModels;
 import com.eminus.mesh.MeshService;
 import com.eminus.model.ModelIndex;
@@ -56,13 +54,11 @@ public final class FarRenderer implements AutoCloseable {
     private final GeometryArena arena;
     private final FarTarget target;
     private final FarFrame frame;
-    private final CoveragePass coverage;
+    private final NearMaskPass mask;
     private final OpaquePass opaque;
     private final TranslucentPass translucent;
     private final CompositePass composite;
     private final IndirectCommands indirect;
-    private final VisibleSections visible;
-    private final CoverageSections sections = new CoverageSections();
     private final DrawCommands commands = new DrawCommands(COMMAND_CAPACITY);
     private final TranslucentOrder order = new TranslucentOrder();
     private final FarProjection projection = new FarProjection();
@@ -77,26 +73,25 @@ public final class FarRenderer implements AutoCloseable {
     private boolean stopped;
 
     private FarRenderer(DimensionRuntime runtime, ClientBakery baking, ModelPublisher models, GeometryArena arena,
-            FarTarget target, FarFrame frame, CoveragePass coverage, OpaquePass opaque, TranslucentPass translucent,
-            CompositePass composite, IndirectCommands indirect, VisibleSections visible, int heightCells) {
+            FarTarget target, FarFrame frame, NearMaskPass mask, OpaquePass opaque, TranslucentPass translucent,
+            CompositePass composite, IndirectCommands indirect, int heightCells) {
         this.runtime = runtime;
         this.baking = baking;
         this.models = models;
         this.arena = arena;
         this.target = target;
         this.frame = frame;
-        this.coverage = coverage;
+        this.mask = mask;
         this.opaque = opaque;
         this.translucent = translucent;
         this.composite = composite;
         this.indirect = indirect;
-        this.visible = visible;
         tree = TreeManager.start(new Builds(),
                 new TreeExtent(runtime.frame(), heightCells, runtime.lowestStoredLevel()));
     }
 
     public static @Nullable FarRenderer start(Minecraft client, EminusInstance instance, DimensionRuntime runtime,
-            VisibleSections visible, int levelHeight, Settings settings) {
+            int levelHeight, Settings settings) {
         RenderSystem.assertOnRenderThread();
 
         RenderTarget main = client.gameRenderer.mainRenderTarget();
@@ -115,9 +110,9 @@ public final class FarRenderer implements AutoCloseable {
         FarRenderer renderer = new FarRenderer(runtime, baking,
                 ModelPublisher.start(baking.bakery(), baking.colours(), runtime.biomes()), arena,
                 FarTarget.create(support.depthStencilFormat(), main.width, main.height), FarFrame.create(),
-                CoveragePass.create(FarTarget.COLOUR_FORMAT), OpaquePass.create(support.depth()),
+                NearMaskPass.create(FarTarget.COLOUR_FORMAT), OpaquePass.create(support.depth()),
                 TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),
-                IndirectCommands.create(COMMAND_CAPACITY), visible,
+                IndirectCommands.create(COMMAND_CAPACITY),
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
 
         renderer.meshes = new MeshService(instance.build(), runtime.cells(),
@@ -195,10 +190,8 @@ public final class FarRenderer implements AutoCloseable {
         if (commands.count() > 0) {
             indirect.write(commands);
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide());
-            sections.clear();
-            visible.collect(sections);
-            coverage.draw(target.coverageView(), target.colourView(), target.width(), target.height(), frame.buffer(),
-                    sections);
+            mask.draw(target.maskView(), target.colourView(), target.width(), target.height(),
+                    main.getDepthTextureView());
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(),
                     indirect.range(0, commands.opaqueCount()), commands.opaqueCount(), frame.buffer());
             translucent.draw(target, arena, models, client.gameRenderer.lightmap(),
@@ -235,7 +228,6 @@ public final class FarRenderer implements AutoCloseable {
 
         indirect.close();
         composite.close();
-        coverage.close();
         frame.close();
         target.close();
         models.close();

@@ -8,7 +8,7 @@ layout(std140) uniform FarFrame {
 
 uniform sampler2D Atlas;
 uniform sampler2D TintMask;
-uniform sampler2D Coverage;
+uniform sampler2D NearMask;
 
 in vec2 faceUV;
 in vec4 vertexColor;
@@ -18,7 +18,7 @@ flat in ivec2 atlasCell;
 out vec4 fragColor;
 
 void main() {
-    if (gl_FragCoord.z > texelFetch(Coverage, ivec2(gl_FragCoord.xy), 0).r) {
+    if (gl_FragCoord.z > texelFetch(NearMask, ivec2(gl_FragCoord.xy), 0).r) {
         discard;
     }
 

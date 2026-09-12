@@ -4,7 +4,6 @@ import java.nio.file.Path;
 
 import com.eminus.Eminus;
 import com.eminus.handoff.NearFieldOverride;
-import com.eminus.handoff.client.VanillaVisibleSections;
 import com.eminus.ingest.IngestService;
 import com.eminus.mixin.BiomeManagerAccessor;
 import com.eminus.render.far.client.FarRenderer;
@@ -175,8 +174,7 @@ public final class ClientSession {
     private static void startRenderer() {
         Minecraft minecraft = Minecraft.getInstance();
         rendered = SettingsService.get().settings();
-        renderer = FarRenderer.start(minecraft, instance, runtime, new VanillaVisibleSections(minecraft.levelRenderer),
-                level.getHeight(), rendered);
+        renderer = FarRenderer.start(minecraft, instance, runtime, level.getHeight(), rendered);
     }
 
     private static void stopRenderer() {
