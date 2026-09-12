@@ -55,6 +55,7 @@ public final class FaceRasterizer {
 
     private BakedModel box(List<BakedQuad> quads, QuadTexels texels, IntFunction<BlockTintSource> tints) {
         int[] faces = new int[BakedModel.FACE_COUNT * BakedModel.FACE_TEXELS];
+        long[] tintMask = BakedModel.untintedMask();
         float[] insets = new float[BakedModel.FACE_COUNT];
         int present = FaceMask.NONE;
         int occluding = FaceMask.NONE;
@@ -66,7 +67,7 @@ public final class FaceRasterizer {
 
             for (BakedQuad quad : quads) {
                 if (facing(quad, FACE_NORMALS[face])) {
-                    paint(quad, FACE_NORMALS[face], U_AXES[face], V_AXES[face], faces, offset, texels);
+                    paint(quad, FACE_NORMALS[face], U_AXES[face], V_AXES[face], faces, tintMask, offset, texels);
                 }
             }
 
@@ -103,11 +104,12 @@ public final class FaceRasterizer {
             }
         }
 
-        return model(quads, faces, insets, tints, present, occluding, occludable, 0);
+        return model(quads, faces, tintMask, insets, tints, present, occluding, occludable, 0);
     }
 
     private BakedModel blades(List<BakedQuad> quads, QuadTexels texels, IntFunction<BlockTintSource> tints) {
         int[] faces = new int[BakedModel.FACE_COUNT * BakedModel.FACE_TEXELS];
+        long[] tintMask = BakedModel.untintedMask();
         float[] insets = new float[BakedModel.FACE_COUNT];
         Arrays.fill(insets, BakedModel.EMPTY_INSET);
 
@@ -117,24 +119,25 @@ public final class FaceRasterizer {
 
             for (BakedQuad quad : quads) {
                 if (facing(quad, BLADE_NORMALS[blade])) {
-                    paint(quad, BLADE_NORMALS[blade], BLADE_U_AXES[blade], BLADE_V_AXIS, faces, offset, texels);
+                    paint(quad, BLADE_NORMALS[blade], BLADE_U_AXES[blade], BLADE_V_AXIS, faces, tintMask, offset,
+                            texels);
                 }
             }
 
             insets[blade] = CENTRE;
         }
 
-        return model(quads, faces, insets, tints, FaceMask.NONE, FaceMask.NONE, FaceMask.NONE,
+        return model(quads, faces, tintMask, insets, tints, FaceMask.NONE, FaceMask.NONE, FaceMask.NONE,
                 ModelMetadata.BLADED);
     }
 
-    private BakedModel model(List<BakedQuad> quads, int[] faces, float[] insets,
+    private BakedModel model(List<BakedQuad> quads, int[] faces, long[] tintMask, float[] insets,
             IntFunction<BlockTintSource> tints, int present, int occluding, int occludable, int extraFlags) {
         int tintLayer = tintLayer(quads);
         BlockTintSource tint = tintLayer == NO_TINT_LAYER ? null : tints.apply(tintLayer);
         int metadata = ModelMetadata.pack(present, occluding, occludable, emission(quads),
                 flags(quads, tint) | extraFlags);
-        return new BakedModel(faces, insets, bounds(quads), metadata, tint);
+        return new BakedModel(faces, tintMask, insets, bounds(quads), metadata, tint);
     }
 
     private boolean bladed(List<BakedQuad> quads) {
@@ -154,7 +157,7 @@ public final class FaceRasterizer {
     }
 
     private void paint(BakedQuad quad, Vector3fc normal, Vector3fc uAxis, Vector3fc vAxis,
-            int[] faces, int offset, QuadTexels texels) {
+            int[] faces, long[] tintMask, int offset, QuadTexels texels) {
         for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
             Vector3fc position = quad.position(vertex);
             cornerU[vertex] = (CENTRE + along(position, uAxis)) * BakedModel.FACE_SIDE;
@@ -167,11 +170,11 @@ public final class FaceRasterizer {
         }
 
         for (int[] triangle : TRIANGLES) {
-            fill(quad, triangle, faces, offset, texels);
+            fill(quad, triangle, faces, tintMask, offset, texels);
         }
     }
 
-    private void fill(BakedQuad quad, int[] triangle, int[] faces, int offset, QuadTexels texels) {
+    private void fill(BakedQuad quad, int[] triangle, int[] faces, long[] tintMask, int offset, QuadTexels texels) {
         int a = triangle[0];
         int b = triangle[1];
         int c = triangle[2];
@@ -181,6 +184,7 @@ public final class FaceRasterizer {
             return;
         }
 
+        boolean tinted = quad.materialInfo().isTinted();
         int fromU = clampToFace((int) Math.floor(Math.min(cornerU[a], Math.min(cornerU[b], cornerU[c]))));
         int toU = clampToFace((int) Math.ceil(Math.max(cornerU[a], Math.max(cornerU[b], cornerU[c]))));
         int fromV = clampToFace((int) Math.floor(Math.min(cornerV[a], Math.min(cornerV[b], cornerV[c]))));
@@ -199,7 +203,7 @@ public final class FaceRasterizer {
 
                 int texel = v * BakedModel.FACE_SIDE + u;
                 float hit = weightA * cornerDepth[a] + weightB * cornerDepth[b] + weightC * cornerDepth[c];
-                if (hit >= depth[texel]) {
+                if (hit > depth[texel]) {
                     continue;
                 }
 
@@ -211,6 +215,7 @@ public final class FaceRasterizer {
                 }
 
                 faces[offset + texel] = argb;
+                BakedModel.mark(tintMask, offset + texel, tinted);
                 depth[texel] = hit;
             }
         }

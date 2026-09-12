@@ -17,6 +17,7 @@ uniform sampler2D Lightmap;
 
 out vec2 faceUV;
 out vec4 vertexColor;
+flat out vec3 tintColour;
 flat out ivec2 atlasCell;
 
 const int CORNERS_PER_QUAD = 6;
@@ -94,11 +95,12 @@ void main() {
     atlasCell = ivec2(slot % AtlasCells, slot / AtlasCells);
 
     vec4 colour = sample_lightmap(Lightmap, ivec2((light & NIBBLE) * LIGHT_STEP, ((light >> 4) & NIBBLE) * LIGHT_STEP));
-    if (tintRow != NO_TINT) {
-        uint tint = texelFetch(TintColours, tintRow * BIOME_STRIDE + biomeId).r;
-        colour.rgb *= vec3((tint >> 16u) & 255u, (tint >> 8u) & 255u, tint & 255u) / 255.0;
-    }
-
     colour.rgb *= FACE_SHADE[face];
     vertexColor = colour;
+
+    tintColour = vec3(1.0);
+    if (tintRow != NO_TINT) {
+        uint tint = texelFetch(TintColours, tintRow * BIOME_STRIDE + biomeId).r;
+        tintColour = vec3((tint >> 16u) & 255u, (tint >> 8u) & 255u, tint & 255u) / 255.0;
+    }
 }

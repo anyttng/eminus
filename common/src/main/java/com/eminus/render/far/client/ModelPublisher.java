@@ -9,8 +9,6 @@ import com.eminus.model.client.ModelAtlas;
 import com.eminus.model.client.ModelRecords;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
 
 import net.minecraft.client.color.block.BlockTintSource;
 
@@ -27,8 +25,6 @@ public final class ModelPublisher implements AutoCloseable {
     private final TintTable tints;
 
     private ModelRecords records;
-    private GpuTexture viewed;
-    private GpuTextureView atlasView;
     private int recordCapacity = START_RECORDS;
     private int published;
     private boolean atlasFull;
@@ -52,19 +48,6 @@ public final class ModelPublisher implements AutoCloseable {
 
     public ModelAtlas atlas() {
         return atlas;
-    }
-
-    public GpuTextureView atlasView() {
-        if (viewed != atlas.texture()) {
-            if (atlasView != null) {
-                atlasView.close();
-            }
-
-            viewed = atlas.texture();
-            atlasView = RenderSystem.getDevice().createTextureView(viewed);
-        }
-
-        return atlasView;
     }
 
     public ModelRecords records() {
@@ -98,10 +81,6 @@ public final class ModelPublisher implements AutoCloseable {
 
     @Override
     public void close() {
-        if (atlasView != null) {
-            atlasView.close();
-        }
-
         records.close();
         tints.close();
         atlas.close();

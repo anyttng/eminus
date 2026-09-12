@@ -7,10 +7,12 @@ layout(std140) uniform FarFrame {
 };
 
 uniform sampler2D Atlas;
+uniform sampler2D TintMask;
 uniform sampler2D Coverage;
 
 in vec2 faceUV;
 in vec4 vertexColor;
+flat in vec3 tintColour;
 flat in ivec2 atlasCell;
 
 out vec4 fragColor;
@@ -25,10 +27,15 @@ void main() {
     vec2 within = clamp(fract(faceUV), margin, 1.0 - margin);
     vec2 uv = (vec2(atlasCell) + within) * cell;
 
-    vec4 colour = textureGrad(Atlas, uv, dFdx(faceUV) * cell, dFdy(faceUV) * cell) * vertexColor;
+    vec2 gradX = dFdx(faceUV) * cell;
+    vec2 gradY = dFdy(faceUV) * cell;
+
+    vec4 colour = textureGrad(Atlas, uv, gradX, gradY) * vertexColor;
     if (colour.a < ALPHA_CUTOUT) {
         discard;
     }
+
+    colour.rgb *= mix(vec3(1.0), tintColour, textureGrad(TintMask, uv, gradX, gradY).r);
 
 #ifdef FULL_COVERAGE
     fragColor = vec4(colour.rgb, 1.0);

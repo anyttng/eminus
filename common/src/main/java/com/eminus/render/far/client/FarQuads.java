@@ -42,6 +42,7 @@ final class FarQuads {
             .withUniform("ModelRecords", UniformType.TEXEL_BUFFER, GpuFormat.RGBA32_FLOAT)
             .withUniform("TintColours", UniformType.TEXEL_BUFFER, GpuFormat.R32_UINT)
             .withSampler("Atlas")
+            .withSampler("TintMask")
             .withSampler("Lightmap")
             .withSampler("Coverage")
             .build();
@@ -79,7 +80,8 @@ final class FarQuads {
         pass.setUniform("MeshRecords", arena.records().buffer());
         pass.setUniform("ModelRecords", models.records().buffer());
         pass.setUniform("TintColours", models.tints().buffer());
-        pass.bindTexture("Atlas", models.atlasView(), atlasSampler());
+        pass.bindTexture("Atlas", models.atlas().colourView(), atlasSampler());
+        pass.bindTexture("TintMask", models.atlas().tintMaskView(), atlasSampler());
         pass.bindTexture("Lightmap", lightmap, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
         pass.bindTexture("Coverage", coverage, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
     }

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntFunction;
 
@@ -23,10 +24,12 @@ import org.junit.jupiter.api.Test;
 
 class FaceRasterizerTest {
     private static final int WHITE = 0xFFFF_FFFF;
+    private static final int GREEN = 0xFF00_FF00;
     private static final int TRANSPARENT = 0x0000_0000;
     private static final float BAND_TOP = 0.5F;
     private static final int BAND_ROWS = 8;
     private static final int NO_TINT_LAYER = -1;
+    private static final int TINT_LAYER = 0;
     private static final IntFunction<BlockTintSource> NO_TINTS = layer -> null;
 
     private static final float[] NO_UV = {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
@@ -34,10 +37,13 @@ class FaceRasterizerTest {
 
     private static final QuadTexels OPAQUE_WHITE = (quad, u, v) -> WHITE;
     private static final QuadTexels FULLY_TRANSPARENT = (quad, u, v) -> TRANSPARENT;
+    private static final QuadTexels GREEN_WHERE_TINTED =
+            (quad, u, v) -> quad.materialInfo().isTinted() ? GREEN : WHITE;
     private static final QuadTexels COORDINATES = (quad, u, v) ->
             0xFF00_0000 | (int) (u * BakedModel.FACE_SIDE) << 8 | (int) (v * BakedModel.FACE_SIDE);
 
     private static BakedQuad.MaterialInfo material;
+    private static BakedQuad.MaterialInfo tintedMaterial;
 
     private final FaceRasterizer rasterizer = new FaceRasterizer();
 
@@ -45,6 +51,7 @@ class FaceRasterizerTest {
     static void bootstrapVanilla() {
         VanillaBootstrap.ensure();
         material = new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID, null, NO_TINT_LAYER, true, 0);
+        tintedMaterial = new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID, null, TINT_LAYER, true, 0);
     }
 
     @Test
@@ -134,6 +141,42 @@ class FaceRasterizerTest {
     }
 
     @Test
+    void aTintedOverlayMarksItsOwnTexelsAndLeavesEveryOtherFaceUntinted() {
+        BakedModel model = rasterizer.rasterize(cubeWithTintedOverlay(), GREEN_WHERE_TINTED, NO_TINTS);
+
+        int overlaid = Direction.SOUTH.ordinal();
+        for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
+            boolean tinted = row >= BAND_ROWS;
+            for (int column = 0; column < BakedModel.FACE_SIDE; column++) {
+                assertEquals(tinted, model.tinted(overlaid, row * BakedModel.FACE_SIDE + column), "row " + row);
+            }
+        }
+
+        for (int face = 0; face < BakedModel.FACE_COUNT; face++) {
+            if (face == overlaid) {
+                continue;
+            }
+
+            for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
+                assertFalse(model.tinted(face, texel), "face " + face + " texel " + texel);
+            }
+        }
+    }
+
+    @Test
+    void aCoplanarQuadPaintsOverTheOneBeforeIt() {
+        BakedModel model = rasterizer.rasterize(cubeWithTintedOverlay(), GREEN_WHERE_TINTED, NO_TINTS);
+
+        int overlaid = Direction.SOUTH.ordinal();
+        for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
+            int expected = row < BAND_ROWS ? WHITE : GREEN;
+            for (int column = 0; column < BakedModel.FACE_SIDE; column++) {
+                assertEquals(expected, model.argb(overlaid, row * BakedModel.FACE_SIDE + column), "row " + row);
+            }
+        }
+    }
+
+    @Test
     void aFullyTransparentTextureLeavesNoFaceBehind() {
         BakedModel model = rasterizer.rasterize(cube(), FULLY_TRANSPARENT, NO_TINTS);
 
@@ -178,7 +221,20 @@ class FaceRasterizerTest {
                 quad(Direction.EAST, new float[] {1, top, 0, 1, top, 1, 1, 0, 1, 1, 0, 0}, NO_UV));
     }
 
+    private static List<BakedQuad> cubeWithTintedOverlay() {
+        float bottom = BAND_TOP;
+        List<BakedQuad> quads = new ArrayList<>(cube());
+        quads.add(quad(Direction.SOUTH,
+                new float[] {0, bottom, 1, 1, bottom, 1, 1, 1, 1, 0, 1, 1}, FACE_UV, tintedMaterial));
+        return quads;
+    }
+
     private static BakedQuad quad(Direction direction, float[] positions, float[] uvs) {
+        return quad(direction, positions, uvs, material);
+    }
+
+    private static BakedQuad quad(Direction direction, float[] positions, float[] uvs,
+            BakedQuad.MaterialInfo materialInfo) {
         return new BakedQuad(
                 new Vector3f(positions[0], positions[1], positions[2]),
                 new Vector3f(positions[3], positions[4], positions[5]),
@@ -189,6 +245,6 @@ class FaceRasterizerTest {
                 UVPair.pack(uvs[4], uvs[5]),
                 UVPair.pack(uvs[6], uvs[7]),
                 direction,
-                material);
+                materialInfo);
     }
 }

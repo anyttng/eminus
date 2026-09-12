@@ -34,8 +34,10 @@ public final class FluidBaker {
         int occluding = !translucent && opaque(side) ? FaceMask.ALL : FaceMask.NONE;
         int metadata = ModelMetadata.pack(FaceMask.ALL, occluding, FaceMask.ALL, 0, flags);
 
-        return new BakedModel(
-                faces, new float[BakedModel.FACE_COUNT], BakedModel.fullBounds(), metadata, tint);
+        long[] tintMask = tint == null ? BakedModel.untintedMask() : BakedModel.tintedMask();
+
+        return new BakedModel(faces, tintMask, new float[BakedModel.FACE_COUNT], BakedModel.fullBounds(),
+                metadata, tint);
     }
 
     private int[] still(TextureAtlasSprite sprite) {
