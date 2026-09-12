@@ -153,8 +153,8 @@ public final class ModelAtlas implements AutoCloseable {
         Solidify.apply(faceColour, BakedModel.FACE_SIDE, BakedModel.FACE_SIDE);
         Solidify.apply(faceTint, BakedModel.FACE_SIDE, BakedModel.FACE_SIDE);
 
-        int[][] colourLevels = Mips.chain(faceColour, BakedModel.FACE_SIDE);
-        int[][] tintLevels = Mips.chain(faceTint, BakedModel.FACE_SIDE);
+        int[][] colourLevels = Mips.colourChain(faceColour, BakedModel.FACE_SIDE);
+        int[][] tintLevels = Mips.maskChain(faceTint, BakedModel.FACE_SIDE);
         int cellX = slot % cellsPerSide;
         int cellY = slot / cellsPerSide;
 
