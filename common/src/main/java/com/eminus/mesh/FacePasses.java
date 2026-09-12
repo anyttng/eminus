@@ -16,6 +16,7 @@ public final class FacePasses {
 
     private static final int SIDE = DetailLevel.VOXELS_PER_SIDE;
     private static final int NO_METADATA = 0;
+    private static final int AIR_MODEL = -2;
     private static final Direction[] TOWARDS_LOW = new Direction[Direction.Axis.values().length];
     private static final Direction[] TOWARDS_HIGH = new Direction[Direction.Axis.values().length];
 
@@ -117,17 +118,19 @@ public final class FacePasses {
                     continue;
                 }
 
-                int lowMetadata = facingMetadata(low);
-                int highMetadata = facingMetadata(high);
-                if (lowMetadata == MeshModels.MISSING || highMetadata == MeshModels.MISSING) {
+                int lowModel = facingModel(low);
+                int highModel = facingModel(high);
+                if (lowModel == MeshModels.MISSING || highModel == MeshModels.MISSING) {
                     return false;
                 }
 
-                if (visible(metadata, lowMetadata, towardsLow)) {
+                if (!sameTranslucent(metadata, modelId, lowModel)
+                        && visible(metadata, metadataOf(lowModel), towardsLow)) {
                     negative.set(u, v, data(owner, low, metadata, modelId));
                 }
 
-                if (visible(metadata, highMetadata, towardsHigh)) {
+                if (!sameTranslucent(metadata, modelId, highModel)
+                        && visible(metadata, metadataOf(highModel), towardsHigh)) {
                     positive.set(u, v, data(owner, high, metadata, modelId));
                 }
             }
@@ -136,13 +139,16 @@ public final class FacePasses {
         return true;
     }
 
-    private int facingMetadata(long entry) {
-        if (VoxelEntry.isAir(entry)) {
-            return NO_METADATA;
-        }
+    private int facingModel(long entry) {
+        return VoxelEntry.isAir(entry) ? AIR_MODEL : models.modelId(VoxelEntry.state(entry), whenBaked);
+    }
 
-        int modelId = models.modelId(VoxelEntry.state(entry), whenBaked);
-        return modelId == MeshModels.MISSING ? MeshModels.MISSING : models.metadata(modelId);
+    private int metadataOf(int modelId) {
+        return modelId == AIR_MODEL ? NO_METADATA : models.metadata(modelId);
+    }
+
+    private static boolean sameTranslucent(int metadata, int modelId, int facingModel) {
+        return modelId == facingModel && ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT);
     }
 
     private long data(long owner, long facing, int metadata, int modelId) {

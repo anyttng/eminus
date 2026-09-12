@@ -30,5 +30,9 @@ void main() {
         discard;
     }
 
+#ifdef FULL_COVERAGE
+    fragColor = vec4(colour.rgb, 1.0);
+#else
     fragColor = colour;
+#endif
 }

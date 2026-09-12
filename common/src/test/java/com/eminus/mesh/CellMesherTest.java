@@ -46,6 +46,9 @@ class CellMesherTest {
     private static final int GRADIENT_BASE = 12;
     private static final int GRADIENT_SPAN = 4;
     private static final int GLASS_FACES_IN_AIR = 5;
+    private static final int CUBE_SIDE = 2;
+    private static final int CUBE_FACES = 6;
+    private static final int NEIGHBOUR_X = 2;
 
     private final Map<Integer, Integer> opacities = new HashMap<>();
     private final FakeModels models = new FakeModels();
@@ -156,6 +159,50 @@ class CellMesherTest {
 
         assertNotNull(mesh);
         assertEquals(MeshBuffer.MAX_QUADS_PER_GROUP, mesh.groupCount(QuadGroups.TRANSLUCENT));
+    }
+
+    @Test
+    void aSolidBlockOfOneTranslucentModelShowsItsOuterShellAlone() {
+        defineBlocks();
+        Cell cell = blank();
+
+        for (int y = 0; y < CUBE_SIDE; y++) {
+            for (int z = 0; z < CUBE_SIDE; z++) {
+                for (int x = 0; x < CUBE_SIDE; x++) {
+                    cell.set(x, y, z, block(TINT_A));
+                }
+            }
+        }
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertNotNull(mesh);
+        assertEquals(CUBE_FACES, mesh.groupCount(QuadGroups.TRANSLUCENT));
+    }
+
+    @Test
+    void aFaceBetweenTwoDifferentTranslucentModelsSurvives() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(1, 1, 1, block(TINT_A));
+        cell.set(NEIGHBOUR_X, 1, 1, block(TINT_B));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertNotNull(mesh);
+        assertTrue(has(mesh, Direction.EAST, 1, 1, 1, TINT_A_MODEL));
+    }
+
+    @Test
+    void anUnbakedNeighbourAbortsTheMeshAndAsksForTheBake() {
+        defineBlocks();
+        models.unbake(GLASS);
+        Cell cell = blank();
+        cell.set(1, 1, 1, block(TINT_A));
+        cell.set(NEIGHBOUR_X, 1, 1, block(GLASS));
+
+        assertNull(mesh(cell, airAround(), 0));
+        assertEquals(1, models.requests());
     }
 
     private void defineBlocks() {

@@ -58,8 +58,9 @@ void main() {
 #endif
 
     float fog = linear_fog_value(length(position), FogStart, FogEnd);
-    vec3 colour = texture(FarColour, screenUV).rgb;
+    vec4 far = texture(FarColour, screenUV);
 
     gl_FragDepth = clamp(gameZ - DepthBias, 0.0, 1.0);
-    fragColor = vec4(mix(colour, FogColour.rgb, fog * FogColour.a), 1.0 - fade);
+    float coverage = far.a * (1.0 - fade);
+    fragColor = vec4(mix(far.rgb, FogColour.rgb * far.a, fog * FogColour.a) * (1.0 - fade), coverage);
 }

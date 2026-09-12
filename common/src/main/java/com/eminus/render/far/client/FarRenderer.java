@@ -19,6 +19,7 @@ import com.eminus.render.backend.BackendSupport;
 import com.eminus.render.backend.client.BackendCheck;
 import com.eminus.render.far.CompositeFog;
 import com.eminus.render.far.DrawCommands;
+import com.eminus.render.far.TranslucentOrder;
 import com.eminus.render.tree.CameraFrame;
 import com.eminus.render.tree.RenderList;
 import com.eminus.render.tree.TreeBatch;
@@ -31,7 +32,6 @@ import com.eminus.settings.FarDistance;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
 
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 
@@ -58,11 +58,13 @@ public final class FarRenderer implements AutoCloseable {
     private final FarFrame frame;
     private final CoveragePass coverage;
     private final OpaquePass opaque;
+    private final TranslucentPass translucent;
     private final CompositePass composite;
     private final IndirectCommands indirect;
     private final VisibleSections visible;
     private final CoverageSections sections = new CoverageSections();
     private final DrawCommands commands = new DrawCommands(COMMAND_CAPACITY);
+    private final TranslucentOrder order = new TranslucentOrder();
     private final FarProjection projection = new FarProjection();
     private final LevelProjection levelProjection = new LevelProjection();
     private final Matrix4f farViewProjection = new Matrix4f();
@@ -75,8 +77,8 @@ public final class FarRenderer implements AutoCloseable {
     private boolean stopped;
 
     private FarRenderer(DimensionRuntime runtime, ClientBakery baking, ModelPublisher models, GeometryArena arena,
-            FarTarget target, FarFrame frame, CoveragePass coverage, OpaquePass opaque, CompositePass composite,
-            IndirectCommands indirect, VisibleSections visible, int heightCells) {
+            FarTarget target, FarFrame frame, CoveragePass coverage, OpaquePass opaque, TranslucentPass translucent,
+            CompositePass composite, IndirectCommands indirect, VisibleSections visible, int heightCells) {
         this.runtime = runtime;
         this.baking = baking;
         this.models = models;
@@ -85,6 +87,7 @@ public final class FarRenderer implements AutoCloseable {
         this.frame = frame;
         this.coverage = coverage;
         this.opaque = opaque;
+        this.translucent = translucent;
         this.composite = composite;
         this.indirect = indirect;
         this.visible = visible;
@@ -112,7 +115,8 @@ public final class FarRenderer implements AutoCloseable {
         FarRenderer renderer = new FarRenderer(runtime, baking,
                 ModelPublisher.start(baking.bakery(), baking.colours(), runtime.biomes()), arena,
                 FarTarget.create(support.depthStencilFormat(), main.width, main.height), FarFrame.create(),
-                CoveragePass.create(FarTarget.COLOUR_FORMAT), OpaquePass.create(support.depth()), CompositePass.create(support.depth()),
+                CoveragePass.create(FarTarget.COLOUR_FORMAT), OpaquePass.create(support.depth()),
+                TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),
                 IndirectCommands.create(COMMAND_CAPACITY), visible,
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
 
@@ -185,17 +189,21 @@ public final class FarRenderer implements AutoCloseable {
             return;
         }
 
-        commands.write(renderList, arena, runtime.frame(), eye.x, eye.y, eye.z);
+        order.update(renderList, runtime.frame(), eye.x, eye.y, eye.z);
+        commands.write(renderList, order.meshes(), arena, runtime.frame(), eye.x, eye.y, eye.z);
 
         if (commands.count() > 0) {
-            GpuBufferSlice written = indirect.write(commands);
+            indirect.write(commands);
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide());
             sections.clear();
             visible.collect(sections);
             coverage.draw(target.coverageView(), target.colourView(), target.width(), target.height(), frame.buffer(),
                     sections);
-            opaque.draw(target, arena, models, client.gameRenderer.lightmap(), written, commands.count(),
-                    frame.buffer());
+            opaque.draw(target, arena, models, client.gameRenderer.lightmap(),
+                    indirect.range(0, commands.opaqueCount()), commands.opaqueCount(), frame.buffer());
+            translucent.draw(target, arena, models, client.gameRenderer.lightmap(),
+                    indirect.range(commands.opaqueCount(), commands.translucentCount()),
+                    commands.translucentCount(), frame.buffer());
             composite.draw(target, main, farViewProjection, gameViewProjection, fog, gameFog.color);
         }
     }

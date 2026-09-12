@@ -3,6 +3,7 @@ package com.eminus.render.far;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
+import java.util.List;
 
 import com.eminus.Eminus;
 import com.eminus.cell.CellFrame;
@@ -25,7 +26,8 @@ public final class DrawCommands {
     private final IntBuffer commands;
     private final float[] bounds = new float[MeshSlot.BOUNDS];
 
-    private int count;
+    private int opaqueCount;
+    private int translucentCount;
     private int quads;
     private int dropped;
 
@@ -43,8 +45,16 @@ public final class DrawCommands {
         return capacity;
     }
 
+    public int opaqueCount() {
+        return opaqueCount;
+    }
+
+    public int translucentCount() {
+        return translucentCount;
+    }
+
     public int count() {
-        return count;
+        return opaqueCount + translucentCount;
     }
 
     public int quads() {
@@ -56,20 +66,28 @@ public final class DrawCommands {
     }
 
     public ByteBuffer buffer() {
-        return bytes.clear().limit(count * COMMAND_BYTES);
+        return bytes.clear().limit(count() * COMMAND_BYTES);
     }
 
-    public void write(RenderList list, MeshSlots slots, CellFrame frame,
+    public void write(RenderList list, List<CellMesh> translucent, MeshSlots slots, CellFrame frame,
             double cameraX, double cameraY, double cameraZ) {
         commands.clear();
-        count = 0;
+        opaqueCount = 0;
+        translucentCount = 0;
         quads = 0;
         dropped = 0;
 
         for (CellMesh mesh : list.meshes()) {
             MeshSlot slot = slots.slot(mesh.key());
             if (slot != null) {
-                writeMesh(slot, frame, cameraX, cameraY, cameraZ);
+                writeGroups(slot, frame, cameraX, cameraY, cameraZ);
+            }
+        }
+
+        for (CellMesh mesh : translucent) {
+            MeshSlot slot = slots.slot(mesh.key());
+            if (slot != null && put(slot, QuadGroups.TRANSLUCENT)) {
+                translucentCount++;
             }
         }
 
@@ -79,26 +97,36 @@ public final class DrawCommands {
         }
     }
 
-    private void writeMesh(MeshSlot slot, CellFrame frame, double cameraX, double cameraY, double cameraZ) {
+    private void writeGroups(MeshSlot slot, CellFrame frame, double cameraX, double cameraY, double cameraZ) {
         slot.bounds(frame, bounds);
 
         for (int group = 0; group < QuadGroups.TRANSLUCENT; group++) {
-            int groupQuads = slot.groupCount(group);
-            if (groupQuads == 0 || !GroupFacing.visible(group, bounds, cameraX, cameraY, cameraZ)) {
+            if (slot.groupCount(group) == 0 || !GroupFacing.visible(group, bounds, cameraX, cameraY, cameraZ)) {
                 continue;
             }
 
-            if (count == capacity) {
-                dropped++;
-                continue;
+            if (put(slot, group)) {
+                opaqueCount++;
             }
-
-            commands.put(groupQuads * VERTICES_PER_QUAD)
-                    .put(ONE_INSTANCE)
-                    .put((slot.baseQuad() + slot.groupStart(group)) * VERTICES_PER_QUAD)
-                    .put(FIRST_INSTANCE);
-            count++;
-            quads += groupQuads;
         }
+    }
+
+    private boolean put(MeshSlot slot, int group) {
+        int groupQuads = slot.groupCount(group);
+        if (groupQuads == 0) {
+            return false;
+        }
+
+        if (count() == capacity) {
+            dropped++;
+            return false;
+        }
+
+        commands.put(groupQuads * VERTICES_PER_QUAD)
+                .put(ONE_INSTANCE)
+                .put((slot.baseQuad() + slot.groupStart(group)) * VERTICES_PER_QUAD)
+                .put(FIRST_INSTANCE);
+        quads += groupQuads;
+        return true;
     }
 }

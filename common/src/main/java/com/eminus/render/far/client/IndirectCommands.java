@@ -29,11 +29,13 @@ public final class IndirectCommands implements AutoCloseable {
         return capacity;
     }
 
-    public GpuBufferSlice write(DrawCommands commands) {
+    public void write(DrawCommands commands) {
         RenderSystem.assertOnRenderThread();
-        GpuBufferSlice written = buffer.slice(0L, (long) commands.count() * DrawCommands.COMMAND_BYTES);
-        RenderSystem.getDevice().createCommandEncoder().writeToBuffer(written, commands.buffer());
-        return written;
+        RenderSystem.getDevice().createCommandEncoder().writeToBuffer(range(0, commands.count()), commands.buffer());
+    }
+
+    public GpuBufferSlice range(int first, int count) {
+        return buffer.slice((long) first * DrawCommands.COMMAND_BYTES, (long) count * DrawCommands.COMMAND_BYTES);
     }
 
     @Override
