@@ -9,6 +9,7 @@ public final class CellVoxels {
     private static final int SIDE = DetailLevel.VOXELS_PER_SIDE;
     private static final int LAST = SIDE - 1;
     private static final int LAYER_SIZE = SIDE * SIDE;
+    private static final int SIDES = Direction.values().length;
 
     private static final int DOWN = Direction.DOWN.ordinal();
     private static final int UP = Direction.UP.ordinal();
@@ -18,7 +19,7 @@ public final class CellVoxels {
     private static final int EAST = Direction.EAST.ordinal();
 
     private final long[] voxels = new long[DetailLevel.VOXELS_PER_CELL];
-    private final long[][] layers = new long[QuadGroups.FACE_COUNT][LAYER_SIZE];
+    private final long[][] layers = new long[SIDES][LAYER_SIZE];
 
     public void load(Cell cell) {
         cell.expand(voxels);

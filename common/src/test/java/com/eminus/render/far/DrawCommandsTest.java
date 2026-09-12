@@ -144,15 +144,15 @@ class DrawCommandsTest {
     void theSurplusPastTheCapacityIsDroppedForTheFrame() {
         int[] groupStart = new int[QuadGroups.COUNT];
         int[] groupCount = new int[QuadGroups.COUNT];
-        for (int group = 0; group < QuadGroups.FACE_COUNT; group++) {
+        for (int group = 0; group < QuadGroups.DIRECTIONAL_COUNT; group++) {
             groupStart[group] = group * UP_QUADS;
             groupCount[group] = UP_QUADS;
         }
 
-        write(slots(new MeshSlot(key, BLOCK, QuadGroups.FACE_COUNT * UP_QUADS, groupStart, groupCount)), INSIDE);
+        write(slots(new MeshSlot(key, BLOCK, QuadGroups.DIRECTIONAL_COUNT * UP_QUADS, groupStart, groupCount)), INSIDE);
 
         assertEquals(CAPACITY, commands.opaqueCount());
-        assertEquals(QuadGroups.FACE_COUNT - CAPACITY, commands.dropped());
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT - CAPACITY, commands.dropped());
     }
 
     private void write(MeshSlots slots, double cameraY) {

@@ -2,6 +2,8 @@ package com.eminus.model;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.function.IntFunction;
@@ -98,6 +100,40 @@ class FaceRasterizerTest {
     }
 
     @Test
+    void aSlopedQuadLandsOnBothFacesItFaces() {
+        BakedModel model = rasterizer.rasterize(List.of(ramp()), OPAQUE_WHITE, NO_TINTS);
+
+        assertFalse(ModelMetadata.has(model.metadata(), ModelMetadata.BLADED));
+        assertEquals(FaceMask.UP | FaceMask.EAST, ModelMetadata.present(model.metadata()));
+    }
+
+    @Test
+    void aCrossBakesTwoBladesAndNoBoxFaceAtAll() {
+        BakedModel model = rasterizer.rasterize(cross(), OPAQUE_WHITE, NO_TINTS);
+
+        assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.BLADED));
+        assertEquals(FaceMask.NONE, ModelMetadata.present(model.metadata()));
+
+        for (int blade = 0; blade < FaceRasterizer.BLADE_COUNT; blade++) {
+            for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
+                assertEquals(WHITE, model.argb(blade, texel), "blade " + blade + " texel " + texel);
+            }
+        }
+
+        for (int face = FaceRasterizer.BLADE_COUNT; face < BakedModel.FACE_COUNT; face++) {
+            for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
+                assertEquals(TRANSPARENT, model.argb(face, texel), "face " + face + " texel " + texel);
+            }
+        }
+    }
+
+    @Test
+    void aFullCubeIsNotBladed() {
+        assertFalse(ModelMetadata.has(rasterizer.rasterize(cube(), OPAQUE_WHITE, NO_TINTS).metadata(),
+                ModelMetadata.BLADED));
+    }
+
+    @Test
     void aFullyTransparentTextureLeavesNoFaceBehind() {
         BakedModel model = rasterizer.rasterize(cube(), FULLY_TRANSPARENT, NO_TINTS);
 
@@ -109,25 +145,37 @@ class FaceRasterizerTest {
         }
     }
 
+    private static List<BakedQuad> cross() {
+        return List.of(
+                quad(Direction.NORTH, new float[] {1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1}, FACE_UV),
+                quad(Direction.SOUTH, new float[] {0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0}, FACE_UV),
+                quad(Direction.SOUTH, new float[] {0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1}, FACE_UV),
+                quad(Direction.NORTH, new float[] {1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0}, FACE_UV));
+    }
+
+    private static BakedQuad ramp() {
+        return quad(Direction.UP, new float[] {0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0}, FACE_UV);
+    }
+
     private static List<BakedQuad> cube() {
         return List.of(
                 quad(Direction.DOWN, new float[] {0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1}, NO_UV),
-                quad(Direction.UP, new float[] {0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1}, NO_UV),
-                quad(Direction.NORTH, new float[] {0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0}, NO_UV),
+                quad(Direction.UP, new float[] {0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0}, NO_UV),
+                quad(Direction.NORTH, new float[] {0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0}, NO_UV),
                 quad(Direction.SOUTH, new float[] {0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1}, FACE_UV),
                 quad(Direction.WEST, new float[] {0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0}, NO_UV),
-                quad(Direction.EAST, new float[] {1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0}, NO_UV));
+                quad(Direction.EAST, new float[] {1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0}, NO_UV));
     }
 
     private static List<BakedQuad> bottomSlab() {
         float top = BAND_TOP;
         return List.of(
                 quad(Direction.DOWN, new float[] {0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1}, NO_UV),
-                quad(Direction.UP, new float[] {0, top, 0, 1, top, 0, 1, top, 1, 0, top, 1}, NO_UV),
-                quad(Direction.NORTH, new float[] {0, 0, 0, 1, 0, 0, 1, top, 0, 0, top, 0}, NO_UV),
+                quad(Direction.UP, new float[] {0, top, 1, 1, top, 1, 1, top, 0, 0, top, 0}, NO_UV),
+                quad(Direction.NORTH, new float[] {0, top, 0, 1, top, 0, 1, 0, 0, 0, 0, 0}, NO_UV),
                 quad(Direction.SOUTH, new float[] {0, 0, 1, 1, 0, 1, 1, top, 1, 0, top, 1}, NO_UV),
                 quad(Direction.WEST, new float[] {0, 0, 0, 0, 0, 1, 0, top, 1, 0, top, 0}, NO_UV),
-                quad(Direction.EAST, new float[] {1, 0, 0, 1, 0, 1, 1, top, 1, 1, top, 0}, NO_UV));
+                quad(Direction.EAST, new float[] {1, top, 0, 1, top, 1, 1, 0, 1, 1, 0, 0}, NO_UV));
     }
 
     private static BakedQuad quad(Direction direction, float[] positions, float[] uvs) {

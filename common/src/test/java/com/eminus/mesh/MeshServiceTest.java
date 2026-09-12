@@ -32,7 +32,7 @@ class MeshServiceTest {
     private static final long AWAIT_MILLIS = 10_000L;
     private static final int CUBE_AT = 8;
     private static final String MESH_SERVICE = "mesh";
-    private static final int OPENED_CELLS = QuadGroups.FACE_COUNT + 1;
+    private static final int OPENED_CELLS = QuadGroups.DIRECTIONAL_COUNT + 1;
 
     private static final int STONE = 1;
     private static final int STONE_MODEL = 7;
@@ -69,7 +69,7 @@ class MeshServiceTest {
         harness.run(() -> service.build(MeshTask.fresh(KEY), new MeshScratch()));
 
         assertNotNull(delivered.get());
-        assertEquals(QuadGroups.FACE_COUNT, delivered.get().quadCount());
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT, delivered.get().quadCount());
         assertEquals(0, cache.liveCount());
         assertEquals(OPENED_CELLS, cache.parkedCount());
     }

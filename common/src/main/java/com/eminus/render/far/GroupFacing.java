@@ -9,7 +9,7 @@ public final class GroupFacing {
     private static final Direction[] FACES = Direction.values();
 
     public static boolean visible(int group, float[] bounds, double cameraX, double cameraY, double cameraZ) {
-        if (group >= QuadGroups.FACE_COUNT) {
+        if (group >= QuadGroups.DIRECTIONAL_COUNT) {
             return true;
         }
 

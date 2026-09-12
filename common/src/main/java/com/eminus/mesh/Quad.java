@@ -4,6 +4,8 @@ import com.eminus.cell.DetailLevel;
 
 public final class Quad {
     public static final int MAX_SIDE = 16;
+    public static final int FIRST_BLADE_FACE = 6;
+    public static final int BLADE_COUNT = 2;
     public static final int MAX_MODEL_ID = (1 << 18) - 1;
     public static final int MAX_BIOME_ID = (1 << 12) - 1;
     public static final int CLAMPED_BIOME_ID = 0;
@@ -39,6 +41,14 @@ public final class Quad {
                 | ((z & COORDINATE_MASK) << Z_SHIFT)
                 | (((width - 1) & SIDE_MASK) << WIDTH_SHIFT)
                 | (((height - 1) & SIDE_MASK) << HEIGHT_SHIFT);
+    }
+
+    public static int bladeFace(int blade) {
+        return FIRST_BLADE_FACE + blade;
+    }
+
+    public static boolean isBlade(long quad) {
+        return face(quad) >= FIRST_BLADE_FACE;
     }
 
     public static boolean fitsModelId(int modelId) {

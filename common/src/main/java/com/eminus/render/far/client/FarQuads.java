@@ -3,6 +3,7 @@ package com.eminus.render.far.client;
 import com.eminus.Eminus;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
+import com.eminus.mesh.Quad;
 import com.eminus.model.BakedModel;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.client.GeometryArena;
@@ -30,6 +31,8 @@ final class FarQuads {
     static final float SHADE_NORTH_SOUTH = 0.8F;
     static final float SHADE_WEST_EAST = 0.6F;
 
+    static final float SHADE_BLADE = 1.0F;
+
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/far_quads");
 
     private static final BindGroupLayout LAYOUT = BindGroupLayout.builder()
@@ -56,12 +59,14 @@ final class FarQuads {
                 .withShaderDefine("MIN_HORIZONTAL", CellKey.MIN_HORIZONTAL)
                 .withShaderDefine("MIN_VERTICAL", CellKey.MIN_VERTICAL)
                 .withShaderDefine("MODEL_FACES", BakedModel.FACE_COUNT)
+                .withShaderDefine("FIRST_BLADE_FACE", Quad.FIRST_BLADE_FACE)
                 .withShaderDefine("FACE_SIDE", BakedModel.FACE_SIDE)
                 .withShaderDefine("ALPHA_CUTOUT", alphaCutout)
                 .withShaderDefine("SHADE_DOWN", SHADE_DOWN)
                 .withShaderDefine("SHADE_UP", SHADE_UP)
                 .withShaderDefine("SHADE_NORTH_SOUTH", SHADE_NORTH_SOUTH)
                 .withShaderDefine("SHADE_WEST_EAST", SHADE_WEST_EAST)
+                .withShaderDefine("SHADE_BLADE", SHADE_BLADE)
                 .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
                 .withCull(false);
     }

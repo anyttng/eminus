@@ -21,9 +21,11 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
 
     public @Nullable CellMesh mesh(long key, int occupancy, StateOpacity opacity, Runnable whenBaked) {
         scratch.reset();
-        FacePasses passes = new FacePasses(scratch, opacity, models, CellKey.level(key), whenBaked, this);
+        int level = CellKey.level(key);
+        FacePasses passes = new FacePasses(scratch, opacity, models, level, whenBaked, this);
+        BladePass blades = new BladePass(scratch, models, level, whenBaked);
 
-        if (!passes.run()) {
+        if (!passes.run() || !blades.run()) {
             scratch.reset();
             return null;
         }

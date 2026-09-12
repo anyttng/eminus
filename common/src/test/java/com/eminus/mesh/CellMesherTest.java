@@ -37,6 +37,7 @@ class CellMesherTest {
     private static final int WATER = 6;
     private static final int WATERLOGGED = 7;
     private static final int WET_LEAVES = 8;
+    private static final int GRASS = 9;
 
     private static final int STONE_MODEL = 10;
     private static final int GLASS_MODEL = 11;
@@ -46,6 +47,7 @@ class CellMesherTest {
     private static final int WATER_MODEL = 15;
     private static final int WATERLOGGED_MODEL = 16;
     private static final int WET_LEAVES_MODEL = 17;
+    private static final int GRASS_MODEL = 18;
 
     private static final int BIOME = 3;
     private static final int FULL_SKY = 15;
@@ -56,7 +58,7 @@ class CellMesherTest {
     private static final int CUBE_SIDE = 2;
     private static final int CUBE_FACES = 6;
     private static final int NEIGHBOUR_X = 2;
-    private static final int WATERLOGGED_FACES = QuadGroups.FACE_COUNT * 2;
+    private static final int WATERLOGGED_FACES = QuadGroups.DIRECTIONAL_COUNT * 2;
 
     private final Map<Integer, Integer> opacities = new HashMap<>();
     private final FakeModels models = new FakeModels();
@@ -77,8 +79,8 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, airAround(), 0);
 
-        assertEquals(QuadGroups.FACE_COUNT, mesh.quadCount());
-        for (int group = 0; group < QuadGroups.FACE_COUNT; group++) {
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT, mesh.quadCount());
+        for (int group = 0; group < QuadGroups.DIRECTIONAL_COUNT; group++) {
             assertEquals(1, mesh.groupCount(group));
         }
 
@@ -112,7 +114,7 @@ class CellMesherTest {
 
         assertTrue(has(mesh, Direction.EAST, 10, 10, 10, STONE_MODEL));
         assertTrue(absent(mesh, Direction.WEST, 11, 10, 10));
-        assertEquals(QuadGroups.FACE_COUNT + GLASS_FACES_IN_AIR, mesh.quadCount());
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT + GLASS_FACES_IN_AIR, mesh.quadCount());
     }
 
     @Test
@@ -123,7 +125,7 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, airAround(), 0);
 
-        assertEquals(QuadGroups.FACE_COUNT, mesh.quadCount());
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT, mesh.quadCount());
         for (int index = 0; index < mesh.quadCount(); index++) {
             assertEquals(VoxelEntry.light(FULL_SKY, ModelMetadata.MAX_EMISSION), Quad.light(mesh.quad(index)));
         }
@@ -222,7 +224,7 @@ class CellMesherTest {
         CellMesh mesh = mesh(cell, airAround(), 0);
 
         assertEquals(WATERLOGGED_FACES, mesh.quadCount());
-        assertEquals(QuadGroups.FACE_COUNT, mesh.groupCount(QuadGroups.TRANSLUCENT));
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT, mesh.groupCount(QuadGroups.TRANSLUCENT));
         assertTrue(has(mesh, Direction.EAST, 5, 5, 5, WATERLOGGED_MODEL));
         assertTrue(has(mesh, Direction.EAST, 5, 5, 5, WATER_MODEL));
     }
@@ -235,8 +237,8 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, airAround(), 0);
 
-        assertEquals(QuadGroups.FACE_COUNT, mesh.quadCount());
-        assertEquals(QuadGroups.FACE_COUNT, mesh.groupCount(QuadGroups.TRANSLUCENT));
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT, mesh.quadCount());
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT, mesh.groupCount(QuadGroups.TRANSLUCENT));
     }
 
     @Test
@@ -277,7 +279,7 @@ class CellMesherTest {
         CellMesh mesh = mesh(cell, airAround(), 0);
 
         assertEquals(WATERLOGGED_FACES, mesh.quadCount());
-        assertEquals(QuadGroups.FACE_COUNT, mesh.groupCount(QuadGroups.TRANSLUCENT));
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT, mesh.groupCount(QuadGroups.TRANSLUCENT));
     }
 
     @Test
@@ -289,6 +291,34 @@ class CellMesherTest {
 
         assertNull(mesh(cell, airAround(), 0));
         assertEquals(1, models.requests());
+    }
+
+    @Test
+    void aBladedVoxelEmitsTwoBladesAndNoneOfTheSixFaces() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(5, 6, 7, block(GRASS));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertEquals(Quad.BLADE_COUNT, mesh.quadCount());
+        assertEquals(Quad.BLADE_COUNT, mesh.groupCount(QuadGroups.DOUBLE_SIDED));
+        for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
+            assertTrue(hasBlade(mesh, blade, 5, 6, 7, GRASS_MODEL), "blade " + blade);
+        }
+    }
+
+    @Test
+    void aBladedVoxelLeavesItsSolidNeighbourItsOwnFaces() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(5, 6, 7, block(GRASS));
+        cell.set(6, 6, 7, block(STONE));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertEquals(Quad.BLADE_COUNT + CUBE_FACES, mesh.quadCount());
+        assertTrue(has(mesh, Direction.WEST, 6, 6, 7, STONE_MODEL));
     }
 
     private void defineBlocks() {
@@ -306,6 +336,8 @@ class CellMesherTest {
         models.define(WATER, WATER_MODEL, translucent);
         models.define(WATERLOGGED, WATERLOGGED_MODEL, clear);
         models.define(WET_LEAVES, WET_LEAVES_MODEL, solid);
+        models.define(GRASS, GRASS_MODEL, ModelMetadata.pack(
+                FaceMask.NONE, FaceMask.NONE, FaceMask.NONE, 0, ModelMetadata.BLADED));
         models.defineFluid(WATERLOGGED, WATER_MODEL, translucent);
         models.defineFluid(WET_LEAVES, WATER_MODEL, translucent);
 
@@ -391,6 +423,18 @@ class CellMesherTest {
         }
 
         return cell;
+    }
+
+    private static boolean hasBlade(CellMesh mesh, int blade, int x, int y, int z, int modelId) {
+        for (int index = 0; index < mesh.quadCount(); index++) {
+            long quad = mesh.quad(index);
+            if (Quad.face(quad) == Quad.bladeFace(blade) && Quad.x(quad) == x && Quad.y(quad) == y
+                    && Quad.z(quad) == z && Quad.modelId(quad) == modelId) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static boolean has(CellMesh mesh, Direction face, int x, int y, int z, int modelId) {

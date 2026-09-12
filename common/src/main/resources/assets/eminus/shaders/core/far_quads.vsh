@@ -21,8 +21,9 @@ flat out ivec2 atlasCell;
 
 const int CORNERS_PER_QUAD = 6;
 const int CORNER_OF[6] = int[6](0, 1, 2, 0, 2, 3);
-const float FACE_SHADE[6] = float[6](
-    SHADE_DOWN, SHADE_UP, SHADE_NORTH_SOUTH, SHADE_NORTH_SOUTH, SHADE_WEST_EAST, SHADE_WEST_EAST);
+const float FACE_SHADE[8] = float[8](
+    SHADE_DOWN, SHADE_UP, SHADE_NORTH_SOUTH, SHADE_NORTH_SOUTH, SHADE_WEST_EAST, SHADE_WEST_EAST,
+    SHADE_BLADE, SHADE_BLADE);
 const int MODEL_TEXELS = 4;
 const int NO_TINT = -1;
 const int LIGHT_STEP = 16;
@@ -57,16 +58,29 @@ void main() {
     vec3 boundsMax = vec3(third.y, third.z, third.w);
     int tintRow = floatBitsToInt(fourth.y);
 
-    int normalAxis = face < 2 ? 1 : (face < 4 ? 2 : 0);
-    int widthAxis = face < 4 ? 0 : 2;
-    int heightAxis = face < 2 ? 2 : 1;
-
     vec3 local = vec3(voxel);
-    local[normalAxis] += (face & 1) == 1 ? 1.0 - insets[face] : insets[face];
-    vec2 extent = vec2(unit.x * float(width - 1) + mix(boundsMin[widthAxis], boundsMax[widthAxis], unit.x),
-                       unit.y * float(height - 1) + mix(boundsMin[heightAxis], boundsMax[heightAxis], unit.y));
-    local[widthAxis] += extent.x;
-    local[heightAxis] += extent.y;
+    vec2 extent;
+
+    if (face >= FIRST_BLADE_FACE) {
+        float slide = mix(boundsMin.x, boundsMax.x, unit.x);
+        float across = face == FIRST_BLADE_FACE ? slide : boundsMin.x + boundsMax.x - slide;
+        float up = unit.y * float(height - 1) + mix(boundsMin.y, boundsMax.y, unit.y);
+
+        local.x += across;
+        local.y += up;
+        local.z += mix(boundsMin.z, boundsMax.z, unit.x);
+        extent = vec2(across, up);
+    } else {
+        int normalAxis = face < 2 ? 1 : (face < 4 ? 2 : 0);
+        int widthAxis = face < 4 ? 0 : 2;
+        int heightAxis = face < 2 ? 2 : 1;
+
+        local[normalAxis] += (face & 1) == 1 ? 1.0 - insets[face] : insets[face];
+        extent = vec2(unit.x * float(width - 1) + mix(boundsMin[widthAxis], boundsMax[widthAxis], unit.x),
+                      unit.y * float(height - 1) + mix(boundsMin[heightAxis], boundsMax[heightAxis], unit.y));
+        local[widthAxis] += extent.x;
+        local[heightAxis] += extent.y;
+    }
 
     int cellBlocks = VOXELS_PER_SIDE << level;
     ivec3 origin = ivec3(cellX * cellBlocks, cellY * cellBlocks + MinBlockY, cellZ * cellBlocks);
@@ -76,7 +90,7 @@ void main() {
     faceUV = vec2(face == 2 || face == 5 ? float(width) - extent.x : extent.x,
                   face == 1 ? float(height) - extent.y : extent.y);
 
-    int slot = modelId * MODEL_FACES + face;
+    int slot = modelId * MODEL_FACES + (face >= FIRST_BLADE_FACE ? face - FIRST_BLADE_FACE : face);
     atlasCell = ivec2(slot % AtlasCells, slot / AtlasCells);
 
     vec4 colour = sample_lightmap(Lightmap, ivec2((light & NIBBLE) * LIGHT_STEP, ((light >> 4) & NIBBLE) * LIGHT_STEP));
