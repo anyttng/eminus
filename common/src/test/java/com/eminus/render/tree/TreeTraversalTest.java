@@ -25,6 +25,8 @@ class TreeTraversalTest {
     private static final long WALK = 7L;
     private static final int TWO_OCTANTS = 0b11;
     private static final int TWO_CORNERS = 0b101;
+    private static final int BETWEEN_OCTANT = 1;
+    private static final int CORNERS_AND_BETWEEN = 0b111;
     private static final int ALL_OCTANTS = 0xFF;
     private static final int LOWEST_IS_TOP = DetailLevel.MAX;
     private static final int TINY_TABLE = 1;
@@ -102,6 +104,39 @@ class TreeTraversalTest {
         CellMesh second = TestMeshes.of(children.get(1).key(), OccupancyMask.EMPTY);
         children.get(1).meshed(second);
         assertEquals(List.of(first, second), traversal.walk(nodes.roots(), inside(), BUDGET, WALK + 2).meshes());
+    }
+
+    @Test
+    void aDescendedNodeKeepsItsReadyChildrenWhenAnOctantFillsIn() {
+        TreeNode root = meshedRoot(rootKey, TWO_CORNERS);
+        traversal.walk(nodes.roots(), inside(), BUDGET, WALK);
+        List<TreeNode> children = List.copyOf(traversal.requested());
+        CellMesh first = TestMeshes.of(children.get(0).key(), OccupancyMask.EMPTY);
+        CellMesh second = TestMeshes.of(children.get(1).key(), OccupancyMask.EMPTY);
+        children.get(0).meshed(first);
+        children.get(1).meshed(second);
+        assertEquals(List.of(first, second), traversal.walk(nodes.roots(), inside(), BUDGET, WALK + 1).meshes());
+
+        root.meshed(TestMeshes.of(rootKey, CORNERS_AND_BETWEEN));
+        RenderList filled = traversal.walk(nodes.roots(), inside(), BUDGET, WALK + 2);
+
+        assertEquals(List.of(CellKey.child(rootKey, BETWEEN_OCTANT)),
+                traversal.requested().stream().map(TreeNode::key).toList());
+        assertEquals(List.of(first, second), filled.meshes());
+    }
+
+    @Test
+    void aDescendedNodeThatLosesAChildDrawsItselfUntilTheChildReturns() {
+        TreeNode root = meshedRoot(rootKey, TWO_CORNERS);
+        traversal.walk(nodes.roots(), inside(), BUDGET, WALK);
+        List<TreeNode> children = List.copyOf(traversal.requested());
+        children.get(0).meshed(TestMeshes.of(children.get(0).key(), OccupancyMask.EMPTY));
+        children.get(1).meshed(TestMeshes.of(children.get(1).key(), OccupancyMask.EMPTY));
+        traversal.walk(nodes.roots(), inside(), BUDGET, WALK + 1);
+
+        nodes.remove(children.get(0), removed -> { });
+
+        assertEquals(List.of(root.mesh()), traversal.walk(nodes.roots(), inside(), BUDGET, WALK + 2).meshes());
     }
 
     @Test

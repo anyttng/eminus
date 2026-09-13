@@ -7,7 +7,10 @@ public sealed interface TreeMessage {
     record CellChanged(CellHandle handle, int faceMask) implements TreeMessage {
     }
 
-    record CellMeshed(CellMesh mesh) implements TreeMessage {
+    record CellMeshed(CellMesh mesh, long request) implements TreeMessage {
+    }
+
+    record ColumnCovered(int chunkX, int chunkZ) implements TreeMessage {
     }
 
     record FrameReady() implements TreeMessage {

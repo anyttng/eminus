@@ -115,7 +115,7 @@ public final class FarRenderer implements AutoCloseable {
                 IndirectCommands.create(COMMAND_CAPACITY),
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
 
-        renderer.meshes = new MeshService(instance.build(), runtime.cells(),
+        renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(),
                 new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
                 runtime.states(), renderer.tree);
         runtime.listenTo(renderer.tree);
@@ -237,8 +237,8 @@ public final class FarRenderer implements AutoCloseable {
 
     private final class Builds implements TreeBuilds {
         @Override
-        public void build(long key, @Nullable CellHandle handle, int references) {
-            meshes.request(key, handle, references);
+        public void build(long key, @Nullable CellHandle handle, int references, long request) {
+            meshes.request(key, handle, references, request);
         }
 
         @Override

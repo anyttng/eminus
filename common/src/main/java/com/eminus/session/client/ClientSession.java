@@ -20,9 +20,12 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.level.storage.LevelResource;
 
 import org.joml.Matrix4fc;
@@ -31,6 +34,9 @@ import org.jspecify.annotations.Nullable;
 public final class ClientSession {
     public static final Identifier RELOAD_ID = Identifier.fromNamespaceAndPath(Eminus.MODID, "far_renderer");
 
+    private static final int CLIENT_EXTRA_CHUNKS = 3;
+
+    private static boolean heldChunksPending;
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
     private static FarRenderer renderer;
@@ -123,6 +129,10 @@ public final class ClientSession {
             swapLevel(current);
         }
 
+        if (heldChunksPending) {
+            submitHeldChunks();
+        }
+
         IngestService ingest = ingestFor(level);
         if (ingest != null) {
             ingest.pollDebounce(level, System.currentTimeMillis());
@@ -163,6 +173,32 @@ public final class ClientSession {
         if (current != null) {
             runtime = instance.acquire(identityOf(current), current.getMinY());
             startRenderer();
+        }
+
+        heldChunksPending = current != null;
+    }
+
+    private static void submitHeldChunks() {
+        Minecraft minecraft = Minecraft.getInstance();
+        IngestService ingest = ingestFor(level);
+        if (ingest == null || minecraft.player == null) {
+            return;
+        }
+
+        heldChunksPending = false;
+        ChunkPos centre = minecraft.player.chunkPosition();
+        int radius = minecraft.options.getEffectiveRenderDistance() + CLIENT_EXTRA_CHUNKS;
+        LevelLightEngine light = level.getLightEngine();
+
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                int chunkX = centre.x() + dx;
+                int chunkZ = centre.z() + dz;
+                LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
+                if (chunk != null && light.lightOnInColumn(SectionPos.getZeroNode(chunkX, chunkZ))) {
+                    ingest.submitChunk(chunk);
+                }
+            }
         }
     }
 

@@ -6,8 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
@@ -40,6 +42,7 @@ class TreeManagerTest {
     private static final int CELL_Z = 3;
     private static final long KEY = CellKey.pack(DetailLevel.MAX, CELL_X, 0, CELL_Z);
     private static final long WEST = CellKey.neighbour(KEY, Direction.WEST);
+    private static final long ABOVE = CellKey.neighbour(KEY, Direction.UP);
     private static final long OUTSIDE = CellKey.pack(DetailLevel.MIN, 1, 2, 3);
     private static final int RING_COLUMNS = 5;
     private static final int ONE_CELL = 1;
@@ -49,11 +52,14 @@ class TreeManagerTest {
     private static final double ONE_BLOCK = 1.0;
     private static final double TELEPORT = 2_000.0;
     private static final int ONE_OCTANT = 0b1;
+    private static final int BOUNDARY_CHUNK_X = CELL_X * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL / FarDistance.BLOCKS_PER_CHUNK;
+    private static final int INTERIOR_CHUNK_Z = (int) EYE_Z / FarDistance.BLOCKS_PER_CHUNK;
 
     private final FakeCellStore store = new FakeCellStore();
     private final WorkerHarness harness = new WorkerHarness(WORKER_THREADS);
     private final CellCache cache = new CellCache(store, handle -> { }, () -> 0L);
     private final FakeBuilds builds = new FakeBuilds();
+    private final Map<Long, Long> rootRequests = new HashMap<>();
     private final TreeManager manager =
             TreeManager.start(builds, new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN));
 
@@ -77,7 +83,7 @@ class TreeManagerTest {
 
         manager.changed(open(KEY), FaceMask.NONE);
         manager.changed(open(KEY), FaceMask.NONE);
-        manager.meshed(CellMesh.empty(KEY));
+        manager.meshed(CellMesh.empty(KEY), first.request());
 
         FakeBuilds.Call rebuilt = builds.take();
         assertEquals(KEY, rebuilt.key());
@@ -87,11 +93,33 @@ class TreeManagerTest {
     }
 
     @Test
+    void aMeshOfAnOlderRequestNeverReplacesTheNewerOne() {
+        settleRing();
+
+        manager.changed(open(KEY), FaceMask.NONE);
+        FakeBuilds.Call first = builds.take();
+        manager.changed(open(KEY), FaceMask.NONE);
+        manager.meshed(CellMesh.empty(KEY), first.request());
+        FakeBuilds.Call rebuilt = builds.take();
+
+        CellMesh late = TestMeshes.of(KEY, OccupancyMask.EMPTY);
+        CellMesh newest = TestMeshes.of(KEY, OccupancyMask.EMPTY);
+        manager.meshed(late, first.request());
+        manager.meshed(newest, rebuilt.request());
+
+        Set<CellMesh> uploaded = new HashSet<>();
+        RenderList drawing = awaitRenderList(frame(EYE_X + ONE_BLOCK, EYE_Z),
+                list -> list.meshes().contains(newest), uploaded::addAll);
+        assertFalse(uploaded.contains(late));
+        assertFalse(drawing.meshes().contains(late));
+    }
+
+    @Test
     void aFinishedMeshIsTakenAsOneBatchAndOnlyOnce() {
         startRing();
 
         CellMesh mesh = CellMesh.empty(KEY);
-        manager.meshed(mesh);
+        manager.meshed(mesh, rootRequests.get(KEY));
 
         TreeBatch batch = awaitBatch(taken -> !taken.meshes().isEmpty());
         assertEquals(List.of(mesh), batch.meshes());
@@ -105,8 +133,8 @@ class TreeManagerTest {
 
         CellMesh first = TestMeshes.of(KEY, OccupancyMask.EMPTY);
         CellMesh second = TestMeshes.of(KEY, OccupancyMask.EMPTY);
-        manager.meshed(first);
-        manager.meshed(second);
+        manager.meshed(first, rootRequests.get(KEY));
+        manager.meshed(second, rootRequests.get(KEY));
         List<CellMesh> listed =
                 awaitRenderList(frame(EYE_X, EYE_Z), list -> list.meshes().contains(second), meshes -> { }).meshes();
         assertEquals(1, listed.size());
@@ -117,13 +145,13 @@ class TreeManagerTest {
     void aChildIsUploadedNoLaterThanTheListThatDrawsIt() {
         startRing();
         CellMesh parent = TestMeshes.of(KEY, ONE_OCTANT);
-        manager.meshed(parent);
+        manager.meshed(parent, rootRequests.get(KEY));
         manager.frame(close(EYE_X, EYE_Z));
 
         FakeBuilds.Call request = builds.take();
         assertEquals(CellKey.child(KEY, 0), request.key());
         CellMesh child = TestMeshes.of(request.key(), OccupancyMask.EMPTY);
-        manager.meshed(child);
+        manager.meshed(child, request.request());
         manager.frame(close(EYE_X + ONE_BLOCK, EYE_Z));
 
         Set<CellMesh> uploaded = new HashSet<>();
@@ -152,6 +180,33 @@ class TreeManagerTest {
     }
 
     @Test
+    void aBoundaryChangeOnACellWithoutANodeStillRebuildsTheNeighbourNode() {
+        settleRing();
+
+        CellHandle handle = open(ABOVE);
+        manager.changed(handle, FaceMask.DOWN);
+
+        FakeBuilds.Release released = builds.takeRelease();
+        assertSame(handle, released.handle());
+
+        FakeBuilds.Call neighbour = builds.take();
+        assertEquals(KEY, neighbour.key());
+        assertNull(neighbour.handle());
+        assertTrue(builds.idle());
+    }
+
+    @Test
+    void aNewlyCoveredChunkRebuildsTheNodesOnBothSidesOfTheBoundaryItTouches() {
+        settleRing();
+
+        manager.covered(BOUNDARY_CHUNK_X, INTERIOR_CHUNK_Z);
+
+        Set<Long> rebuilt = Set.of(builds.take().key(), builds.take().key());
+        assertEquals(Set.of(KEY, WEST), rebuilt);
+        assertTrue(builds.idle());
+    }
+
+    @Test
     void aChangeOnACellWithoutANodeReleasesItsHandle() {
         CellHandle handle = open(OUTSIDE);
         manager.changed(handle, FaceMask.NONE);
@@ -175,7 +230,7 @@ class TreeManagerTest {
         manager.frame(frame(EYE_X + ONE_BLOCK, EYE_Z));
         awaitWalks(2);
 
-        manager.meshed(CellMesh.empty(KEY));
+        manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
         manager.frame(frame(EYE_X + ONE_BLOCK, EYE_Z));
         awaitWalks(3);
     }
@@ -184,7 +239,7 @@ class TreeManagerTest {
     void aRemovedColumnEvictsTheGeometryOfItsRoot() {
         startRing();
         CellMesh mesh = TestMeshes.of(KEY, OccupancyMask.EMPTY);
-        manager.meshed(mesh);
+        manager.meshed(mesh, rootRequests.get(KEY));
         awaitBatch(taken -> taken.meshes().contains(mesh));
 
         manager.frame(frame(EYE_X + TELEPORT, EYE_Z));
@@ -195,22 +250,21 @@ class TreeManagerTest {
     private void startRing() {
         manager.frame(frame(EYE_X, EYE_Z));
 
-        Set<Long> roots = new HashSet<>();
         for (int column = 0; column < RING_COLUMNS; column++) {
             FakeBuilds.Call call = builds.take();
             assertNull(call.handle());
-            roots.add(call.key());
+            rootRequests.put(call.key(), call.request());
         }
 
-        assertTrue(roots.contains(KEY));
-        assertTrue(roots.contains(WEST));
+        assertTrue(rootRequests.containsKey(KEY));
+        assertTrue(rootRequests.containsKey(WEST));
         assertTrue(builds.idle());
     }
 
     private void settleRing() {
         startRing();
-        manager.meshed(CellMesh.empty(KEY));
-        manager.meshed(CellMesh.empty(WEST));
+        manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
+        manager.meshed(CellMesh.empty(WEST), rootRequests.get(WEST));
         manager.changed(open(OUTSIDE), FaceMask.NONE);
         builds.takeRelease();
     }

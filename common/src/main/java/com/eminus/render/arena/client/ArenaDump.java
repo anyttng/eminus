@@ -127,9 +127,10 @@ public final class ArenaDump {
         MeshService service = new MeshService(
                 instance.build(),
                 runtime.cells(),
+                runtime.coverage(),
                 new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
                 runtime.states(),
-                mesh -> {
+                (mesh, request) -> {
                     synchronized (built) {
                         built.add(mesh);
                     }

@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.function.LongConsumer;
 
 import com.eminus.Eminus;
 import com.eminus.cell.Cell;
@@ -28,6 +29,10 @@ public final class SqliteCellStore implements CellStore {
     private static final String CREATE_DICTIONARY =
             "CREATE TABLE dictionary (name TEXT NOT NULL, id INTEGER NOT NULL, value TEXT NOT NULL,"
                     + " PRIMARY KEY (name, id))";
+    private static final String CREATE_COLUMNS = "CREATE TABLE columns (chunk INTEGER PRIMARY KEY)";
+    private static final String DROP_CELLS = "DROP TABLE IF EXISTS cells";
+    private static final String DROP_DICTIONARY = "DROP TABLE IF EXISTS dictionary";
+    private static final String DROP_COLUMNS = "DROP TABLE IF EXISTS columns";
     private static final String READ_VERSION = "PRAGMA user_version";
     private static final String WRITE_VERSION = "PRAGMA user_version = ";
     private static final String READ_FREE_PAGES = "PRAGMA freelist_count";
@@ -39,6 +44,8 @@ public final class SqliteCellStore implements CellStore {
     private static final String UPSERT_DICTIONARY =
             "INSERT OR REPLACE INTO dictionary (name, id, value) VALUES (?, ?, ?)";
     private static final String SELECT_DICTIONARY = "SELECT id, value FROM dictionary WHERE name = ? ORDER BY id";
+    private static final String INSERT_COLUMN = "INSERT OR IGNORE INTO columns (chunk) VALUES (?)";
+    private static final String SELECT_COLUMNS = "SELECT chunk FROM columns";
 
     private final Path file;
     private final int lowestStoredLevel;
@@ -48,6 +55,8 @@ public final class SqliteCellStore implements CellStore {
     private final PreparedStatement deleteCell;
     private final PreparedStatement upsertDictionary;
     private final PreparedStatement selectDictionary;
+    private final PreparedStatement insertColumn;
+    private final PreparedStatement selectColumns;
 
     private boolean closed;
 
@@ -85,6 +94,8 @@ public final class SqliteCellStore implements CellStore {
         deleteCell = connection.prepareStatement(DELETE_CELL);
         upsertDictionary = connection.prepareStatement(UPSERT_DICTIONARY);
         selectDictionary = connection.prepareStatement(SELECT_DICTIONARY);
+        insertColumn = connection.prepareStatement(INSERT_COLUMN);
+        selectColumns = connection.prepareStatement(SELECT_COLUMNS);
     }
 
     @Override
@@ -156,6 +167,27 @@ public final class SqliteCellStore implements CellStore {
     }
 
     @Override
+    public synchronized void putColumn(long chunk) {
+        try {
+            insertColumn.setLong(1, chunk);
+            insertColumn.executeUpdate();
+        } catch (SQLException failure) {
+            throw new StoreException("Could not write column " + chunk + " to " + file, failure);
+        }
+    }
+
+    @Override
+    public synchronized void readColumns(LongConsumer into) {
+        try (ResultSet rows = selectColumns.executeQuery()) {
+            while (rows.next()) {
+                into.accept(rows.getLong(1));
+            }
+        } catch (SQLException failure) {
+            throw new StoreException("Could not read the covered columns from " + file, failure);
+        }
+    }
+
+    @Override
     public synchronized void close() {
         if (closed) {
             return;
@@ -168,6 +200,8 @@ public final class SqliteCellStore implements CellStore {
             deleteCell.close();
             upsertDictionary.close();
             selectDictionary.close();
+            insertColumn.close();
+            selectColumns.close();
             vacuumWhenSparse();
             connection.close();
         } catch (SQLException failure) {
@@ -219,13 +253,20 @@ public final class SqliteCellStore implements CellStore {
                 return;
             }
 
-            if (version != FRESH_VERSION) {
+            if (version == StoreFormat.BEFORE_COVERAGE) {
+                Eminus.LOGGER.warn("The cell store {} is format version {}, which records no covered columns; "
+                        + "its cells are dropped and it is rebuilt as version {}", file, version, StoreFormat.VERSION);
+                statement.execute(DROP_CELLS);
+                statement.execute(DROP_DICTIONARY);
+                statement.execute(DROP_COLUMNS);
+            } else if (version != FRESH_VERSION) {
                 throw new StoreException("The cell store " + file + " is format version " + version
                         + ", this build reads version " + StoreFormat.VERSION, null);
             }
 
             statement.execute(CREATE_CELLS);
             statement.execute(CREATE_DICTIONARY);
+            statement.execute(CREATE_COLUMNS);
             statement.execute(WRITE_VERSION + StoreFormat.VERSION);
         }
     }

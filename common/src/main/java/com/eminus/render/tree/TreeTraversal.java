@@ -81,6 +81,7 @@ final class TreeTraversal {
             budget = request(node, budget);
 
             if (node.occupancy() != OccupancyMask.EMPTY && node.childrenReady()) {
+                node.markDescended();
                 descend(node);
                 return budget;
             }
@@ -128,8 +129,9 @@ final class TreeTraversal {
         int occupied = node.occupancy();
 
         for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
-            if (OccupancyMask.isSet(occupied, octant)) {
-                next.add(node.child(octant));
+            TreeNode child = node.child(octant);
+            if (OccupancyMask.isSet(occupied, octant) && child != null) {
+                next.add(child);
             }
         }
     }

@@ -67,9 +67,10 @@ public final class MeshDump {
         MeshService service = new MeshService(
                 instance.build(),
                 runtime.cells(),
+                runtime.coverage(),
                 new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
                 runtime.states(),
-                mesh -> {
+                (mesh, request) -> {
                     result.set(mesh);
                     done.countDown();
                 });

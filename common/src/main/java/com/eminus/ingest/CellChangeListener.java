@@ -6,4 +6,7 @@ import com.eminus.cell.cache.CellHandle;
 public interface CellChangeListener {
     // The handle arrives with a reference the listener releases.
     void changed(CellHandle handle, int faceMask);
+
+    default void covered(int chunkX, int chunkZ) {
+    }
 }

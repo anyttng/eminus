@@ -1,6 +1,9 @@
 package com.eminus.mesh;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import com.eminus.cell.CellKey;
+import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.StateOpacity;
 import com.eminus.cell.cache.CellAccess;
 import com.eminus.cell.cache.CellHandle;
@@ -15,15 +18,17 @@ public final class MeshService {
 
     private final WorkService<MeshScratch> work;
     private final CellAccess cells;
+    private final ColumnCoverage coverage;
     private final MeshModels models;
     private final StateOpacity opacity;
     private final MeshListener listener;
     private final MeshQueue queue = new MeshQueue();
 
-    public MeshService(WorkService<MeshScratch> work, CellAccess cells, MeshModels models,
+    public MeshService(WorkService<MeshScratch> work, CellAccess cells, ColumnCoverage coverage, MeshModels models,
             StateOpacity opacity, MeshListener listener) {
         this.work = work;
         this.cells = cells;
+        this.coverage = coverage;
         this.models = models;
         this.opacity = opacity;
         this.listener = listener;
@@ -33,8 +38,8 @@ public final class MeshService {
         submit(MeshTask.fresh(key));
     }
 
-    public void request(long key, @Nullable CellHandle held, int references) {
-        submit(MeshTask.carrying(key, held, references));
+    public void request(long key, @Nullable CellHandle held, int references, long request) {
+        submit(MeshTask.carrying(key, held, references, request));
     }
 
     public void release(CellHandle held, int references) {
@@ -76,6 +81,8 @@ public final class MeshService {
                 return cell.occupancy();
             });
 
+            scratch.voxels().loadCoverage(coverage, task.key());
+
             for (Direction face : FACES) {
                 CellHandle handle = cells.open(CellKey.neighbour(task.key(), face));
                 handles[face.ordinal() + 1] = handle;
@@ -85,10 +92,14 @@ public final class MeshService {
                 });
             }
 
-            CellMesh mesh = new CellMesher(scratch, models)
-                    .mesh(task.key(), occupancy, opacity, () -> submit(task.retry()));
+            AtomicBoolean retried = new AtomicBoolean();
+            CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy, opacity, () -> {
+                if (retried.compareAndSet(false, true)) {
+                    submit(task.retry());
+                }
+            });
             if (mesh != null) {
-                listener.meshed(mesh);
+                listener.meshed(mesh, task.request());
             }
         } finally {
             release(handles);

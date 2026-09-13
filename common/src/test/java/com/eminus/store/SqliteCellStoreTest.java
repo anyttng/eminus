@@ -14,11 +14,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 import com.eminus.cell.Cell;
 import com.eminus.cell.CellKey;
+import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.Dictionary;
 import com.eminus.cell.VoxelEntry;
@@ -38,6 +41,10 @@ class SqliteCellStoreTest {
     private static final int SPARSE_CELLS = 12;
     private static final long SPARSE_GROWN_BYTES = 1024L * 1024L;
     private static final long SPARSE_VACUUMED_BYTES = 256L * 1024L;
+    private static final long COLUMN_A = ColumnCoverage.pack(3, -7);
+    private static final long COLUMN_B = ColumnCoverage.pack(-12, 40);
+    private static final String COUNT_COLUMNS_TABLE =
+            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'columns'";
 
     @TempDir
     Path folder;
@@ -49,6 +56,49 @@ class SqliteCellStoreTest {
         assertEquals(StoreFormat.VERSION, readInt("PRAGMA user_version"));
         assertEquals(1, readInt("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'cells'"));
         assertEquals(1, readInt("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'dictionary'"));
+        assertEquals(1, readInt(COUNT_COLUMNS_TABLE));
+    }
+
+    @Test
+    void coveredColumnsComeBackOnceEachAfterAReopen() {
+        try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
+            store.putColumn(COLUMN_A);
+            store.putColumn(COLUMN_B);
+            store.putColumn(COLUMN_A);
+        }
+
+        List<Long> read = new ArrayList<>();
+        try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
+            store.readColumns(read::add);
+        }
+
+        assertEquals(2, read.size());
+        assertEquals(Set.of(COLUMN_A, COLUMN_B), new HashSet<>(read));
+    }
+
+    @Test
+    void aStoreWrittenBeforeCoverageIsRebuiltEmptyUnderTheCurrentVersion() throws SQLException {
+        long key = CellKey.pack(1, 2, 3, 4);
+        try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
+            store.write(Cell.blank(key));
+            store.putDictionaryEntry(BLOCKS, 0, "minecraft:air");
+        }
+
+        execute("DROP TABLE columns");
+        execute("PRAGMA user_version = " + StoreFormat.BEFORE_COVERAGE);
+
+        List<String> blocks = new ArrayList<>();
+        List<Long> columns = new ArrayList<>();
+        try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
+            assertNull(store.read(key));
+            store.readDictionary(BLOCKS, (id, value) -> blocks.add(value));
+            store.readColumns(columns::add);
+        }
+
+        assertTrue(blocks.isEmpty());
+        assertTrue(columns.isEmpty());
+        assertEquals(StoreFormat.VERSION, readInt("PRAGMA user_version"));
+        assertEquals(1, readInt(COUNT_COLUMNS_TABLE));
     }
 
     @Test

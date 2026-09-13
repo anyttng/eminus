@@ -2,5 +2,5 @@ package com.eminus.mesh;
 
 @FunctionalInterface
 public interface MeshListener {
-    void meshed(CellMesh mesh);
+    void meshed(CellMesh mesh, long request);
 }

@@ -12,6 +12,7 @@ import java.util.Map;
 import com.eminus.VanillaBootstrap;
 import com.eminus.cell.Cell;
 import com.eminus.cell.CellKey;
+import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.FaceMask;
 import com.eminus.cell.StateOpacity;
@@ -59,6 +60,9 @@ class CellMesherTest {
     private static final int CUBE_FACES = 6;
     private static final int NEIGHBOUR_X = 2;
     private static final int WATERLOGGED_FACES = QuadGroups.DIRECTIONAL_COUNT * 2;
+    private static final int LAST_IN_FIRST_CHUNK = 15;
+    private static final long FIRST_CHUNK = ColumnCoverage.pack(0, 0);
+    private static final long SECOND_CHUNK = ColumnCoverage.pack(1, 0);
 
     private final Map<Integer, Integer> opacities = new HashMap<>();
     private final FakeModels models = new FakeModels();
@@ -309,6 +313,24 @@ class CellMesherTest {
     }
 
     @Test
+    void aFaceTowardsAColumnNeverIngestedIsNotDrawnAndOneTowardsCoveredAirIs() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(LAST_IN_FIRST_CHUNK, 16, 5, block(STONE));
+        cell.set(LAST_IN_FIRST_CHUNK, 16, 9, block(WATER));
+
+        CellMesh uncovered = mesh(cell, airAround(), coverage(FIRST_CHUNK));
+        CellMesh covered = mesh(cell, airAround(), coverage(FIRST_CHUNK, SECOND_CHUNK));
+
+        assertFalse(has(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
+        assertFalse(has(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
+        assertTrue(has(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
+        assertTrue(has(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
+        assertTrue(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
+        assertTrue(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
+    }
+
+    @Test
     void aBladedVoxelLeavesItsSolidNeighbourItsOwnFaces() {
         defineBlocks();
         Cell cell = blank();
@@ -344,6 +366,25 @@ class CellMesherTest {
         opacities.put(STONE, StateTable.FULL_OPACITY);
         opacities.put(LAVA, StateTable.FULL_OPACITY);
         opacities.put(WET_LEAVES, StateTable.FULL_OPACITY);
+    }
+
+    private CellMesh mesh(Cell centre, Map<Direction, Cell> around, ColumnCoverage coverage) {
+        long key = CellKey.pack(0, 0, 0, 0);
+        MeshScratch scratch = new MeshScratch();
+        scratch.voxels().load(centre);
+        around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
+        scratch.voxels().loadCoverage(coverage, key);
+
+        return new CellMesher(scratch, models).mesh(key, centre.occupancy(), opacity, () -> bakeRequests++);
+    }
+
+    private static ColumnCoverage coverage(long... chunks) {
+        ColumnCoverage coverage = new ColumnCoverage(chunk -> { });
+        for (long chunk : chunks) {
+            coverage.load(chunk);
+        }
+
+        return coverage;
     }
 
     private CellMesh mesh(Cell centre, Map<Direction, Cell> around, int level) {

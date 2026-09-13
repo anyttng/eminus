@@ -8,9 +8,11 @@ import java.util.function.LongSupplier;
 
 import com.eminus.Eminus;
 import com.eminus.cell.CellFrame;
+import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.Dictionary;
 import com.eminus.cell.StateTable;
 import com.eminus.cell.cache.CellCache;
+import com.eminus.cell.cache.CellHandle;
 import com.eminus.ingest.CellChangeListener;
 import com.eminus.ingest.CellMerger;
 import com.eminus.ingest.IngestService;
@@ -33,6 +35,7 @@ public final class DimensionRuntime {
     private CellStore store;
     private SaveService saves;
     private CellCache cells;
+    private ColumnCoverage coverage;
     private StateTable states;
     private Dictionary<String> biomes;
     private CellMerger merger;
@@ -66,6 +69,10 @@ public final class DimensionRuntime {
 
     public CellCache cells() {
         return cells;
+    }
+
+    public ColumnCoverage coverage() {
+        return coverage;
     }
 
     public StateTable states() {
@@ -123,9 +130,24 @@ public final class DimensionRuntime {
         cells = new CellCache(store, saves, clock);
         states = new StateTable(stateIds);
         biomes = biomeIds;
+        coverage = openCoverage();
         changes.set((handle, faceMask) -> cells.release(handle));
-        merger = new CellMerger(cells, frame, lowestStoredLevel, (handle, faceMask) -> changes.get().changed(handle, faceMask));
-        ingest = new IngestService(ingestService, states, biomes, merger);
+        Changes forwarded = new Changes();
+        merger = new CellMerger(cells, frame, lowestStoredLevel, forwarded);
+        ingest = new IngestService(ingestService, states, biomes, merger, coverage, forwarded);
+    }
+
+    private ColumnCoverage openCoverage() {
+        ColumnCoverage opened = new ColumnCoverage(chunk -> store.putColumn(chunk));
+
+        try {
+            store.readColumns(opened::load);
+        } catch (RuntimeException failure) {
+            Eminus.LOGGER.error("Could not read the covered columns in {}; {} starts with none.", folder,
+                    identity.dimension(), failure);
+        }
+
+        return opened;
     }
 
     private Dictionary<String> openDictionary(String name) {
@@ -181,6 +203,18 @@ public final class DimensionRuntime {
 
     int references() {
         return references;
+    }
+
+    private final class Changes implements CellChangeListener {
+        @Override
+        public void changed(CellHandle handle, int faceMask) {
+            changes.get().changed(handle, faceMask);
+        }
+
+        @Override
+        public void covered(int chunkX, int chunkZ) {
+            changes.get().covered(chunkX, chunkZ);
+        }
     }
 
     long idleSince() {

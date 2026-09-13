@@ -13,6 +13,7 @@ import com.eminus.cell.cache.CellHandle;
 import com.eminus.ingest.CellChangeListener;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshListener;
+import com.eminus.settings.FarDistance;
 
 import net.minecraft.core.Direction;
 
@@ -44,6 +45,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
 
     private TreeBatch batch = new TreeBatch();
     private boolean treeChanged = true;
+    private long requests;
     private double lastEyeX;
     private double lastEyeY;
     private double lastEyeZ;
@@ -71,8 +73,13 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     }
 
     @Override
-    public void meshed(CellMesh mesh) {
-        messages.add(new TreeMessage.CellMeshed(mesh));
+    public void covered(int chunkX, int chunkZ) {
+        messages.add(new TreeMessage.ColumnCovered(chunkX, chunkZ));
+    }
+
+    @Override
+    public void meshed(CellMesh mesh, long request) {
+        messages.add(new TreeMessage.CellMeshed(mesh, request));
     }
 
     public void frame(CameraFrame frame) {
@@ -127,7 +134,8 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private void apply(TreeMessage message) {
         switch (message) {
             case TreeMessage.CellChanged changed -> applyChange(changed.handle(), changed.faceMask());
-            case TreeMessage.CellMeshed meshed -> applyMesh(meshed.mesh());
+            case TreeMessage.CellMeshed meshed -> applyMesh(meshed.mesh(), meshed.request());
+            case TreeMessage.ColumnCovered covered -> applyCovered(covered.chunkX(), covered.chunkZ());
             case TreeMessage.FrameReady ready -> applyFrame();
             case TreeMessage.Describe describe -> applyDescribe(describe.keys());
         }
@@ -150,17 +158,40 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         TreeNode node = nodes.get(handle.key());
         if (node == null) {
             builds.release(handle, ONE_REFERENCE);
-            return;
+        } else {
+            node.hold(handle);
+            requestBuild(node);
         }
 
-        node.hold(handle);
-        requestBuild(node);
         requestNeighbours(handle.key(), faceMask);
     }
 
-    private void applyMesh(CellMesh mesh) {
+    private void applyCovered(int chunkX, int chunkZ) {
+        int firstBlockX = chunkX * FarDistance.BLOCKS_PER_CHUNK;
+        int firstBlockZ = chunkZ * FarDistance.BLOCKS_PER_CHUNK;
+
+        for (int level = extent.lowestLevel(); level <= DetailLevel.MAX; level++) {
+            int side = DetailLevel.blocksPerCell(level);
+            int heightCells = extent.heightCells() << (DetailLevel.MAX - level);
+            int lastCellX = Math.floorDiv(firstBlockX + FarDistance.BLOCKS_PER_CHUNK, side);
+            int lastCellZ = Math.floorDiv(firstBlockZ + FarDistance.BLOCKS_PER_CHUNK, side);
+
+            for (int cellX = Math.floorDiv(firstBlockX - 1, side); cellX <= lastCellX; cellX++) {
+                for (int cellZ = Math.floorDiv(firstBlockZ - 1, side); cellZ <= lastCellZ; cellZ++) {
+                    for (int cellY = 0; cellY < heightCells; cellY++) {
+                        TreeNode node = nodes.get(CellKey.pack(level, cellX, cellY, cellZ));
+                        if (node != null) {
+                            requestBuild(node);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void applyMesh(CellMesh mesh, long request) {
         TreeNode node = nodes.get(mesh.key());
-        if (node == null) {
+        if (node == null || node.request() != request) {
             return;
         }
 
@@ -276,9 +307,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private void dispatch(TreeNode node) {
         CellHandle handle = node.pending();
         int references = node.pendingReferences();
+        long request = ++requests;
         node.clearPending();
-        node.startBuild();
-        builds.build(node.key(), handle, references);
+        node.startBuild(request);
+        builds.build(node.key(), handle, references, request);
     }
 
     private void publish() {

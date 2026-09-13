@@ -20,7 +20,9 @@ public final class TreeNode {
     private @Nullable CellHandle pending;
     private int pendingReferences;
     private int requestedOctants;
+    private int descendedOccupancy;
     private long lastSeen;
+    private long request;
     private boolean building;
     private boolean rebuild;
 
@@ -77,9 +79,19 @@ public final class TreeNode {
 
     boolean childrenReady() {
         int occupied = occupancy();
+        return meshedIn(descendedOccupancy == OccupancyMask.EMPTY ? occupied : occupied & descendedOccupancy);
+    }
 
+    void markDescended() {
+        int occupied = occupancy();
+        if (meshedIn(occupied)) {
+            descendedOccupancy = occupied;
+        }
+    }
+
+    private boolean meshedIn(int octants) {
         for (int at = 0; at < OccupancyMask.OCTANTS; at++) {
-            if (!OccupancyMask.isSet(occupied, at)) {
+            if (!OccupancyMask.isSet(octants, at)) {
                 continue;
             }
 
@@ -143,7 +155,12 @@ public final class TreeNode {
         pendingReferences = 0;
     }
 
-    void startBuild() {
+    long request() {
+        return request;
+    }
+
+    void startBuild(long dispatched) {
+        request = dispatched;
         building = true;
     }
 

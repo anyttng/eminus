@@ -1,6 +1,9 @@
 package com.eminus.mesh;
 
+import java.util.Arrays;
+
 import com.eminus.cell.Cell;
+import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.DetailLevel;
 
 import net.minecraft.core.Direction;
@@ -20,9 +23,22 @@ public final class CellVoxels {
 
     private final long[] voxels = new long[DetailLevel.VOXELS_PER_CELL];
     private final long[][] layers = new long[SIDES][LAYER_SIZE];
+    private final boolean[] covered = new boolean[ColumnCoverage.GRID_SIDE * ColumnCoverage.GRID_SIDE];
+
+    public CellVoxels() {
+        Arrays.fill(covered, true);
+    }
 
     public void load(Cell cell) {
         cell.expand(voxels);
+    }
+
+    public void loadCoverage(ColumnCoverage coverage, long key) {
+        coverage.fill(key, covered);
+    }
+
+    public boolean covered(int x, int z) {
+        return covered[ColumnCoverage.index(x, z)];
     }
 
     public void loadNeighbour(Direction face, Cell neighbour) {

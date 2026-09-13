@@ -110,12 +110,14 @@ public final class FacePasses {
 
                 long low = RowMasks.entryAt(voxels, axis, u, v, plane - 1);
                 long high = RowMasks.entryAt(voxels, axis, u, v, plane + 1);
+                boolean lowCovered = covered(u, plane - 1);
+                boolean highCovered = covered(u, plane + 1);
 
-                if (!blockFaces(u, v, plane, row, owner, low, high, modelId)) {
+                if (!blockFaces(u, v, plane, row, owner, low, high, modelId, lowCovered, highCovered)) {
                     return false;
                 }
 
-                if (!fluidFaces(u, v, owner, low, high)) {
+                if (!fluidFaces(u, v, owner, low, high, lowCovered, highCovered)) {
                     return false;
                 }
             }
@@ -124,7 +126,8 @@ public final class FacePasses {
         return true;
     }
 
-    private boolean blockFaces(int u, int v, int plane, int row, long owner, long low, long high, int modelId) {
+    private boolean blockFaces(int u, int v, int plane, int row, long owner, long low, long high, int modelId,
+            boolean lowCovered, boolean highCovered) {
         if (!Quad.fitsModelId(modelId)) {
             scratch.buffer().dropUnaddressable();
             return true;
@@ -134,11 +137,11 @@ public final class FacePasses {
         int metadata = models.metadata(modelId);
 
         if (masks.opaque(row, plane)) {
-            if (masks.facesNegative(row, plane)) {
+            if (lowCovered && masks.facesNegative(row, plane)) {
                 scratch.negativePlane().set(u, v, data(owner, low, metadata, modelId));
             }
 
-            if (masks.facesPositive(row, plane)) {
+            if (highCovered && masks.facesPositive(row, plane)) {
                 scratch.positivePlane().set(u, v, data(owner, high, metadata, modelId));
             }
 
@@ -151,12 +154,12 @@ public final class FacePasses {
             return false;
         }
 
-        if (!facingHoldsSameTranslucent(metadata, modelId, lowModel, low)
+        if (lowCovered && !facingHoldsSameTranslucent(metadata, modelId, lowModel, low)
                 && visible(metadata, metadataOf(lowModel), towardsLow)) {
             scratch.negativePlane().set(u, v, data(owner, low, metadata, modelId));
         }
 
-        if (!facingHoldsSameTranslucent(metadata, modelId, highModel, high)
+        if (highCovered && !facingHoldsSameTranslucent(metadata, modelId, highModel, high)
                 && visible(metadata, metadataOf(highModel), towardsHigh)) {
             scratch.positivePlane().set(u, v, data(owner, high, metadata, modelId));
         }
@@ -164,7 +167,18 @@ public final class FacePasses {
         return true;
     }
 
-    private boolean fluidFaces(int u, int v, long owner, long low, long high) {
+    private boolean covered(int u, int at) {
+        CellVoxels voxels = scratch.voxels();
+
+        return switch (axis) {
+            case X -> voxels.covered(at, u);
+            case Y -> true;
+            case Z -> voxels.covered(u, at);
+        };
+    }
+
+    private boolean fluidFaces(int u, int v, long owner, long low, long high, boolean lowCovered,
+            boolean highCovered) {
         int fluidModel = models.fluidModelId(VoxelEntry.state(owner), whenBaked);
         if (fluidModel == MeshModels.MISSING) {
             return false;
@@ -187,12 +201,12 @@ public final class FacePasses {
 
         int metadata = models.metadata(fluidModel);
 
-        if (!facingHoldsSameTranslucent(metadata, fluidModel, lowModel, low)
+        if (lowCovered && !facingHoldsSameTranslucent(metadata, fluidModel, lowModel, low)
                 && visible(metadata, metadataOf(lowModel), towardsLow)) {
             scratch.negativeFluidPlane().set(u, v, data(owner, low, metadata, fluidModel));
         }
 
-        if (!facingHoldsSameTranslucent(metadata, fluidModel, highModel, high)
+        if (highCovered && !facingHoldsSameTranslucent(metadata, fluidModel, highModel, high)
                 && visible(metadata, metadataOf(highModel), towardsHigh)) {
             scratch.positiveFluidPlane().set(u, v, data(owner, high, metadata, fluidModel));
         }
