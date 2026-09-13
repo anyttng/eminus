@@ -56,6 +56,7 @@ public final class FarRenderer implements AutoCloseable {
     private final FarFrame frame;
     private final NearMaskPass mask;
     private final OpaquePass opaque;
+    private final OcclusionPass occlusion;
     private final TranslucentPass translucent;
     private final CompositePass composite;
     private final IndirectCommands indirect;
@@ -73,8 +74,8 @@ public final class FarRenderer implements AutoCloseable {
     private boolean stopped;
 
     private FarRenderer(DimensionRuntime runtime, ClientBakery baking, ModelPublisher models, GeometryArena arena,
-            FarTarget target, FarFrame frame, NearMaskPass mask, OpaquePass opaque, TranslucentPass translucent,
-            CompositePass composite, IndirectCommands indirect, int heightCells) {
+            FarTarget target, FarFrame frame, NearMaskPass mask, OpaquePass opaque, OcclusionPass occlusion,
+            TranslucentPass translucent, CompositePass composite, IndirectCommands indirect, int heightCells) {
         this.runtime = runtime;
         this.baking = baking;
         this.models = models;
@@ -83,6 +84,7 @@ public final class FarRenderer implements AutoCloseable {
         this.frame = frame;
         this.mask = mask;
         this.opaque = opaque;
+        this.occlusion = occlusion;
         this.translucent = translucent;
         this.composite = composite;
         this.indirect = indirect;
@@ -111,8 +113,8 @@ public final class FarRenderer implements AutoCloseable {
                 ModelPublisher.start(baking.bakery(), baking.colours(), runtime.biomes()), arena,
                 FarTarget.create(support.depthStencilFormat(), main.width, main.height), FarFrame.create(),
                 NearMaskPass.create(FarTarget.COLOUR_FORMAT), OpaquePass.create(support.depth()),
-                TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),
-                IndirectCommands.create(COMMAND_CAPACITY),
+                OcclusionPass.create(support.depth()), TranslucentPass.create(support.depth()),
+                CompositePass.create(support.depth()), IndirectCommands.create(COMMAND_CAPACITY),
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
 
         renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(),
@@ -194,6 +196,9 @@ public final class FarRenderer implements AutoCloseable {
                     main.getDepthTextureView());
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(),
                     indirect.range(0, commands.opaqueCount()), commands.opaqueCount(), frame.buffer());
+            if (client.options.ambientOcclusion().get()) {
+                occlusion.draw(target, main, farViewProjection, gameViewProjection);
+            }
             translucent.draw(target, arena, models, client.gameRenderer.lightmap(),
                     indirect.range(commands.opaqueCount(), commands.translucentCount()),
                     commands.translucentCount(), frame.buffer());
@@ -228,6 +233,7 @@ public final class FarRenderer implements AutoCloseable {
 
         indirect.close();
         composite.close();
+        occlusion.close();
         frame.close();
         target.close();
         models.close();
