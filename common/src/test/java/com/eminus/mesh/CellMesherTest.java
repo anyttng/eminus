@@ -55,6 +55,7 @@ class CellMesherTest {
     private static final int NO_BLOCK_LIGHT = 0;
     private static final int GRADIENT_BASE = 12;
     private static final int GRADIENT_SPAN = 4;
+    private static final int TORCH_BLOCK_LIGHT = 14;
     private static final int GLASS_FACES_IN_AIR = 5;
     private static final int CUBE_SIDE = 2;
     private static final int CUBE_FACES = 6;
@@ -136,13 +137,34 @@ class CellMesherTest {
     }
 
     @Test
-    void aLightGradientSplitsTheFloorAtLevelZeroAndMergesItAtLevelTwo() {
+    void aLightGradientSplitsTheFloorAtEveryLevel() {
         defineBlocks();
         CellMesh fine = mesh(litFloor(), ground(), 0);
         CellMesh coarse = mesh(litFloor(), ground(), 2);
 
         assertEquals(SIDE * 2, fine.groupCount(Direction.UP.ordinal()));
-        assertEquals(4, coarse.groupCount(Direction.UP.ordinal()));
+        assertEquals(SIDE * 2, coarse.groupCount(Direction.UP.ordinal()));
+    }
+
+    @Test
+    void torchLightReachesTheFloorAtLevelTwo() {
+        defineBlocks();
+        Cell cell = floor();
+        for (int z = 0; z < SIDE; z++) {
+            for (int x = 0; x < SIDE; x++) {
+                cell.set(x, 1, z, VoxelEntry.pack(AIR, BIOME, VoxelEntry.light(FULL_SKY, TORCH_BLOCK_LIGHT)));
+            }
+        }
+
+        CellMesh mesh = mesh(cell, ground(), 2);
+
+        assertEquals(4, mesh.groupCount(Direction.UP.ordinal()));
+        for (int index = 0; index < mesh.quadCount(); index++) {
+            long quad = mesh.quad(index);
+            if (Quad.face(quad) == Direction.UP.ordinal()) {
+                assertEquals(VoxelEntry.light(FULL_SKY, TORCH_BLOCK_LIGHT), Quad.light(quad));
+            }
+        }
     }
 
     @Test

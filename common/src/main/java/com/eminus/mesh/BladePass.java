@@ -10,13 +10,11 @@ public final class BladePass {
 
     private final MeshScratch scratch;
     private final MeshModels models;
-    private final int level;
     private final Runnable whenBaked;
 
-    public BladePass(MeshScratch scratch, MeshModels models, int level, Runnable whenBaked) {
+    public BladePass(MeshScratch scratch, MeshModels models, Runnable whenBaked) {
         this.scratch = scratch;
         this.models = models;
-        this.level = level;
         this.whenBaked = whenBaked;
     }
 
@@ -53,7 +51,7 @@ public final class BladePass {
             return;
         }
 
-        long data = Quad.data(QuadLight.of(entry, metadata, level), modelId, VoxelEntry.biome(entry));
+        long data = Quad.data(QuadLight.of(entry, metadata), modelId, VoxelEntry.biome(entry));
         int group = QuadGroups.ofBlade(metadata);
 
         for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {

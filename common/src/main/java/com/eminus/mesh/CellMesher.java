@@ -1,6 +1,5 @@
 package com.eminus.mesh;
 
-import com.eminus.cell.CellKey;
 import com.eminus.cell.StateOpacity;
 
 import net.minecraft.core.Direction;
@@ -21,9 +20,8 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
 
     public @Nullable CellMesh mesh(long key, int occupancy, StateOpacity opacity, Runnable whenBaked) {
         scratch.reset();
-        int level = CellKey.level(key);
-        FacePasses passes = new FacePasses(scratch, opacity, models, level, whenBaked, this);
-        BladePass blades = new BladePass(scratch, models, level, whenBaked);
+        FacePasses passes = new FacePasses(scratch, opacity, models, whenBaked, this);
+        BladePass blades = new BladePass(scratch, models, whenBaked);
 
         if (!passes.run() || !blades.run()) {
             scratch.reset();

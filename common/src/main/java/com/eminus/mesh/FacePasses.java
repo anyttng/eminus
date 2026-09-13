@@ -32,7 +32,6 @@ public final class FacePasses {
     private final MeshScratch scratch;
     private final StateOpacity opacity;
     private final MeshModels models;
-    private final int level;
     private final Runnable whenBaked;
     private final Sink sink;
 
@@ -40,12 +39,10 @@ public final class FacePasses {
     private Direction towardsLow;
     private Direction towardsHigh;
 
-    public FacePasses(MeshScratch scratch, StateOpacity opacity, MeshModels models, int level,
-            Runnable whenBaked, Sink sink) {
+    public FacePasses(MeshScratch scratch, StateOpacity opacity, MeshModels models, Runnable whenBaked, Sink sink) {
         this.scratch = scratch;
         this.opacity = opacity;
         this.models = models;
-        this.level = level;
         this.whenBaked = whenBaked;
         this.sink = sink;
     }
@@ -241,7 +238,7 @@ public final class FacePasses {
     }
 
     private long data(long owner, long facing, int metadata, int modelId) {
-        return Quad.data(QuadLight.of(facing, metadata, level), modelId, VoxelEntry.biome(owner));
+        return Quad.data(QuadLight.of(facing, metadata), modelId, VoxelEntry.biome(owner));
     }
 
     private static boolean visible(int metadata, int facingMetadata, Direction face) {
