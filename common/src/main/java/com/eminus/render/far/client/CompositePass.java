@@ -91,8 +91,7 @@ public final class CompositePass implements AutoCloseable {
 
     private void write(Matrix4fc gameViewProjection, Matrix4fc farViewProjection, CompositeFog fog,
             Vector4fc fogColour) {
-        farViewProjection.invert(farInverse);
-        gameViewProjection.mul(farInverse, reproject);
+        FarProjection.reproject(gameViewProjection, farViewProjection, farInverse, reproject);
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
             ByteBuffer written = Std140Builder.onStack(stack, SIZE)

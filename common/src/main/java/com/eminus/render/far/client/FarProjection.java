@@ -23,6 +23,12 @@ public final class FarProjection {
         return target.set(levelProjection).mul(rotation);
     }
 
+    public static Matrix4f reproject(Matrix4fc gameViewProjection, Matrix4fc farViewProjection, Matrix4f farInverse,
+            Matrix4f target) {
+        farViewProjection.invert(farInverse);
+        return gameViewProjection.mul(farInverse, target);
+    }
+
     // The detail metric follows the fov the player set, so a spyglass or a sprint moves no level.
     public static float focalPixels(int fovDegrees, float height) {
         return (float) (height * HALF / Math.tan(Math.toRadians(fovDegrees) * HALF));

@@ -65,6 +65,61 @@ class LevelProjectionTest {
         assertEquals(gamePoint.y / gamePoint.w, farPoint.y / farPoint.w, DELTA);
     }
 
+    @Test
+    void theReprojectedFarDepthIsTheGameDepthUnderABobAndAHurtTilt() {
+        Matrix4f bob = new Matrix4f().translate(0.0F, -0.15F, 0.0F).rotateZ(0.08F).rotateX(0.03F);
+        Matrix4f rotation = new Matrix4f().rotateY(0.7F).rotateX(0.2F);
+        Matrix4f gameCamera = reversed(NEAR, FAR);
+        Vector4f point = new Vector4f(12.0F, 6.0F, -40.0F, 1.0F);
+
+        levelProjection.capture(gameCamera.mul(bob, new Matrix4f()), gameCamera);
+
+        Matrix4f farViewProjection = reversed(NearPlane.BLOCKS, FarProjection.FAR).mul(levelProjection.fold())
+                .mul(rotation);
+        Matrix4f gameViewProjection = FarProjection.gameViewProjection(levelProjection.projection(), rotation,
+                new Matrix4f());
+        Vector4f farNdc = ndc(farViewProjection.transform(point, new Vector4f()));
+        Vector4f reprojected = ndc(FarProjection
+                .reproject(gameViewProjection, farViewProjection, new Matrix4f(), new Matrix4f())
+                .transform(farNdc, new Vector4f()));
+        Vector4f game = ndc(gameViewProjection.transform(point, new Vector4f()));
+
+        assertEquals(game.x, reprojected.x, DELTA);
+        assertEquals(game.y, reprojected.y, DELTA);
+        assertEquals(game.z, reprojected.z, CompositePass.DEPTH_BIAS);
+    }
+
+    @Test
+    void theReprojectionIsTheSameWithAndWithoutTheBob() {
+        Matrix4f bob = new Matrix4f().translate(0.0F, -0.15F, 0.0F).rotateZ(0.08F).rotateX(0.03F);
+        Matrix4f rotation = new Matrix4f().rotateY(0.7F).rotateX(0.2F);
+        Matrix4f gameCamera = reversed(NEAR, FAR);
+
+        levelProjection.capture(gameCamera.mul(bob, new Matrix4f()), gameCamera);
+        Matrix4f bobbed = reprojection(rotation);
+        levelProjection.capture(gameCamera, gameCamera);
+        Matrix4f still = reprojection(rotation);
+
+        assertMatrix(still, bobbed);
+    }
+
+    private Matrix4f reprojection(Matrix4fc rotation) {
+        Matrix4f farViewProjection = reversed(NearPlane.BLOCKS, FarProjection.FAR).mul(levelProjection.fold())
+                .mul(rotation);
+        Matrix4f gameViewProjection = FarProjection.gameViewProjection(levelProjection.projection(), rotation,
+                new Matrix4f());
+        return FarProjection.reproject(gameViewProjection, farViewProjection, new Matrix4f(), new Matrix4f());
+    }
+
+    // The game swaps near and far in Projection.getMatrix; an unswapped matrix tests a depth range it never uses.
+    private static Matrix4f reversed(float near, float far) {
+        return new Matrix4f().setPerspective(FOV, ASPECT, far, near, false);
+    }
+
+    private static Vector4f ndc(Vector4f clip) {
+        return new Vector4f(clip.x / clip.w, clip.y / clip.w, clip.z / clip.w, 1.0F);
+    }
+
     private static void assertMatrix(Matrix4fc expected, Matrix4fc actual) {
         for (int column = 0; column < 4; column++) {
             for (int row = 0; row < 4; row++) {
