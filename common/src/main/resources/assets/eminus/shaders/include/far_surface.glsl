@@ -1,3 +1,6 @@
+#ifndef EMINUS_FAR_SURFACE_GLSL
+#define EMINUS_FAR_SURFACE_GLSL
+
 vec4 far_surface(ivec2 atlasCell, vec2 faceUV, vec3 tint) {
     vec2 cell = vec2(1.0) / float(AtlasCells);
     float margin = 0.5 / float(FACE_SIDE);
@@ -11,3 +14,5 @@ vec4 far_surface(ivec2 atlasCell, vec2 faceUV, vec3 tint) {
     colour.rgb *= mix(vec3(1.0), tint, textureGrad(TintMask, uv, gradX, gradY).r);
     return colour;
 }
+
+#endif

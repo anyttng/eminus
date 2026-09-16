@@ -6,7 +6,7 @@ import java.nio.ByteOrder;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.MeshSlot;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 public final class MeshRecords implements AutoCloseable {

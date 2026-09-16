@@ -50,6 +50,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
 import net.minecraft.world.phys.Vec3;
 
 import org.joml.Matrix4f;
@@ -314,7 +315,9 @@ public final class FarRenderer implements AutoCloseable {
 
     private void fillNearSections(Minecraft client, int renderDistance, Vec3 eye) {
         ClientLevel level = client.level;
-        nearSections.fill(client.levelRenderer, order.meshes(), runtime.frame(),
+        nearSections.fill(client.levelRenderer,
+                Util.toMillis(client.gameRenderer.gameRenderState().optionsRenderState.chunkSectionFadeInTime),
+                order.meshes(), runtime.frame(),
                 NearSections.section(Mth.floor(eye.x)), NearSections.section(Mth.floor(eye.y)),
                 NearSections.section(Mth.floor(eye.z)), renderDistance,
                 renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSectionY(), level.getSectionsCount());

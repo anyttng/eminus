@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 layout(std140) uniform Composite {
     mat4 Reproject;
@@ -14,9 +15,9 @@ layout(std140) uniform Composite {
 uniform sampler2D FarColour;
 uniform sampler2D FarDepth;
 
-in vec2 screenUV;
+layout(location = 0) in vec2 screenUV;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 float linear_fog_value(float vertexDistance, float start, float end) {
     if (vertexDistance <= start) {

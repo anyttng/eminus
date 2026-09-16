@@ -5,7 +5,7 @@ import java.nio.ByteOrder;
 
 import com.eminus.model.BakedModel;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.core.Direction;

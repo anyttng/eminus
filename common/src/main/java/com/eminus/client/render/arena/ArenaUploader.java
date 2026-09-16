@@ -13,8 +13,8 @@ import com.eminus.mesh.MeshBuffer;
 import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.ArenaSizing;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.device.GpuDevice;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.StagingBuffer;
 

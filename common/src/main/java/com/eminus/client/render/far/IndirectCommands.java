@@ -2,8 +2,8 @@ package com.eminus.client.render.far;
 
 import com.eminus.render.far.DrawCommands;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 public final class IndirectCommands implements AutoCloseable {

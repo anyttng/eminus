@@ -1,3 +1,6 @@
+#ifndef EMINUS_FAR_VERTEX_GLSL
+#define EMINUS_FAR_VERTEX_GLSL
+
 struct FarVertex {
     vec3 position;
     vec3 facePoint;
@@ -100,3 +103,5 @@ FarVertex far_vertex(int vertexId) {
 
     return vertex;
 }
+
+#endif

@@ -15,7 +15,7 @@ import com.eminus.VanillaBootstrap;
 import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.client.color.block.BlockTintSources;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -75,8 +75,8 @@ class BiomeColoursTest {
     @Test
     void aStateDependentSourceResolvesPerState() {
         BlockTintSource redstone = BlockTintSources.redstone();
-        BlockState unpowered = Blocks.REDSTONE_WIRE.defaultBlockState().setValue(RedStoneWireBlock.POWER, UNPOWERED);
-        BlockState powered = unpowered.setValue(RedStoneWireBlock.POWER, FULL_POWER);
+        BlockState unpowered = Blocks.REDSTONE_WIRE.defaultBlockState().setValue(RedstoneWireBlock.POWER, UNPOWERED);
+        BlockState powered = unpowered.setValue(RedstoneWireBlock.POWER, FULL_POWER);
 
         assertNotEquals(colours.resolve(redstone, unpowered), colours.resolve(redstone, powered));
     }

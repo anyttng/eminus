@@ -9,10 +9,10 @@ import com.eminus.model.Mips;
 import com.eminus.model.ModelSource;
 import com.eminus.model.Solidify;
 
-import com.mojang.blaze3d.GpuFormat;
+import com.mojang.renderpearl.api.GpuFormat;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 
 public final class ModelAtlas implements AutoCloseable {
     private static final String COLOUR_LABEL = "eminus-model-atlas";

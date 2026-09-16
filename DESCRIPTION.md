@@ -24,7 +24,7 @@ Worker threads and Lowest stored level take effect on the next world join.
 
 ## Compatibility
 
-Runs on **NeoForge** and **Fabric**, Minecraft 26.2. Mod Menu is optional on Fabric. **Sodium** is supported on both loaders.
+Runs on **NeoForge** and **Fabric**, Minecraft 26.3. Mod Menu is optional on Fabric. **Sodium** is supported on both loaders.
 
 ## Before you download
 

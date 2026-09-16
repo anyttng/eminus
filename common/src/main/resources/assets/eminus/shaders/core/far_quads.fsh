@@ -1,6 +1,7 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:globals.glsl>
 
 layout(std140) uniform FarFrame {
     mat4 FarProjView;
@@ -15,19 +16,19 @@ uniform sampler2D Atlas;
 uniform sampler2D TintMask;
 uniform sampler2D NearMask;
 
-#moj_import <eminus:far_surface.glsl>
+#include <eminus:far_surface.glsl>
 
-in vec2 faceUV;
-in vec4 vertexColor;
-flat in vec3 tintColour;
-flat in ivec2 atlasCell;
+layout(location = 0) in vec2 faceUV;
+layout(location = 1) in vec4 vertexColor;
+layout(location = 2) flat in vec3 tintColour;
+layout(location = 3) flat in ivec2 atlasCell;
 
 #ifdef NEAR_SECTIONS
 uniform usamplerBuffer NearSections;
-in vec3 nearPoint;
+layout(location = 4) in vec3 nearPoint;
 #endif
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 void main() {
     if (gl_FragCoord.z > texelFetch(NearMask, ivec2(gl_FragCoord.xy), 0).r) {

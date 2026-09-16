@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 layout(std140) uniform Occlusion {
     mat4 FarViewProjection;
@@ -10,7 +11,7 @@ layout(std140) uniform Occlusion {
 uniform sampler2D FarDepth;
 uniform sampler2D GameDepth;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const float TAU = 6.28318531;
 const float GOLDEN_ANGLE = 2.39996323;

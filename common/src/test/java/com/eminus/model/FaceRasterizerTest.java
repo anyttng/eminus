@@ -52,8 +52,8 @@ class FaceRasterizerTest {
     @BeforeAll
     static void bootstrapVanilla() {
         VanillaBootstrap.ensure();
-        material = new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID, null, NO_TINT_LAYER, true, 0);
-        tintedMaterial = new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID, null, TINT_LAYER, true, 0);
+        material = new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID, null, null, null, NO_TINT_LAYER, null, 0);
+        tintedMaterial = new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID, null, null, null, TINT_LAYER, null, 0);
     }
 
     @Test

@@ -8,7 +8,7 @@ import com.eminus.cell.Dictionary;
 import com.eminus.mesh.Quad;
 import com.eminus.model.BiomeColours;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 public final class TintTable implements AutoCloseable {
