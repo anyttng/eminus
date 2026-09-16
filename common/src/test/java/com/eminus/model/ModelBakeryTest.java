@@ -4,11 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.eminus.VanillaBootstrap;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -20,6 +23,7 @@ class ModelBakeryTest {
     private static final int BLUE = 0xFF00_00FF;
     private static final int BOTH_MODELS = 2;
     private static final int SECONDS = 5;
+    private static final int RACED_STATES = 2000;
 
     private static BlockState stone;
     private static BlockState dirt;
@@ -147,6 +151,37 @@ class ModelBakeryTest {
             assertEquals(bakery.modelId(stone), bakery.modelId(dirt));
             assertEquals(bakery.fluidModelId(stone), bakery.fluidModelId(dirt));
             assertEquals(BOTH_MODELS, bakery.modelCount());
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void anIdIsVisibleOnlyOnceTheModelCountCoversIt() throws InterruptedException {
+        AtomicInteger colour = new AtomicInteger();
+        ModelBakery bakery = ModelBakery.start(state -> new BakedState(
+                BakedModel.solid(colour.incrementAndGet()), BakedModel.solid(colour.incrementAndGet())));
+        List<BlockState> states = BuiltInRegistries.BLOCK.stream()
+                .flatMap(block -> block.getStateDefinition().getPossibleStates().stream())
+                .limit(RACED_STATES)
+                .toList();
+
+        try {
+            CountDownLatch served = new CountDownLatch(states.size());
+            for (BlockState state : states) {
+                bakery.request(state, served::countDown);
+            }
+
+            while (served.getCount() > 0) {
+                for (BlockState state : states) {
+                    int block = bakery.modelId(state);
+                    int fluid = bakery.fluidModelId(state);
+                    int count = bakery.modelCount();
+
+                    assertTrue(block < count, "block model " + block + " visible at count " + count);
+                    assertTrue(fluid < count, "fluid model " + fluid + " visible at count " + count);
+                }
+            }
         } finally {
             bakery.stop();
         }

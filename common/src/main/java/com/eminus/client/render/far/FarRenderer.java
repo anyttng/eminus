@@ -180,12 +180,12 @@ public final class FarRenderer implements AutoCloseable {
             return;
         }
 
-        models.publish();
-
         TreeBatch batch = tree.batches().peek();
         if (batch != null) {
             upload(batch);
         }
+
+        models.publish();
 
         RenderTarget main = client.gameRenderer.mainRenderTarget();
         target.resize(main.width, main.height);
