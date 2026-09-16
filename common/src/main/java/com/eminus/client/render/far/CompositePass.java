@@ -41,6 +41,7 @@ public final class CompositePass implements AutoCloseable {
     private static final int UNIFORM_USAGE = GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST;
     private static final int SIZE = new Std140SizeCalculator()
             .putMat4f().putMat4f().putVec4()
+            .putFloat().putFloat().putFloat()
             .putFloat().putFloat().putFloat().putFloat().putFloat()
             .get();
     private static final int VERTICES = 3;
@@ -98,6 +99,9 @@ public final class CompositePass implements AutoCloseable {
                     .putMat4f(reproject)
                     .putMat4f(farInverse)
                     .putVec4(fogColour)
+                    .putFloat(fog.gameFogStart())
+                    .putFloat(fog.gameFogEnd())
+                    .putFloat(fog.reach())
                     .putFloat(fog.fogStart())
                     .putFloat(fog.fogEnd())
                     .putFloat(fog.fadeStart())

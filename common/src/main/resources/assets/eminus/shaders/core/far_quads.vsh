@@ -10,6 +10,12 @@ layout(std140) uniform FarFrame {
     int NearSide;
     int NearHeight;
     ivec3 NearOrigin;
+    float ShadeDown;
+    float ShadeUp;
+    float ShadeNorth;
+    float ShadeSouth;
+    float ShadeWest;
+    float ShadeEast;
 };
 
 uniform usamplerBuffer Quads;
@@ -28,9 +34,6 @@ flat out ivec2 atlasCell;
 out vec3 nearPoint;
 #endif
 
-const float FACE_SHADE[8] = float[8](
-    SHADE_DOWN, SHADE_UP, SHADE_NORTH_SOUTH, SHADE_NORTH_SOUTH, SHADE_WEST_EAST, SHADE_WEST_EAST,
-    SHADE_BLADE, SHADE_BLADE);
 const int LIGHT_STEP = 16;
 
 void main() {
@@ -46,6 +49,8 @@ void main() {
     tintColour = vertex.tint;
 
     vec4 colour = sample_lightmap(Lightmap, ivec2(vertex.blockLight * LIGHT_STEP, vertex.skyLight * LIGHT_STEP));
-    colour.rgb *= FACE_SHADE[vertex.face];
+    float faceShade[8] = float[8](ShadeDown, ShadeUp, ShadeNorth, ShadeSouth, ShadeWest, ShadeEast,
+        SHADE_BLADE, SHADE_BLADE);
+    colour.rgb *= faceShade[vertex.face];
     vertexColor = colour;
 }

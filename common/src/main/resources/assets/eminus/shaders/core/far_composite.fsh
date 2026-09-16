@@ -4,6 +4,9 @@ layout(std140) uniform Composite {
     mat4 Reproject;
     mat4 FarInverse;
     vec4 FogColour;
+    float GameFogStart;
+    float GameFogEnd;
+    float FogReach;
     float FogStart;
     float FogEnd;
     float FadeStart;
@@ -57,7 +60,10 @@ void main() {
     gameZ = gameZ * 0.5 + 0.5;
 #endif
 
-    float fog = linear_fog_value(length(position), FogStart, FogEnd);
+    float distance = length(position);
+    float fog = distance <= FogReach
+            ? linear_fog_value(distance, GameFogStart, GameFogEnd)
+            : linear_fog_value(distance, FogStart, FogEnd);
     vec4 far = texture(FarColour, screenUV);
 
     gl_FragDepth = clamp(gameZ - DepthBias, 0.0, 1.0);
