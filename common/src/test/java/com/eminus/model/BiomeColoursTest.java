@@ -1,46 +1,36 @@
 package com.eminus.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import com.eminus.VanillaBootstrap;
 
 import net.minecraft.client.color.block.BlockTintSource;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.CardinalLighting;
-import net.minecraft.world.level.ColorResolver;
+import net.minecraft.client.color.block.BlockTintSources;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.lighting.LevelLightEngine;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
 
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 class BiomeColoursTest {
     private static final String PLAINS = "minecraft:plains";
     private static final String DESERT = "minecraft:desert";
-    private static final int PLAINS_COLOUR = 0x0091_BD59;
-    private static final int DESERT_COLOUR = 0x00BF_B755;
-
-    private static final BlockTintSource FROM_LEVEL = new BlockTintSource() {
-        @Override
-        public int color(BlockState state) {
-            return BiomeColours.NO_COLOUR;
-        }
-
-        @Override
-        public int colorInWorld(BlockState state, BlockAndTintGetter level, BlockPos pos) {
-            return level.getBlockTint(pos, (biome, x, z) -> BiomeColours.NO_COLOUR);
-        }
-    };
-
-    private static final BlockTintSource UNFILLED = state -> BiomeColours.NO_COLOUR;
+    private static final int PLAINS_BIOME = 0;
+    private static final int DESERT_BIOME = 1;
+    private static final int GRASS_RESOLVER = 0;
+    private static final int SPRUCE = 0xFF61_9961;
+    private static final int RGB_MASK = 0x00FF_FFFF;
+    private static final int UNPOWERED = 0;
+    private static final int FULL_POWER = 15;
 
     private static BlockState stone;
 
@@ -51,72 +41,61 @@ class BiomeColoursTest {
     }
 
     private final BiomeColours colours = new BiomeColours(
-            Map.of(PLAINS, new FixedTint(PLAINS_COLOUR), DESERT, new FixedTint(DESERT_COLOUR)));
+            Map.of(PLAINS, new TintLevel(PLAINS_BIOME), DESERT, new TintLevel(DESERT_BIOME)));
 
     @Test
-    void aFilledTintHoldsOneColourPerKnownBiome() {
-        colours.fill(FROM_LEVEL, stone);
+    void aSourceThatVariesByBiomeResolvesToItsRowAndHoldsOneColourPerBiome() {
+        BlockTintSource grass = BlockTintSources.grass();
+        colours.assign(List.of(colours.sample(grass, stone)));
 
-        assertEquals(2, colours.biomeCount());
-        assertEquals(PLAINS_COLOUR, colours.colour(FROM_LEVEL, PLAINS));
-        assertEquals(DESERT_COLOUR, colours.colour(FROM_LEVEL, DESERT));
+        assertEquals(Tint.row(0), colours.resolve(grass, stone));
+        assertEquals(TintLevel.colour(PLAINS_BIOME, GRASS_RESOLVER), colours.colour(0, PLAINS));
+        assertEquals(TintLevel.colour(DESERT_BIOME, GRASS_RESOLVER), colours.colour(0, DESERT));
+        assertEquals(BiomeColours.NO_COLOUR, colours.colour(0, "minecraft:nether_wastes"));
     }
 
     @Test
-    void aTintNobodyFilledHasNoColour() {
-        colours.fill(FROM_LEVEL, stone);
+    void twoInstancesWithTheSameColoursShareOneRow() {
+        BlockTintSource grass = BlockTintSources.grass();
+        BlockTintSource grassBlock = BlockTintSources.grassBlock();
+        colours.assign(List.of(colours.sample(grass, stone)));
 
-        assertEquals(BiomeColours.NO_COLOUR, colours.colour(UNFILLED, PLAINS));
-        assertEquals(BiomeColours.NO_COLOUR, colours.colour(FROM_LEVEL, "minecraft:nether_wastes"));
+        assertEquals(colours.sample(grass, stone), colours.sample(grassBlock, stone));
+        assertEquals(Tint.row(0), colours.resolve(grassBlock, stone));
     }
 
     @Test
-    void fillingTheSameTintTwiceKeepsOneRow() {
-        colours.fill(FROM_LEVEL, stone);
-        colours.fill(FROM_LEVEL, stone);
+    void aSourceTheSameInEveryBiomeResolvesToAConstantWithNoRow() {
+        Tint tint = colours.resolve(BlockTintSources.constant(SPRUCE), stone);
 
-        assertEquals(1, colours.tintCount());
+        assertEquals(Tint.constant(SPRUCE & RGB_MASK), tint);
+        assertFalse(tint.hasRow());
     }
 
-    private record FixedTint(int colour) implements BlockAndTintGetter {
-        @Override
-        public int getBlockTint(BlockPos pos, ColorResolver color) {
-            return colour;
-        }
+    @Test
+    void aStateDependentSourceResolvesPerState() {
+        BlockTintSource redstone = BlockTintSources.redstone();
+        BlockState unpowered = Blocks.REDSTONE_WIRE.defaultBlockState().setValue(RedStoneWireBlock.POWER, UNPOWERED);
+        BlockState powered = unpowered.setValue(RedStoneWireBlock.POWER, FULL_POWER);
 
-        @Override
-        public CardinalLighting cardinalLighting() {
-            return CardinalLighting.DEFAULT;
-        }
+        assertNotEquals(colours.resolve(redstone, unpowered), colours.resolve(redstone, powered));
+    }
 
-        @Override
-        public LevelLightEngine getLightEngine() {
-            return LevelLightEngine.EMPTY;
-        }
+    @Test
+    void aVaryingSourceWithoutARowDrawsUntinted() {
+        assertEquals(Tint.UNTINTED, colours.resolve(BlockTintSources.foliage(), stone));
+    }
 
-        @Override
-        public @Nullable BlockEntity getBlockEntity(BlockPos pos) {
-            return null;
-        }
+    @Test
+    void noSourceMeansNoTint() {
+        assertNull(colours.resolve(null, stone));
+    }
 
-        @Override
-        public BlockState getBlockState(BlockPos pos) {
-            return Blocks.AIR.defaultBlockState();
-        }
+    @Test
+    void moreRowsThanTheTableHoldsAreRefused() {
+        List<BiomeColours.Colours> ranked =
+                Collections.nCopies(BiomeColours.MAX_ROWS + 1, colours.sample(BlockTintSources.grass(), stone));
 
-        @Override
-        public FluidState getFluidState(BlockPos pos) {
-            return Fluids.EMPTY.defaultFluidState();
-        }
-
-        @Override
-        public int getHeight() {
-            return 0;
-        }
-
-        @Override
-        public int getMinY() {
-            return 0;
-        }
+        assertThrows(IllegalArgumentException.class, () -> colours.assign(ranked));
     }
 }

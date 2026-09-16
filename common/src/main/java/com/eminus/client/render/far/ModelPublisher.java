@@ -10,8 +10,6 @@ import com.eminus.client.model.ModelRecords;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
-import net.minecraft.client.color.block.BlockTintSource;
-
 public final class ModelPublisher implements AutoCloseable {
     public static final int START_CELLS = 4;
     public static final int START_RECORDS = 1024;
@@ -28,7 +26,6 @@ public final class ModelPublisher implements AutoCloseable {
     private int recordCapacity = START_RECORDS;
     private int published;
     private boolean atlasFull;
-    private boolean tintsFull;
 
     private ModelPublisher(ModelBakery bakery, BiomeColours colours, Dictionary<String> biomes,
             ModelAtlas atlas, TintTable tints, ModelRecords records) {
@@ -118,24 +115,9 @@ public final class ModelPublisher implements AutoCloseable {
     }
 
     private int tintRow(BakedModel model) {
-        BlockTintSource tint = model.tint();
-        int row = colours.row(tint);
-
-        if (row == BiomeColours.NO_ROW) {
-            return BiomeColours.NO_ROW;
-        }
-
-        if (!TintTable.fits(row)) {
-            if (!tintsFull) {
-                Eminus.LOGGER.warn("More than {} tint sources are baked; the rest draw untinted", TintTable.MAX_ROWS);
-                tintsFull = true;
-            }
-
-            return BiomeColours.NO_ROW;
-        }
-
-        if (!tints.holds(row)) {
-            tints.writeRow(row, tint, colours, biomes);
+        int row = model.tintRow();
+        if (row != BiomeColours.NO_ROW && !tints.holds(row)) {
+            tints.writeRow(row, colours, biomes);
         }
 
         return row;

@@ -6,7 +6,6 @@ import java.util.function.IntFunction;
 
 import com.eminus.cell.FaceMask;
 
-import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.client.model.geom.builders.UVPair;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.Direction;
@@ -49,11 +48,11 @@ public final class FaceRasterizer {
     private final float[] depth = new float[BakedModel.FACE_TEXELS];
     private final Vector3f quadNormal = new Vector3f();
 
-    public BakedModel rasterize(List<BakedQuad> quads, QuadTexels texels, IntFunction<BlockTintSource> tints) {
+    public BakedModel rasterize(List<BakedQuad> quads, QuadTexels texels, IntFunction<Tint> tints) {
         return bladed(quads) ? blades(quads, texels, tints) : box(quads, texels, tints);
     }
 
-    private BakedModel box(List<BakedQuad> quads, QuadTexels texels, IntFunction<BlockTintSource> tints) {
+    private BakedModel box(List<BakedQuad> quads, QuadTexels texels, IntFunction<Tint> tints) {
         int[] faces = new int[BakedModel.FACE_COUNT * BakedModel.FACE_TEXELS];
         long[] tintMask = BakedModel.untintedMask();
         float[] insets = new float[BakedModel.FACE_COUNT];
@@ -107,7 +106,7 @@ public final class FaceRasterizer {
         return model(quads, faces, tintMask, insets, tints, present, occluding, occludable, 0);
     }
 
-    private BakedModel blades(List<BakedQuad> quads, QuadTexels texels, IntFunction<BlockTintSource> tints) {
+    private BakedModel blades(List<BakedQuad> quads, QuadTexels texels, IntFunction<Tint> tints) {
         int[] faces = new int[BakedModel.FACE_COUNT * BakedModel.FACE_TEXELS];
         long[] tintMask = BakedModel.untintedMask();
         float[] insets = new float[BakedModel.FACE_COUNT];
@@ -132,12 +131,18 @@ public final class FaceRasterizer {
     }
 
     private BakedModel model(List<BakedQuad> quads, int[] faces, long[] tintMask, float[] insets,
-            IntFunction<BlockTintSource> tints, int present, int occluding, int occludable, int extraFlags) {
+            IntFunction<Tint> tints, int present, int occluding, int occludable, int extraFlags) {
         int tintLayer = tintLayer(quads);
-        BlockTintSource tint = tintLayer == NO_TINT_LAYER ? null : tints.apply(tintLayer);
+        Tint tint = tintLayer == NO_TINT_LAYER ? null : tints.apply(tintLayer);
+        int tintRow = BiomeColours.NO_ROW;
+        if (tint != null) {
+            tint.apply(faces, tintMask);
+            tintRow = tint.row();
+        }
+
         int metadata = ModelMetadata.pack(present, occluding, occludable, emission(quads),
-                flags(quads, tint) | extraFlags);
-        return new BakedModel(faces, tintMask, insets, bounds(quads), metadata, tint);
+                flags(quads, tintRow) | extraFlags);
+        return new BakedModel(faces, tintMask, insets, bounds(quads), metadata, tintRow);
     }
 
     private boolean bladed(List<BakedQuad> quads) {
@@ -267,8 +272,8 @@ public final class FaceRasterizer {
         return NO_TINT_LAYER;
     }
 
-    private static int flags(List<BakedQuad> quads, BlockTintSource tint) {
-        int flags = tint == null ? 0 : ModelMetadata.TINTED;
+    private static int flags(List<BakedQuad> quads, int tintRow) {
+        int flags = tintRow == BiomeColours.NO_ROW ? 0 : ModelMetadata.TINTED;
 
         for (BakedQuad quad : quads) {
             if (quad.materialInfo().layer().translucent()) {

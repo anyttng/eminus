@@ -12,7 +12,6 @@ import java.util.function.IntFunction;
 import com.eminus.VanillaBootstrap;
 import com.eminus.cell.FaceMask;
 
-import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.client.model.geom.builders.UVPair;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
@@ -30,7 +29,10 @@ class FaceRasterizerTest {
     private static final int BAND_ROWS = 8;
     private static final int NO_TINT_LAYER = -1;
     private static final int TINT_LAYER = 0;
-    private static final IntFunction<BlockTintSource> NO_TINTS = layer -> null;
+    private static final int TINT_COLOUR = 0x0033_6699;
+    private static final int TINTED_WHITE = 0xFF33_6699;
+    private static final int ROW = 3;
+    private static final IntFunction<Tint> NO_TINTS = layer -> null;
 
     private static final float[] NO_UV = {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
     private static final float[] FACE_UV = {0.0F, 0.0F, 1.0F, 0.0F, 1.0F, 1.0F, 0.0F, 1.0F};
@@ -161,6 +163,36 @@ class FaceRasterizerTest {
                 assertFalse(model.tinted(face, texel), "face " + face + " texel " + texel);
             }
         }
+    }
+
+    @Test
+    void aConstantTintIsMultipliedIntoTheMaskedTexelsAndClearsTheMask() {
+        BakedModel model = rasterizer.rasterize(cubeWithTintedOverlay(), OPAQUE_WHITE,
+                layer -> Tint.constant(TINT_COLOUR));
+
+        int overlaid = Direction.SOUTH.ordinal();
+        for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
+            int expected = row < BAND_ROWS ? WHITE : TINTED_WHITE;
+            for (int column = 0; column < BakedModel.FACE_SIDE; column++) {
+                int texel = row * BakedModel.FACE_SIDE + column;
+                assertEquals(expected, model.argb(overlaid, texel), "row " + row);
+                assertFalse(model.tinted(overlaid, texel), "row " + row);
+            }
+        }
+
+        assertEquals(BiomeColours.NO_ROW, model.tintRow());
+        assertFalse(ModelMetadata.has(model.metadata(), ModelMetadata.TINTED));
+    }
+
+    @Test
+    void aRowTintKeepsTheMaskAndCarriesTheRow() {
+        BakedModel model = rasterizer.rasterize(cubeWithTintedOverlay(), OPAQUE_WHITE, layer -> Tint.row(ROW));
+
+        int overlaid = Direction.SOUTH.ordinal();
+        assertTrue(model.tinted(overlaid, BakedModel.FACE_TEXELS - 1));
+        assertEquals(WHITE, model.argb(overlaid, BakedModel.FACE_TEXELS - 1));
+        assertEquals(ROW, model.tintRow());
+        assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.TINTED));
     }
 
     @Test

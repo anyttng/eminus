@@ -8,6 +8,8 @@ import net.minecraft.client.renderer.block.FluidStateModelSet;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.world.level.material.FluidState;
 
+import org.jspecify.annotations.Nullable;
+
 public final class FluidBaker {
     private static final int ALPHA_MASK = 0xFF00_0000;
 
@@ -19,7 +21,11 @@ public final class FluidBaker {
         this.sprites = sprites;
     }
 
-    public BakedModel bake(FluidState fluid) {
+    public @Nullable BlockTintSource tintSource(FluidState fluid) {
+        return models.get(fluid).tintSource();
+    }
+
+    public BakedModel bake(FluidState fluid, @Nullable Tint tint) {
         FluidModel model = models.get(fluid);
         int[] side = still(model.stillMaterial().sprite());
         int[] faces = new int[BakedModel.FACE_COUNT * BakedModel.FACE_TEXELS];
@@ -29,15 +35,20 @@ public final class FluidBaker {
         }
 
         boolean translucent = model.layer().translucent();
-        BlockTintSource tint = model.tintSource();
-        int flags = (translucent ? ModelMetadata.TRANSLUCENT : 0) | (tint == null ? 0 : ModelMetadata.TINTED);
+        long[] tintMask = tint == null ? BakedModel.untintedMask() : BakedModel.tintedMask();
+        int tintRow = BiomeColours.NO_ROW;
+        if (tint != null) {
+            tint.apply(faces, tintMask);
+            tintRow = tint.row();
+        }
+
+        int flags = (translucent ? ModelMetadata.TRANSLUCENT : 0)
+                | (tintRow == BiomeColours.NO_ROW ? 0 : ModelMetadata.TINTED);
         int occluding = !translucent && opaque(side) ? FaceMask.ALL : FaceMask.NONE;
         int metadata = ModelMetadata.pack(FaceMask.ALL, occluding, FaceMask.ALL, 0, flags);
 
-        long[] tintMask = tint == null ? BakedModel.untintedMask() : BakedModel.tintedMask();
-
         return new BakedModel(faces, tintMask, new float[BakedModel.FACE_COUNT], BakedModel.fullBounds(),
-                metadata, tint);
+                metadata, tintRow);
     }
 
     private int[] still(TextureAtlasSprite sprite) {

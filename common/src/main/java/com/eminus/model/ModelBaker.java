@@ -12,6 +12,7 @@ import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -33,6 +34,8 @@ public final class ModelBaker implements StateBaker {
     private final List<BlockStateModelPart> parts = new ArrayList<>();
     private final List<BakedQuad> quads = new ArrayList<>();
 
+    private boolean swept;
+
     public ModelBaker(BlockStateModelSet blockModels, BlockColors blockColors, FluidBaker fluids,
             SolidSprites sprites, BiomeColours colours) {
         this.blockModels = blockModels;
@@ -44,6 +47,11 @@ public final class ModelBaker implements StateBaker {
 
     @Override
     public BakedState bake(BlockState state) {
+        if (!swept) {
+            TintSweep.sweep(Block.BLOCK_STATE_REGISTRY, blockColors, fluids::tintSource, ModelBaker::baseOf, colours);
+            swept = true;
+        }
+
         BlockState shape = baseOf(state);
         collect(shape);
         FluidState fluid = state.getFluidState();
@@ -52,20 +60,13 @@ public final class ModelBaker implements StateBaker {
             return new BakedState(fluid.isEmpty() ? BakedModel.empty() : fluidModel(fluid, state), null);
         }
 
-        BakedModel model = rasterizer.rasterize(quads, texels(shape), layer -> blockColors.getTintSource(shape, layer));
-        return new BakedState(tinted(model, shape, state), fluid.isEmpty() ? null : fluidModel(fluid, state));
+        BakedModel model = rasterizer.rasterize(quads, texels(shape),
+                layer -> colours.resolve(blockColors.getTintSource(shape, layer), shape));
+        return new BakedState(emissive(model, state), fluid.isEmpty() ? null : fluidModel(fluid, state));
     }
 
     private BakedModel fluidModel(FluidState fluid, BlockState state) {
-        return tinted(fluids.bake(fluid), state, state);
-    }
-
-    private BakedModel tinted(BakedModel model, BlockState shape, BlockState state) {
-        if (model.tint() != null) {
-            colours.fill(model.tint(), shape);
-        }
-
-        return emissive(model, state);
+        return emissive(fluids.bake(fluid, colours.resolve(fluids.tintSource(fluid), state)), state);
     }
 
     private void collect(BlockState state) {
@@ -106,6 +107,6 @@ public final class ModelBaker implements StateBaker {
         }
 
         return new BakedModel(model.faces(), model.tintMask(), model.insets(), model.bounds(),
-                ModelMetadata.withEmission(model.metadata(), emission), model.tint());
+                ModelMetadata.withEmission(model.metadata(), emission), model.tintRow());
     }
 }

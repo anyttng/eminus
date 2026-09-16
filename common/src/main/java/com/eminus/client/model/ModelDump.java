@@ -60,7 +60,7 @@ public final class ModelDump {
         try {
             bake(bakery, states, models);
             report(bakery, colours, detail);
-            upload(bakery, colours);
+            upload(bakery);
             return sheet(bakery, file);
         } finally {
             baking.stop();
@@ -90,7 +90,7 @@ public final class ModelDump {
         }
     }
 
-    private static void upload(ModelBakery bakery, BiomeColours colours) {
+    private static void upload(ModelBakery bakery) {
         int count = bakery.modelCount();
         int growths = 0;
         int reuploaded = 0;
@@ -113,7 +113,7 @@ public final class ModelDump {
 
                 BakedModel model = bakery.model(modelId);
                 atlas.upload(modelId, model);
-                records.write(modelId, model, colours.row(model.tint()));
+                records.write(modelId, model, model.tintRow());
             }
 
             Eminus.LOGGER.info("{} atlas models={} growths={} reuploaded={} cells-from={} cells-to={} side={}",
@@ -146,12 +146,12 @@ public final class ModelDump {
                     ModelMetadata.present(model.metadata()),
                     ModelMetadata.occluding(model.metadata()),
                     ModelMetadata.occludable(model.metadata()),
-                    model.tint() != null,
+                    model.tintRow() != BiomeColours.NO_ROW,
                     model.insets()[Direction.UP.ordinal()]);
         }
 
-        Eminus.LOGGER.info("{} done models={} biomes={} tints={}",
-                PROBE, bakery.modelCount(), colours.biomeCount(), colours.tintCount());
+        Eminus.LOGGER.info("{} done models={} biomes={} tint-rows={}",
+                PROBE, bakery.modelCount(), colours.biomeCount(), colours.rowCount());
     }
 
     private static List<BlockState> everyState() {

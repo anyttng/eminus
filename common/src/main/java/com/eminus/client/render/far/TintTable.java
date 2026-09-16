@@ -11,10 +11,7 @@ import com.eminus.model.BiomeColours;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.RenderSystem;
 
-import net.minecraft.client.color.block.BlockTintSource;
-
 public final class TintTable implements AutoCloseable {
-    public static final int MAX_ROWS = 8;
     public static final int BIOME_STRIDE = Quad.MAX_BIOME_ID + 1;
 
     private static final String LABEL = "eminus-tint-table";
@@ -22,7 +19,7 @@ public final class TintTable implements AutoCloseable {
     private static final int TEXEL_BYTES = Integer.BYTES;
 
     private final GpuBuffer buffer;
-    private final BlockTintSource[] rowTints = new BlockTintSource[MAX_ROWS];
+    private final boolean[] written = new boolean[BiomeColours.MAX_ROWS];
     private final ByteBuffer scratch =
             ByteBuffer.allocateDirect(BIOME_STRIDE * TEXEL_BYTES).order(ByteOrder.nativeOrder());
     private final IntBuffer colours = scratch.asIntBuffer();
@@ -36,12 +33,8 @@ public final class TintTable implements AutoCloseable {
     public static TintTable create() {
         RenderSystem.assertOnRenderThread();
         GpuBuffer buffer = RenderSystem.getDevice()
-                .createBuffer(() -> LABEL, USAGE, (long) MAX_ROWS * BIOME_STRIDE * TEXEL_BYTES);
+                .createBuffer(() -> LABEL, USAGE, (long) BiomeColours.MAX_ROWS * BIOME_STRIDE * TEXEL_BYTES);
         return new TintTable(buffer);
-    }
-
-    public static boolean fits(int row) {
-        return row >= 0 && row < MAX_ROWS;
     }
 
     public GpuBuffer buffer() {
@@ -49,13 +42,13 @@ public final class TintTable implements AutoCloseable {
     }
 
     public boolean holds(int row) {
-        return fits(row) && rowTints[row] != null;
+        return written[row];
     }
 
-    public void writeRow(int row, BlockTintSource tint, BiomeColours source, Dictionary<String> names) {
+    public void writeRow(int row, BiomeColours source, Dictionary<String> names) {
         RenderSystem.assertOnRenderThread();
         appendBiomes(source, names);
-        rowTints[row] = tint;
+        written[row] = true;
         write(row, 0, biomes, source, names);
     }
 
@@ -66,8 +59,8 @@ public final class TintTable implements AutoCloseable {
             return;
         }
 
-        for (int row = 0; row < MAX_ROWS; row++) {
-            if (rowTints[row] != null) {
+        for (int row = 0; row < BiomeColours.MAX_ROWS; row++) {
+            if (written[row]) {
                 write(row, biomes, grown, source, names);
             }
         }
@@ -87,7 +80,7 @@ public final class TintTable implements AutoCloseable {
 
         colours.clear();
         for (int biome = from; biome < to; biome++) {
-            colours.put(source.colour(rowTints[row], names.value(biome)));
+            colours.put(source.colour(row, names.value(biome)));
         }
 
         long offset = ((long) row * BIOME_STRIDE + from) * TEXEL_BYTES;

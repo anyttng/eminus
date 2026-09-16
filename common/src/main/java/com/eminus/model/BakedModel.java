@@ -4,10 +4,8 @@ import java.util.Arrays;
 
 import com.eminus.cell.FaceMask;
 
-import net.minecraft.client.color.block.BlockTintSource;
-
 public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] bounds, int metadata,
-        BlockTintSource tint) {
+        int tintRow) {
     public static final int FACE_COUNT = 6;
     public static final int FACE_SIDE = 16;
     public static final int FACE_TEXELS = FACE_SIDE * FACE_SIDE;
@@ -30,14 +28,15 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] b
         float[] insets = new float[FACE_COUNT];
         Arrays.fill(insets, EMPTY_INSET);
         return new BakedModel(new int[FACE_COUNT * FACE_TEXELS], untintedMask(), insets,
-                new float[BOUNDS_LENGTH], 0, null);
+                new float[BOUNDS_LENGTH], 0, BiomeColours.NO_ROW);
     }
 
     public static BakedModel solid(int argb) {
         int[] faces = new int[FACE_COUNT * FACE_TEXELS];
         Arrays.fill(faces, argb);
         int metadata = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0);
-        return new BakedModel(faces, untintedMask(), new float[FACE_COUNT], fullBounds(), metadata, null);
+        return new BakedModel(faces, untintedMask(), new float[FACE_COUNT], fullBounds(), metadata,
+                BiomeColours.NO_ROW);
     }
 
     public static float[] fullBounds() {
@@ -63,20 +62,23 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] b
         }
     }
 
+    public static boolean tinted(long[] mask, int index) {
+        return (mask[index / Long.SIZE] & 1L << index % Long.SIZE) != 0;
+    }
+
     public int argb(int face, int texel) {
         return faces[face * FACE_TEXELS + texel];
     }
 
     public boolean tinted(int face, int texel) {
-        int index = face * FACE_TEXELS + texel;
-        return (tintMask[index / Long.SIZE] & 1L << index % Long.SIZE) != 0;
+        return tinted(tintMask, face * FACE_TEXELS + texel);
     }
 
     @Override
     public boolean equals(Object other) {
         return other instanceof BakedModel model
                 && metadata == model.metadata
-                && tint == model.tint
+                && tintRow == model.tintRow
                 && Arrays.equals(faces, model.faces)
                 && Arrays.equals(tintMask, model.tintMask)
                 && Arrays.equals(insets, model.insets)
@@ -90,11 +92,11 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] b
         hash = 31 * hash + Arrays.hashCode(insets);
         hash = 31 * hash + Arrays.hashCode(bounds);
         hash = 31 * hash + metadata;
-        return 31 * hash + System.identityHashCode(tint);
+        return 31 * hash + tintRow;
     }
 
     @Override
     public String toString() {
-        return "BakedModel[metadata=" + Integer.toHexString(metadata) + ", tinted=" + (tint != null) + "]";
+        return "BakedModel[metadata=" + Integer.toHexString(metadata) + ", tintRow=" + tintRow + "]";
     }
 }
