@@ -2,6 +2,8 @@ package com.eminus.render.far.client;
 
 import java.nio.ByteBuffer;
 
+import com.eminus.handoff.NearSections;
+
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.buffers.Std140SizeCalculator;
@@ -11,7 +13,10 @@ import org.joml.Matrix4fc;
 import org.lwjgl.system.MemoryStack;
 
 public final class FarFrame implements AutoCloseable {
-    public static final int SIZE = new Std140SizeCalculator().putMat4f().putInt().putInt().get();
+    public static final int SIZE = new Std140SizeCalculator()
+            .putMat4f().putInt().putInt()
+            .putInt().putInt().putIVec3()
+            .get();
 
     private static final String LABEL = "eminus-far-frame";
     private static final int USAGE = GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST;
@@ -31,7 +36,7 @@ public final class FarFrame implements AutoCloseable {
         return buffer;
     }
 
-    public void write(Matrix4fc viewProjection, int minBlockY, int atlasCells) {
+    public void write(Matrix4fc viewProjection, int minBlockY, int atlasCells, NearSections near) {
         RenderSystem.assertOnRenderThread();
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -39,6 +44,9 @@ public final class FarFrame implements AutoCloseable {
                     .putMat4f(viewProjection)
                     .putInt(minBlockY)
                     .putInt(atlasCells)
+                    .putInt(near.side())
+                    .putInt(near.height())
+                    .putIVec3(near.originBlockX(), near.originBlockY(), near.originBlockZ())
                     .get();
             RenderSystem.getDevice().createCommandEncoder().writeToBuffer(buffer.slice(), written);
         }

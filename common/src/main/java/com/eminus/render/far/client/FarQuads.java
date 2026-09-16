@@ -3,6 +3,7 @@ package com.eminus.render.far.client;
 import com.eminus.Eminus;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
+import com.eminus.handoff.NearSections;
 import com.eminus.mesh.Quad;
 import com.eminus.model.BakedModel;
 import com.eminus.render.arena.ArenaAllocator;
@@ -41,6 +42,7 @@ final class FarQuads {
             .withUniform("MeshRecords", UniformType.TEXEL_BUFFER, GpuFormat.RGBA32_UINT)
             .withUniform("ModelRecords", UniformType.TEXEL_BUFFER, GpuFormat.RGBA32_FLOAT)
             .withUniform("TintColours", UniformType.TEXEL_BUFFER, GpuFormat.R32_UINT)
+            .withUniform("NearSections", UniformType.TEXEL_BUFFER, GpuFormat.R32_UINT)
             .withSampler("Atlas")
             .withSampler("TintMask")
             .withSampler("Lightmap")
@@ -68,18 +70,22 @@ final class FarQuads {
                 .withShaderDefine("SHADE_NORTH_SOUTH", SHADE_NORTH_SOUTH)
                 .withShaderDefine("SHADE_WEST_EAST", SHADE_WEST_EAST)
                 .withShaderDefine("SHADE_BLADE", SHADE_BLADE)
+                .withShaderDefine("NEAR_SECTION_BLOCKS", NearSections.SECTION_BLOCKS)
+                .withShaderDefine("NEAR_TEXEL_BITS", NearSections.BITS_PER_TEXEL)
+                .withShaderDefine("NEAR_TEXEL_SHIFT", NearSections.TEXEL_SHIFT)
                 .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
                 .withCull(false);
     }
 
     static void bind(RenderPass pass, GeometryArena arena, ModelPublisher models, GpuTextureView lightmap,
-            GpuTextureView mask, GpuBuffer frame) {
+            GpuTextureView mask, GpuBuffer frame, GpuBuffer nearSections) {
         pass.setUniform("Globals", RenderSystem.getGlobalSettingsUniform());
         pass.setUniform("FarFrame", frame);
         pass.setUniform("Quads", arena.quads());
         pass.setUniform("MeshRecords", arena.records().buffer());
         pass.setUniform("ModelRecords", models.records().buffer());
         pass.setUniform("TintColours", models.tints().buffer());
+        pass.setUniform("NearSections", nearSections);
         pass.bindTexture("Atlas", models.atlas().colourView(), atlasSampler());
         pass.bindTexture("TintMask", models.atlas().tintMaskView(), atlasSampler());
         pass.bindTexture("Lightmap", lightmap, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));

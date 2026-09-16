@@ -5,7 +5,9 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.handoff.NearPlane;
+import com.eminus.handoff.NearSections;
 import com.eminus.handoff.client.NearMaskPass;
+import com.eminus.handoff.client.NearSectionTable;
 import com.eminus.mesh.BakeryModels;
 import com.eminus.mesh.MeshService;
 import com.eminus.model.ModelIndex;
@@ -26,6 +28,7 @@ import com.eminus.render.tree.TreeExtent;
 import com.eminus.render.tree.TreeManager;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
+import com.eminus.session.client.ClientSession;
 import com.eminus.settings.FarDistance;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
@@ -35,8 +38,10 @@ import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 import org.joml.Matrix4f;
@@ -55,6 +60,7 @@ public final class FarRenderer implements AutoCloseable {
     private final FarTarget target;
     private final FarFrame frame;
     private final NearMaskPass mask;
+    private final NearSectionTable nearSections;
     private final OpaquePass opaque;
     private final OcclusionPass occlusion;
     private final TranslucentPass translucent;
@@ -74,8 +80,9 @@ public final class FarRenderer implements AutoCloseable {
     private boolean stopped;
 
     private FarRenderer(DimensionRuntime runtime, ClientBakery baking, ModelPublisher models, GeometryArena arena,
-            FarTarget target, FarFrame frame, NearMaskPass mask, OpaquePass opaque, OcclusionPass occlusion,
-            TranslucentPass translucent, CompositePass composite, IndirectCommands indirect, int heightCells) {
+            FarTarget target, FarFrame frame, NearMaskPass mask, NearSectionTable nearSections, OpaquePass opaque,
+            OcclusionPass occlusion, TranslucentPass translucent, CompositePass composite, IndirectCommands indirect,
+            int heightCells) {
         this.runtime = runtime;
         this.baking = baking;
         this.models = models;
@@ -83,6 +90,7 @@ public final class FarRenderer implements AutoCloseable {
         this.target = target;
         this.frame = frame;
         this.mask = mask;
+        this.nearSections = nearSections;
         this.opaque = opaque;
         this.occlusion = occlusion;
         this.translucent = translucent;
@@ -112,9 +120,10 @@ public final class FarRenderer implements AutoCloseable {
         FarRenderer renderer = new FarRenderer(runtime, baking,
                 ModelPublisher.start(baking.bakery(), baking.colours(), runtime.biomes()), arena,
                 FarTarget.create(support.depthStencilFormat(), main.width, main.height), FarFrame.create(),
-                NearMaskPass.create(FarTarget.COLOUR_FORMAT), OpaquePass.create(support.depth()),
-                OcclusionPass.create(support.depth()), TranslucentPass.create(support.depth()),
-                CompositePass.create(support.depth()), IndirectCommands.create(COMMAND_CAPACITY),
+                NearMaskPass.create(FarTarget.COLOUR_FORMAT), NearSectionTable.create(),
+                OpaquePass.create(support.depth()), OcclusionPass.create(support.depth()),
+                TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),
+                IndirectCommands.create(COMMAND_CAPACITY),
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
 
         renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(),
@@ -191,17 +200,23 @@ public final class FarRenderer implements AutoCloseable {
 
         if (commands.count() > 0) {
             indirect.write(commands);
-            frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide());
+            if (commands.translucentCount() > 0) {
+                fillNearSections(client, renderDistance, eye);
+            }
+
+            frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
+                    nearSections.sections());
             mask.draw(target.maskView(), target.colourView(), target.width(), target.height(),
                     main.getDepthTextureView());
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(),
-                    indirect.range(0, commands.opaqueCount()), commands.opaqueCount(), frame.buffer());
+                    indirect.range(0, commands.opaqueCount()), commands.opaqueCount(), frame.buffer(),
+                    nearSections.buffer());
             if (client.options.ambientOcclusion().get()) {
                 occlusion.draw(target, main, farViewProjection, gameViewProjection);
             }
             translucent.draw(target, arena, models, client.gameRenderer.lightmap(),
                     indirect.range(commands.opaqueCount(), commands.translucentCount()),
-                    commands.translucentCount(), frame.buffer());
+                    commands.translucentCount(), frame.buffer(), nearSections.buffer());
             composite.draw(target, main, farViewProjection, gameViewProjection, fog, gameFog.color);
         }
     }
@@ -234,11 +249,20 @@ public final class FarRenderer implements AutoCloseable {
         indirect.close();
         composite.close();
         occlusion.close();
+        nearSections.close();
         frame.close();
         target.close();
         models.close();
         arena.close();
         Eminus.LOGGER.info("Far renderer stopped for {}", runtime.identity().dimension());
+    }
+
+    private void fillNearSections(Minecraft client, int renderDistance, Vec3 eye) {
+        ClientLevel level = client.level;
+        nearSections.fill(client.levelRenderer, order.meshes(), runtime.frame(),
+                NearSections.section(Mth.floor(eye.x)), NearSections.section(Mth.floor(eye.y)),
+                NearSections.section(Mth.floor(eye.z)), renderDistance,
+                renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSectionY(), level.getSectionsCount());
     }
 
     private final class Builds implements TreeBuilds {

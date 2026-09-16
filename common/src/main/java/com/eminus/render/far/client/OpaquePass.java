@@ -40,12 +40,12 @@ public final class OpaquePass {
     }
 
     public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, GpuTextureView lightmap,
-            GpuBufferSlice commands, int drawCount, GpuBuffer frame) {
+            GpuBufferSlice commands, int drawCount, GpuBuffer frame, GpuBuffer nearSections) {
         RenderSystem.assertOnRenderThread();
 
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(target))) {
             pass.setPipeline(pipeline);
-            FarQuads.bind(pass, arena, models, lightmap, target.maskView(), frame);
+            FarQuads.bind(pass, arena, models, lightmap, target.maskView(), frame, nearSections);
 
             if (drawCount > 0) {
                 pass.drawIndirect(commands, drawCount);

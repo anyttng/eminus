@@ -7,6 +7,9 @@ layout(std140) uniform FarFrame {
     mat4 FarProjView;
     int MinBlockY;
     int AtlasCells;
+    int NearSide;
+    int NearHeight;
+    ivec3 NearOrigin;
 };
 
 uniform usamplerBuffer Quads;
@@ -20,6 +23,10 @@ out vec4 vertexColor;
 flat out vec3 tintColour;
 flat out ivec2 atlasCell;
 
+#ifdef NEAR_SECTIONS
+out vec3 nearPoint;
+#endif
+
 const int CORNERS_PER_QUAD = 6;
 const int CORNER_OF[6] = int[6](0, 1, 2, 0, 2, 3);
 const float FACE_SHADE[8] = float[8](
@@ -29,6 +36,7 @@ const int MODEL_TEXELS = 4;
 const int NO_TINT = -1;
 const int LIGHT_STEP = 16;
 const int NIBBLE = 15;
+const float HALF_VOXEL = 0.5;
 
 void main() {
     int quadIndex = gl_VertexID / CORNERS_PER_QUAD;
@@ -87,6 +95,15 @@ void main() {
     ivec3 origin = ivec3(cellX * cellBlocks, cellY * cellBlocks + MinBlockY, cellZ * cellBlocks);
     vec3 position = vec3(origin - CameraBlockPos) + CameraOffset + local * float(1 << level);
     gl_Position = FarProjView * vec4(position, 1.0);
+
+#ifdef NEAR_SECTIONS
+    vec3 nearLocal = local;
+    if (face < FIRST_BLADE_FACE) {
+        int nearAxis = face < 2 ? 1 : (face < 4 ? 2 : 0);
+        nearLocal[nearAxis] = float(voxel[nearAxis]) + HALF_VOXEL;
+    }
+    nearPoint = vec3(origin - CameraBlockPos) + nearLocal * float(1 << level);
+#endif
 
     faceUV = vec2(face == 2 || face == 5 ? float(width) - extent.x : extent.x,
                   face == 1 ? float(height) - extent.y : extent.y);

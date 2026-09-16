@@ -13,9 +13,13 @@ public final class SodiumMixinPlugin implements IMixinConfigPlugin {
 
     private boolean present;
 
+    public static boolean sodiumPresent() {
+        return SodiumMixinPlugin.class.getClassLoader().getResource(SODIUM_UNIFORMS_CLASS) != null;
+    }
+
     @Override
     public void onLoad(String mixinPackage) {
-        present = SodiumMixinPlugin.class.getClassLoader().getResource(SODIUM_UNIFORMS_CLASS) != null;
+        present = sodiumPresent();
     }
 
     @Override

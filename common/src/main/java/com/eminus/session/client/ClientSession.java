@@ -34,7 +34,7 @@ import org.jspecify.annotations.Nullable;
 public final class ClientSession {
     public static final Identifier RELOAD_ID = Identifier.fromNamespaceAndPath(Eminus.MODID, "far_renderer");
 
-    private static final int CLIENT_EXTRA_CHUNKS = 3;
+    public static final int CLIENT_EXTRA_CHUNKS = 3;
 
     private static boolean heldChunksPending;
     private static EminusInstance instance;

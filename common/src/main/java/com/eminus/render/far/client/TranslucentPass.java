@@ -38,7 +38,7 @@ public final class TranslucentPass {
     }
 
     public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, GpuTextureView lightmap,
-            GpuBufferSlice commands, int drawCount, GpuBuffer frame) {
+            GpuBufferSlice commands, int drawCount, GpuBuffer frame, GpuBuffer nearSections) {
         RenderSystem.assertOnRenderThread();
         if (drawCount == 0) {
             return;
@@ -46,7 +46,7 @@ public final class TranslucentPass {
 
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(target))) {
             pass.setPipeline(pipeline);
-            FarQuads.bind(pass, arena, models, lightmap, target.maskView(), frame);
+            FarQuads.bind(pass, arena, models, lightmap, target.maskView(), frame, nearSections);
             pass.drawIndirect(commands, drawCount);
         }
     }
@@ -60,6 +60,7 @@ public final class TranslucentPass {
 
     private static RenderPipeline pipeline(DepthConvention depth) {
         return FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT)
+                .withShaderDefine("NEAR_SECTIONS")
                 .withColorTargetState(new ColorTargetState(Optional.of(BlendFunction.TRANSLUCENT),
                         FarTarget.COLOUR_FORMAT, ColorTargetState.WRITE_ALL))
                 .withDepthStencilState(new DepthStencilState(depth.compare(), true))
