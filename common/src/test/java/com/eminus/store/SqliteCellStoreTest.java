@@ -236,6 +236,38 @@ class SqliteCellStoreTest {
                 "the store was not vacuumed: " + Files.size(file()) + " bytes");
     }
 
+    @Test
+    void reopeningAtAHigherLevelDropsTheCellsBelowItAndShrinksTheFile() throws SQLException, IOException {
+        givenThePageSize(SPARSE_PAGE_SIZE);
+        Random random = new Random(20260916L);
+        int raised = 1;
+
+        try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
+            for (int cell = 0; cell < SPARSE_CELLS; cell++) {
+                store.write(noisyCell(CellKey.pack(0, cell, 0, 0), random));
+            }
+            for (int level = raised; level <= DetailLevel.MAX; level++) {
+                store.write(Cell.blank(CellKey.pack(level, 0, 0, 0)));
+            }
+        }
+
+        long grown = Files.size(file());
+
+        try (SqliteCellStore store = SqliteCellStore.open(folder, raised)) {
+            for (int cell = 0; cell < SPARSE_CELLS; cell++) {
+                assertNull(store.read(CellKey.pack(0, cell, 0, 0)));
+            }
+            for (int level = raised; level <= DetailLevel.MAX; level++) {
+                assertNotNull(store.read(CellKey.pack(level, 0, 0, 0)));
+            }
+        }
+
+        assertTrue(grown > SPARSE_GROWN_BYTES, "the store never grew: " + grown + " bytes");
+        assertTrue(Files.size(file()) < SPARSE_VACUUMED_BYTES,
+                "the store was not vacuumed: " + Files.size(file()) + " bytes");
+        assertEquals(DetailLevel.MAX - raised + 1, readInt("SELECT count(*) FROM cells"));
+    }
+
     private static Cell noisyCell(long key, Random random) {
         Cell cell = Cell.blank(key);
         for (int y = 0; y < DetailLevel.VOXELS_PER_SIDE; y++) {

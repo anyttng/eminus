@@ -41,6 +41,7 @@ public final class SqliteCellStore implements CellStore {
     private static final String SELECT_CELL = "SELECT data FROM cells WHERE key = ?";
     private static final String UPSERT_CELL = "INSERT OR REPLACE INTO cells (key, occupancy, data) VALUES (?, ?, ?)";
     private static final String DELETE_CELL = "DELETE FROM cells WHERE key = ?";
+    private static final String DELETE_BELOW_LEVEL = "DELETE FROM cells WHERE key < ?";
     private static final String UPSERT_DICTIONARY =
             "INSERT OR REPLACE INTO dictionary (name, id, value) VALUES (?, ?, ?)";
     private static final String SELECT_DICTIONARY = "SELECT id, value FROM dictionary WHERE name = ? ORDER BY id";
@@ -73,6 +74,8 @@ public final class SqliteCellStore implements CellStore {
         try {
             connection = source.getConnection();
             prepareSchema(connection, file);
+            dropBelowLevel(connection, lowestStoredLevel, file);
+            vacuumWhenSparse(connection);
             SqliteCellStore store = new SqliteCellStore(file, lowestStoredLevel, connection);
             Eminus.LOGGER.info("Cell store opened at {} on SQLite {}", file, sqliteVersion(connection));
             return store;
@@ -202,7 +205,7 @@ public final class SqliteCellStore implements CellStore {
             selectDictionary.close();
             insertColumn.close();
             selectColumns.close();
-            vacuumWhenSparse();
+            vacuumWhenSparse(connection);
             connection.close();
         } catch (SQLException failure) {
             closeQuietly(connection);
@@ -229,7 +232,19 @@ public final class SqliteCellStore implements CellStore {
         }
     }
 
-    private void vacuumWhenSparse() throws SQLException {
+    private static void dropBelowLevel(Connection connection, int lowestStoredLevel, Path file) throws SQLException {
+        long lowestKey = CellKey.pack(lowestStoredLevel, CellKey.MIN_HORIZONTAL, CellKey.MIN_VERTICAL,
+                CellKey.MIN_HORIZONTAL);
+        try (PreparedStatement statement = connection.prepareStatement(DELETE_BELOW_LEVEL)) {
+            statement.setLong(1, lowestKey);
+            int dropped = statement.executeUpdate();
+            if (dropped > 0) {
+                Eminus.LOGGER.info("Dropped {} cells below level {} from {}", dropped, lowestStoredLevel, file);
+            }
+        }
+    }
+
+    private static void vacuumWhenSparse(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             try (ResultSet rows = statement.executeQuery(READ_FREE_PAGES)) {
                 if (!rows.next() || rows.getInt(1) <= VACUUM_FREE_PAGES) {
