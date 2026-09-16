@@ -1,10 +1,15 @@
 package com.eminus.client.render.far;
 
+import java.util.concurrent.CompletableFuture;
+
 import com.eminus.Eminus;
+import com.eminus.api.v1.ArenaState;
+import com.eminus.api.v1.FarLayerState;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.handoff.NearPlane;
+import com.eminus.ingest.IngestService;
 import com.eminus.handoff.NearSections;
 import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.client.handoff.NearSectionTable;
@@ -50,6 +55,9 @@ import org.jspecify.annotations.Nullable;
 
 public final class FarRenderer implements AutoCloseable {
     public static final int COMMAND_CAPACITY = 32768;
+    public static final String ARENA_CAP_PROPERTY = "eminus.arena.maxMiB";
+
+    private static final long BYTES_PER_MIB = 1L << 20;
 
     private static final String PROBE = "[eminus-tree]";
 
@@ -106,9 +114,9 @@ public final class FarRenderer implements AutoCloseable {
 
         RenderTarget main = client.gameRenderer.mainRenderTarget();
         long bytes = ArenaSizing.fitted(
-                ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
+                capped(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
                         FarProjection.focalPixels(client.options.fov().get(), main.height),
-                        runtime.lowestStoredLevel()),
+                        runtime.lowestStoredLevel())),
                 RenderSystem.getDevice().getDeviceInfo().limits().maxMemoryAllocationSize());
         BackendSupport support = BackendCheck.run(bytes);
         GeometryArena arena = GeometryArena.create(support, bytes);
@@ -133,6 +141,17 @@ public final class FarRenderer implements AutoCloseable {
         Eminus.LOGGER.info("Far renderer started for {}", runtime.identity().dimension());
 
         return renderer;
+    }
+
+    private static long capped(long wanted) {
+        Long capMiB = Long.getLong(ARENA_CAP_PROPERTY);
+        if (capMiB == null) {
+            return wanted;
+        }
+
+        Eminus.LOGGER.info("Geometry arena capped at {} MiB by -D{}, {} MiB wanted", capMiB, ARENA_CAP_PROPERTY,
+                wanted / BYTES_PER_MIB);
+        return Math.min(wanted, capMiB * BYTES_PER_MIB);
     }
 
     public static boolean recreates(Settings built, Settings updated) {
@@ -218,6 +237,18 @@ public final class FarRenderer implements AutoCloseable {
                     commands.translucentCount(), frame.buffer(), nearSections.buffer());
             composite.draw(target, main, farViewProjection, gameViewProjection, fog, gameFog.color);
         }
+    }
+
+    public CompletableFuture<FarLayerState> state() {
+        RenderSystem.assertOnRenderThread();
+        String dimension = runtime.identity().dimension();
+        ArenaState arenaState = arena.state();
+        IngestService ingest = runtime.ingest();
+        int ingestQueued = ingest == null ? 0 : ingest.queued();
+        int pendingBlockChanges = ingest == null ? 0 : ingest.pendingBlockChanges();
+
+        return tree.snapshot().thenApply(treeState ->
+                new FarLayerState(dimension, arenaState, treeState, ingestQueued, pendingBlockChanges));
     }
 
     public void describe(BlockPos pos) {

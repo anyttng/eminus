@@ -16,6 +16,10 @@ public final class SectionDebounce {
         this.windowMillis = windowMillis;
     }
 
+    public int size() {
+        return marked.size();
+    }
+
     public void mark(long sectionNode, long now) {
         marked.put(sectionNode, now);
     }

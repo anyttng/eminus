@@ -69,6 +69,16 @@ test {
     doFirst { workingDir.mkdirs() }
     // The working directory is not the module, so a test that writes a report is told where the module's reports go.
     systemProperty 'eminus.reports', layout.buildDirectory.dir('reports').get().asFile.absolutePath
+    // ApiSurfaceTest lists the api sources, which are not on the classpath, so it is given the repo root.
+    systemProperty 'eminus.repoRoot', rootDir.absolutePath
+}
+
+// The artifact the harness compiles against: com/eminus/api alone, so its compile classpath cannot reach an internal
+// type at all. That the API's own signatures name no internal is ApiSurfaceTest's guarantee.
+tasks.register('apiJar', Jar) {
+    archiveBaseName = 'eminus-api'
+    from sourceSets.main.output
+    include 'com/eminus/api/**'
 }
 
 tasks.withType(JavaCompile).configureEach {

@@ -42,6 +42,10 @@ public final class WorkService<C> implements ServiceSelector.Selectable {
         return !queue.isEmpty() && inFlight.get() < maxInFlight;
     }
 
+    public int pending() {
+        return queue.size() + inFlight.get();
+    }
+
     public void enqueue(Job<C> job) {
         if (!accepting) {
             Eminus.LOGGER.warn("Service {} is stopped; a job was dropped.", name);

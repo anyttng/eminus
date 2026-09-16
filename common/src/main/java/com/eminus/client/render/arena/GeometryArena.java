@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.eminus.Eminus;
+import com.eminus.api.v1.ArenaState;
 import com.eminus.mesh.CellMesh;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.ArenaSizing;
@@ -28,18 +29,22 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     private static final int WHOLE_PERCENT = 100;
 
     private final GpuBuffer quads;
+    private final long bytes;
     private final ArenaAllocator allocator;
     private final MeshRecords records;
     private final ArenaUploader uploader;
     private final Long2ObjectOpenHashMap<MeshSlot> held = new Long2ObjectOpenHashMap<>();
 
     private int refused;
+    private long refusedTotal;
     private int refusedSinceWarning;
     private int refusedQuadsMax;
     private long lastWarning = System.nanoTime() - WARNING_PERIOD_NANOS;
 
-    private GeometryArena(GpuBuffer quads, ArenaAllocator allocator, MeshRecords records, ArenaUploader uploader) {
+    private GeometryArena(GpuBuffer quads, long bytes, ArenaAllocator allocator, MeshRecords records,
+            ArenaUploader uploader) {
         this.quads = quads;
+        this.bytes = bytes;
         this.allocator = allocator;
         this.records = records;
         this.uploader = uploader;
@@ -57,7 +62,8 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         Eminus.LOGGER.info("Geometry arena of {} MiB: {} blocks of {} quads",
                 bytes >> 20, blocks, ArenaAllocator.QUADS_PER_BLOCK);
 
-        return new GeometryArena(quads, new ArenaAllocator(blocks), MeshRecords.create(blocks), ArenaUploader.create());
+        return new GeometryArena(quads, bytes, new ArenaAllocator(blocks), MeshRecords.create(blocks),
+                ArenaUploader.create());
     }
 
     public GpuBuffer quads() {
@@ -78,6 +84,11 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
 
     public int refused() {
         return refused;
+    }
+
+    public ArenaState state() {
+        return new ArenaState(bytes, allocator.blocks(), held.size(), allocator.usedBlocks(), allocator.freeBlocks(),
+                allocator.largestFreeRun(), allocator.freeRuns(), refusedTotal, pressure());
     }
 
     public boolean pressure() {
@@ -148,6 +159,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
 
     private void refuse(int quads) {
         refused++;
+        refusedTotal++;
         refusedSinceWarning++;
         refusedQuadsMax = Math.max(refusedQuadsMax, quads);
     }

@@ -1,11 +1,15 @@
 package com.eminus.render.tree;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.eminus.Eminus;
+import com.eminus.api.v1.LevelState;
+import com.eminus.api.v1.TreeState;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.FaceMask;
@@ -46,6 +50,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private TreeBatch batch = new TreeBatch();
     private boolean treeChanged = true;
     private long requests;
+    private int lastRequested;
+    private boolean lastStarved;
+    private int lastDrawn;
+    private long pressureEvictions;
     private double lastEyeX;
     private double lastEyeY;
     private double lastEyeZ;
@@ -100,6 +108,12 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         return walks;
     }
 
+    public CompletableFuture<TreeState> snapshot() {
+        CompletableFuture<TreeState> answer = new CompletableFuture<>();
+        messages.add(new TreeMessage.Snapshot(answer));
+        return answer;
+    }
+
     public void stop() {
         running = false;
         thread.interrupt();
@@ -108,6 +122,12 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             thread.join();
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
+        }
+
+        for (TreeMessage left : messages) {
+            if (left instanceof TreeMessage.Snapshot snapshot) {
+                snapshot.answer().completeExceptionally(new IllegalStateException("The far renderer stopped."));
+            }
         }
     }
 
@@ -138,6 +158,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             case TreeMessage.ColumnCovered covered -> applyCovered(covered.chunkX(), covered.chunkZ());
             case TreeMessage.FrameReady ready -> applyFrame();
             case TreeMessage.Describe describe -> applyDescribe(describe.keys());
+            case TreeMessage.Snapshot snapshot -> snapshot.answer().complete(state());
         }
     }
 
@@ -152,6 +173,40 @@ public final class TreeManager implements CellChangeListener, MeshListener {
                     node != null && node.building() ? 1 : 0, node == null ? 0 : node.requestedOctants(),
                     node != null && node.childrenReady() ? 1 : 0, node == null ? 0 : node.lastSeen(), walks);
         }
+    }
+
+    private TreeState state() {
+        int[] levelNodes = new int[DetailLevel.COUNT];
+        int[] levelMeshed = new int[DetailLevel.COUNT];
+        long[] levelQuads = new long[DetailLevel.COUNT];
+        int building = 0;
+
+        for (TreeNode node : nodes.all()) {
+            int level = node.level() - DetailLevel.MIN;
+            levelNodes[level]++;
+            if (node.building()) {
+                building++;
+            }
+
+            CellMesh mesh = node.mesh();
+            if (mesh != null) {
+                levelMeshed[level]++;
+                levelQuads[level] += mesh.quadCount();
+            }
+        }
+
+        List<LevelState> levels = new ArrayList<>(DetailLevel.COUNT);
+        for (int level = 0; level < DetailLevel.COUNT; level++) {
+            levels.add(new LevelState(level + DetailLevel.MIN, levelNodes[level], levelMeshed[level], levelQuads[level]));
+        }
+
+        int backlog = builds.backlog();
+        boolean batchWaiting = !batch.isEmpty() || batches.waiting();
+        boolean settled = building == 0 && !treeChanged && lastRequested == 0 && !lastStarved && backlog == 0
+                && !batchWaiting;
+
+        return new TreeState(walks, nodes.size(), nodes.free(), lastDrawn, backlog, building, lastRequested,
+                lastStarved, treeChanged, batchWaiting, pressureEvictions, settled, List.copyOf(levels));
     }
 
     private void applyChange(CellHandle handle, int faceMask) {
@@ -223,6 +278,9 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         int budget = Math.min(RequestBudget.perWalk(builds.backlog()), nodes.free());
         RenderList walked = traversal.walk(nodes.roots(), camera, budget, walk);
         batch.renderList(walked);
+        lastRequested = traversal.requested().size();
+        lastStarved = traversal.starved();
+        lastDrawn = walked.meshes().size();
 
         for (TreeNode child : traversal.requested()) {
             dispatch(child);
@@ -232,6 +290,9 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         for (TreeNode node : stale) {
             if (nodes.get(node.key()) == node) {
                 evict(node);
+                if (camera.arenaPressure()) {
+                    pressureEvictions++;
+                }
             }
         }
 

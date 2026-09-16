@@ -41,6 +41,14 @@ public final class IngestService {
         this.listener = listener;
     }
 
+    public int queued() {
+        return service.pending();
+    }
+
+    public int pendingBlockChanges() {
+        return debounce.size();
+    }
+
     public void submitChunk(LevelChunk chunk) {
         LevelLightEngine light = chunk.getLevel().getLightEngine();
         ChunkPos chunkPos = chunk.getPos();

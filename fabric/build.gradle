@@ -74,7 +74,7 @@ tasks.named('jar', Jar) {
 }
 
 tasks.named('assemble') {
-    dependsOn ':common:jar'
+    dependsOn ':common:jar', ':common:apiJar'
 }
 
 // The loader-bound tests shared with the neoforge module, run here under Fabric Loader's JUnit launcher so the

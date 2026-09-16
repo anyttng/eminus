@@ -11,6 +11,10 @@ public final class TreeBatches {
         return published.getAndSet(null);
     }
 
+    boolean waiting() {
+        return published.get() != null;
+    }
+
     boolean offer(TreeBatch batch) {
         return published.compareAndSet(null, batch);
     }

@@ -1,5 +1,8 @@
 package com.eminus.render.tree;
 
+import java.util.concurrent.CompletableFuture;
+
+import com.eminus.api.v1.TreeState;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.mesh.CellMesh;
 
@@ -17,5 +20,8 @@ public sealed interface TreeMessage {
     }
 
     record Describe(long[] keys) implements TreeMessage {
+    }
+
+    record Snapshot(CompletableFuture<TreeState> answer) implements TreeMessage {
     }
 }

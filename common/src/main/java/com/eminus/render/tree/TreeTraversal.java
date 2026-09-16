@@ -24,6 +24,7 @@ final class TreeTraversal {
     private final List<CellMesh> drawn = new ArrayList<>();
     private final List<TreeNode> requested = new ArrayList<>();
 
+    private boolean starved;
     private double minX;
     private double minY;
     private double minZ;
@@ -42,6 +43,7 @@ final class TreeTraversal {
         current.addAll(roots);
         drawn.clear();
         requested.clear();
+        starved = false;
         double farBlocks = (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
 
         while (!current.isEmpty()) {
@@ -61,6 +63,10 @@ final class TreeTraversal {
     // Reused by the next walk; consumed before it.
     List<TreeNode> requested() {
         return requested;
+    }
+
+    boolean starved() {
+        return starved;
     }
 
     private int visit(TreeNode node, CameraFrame camera, double farBlocks, int budget, long walk) {
@@ -114,6 +120,7 @@ final class TreeTraversal {
             int octant = Integer.numberOfTrailingZeros(missing);
             TreeNode child = nodes.child(node, octant);
             if (child == null) {
+                starved = true;
                 return 0;
             }
 
@@ -122,6 +129,7 @@ final class TreeTraversal {
             missing &= missing - 1;
         }
 
+        starved |= missing != 0;
         return budget;
     }
 
