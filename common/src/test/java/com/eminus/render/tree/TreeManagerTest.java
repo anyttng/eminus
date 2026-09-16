@@ -52,7 +52,7 @@ class TreeManagerTest {
     private static final double ONE_BLOCK = 1.0;
     private static final double TELEPORT = 2_000.0;
     private static final int ONE_OCTANT = 0b1;
-    private static final long[] NO_KEYS = new long[0];
+    private static final List<long[]> NO_ROWS = List.of();
     private static final int BOUNDARY_CHUNK_X = CELL_X * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL / FarDistance.BLOCKS_PER_CHUNK;
     private static final int INTERIOR_CHUNK_Z = (int) EYE_Z / FarDistance.BLOCKS_PER_CHUNK;
 
@@ -287,7 +287,7 @@ class TreeManagerTest {
         assertEquals(walks, manager.walks());
     }
 
-    // A batch the tree built while the slot was full is offered only after its next message, and describing no keys changes nothing else.
+    // A batch the tree built while the slot was full is offered only after its next message, and describing no rows changes nothing else.
     private TreeBatch awaitBatch(Predicate<TreeBatch> ready) {
         long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(AWAIT_MILLIS);
 
@@ -298,7 +298,7 @@ class TreeManagerTest {
                     return batch;
                 }
 
-                manager.describe(NO_KEYS);
+                manager.describe(NO_ROWS);
             }
 
             Thread.onSpinWait();

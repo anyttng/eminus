@@ -1,6 +1,5 @@
 package com.eminus;
 
-import com.eminus.client.NeoForgeCommandHooks;
 import com.eminus.client.NeoForgeSessionHooks;
 import com.eminus.platform.NeoForgePlatform;
 import com.eminus.platform.Platforms;
@@ -23,6 +22,5 @@ public class EminusNeoForge {
                 (container, modListScreen) -> new SettingsScreen(modListScreen));
         NeoForgeSessionHooks.register(NeoForge.EVENT_BUS);
         NeoForgeSessionHooks.registerReload(modContainer.getEventBus());
-        NeoForgeCommandHooks.register(NeoForge.EVENT_BUS);
     }
 }

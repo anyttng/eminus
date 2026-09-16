@@ -29,8 +29,6 @@ public final class ArenaUploader implements AutoCloseable {
     private final ByteBuffer scratch = ByteBuffer.allocateDirect(MAX_MESH_BYTES).order(ByteOrder.nativeOrder());
     private final LongBuffer quads = scratch.asLongBuffer();
 
-    private int uploaded;
-
     private ArenaUploader(StagingBuffer staging) {
         this.staging = staging;
     }
@@ -40,14 +38,9 @@ public final class ArenaUploader implements AutoCloseable {
         return new ArenaUploader(StagingBuffer.create(NAME, RenderSystem.getDevice(), STAGING_BYTES));
     }
 
-    public int uploaded() {
-        return uploaded;
-    }
-
     public List<ArenaUpload> upload(GpuBuffer target, List<ArenaUpload> uploads) {
         RenderSystem.assertOnRenderThread();
         List<ArenaUpload> dropped = new ArrayList<>();
-        uploaded = 0;
 
         int index = 0;
         while (index < uploads.size()) {
@@ -82,7 +75,6 @@ public final class ArenaUploader implements AutoCloseable {
 
                     handles.add(handle);
                     uploader.copyTo(handle, target, upload.byteOffset());
-                    uploaded++;
                     index++;
                 }
             } finally {

@@ -7,7 +7,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.eminus.Eminus;
 import com.eminus.api.v1.LevelState;
 import com.eminus.api.v1.TreeState;
 import com.eminus.cell.CellKey;
@@ -32,7 +31,6 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private static final double STILL_BLOCKS_SQUARED = STILL_BLOCKS * STILL_BLOCKS;
     private static final float MATRIX_EPSILON = 1.0e-6F;
     private static final int ONE_REFERENCE = 1;
-    private static final String PROBE = "[eminus-tree]";
 
     private final TreeBuilds builds;
     private final TreeExtent extent;
@@ -96,8 +94,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         }
     }
 
-    public void describe(long[] keys) {
-        messages.add(new TreeMessage.Describe(keys));
+    public CompletableFuture<List<long[]>> describe(List<long[]> rows) {
+        CompletableFuture<List<long[]>> answer = new CompletableFuture<>();
+        messages.add(new TreeMessage.Describe(rows, answer));
+        return answer;
     }
 
     public TreeBatches batches() {
@@ -125,8 +125,11 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         }
 
         for (TreeMessage left : messages) {
-            if (left instanceof TreeMessage.Snapshot snapshot) {
-                snapshot.answer().completeExceptionally(new IllegalStateException("The far renderer stopped."));
+            switch (left) {
+                case TreeMessage.Snapshot snapshot -> snapshot.answer().completeExceptionally(stopped());
+                case TreeMessage.Describe describe -> describe.answer().completeExceptionally(stopped());
+                default -> {
+                }
             }
         }
     }
@@ -157,22 +160,32 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             case TreeMessage.CellMeshed meshed -> applyMesh(meshed.mesh(), meshed.request());
             case TreeMessage.ColumnCovered covered -> applyCovered(covered.chunkX(), covered.chunkZ());
             case TreeMessage.FrameReady ready -> applyFrame();
-            case TreeMessage.Describe describe -> applyDescribe(describe.keys());
+            case TreeMessage.Describe describe -> describe.answer().complete(applyDescribe(describe.rows()));
             case TreeMessage.Snapshot snapshot -> snapshot.answer().complete(state());
         }
     }
 
-    private void applyDescribe(long[] keys) {
-        for (long key : keys) {
-            TreeNode node = nodes.get(key);
+    private List<long[]> applyDescribe(List<long[]> rows) {
+        for (long[] row : rows) {
+            TreeNode node = nodes.get(CellKey.pack((int) row[NodeRow.LEVEL], (int) row[NodeRow.CELL_X],
+                    (int) row[NodeRow.CELL_Y], (int) row[NodeRow.CELL_Z]));
             CellMesh mesh = node == null ? null : node.mesh();
-            Eminus.LOGGER.info("{} node level={} x={} y={} z={} present={} meshed={} quads={} occupancy={} "
-                    + "building={} requested={} ready={} seen={} walks={}", PROBE, CellKey.level(key),
-                    CellKey.x(key), CellKey.y(key), CellKey.z(key), node == null ? 0 : 1, mesh == null ? 0 : 1,
-                    mesh == null ? 0 : mesh.quadCount(), node == null ? 0 : node.occupancy(),
-                    node != null && node.building() ? 1 : 0, node == null ? 0 : node.requestedOctants(),
-                    node != null && node.childrenReady() ? 1 : 0, node == null ? 0 : node.lastSeen(), walks);
+            row[NodeRow.NODE_PRESENT] = node == null ? 0 : 1;
+            row[NodeRow.MESHED] = mesh == null ? 0 : 1;
+            row[NodeRow.MESH_QUADS] = mesh == null ? 0 : mesh.quadCount();
+            row[NodeRow.OCCUPANCY] = node == null ? 0 : node.occupancy();
+            row[NodeRow.BUILDING] = node != null && node.building() ? 1 : 0;
+            row[NodeRow.REQUESTED] = node == null ? 0 : node.requestedOctants();
+            row[NodeRow.CHILDREN_READY] = node != null && node.childrenReady() ? 1 : 0;
+            row[NodeRow.LAST_SEEN] = node == null ? 0 : node.lastSeen();
+            row[NodeRow.WALKS] = walks;
         }
+
+        return rows;
+    }
+
+    private static IllegalStateException stopped() {
+        return new IllegalStateException("The far renderer stopped.");
     }
 
     private TreeState state() {

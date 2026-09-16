@@ -82,10 +82,6 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         return allocator.usedBlocks();
     }
 
-    public int refused() {
-        return refused;
-    }
-
     public ArenaState state() {
         return new ArenaState(bytes, allocator.blocks(), held.size(), allocator.usedBlocks(), allocator.freeBlocks(),
                 allocator.largestFreeRun(), allocator.freeRuns(), refusedTotal, pressure());
@@ -94,10 +90,6 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     public boolean pressure() {
         return refused > 0
                 || (long) allocator.usedBlocks() * WHOLE_PERCENT >= (long) allocator.blocks() * HIGH_WATER_PERCENT;
-    }
-
-    public int uploaded() {
-        return uploader.uploaded();
     }
 
     @Override

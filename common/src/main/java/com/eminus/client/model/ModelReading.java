@@ -1,13 +1,13 @@
 package com.eminus.client.model;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import com.eminus.Eminus;
 import com.eminus.model.BakedModel;
 import com.eminus.model.BiomeColours;
 import com.eminus.model.ModelBakery;
@@ -17,16 +17,31 @@ import com.eminus.model.ModelSheet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class ModelDump {
+public final class ModelReading {
     public static final String FILE_NAME = "eminus-models.png";
-    public static final int START_CELLS = 4;
+    public static final int MODELS = 0;
+    public static final int BIOMES = 1;
+    public static final int TINT_ROWS = 2;
+    public static final int UPLOADED = 3;
+    public static final int GROWTHS = 4;
+    public static final int REUPLOADED = 5;
+    public static final int CELLS_FROM = 6;
+    public static final int CELLS_TO = 7;
+    public static final int SIDE = 8;
+    private static final int SUMMARY_WIDTH = 9;
 
-    private static final String PROBE = "[eminus-bake]";
+    public static final int MODEL_ID = 0;
+    public static final int PRESENT = 1;
+    public static final int OCCLUDING = 2;
+    public static final int OCCLUDABLE = 3;
+    public static final int TINTED = 4;
+    public static final int INSET_UP_BITS = 5;
+
+    private static final int START_CELLS = 4;
     private static final int BAKE_TIMEOUT_SECONDS = 60;
     private static final int NO_DETAIL = 0;
     private static final List<Block> SAMPLE = List.of(
@@ -40,28 +55,33 @@ public final class ModelDump {
             Blocks.OAK_FENCE,
             Blocks.TORCH);
 
-    public static Component sample() {
+    public static List<long[]> sample() {
         return run(SAMPLE.stream().map(Block::defaultBlockState).toList(), Integer.MAX_VALUE, SAMPLE.size());
     }
 
-    public static Component upTo(int models) {
+    public static List<long[]> upTo(int models) {
         return run(everyState(), models, NO_DETAIL);
     }
 
-    private static Component run(List<BlockState> states, int models, int detail) {
+    private static List<long[]> run(List<BlockState> states, int models, int detail) {
         Minecraft client = Minecraft.getInstance();
-        Path file = client.gameDirectory.toPath().resolve(FILE_NAME);
-        Eminus.LOGGER.info("{} dump states={} models={} file={}", PROBE, states.size(), models, file);
-
         ClientBakery baking = ClientBakery.start(client);
         ModelBakery bakery = baking.bakery();
         BiomeColours colours = baking.colours();
 
         try {
             bake(bakery, states, models);
-            report(bakery, colours, detail);
-            upload(bakery);
-            return sheet(bakery, file);
+            long[] summary = new long[SUMMARY_WIDTH];
+            summary[MODELS] = bakery.modelCount();
+            summary[BIOMES] = colours.biomeCount();
+            summary[TINT_ROWS] = colours.rowCount();
+            upload(bakery, summary);
+            sheet(bakery, client.gameDirectory.toPath().resolve(FILE_NAME));
+
+            List<long[]> rows = new ArrayList<>();
+            rows.add(summary);
+            rows.addAll(details(bakery, detail));
+            return rows;
         } finally {
             baking.stop();
         }
@@ -80,8 +100,8 @@ public final class ModelDump {
 
             try {
                 if (!served.await(BAKE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                    Eminus.LOGGER.error("{} stalled state={}", PROBE, state);
-                    return;
+                    throw new IllegalStateException("The bake of " + state + " did not finish within "
+                            + BAKE_TIMEOUT_SECONDS + " seconds.");
                 }
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
@@ -90,38 +110,40 @@ public final class ModelDump {
         }
     }
 
-    private static void upload(ModelBakery bakery) {
+    private static void upload(ModelBakery bakery, long[] summary) {
         int count = bakery.modelCount();
-        int growths = 0;
-        int reuploaded = 0;
 
         try (ModelAtlas atlas = ModelAtlas.create(START_CELLS);
                 ModelRecords records = ModelRecords.create(Math.max(count, 1))) {
-            int from = atlas.cellsPerSide();
+            summary[CELLS_FROM] = atlas.cellsPerSide();
 
             for (int modelId = 0; modelId < count; modelId++) {
                 while (!atlas.fits(modelId)) {
                     int moved = atlas.grow(bakery);
                     if (moved == 0) {
-                        Eminus.LOGGER.error("{} atlas-full models={} uploaded={}", PROBE, count, modelId);
-                        return;
+                        break;
                     }
 
-                    growths++;
-                    reuploaded += moved;
+                    summary[GROWTHS]++;
+                    summary[REUPLOADED] += moved;
+                }
+
+                if (!atlas.fits(modelId)) {
+                    break;
                 }
 
                 BakedModel model = bakery.model(modelId);
                 atlas.upload(modelId, model);
                 records.write(modelId, model, model.tintRow());
+                summary[UPLOADED]++;
             }
 
-            Eminus.LOGGER.info("{} atlas models={} growths={} reuploaded={} cells-from={} cells-to={} side={}",
-                    PROBE, count, growths, reuploaded, from, atlas.cellsPerSide(), atlas.side());
+            summary[CELLS_TO] = atlas.cellsPerSide();
+            summary[SIDE] = atlas.side();
         }
     }
 
-    private static Component sheet(ModelBakery bakery, Path file) {
+    private static void sheet(ModelBakery bakery, Path file) {
         List<BakedModel> models = new ArrayList<>();
         for (int modelId = 0; modelId < bakery.modelCount(); modelId++) {
             models.add(bakery.model(modelId));
@@ -130,28 +152,24 @@ public final class ModelDump {
         try {
             ModelSheet.write(models, file);
         } catch (IOException failure) {
-            Eminus.LOGGER.error("{} failed file={}", PROBE, file, failure);
-            return Component.literal(failure.toString());
+            throw new UncheckedIOException(failure);
         }
-
-        return Component.literal(file.toString());
     }
 
-    private static void report(ModelBakery bakery, BiomeColours colours, int detail) {
+    private static List<long[]> details(ModelBakery bakery, int detail) {
+        List<long[]> rows = new ArrayList<>();
         for (int modelId = 0; modelId < Math.min(bakery.modelCount(), detail); modelId++) {
             BakedModel model = bakery.model(modelId);
-            Eminus.LOGGER.info("{} model id={} present={} occluding={} occludable={} tinted={} inset-up={}",
-                    PROBE,
+            rows.add(new long[] {
                     modelId,
                     ModelMetadata.present(model.metadata()),
                     ModelMetadata.occluding(model.metadata()),
                     ModelMetadata.occludable(model.metadata()),
-                    model.tintRow() != BiomeColours.NO_ROW,
-                    model.insets()[Direction.UP.ordinal()]);
+                    model.tintRow() != BiomeColours.NO_ROW ? 1 : 0,
+                    Float.floatToIntBits(model.insets()[Direction.UP.ordinal()])});
         }
 
-        Eminus.LOGGER.info("{} done models={} biomes={} tint-rows={}",
-                PROBE, bakery.modelCount(), colours.biomeCount(), colours.rowCount());
+        return rows;
     }
 
     private static List<BlockState> everyState() {
@@ -160,6 +178,6 @@ public final class ModelDump {
         return states;
     }
 
-    private ModelDump() {
+    private ModelReading() {
     }
 }

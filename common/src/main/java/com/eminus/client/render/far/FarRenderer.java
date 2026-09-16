@@ -1,5 +1,7 @@
 package com.eminus.client.render.far;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.eminus.Eminus;
@@ -26,6 +28,7 @@ import com.eminus.render.far.CompositeFog;
 import com.eminus.render.far.DrawCommands;
 import com.eminus.render.far.TranslucentOrder;
 import com.eminus.render.tree.CameraFrame;
+import com.eminus.render.tree.NodeRow;
 import com.eminus.render.tree.RenderList;
 import com.eminus.render.tree.TreeBatch;
 import com.eminus.render.tree.TreeBuilds;
@@ -45,7 +48,6 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.fog.FogData;
-import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
@@ -58,8 +60,6 @@ public final class FarRenderer implements AutoCloseable {
     public static final String ARENA_CAP_PROPERTY = "eminus.arena.maxMiB";
 
     private static final long BYTES_PER_MIB = 1L << 20;
-
-    private static final String PROBE = "[eminus-tree]";
 
     private final DimensionRuntime runtime;
     private final ClientBakery baking;
@@ -251,20 +251,25 @@ public final class FarRenderer implements AutoCloseable {
                 new FarLayerState(dimension, arenaState, treeState, ingestQueued, pendingBlockChanges));
     }
 
-    public void describe(BlockPos pos) {
+    public CompletableFuture<List<long[]>> describe(int blockX, int blockY, int blockZ) {
         RenderSystem.assertOnRenderThread();
-        long[] keys = new long[DetailLevel.COUNT];
+        List<long[]> rows = new ArrayList<>(DetailLevel.COUNT);
 
-        for (int level = DetailLevel.MAX; level >= DetailLevel.MIN; level--) {
-            long key = runtime.frame().keyAt(level, pos.getX(), pos.getY(), pos.getZ());
-            keys[level] = key;
+        for (int level = DetailLevel.MIN; level <= DetailLevel.MAX; level++) {
+            long key = runtime.frame().keyAt(level, blockX, blockY, blockZ);
             MeshSlot slot = arena.slot(key);
-            Eminus.LOGGER.info("{} slot level={} x={} y={} z={} present={} quads={} block={}", PROBE, level,
-                    CellKey.x(key), CellKey.y(key), CellKey.z(key), slot == null ? 0 : 1,
-                    slot == null ? 0 : slot.quads(), slot == null ? -1 : slot.block());
+            long[] row = new long[NodeRow.WIDTH];
+            row[NodeRow.LEVEL] = level;
+            row[NodeRow.CELL_X] = CellKey.x(key);
+            row[NodeRow.CELL_Y] = CellKey.y(key);
+            row[NodeRow.CELL_Z] = CellKey.z(key);
+            row[NodeRow.SLOT_PRESENT] = slot == null ? 0 : 1;
+            row[NodeRow.SLOT_QUADS] = slot == null ? 0 : slot.quads();
+            row[NodeRow.SLOT_BLOCK] = slot == null ? -1 : slot.block();
+            rows.add(row);
         }
 
-        tree.describe(keys);
+        return tree.describe(rows);
     }
 
     @Override
