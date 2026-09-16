@@ -18,7 +18,7 @@ public final class WorkerPool {
     private final Condition work = lock.newCondition();
     private final Condition idle = lock.newCondition();
     private final List<WorkService<?>> services = new ArrayList<>();
-    private final List<Thread> threads = new ArrayList<>();
+    private final List<Worker> workers = new ArrayList<>();
     private final ServiceSelector selector = new ServiceSelector();
 
     private boolean running = true;
@@ -39,15 +39,7 @@ public final class WorkerPool {
 
     public static WorkerPool start(int threadCount) {
         WorkerPool pool = new WorkerPool();
-
-        for (int index = 1; index <= threadCount; index++) {
-            Thread thread = new Thread(pool.new Worker(), THREAD_NAME_PREFIX + index);
-            thread.setDaemon(true);
-            thread.setPriority(THREAD_PRIORITY);
-            pool.threads.add(thread);
-            thread.start();
-        }
-
+        pool.resize(threadCount);
         return pool;
     }
 
@@ -64,18 +56,48 @@ public final class WorkerPool {
         return service;
     }
 
+    public int size() {
+        lock.lock();
+        try {
+            return workers.size();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void resize(int threadCount) {
+        lock.lock();
+        try {
+            while (workers.size() > threadCount) {
+                workers.remove(workers.size() - 1).retired = true;
+            }
+
+            while (workers.size() < threadCount) {
+                Worker worker = new Worker(THREAD_NAME_PREFIX + (workers.size() + 1));
+                workers.add(worker);
+                worker.thread.start();
+            }
+
+            work.signalAll();
+        } finally {
+            lock.unlock();
+        }
+    }
+
     public void shutdown() {
+        List<Worker> joined;
         lock.lock();
         try {
             running = false;
+            joined = new ArrayList<>(workers);
             work.signalAll();
         } finally {
             lock.unlock();
         }
 
-        for (Thread thread : threads) {
+        for (Worker worker : joined) {
             try {
-                thread.join();
+                worker.thread.join();
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
                 return;
@@ -146,10 +168,10 @@ public final class WorkerPool {
         }
     }
 
-    private Claim awaitClaim() {
+    private Claim awaitClaim(Worker worker) {
         lock.lock();
         try {
-            while (running) {
+            while (running && !worker.retired) {
                 Claim claim = nextClaim();
                 if (claim != null) {
                     return claim;
@@ -191,14 +213,23 @@ public final class WorkerPool {
     }
 
     private final class Worker implements Runnable {
+        private final Thread thread;
         private final Map<WorkService<?>, Object> scratch = new HashMap<>();
+
+        private boolean retired;
+
+        private Worker(String name) {
+            thread = new Thread(this, name);
+            thread.setDaemon(true);
+            thread.setPriority(THREAD_PRIORITY);
+        }
 
         @Override
         public void run() {
             ON_WORKER_THREAD.set(Boolean.TRUE);
 
             while (true) {
-                Claim claim = awaitClaim();
+                Claim claim = awaitClaim(this);
                 if (claim == null) {
                     return;
                 }

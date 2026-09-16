@@ -78,6 +78,19 @@ public final class ClientSession {
     }
 
     public static void settingsChanged(Settings updated) {
+        if (instance == null) {
+            return;
+        }
+
+        if (updated.lowestStoredLevel() != instance.lowestStoredLevel()) {
+            restartSession();
+            return;
+        }
+
+        if (updated.workerThreads() != instance.workerThreads()) {
+            instance.resizeWorkers(updated.workerThreads());
+        }
+
         if (runtime != null && FarRenderer.recreates(rendered, updated)) {
             restartRenderer();
         }
@@ -200,6 +213,11 @@ public final class ClientSession {
                 }
             }
         }
+    }
+
+    private static void restartSession() {
+        disconnect();
+        login();
     }
 
     private static void restartRenderer() {

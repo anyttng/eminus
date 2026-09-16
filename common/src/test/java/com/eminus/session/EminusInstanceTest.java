@@ -139,6 +139,32 @@ class EminusInstanceTest {
     }
 
     @Test
+    void resizingTheWorkersChangesTheLiveCount() {
+        start();
+
+        instance.resizeWorkers(WORKER_THREADS + 2);
+        assertEquals(WORKER_THREADS + 2, instance.workerThreads());
+
+        instance.resizeWorkers(WORKER_THREADS);
+        assertEquals(WORKER_THREADS, instance.workerThreads());
+    }
+
+    @Test
+    void aStoppedInstanceRefusesAResize() {
+        start();
+        instance.shutdown();
+
+        assertThrows(IllegalStateException.class, () -> instance.resizeWorkers(WORKER_THREADS + 1));
+    }
+
+    @Test
+    void theInstanceCarriesTheLevelItStartedWith() {
+        start();
+
+        assertEquals(LOWEST_STORED_LEVEL, instance.lowestStoredLevel());
+    }
+
+    @Test
     void aSecondShutdownIsASilentNoOp() {
         start();
         DimensionRuntime runtime = instance.acquire(identity(OVERWORLD), MIN_BLOCK_Y);

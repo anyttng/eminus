@@ -62,6 +62,23 @@ public final class EminusInstance {
         return build;
     }
 
+    public int lowestStoredLevel() {
+        return lowestStoredLevel;
+    }
+
+    public int workerThreads() {
+        return pool.size();
+    }
+
+    public synchronized void resizeWorkers(int threadCount) {
+        if (!running) {
+            throw new IllegalStateException("The session is already stopped.");
+        }
+
+        pool.resize(threadCount);
+        Eminus.LOGGER.info("Worker pool resized to {} threads", threadCount);
+    }
+
     public synchronized DimensionRuntime acquire(WorldIdentity identity, int minBlockY) {
         if (!running) {
             throw new IllegalStateException("The session is already stopped.");
