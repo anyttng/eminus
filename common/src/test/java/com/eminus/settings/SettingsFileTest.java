@@ -28,7 +28,7 @@ class SettingsFileTest {
     @Test
     void anEditedValueLoadsBack() {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings edited = new Settings(false, 2, 24, 3, 32, FogMode.OFF);
+        Settings edited = new Settings(false, 2, 24, 3, 32, false);
 
         SettingsFile.save(file, edited);
 
@@ -38,7 +38,7 @@ class SettingsFileTest {
     @Test
     void theSavedFileCarriesTheSettingCommentsAndStillReadsBack() throws IOException {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings written = new Settings(true, 2, 24, 3, 32, FogMode.FADE);
+        Settings written = new Settings(true, 2, 24, 3, 32, false);
 
         SettingsFile.save(file, written);
         String content = Files.readString(file, StandardCharsets.UTF_8);
@@ -47,7 +47,7 @@ class SettingsFileTest {
         assertTrue(content.contains("// Radius of the far layer, in top-level cells"), content);
         assertTrue(content.contains("// Background worker threads."), content);
         assertTrue(content.contains("// How large a node may look on screen, in pixels"), content);
-        assertTrue(content.contains("// What the far layer does where it ends"), content);
+        assertTrue(content.contains("// Fog over the far layer"), content);
         assertEquals(written, SettingsFile.load(file));
     }
 
@@ -57,13 +57,13 @@ class SettingsFileTest {
                 {
                   "ingestion": false,
                   "far_render_cells": "many",
-                  "fog_mode": "sideways"
+                  "fog": "sideways"
                 }
                 """);
 
         assertFalse(loaded.ingestion());
         assertEquals(Settings.DEFAULT_FAR_RENDER_CELLS, loaded.farRenderCells());
-        assertEquals(Settings.DEFAULT_FOG_MODE, loaded.fogMode());
+        assertEquals(Settings.DEFAULT_FOG, loaded.fog());
     }
 
     @Test
@@ -106,7 +106,7 @@ class SettingsFileTest {
         assertEquals(defaults.lowestStoredLevel(), loaded.lowestStoredLevel());
         assertEquals(defaults.farRenderCells(), loaded.farRenderCells());
         assertEquals(defaults.workerThreads(), loaded.workerThreads());
-        assertEquals(defaults.fogMode(), loaded.fogMode());
+        assertEquals(defaults.fog(), loaded.fog());
     }
 
     @Test

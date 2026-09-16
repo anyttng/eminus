@@ -1,27 +1,25 @@
 package com.eminus.render.far;
 
 import com.eminus.settings.FarDistance;
-import com.eminus.settings.FogMode;
 
 public record CompositeFog(float fogStart, float fogEnd, float fadeStart, float fadeEnd, boolean skip) {
     public static final float NONE = Float.MAX_VALUE;
     public static final float FADE_BAND_BLOCKS = FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
 
-    public static CompositeFog of(FogMode mode, float environmentalStart, float environmentalEnd, float nearBlocks,
+    public static CompositeFog of(boolean fog, float environmentalStart, float environmentalEnd, float nearBlocks,
             int farCells) {
         float farBlocks = (float) farCells * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
-        boolean skip = skipped(mode, environmentalEnd, nearBlocks);
 
         return new CompositeFog(
-                mode.fogs() ? stretchedStart(environmentalStart, environmentalEnd, nearBlocks, farBlocks) : NONE,
-                mode.fogs() ? stretchedEnd(environmentalEnd, nearBlocks, farBlocks) : NONE,
-                mode.fades() ? farBlocks - FADE_BAND_BLOCKS : NONE,
-                mode.fades() ? farBlocks : NONE,
-                skip);
+                fog ? stretchedStart(environmentalStart, environmentalEnd, nearBlocks, farBlocks) : NONE,
+                fog ? stretchedEnd(environmentalEnd, nearBlocks, farBlocks) : NONE,
+                farBlocks - FADE_BAND_BLOCKS,
+                farBlocks,
+                skipped(environmentalEnd, nearBlocks));
     }
 
-    public static boolean skipped(FogMode mode, float environmentalEnd, float nearBlocks) {
-        return mode.fogs() && environmentalEnd <= nearBlocks;
+    public static boolean skipped(float environmentalEnd, float nearBlocks) {
+        return environmentalEnd <= nearBlocks;
     }
 
     // The line through the game's fog value at the near edge and full fog at the far render distance.

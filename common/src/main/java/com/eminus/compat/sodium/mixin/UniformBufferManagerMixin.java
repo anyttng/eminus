@@ -15,6 +15,10 @@ public class UniformBufferManagerMixin {
             "Lnet/minecraft/client/Options;chunkSectionFadeInTime()Lnet/minecraft/client/OptionInstance;";
     private static final String TEXTURE_FILTERING_OPTION =
             "Lnet/minecraft/client/Options;textureFiltering()Lnet/minecraft/client/OptionInstance;";
+    private static final String ENVIRONMENTAL_FOG_START =
+            "Lnet/caffeinemc/mods/sodium/client/util/FogParameters;environmentalStart()F";
+    private static final String ENVIRONMENTAL_FOG_END =
+            "Lnet/caffeinemc/mods/sodium/client/util/FogParameters;environmentalEnd()F";
     private static final String RENDER_FOG_START = "Lnet/caffeinemc/mods/sodium/client/util/FogParameters;renderStart()F";
     private static final String RENDER_FOG_END = "Lnet/caffeinemc/mods/sodium/client/util/FogParameters;renderEnd()F";
 
@@ -23,6 +27,18 @@ public class UniformBufferManagerMixin {
                     to = @At(value = "INVOKE", target = TEXTURE_FILTERING_OPTION)))
     private Object eminus$fadeInFromRenderState(Object option) {
         return Minecraft.getInstance().gameRenderer.gameRenderState().optionsRenderState.chunkSectionFadeInTime;
+    }
+
+    @ModifyExpressionValue(method = "update", at = @At(value = "INVOKE", target = ENVIRONMENTAL_FOG_START))
+    private float eminus$environmentalFogStartFromRenderState(float start) {
+        return Minecraft.getInstance().gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData
+                .environmentalStart;
+    }
+
+    @ModifyExpressionValue(method = "update", at = @At(value = "INVOKE", target = ENVIRONMENTAL_FOG_END))
+    private float eminus$environmentalFogEndFromRenderState(float end) {
+        return Minecraft.getInstance().gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData
+                .environmentalEnd;
     }
 
     @ModifyExpressionValue(method = "update", at = @At(value = "INVOKE", target = RENDER_FOG_START))

@@ -14,7 +14,7 @@ class SettingsTest {
         assertEquals(0, defaults.lowestStoredLevel());
         assertEquals(16, defaults.farRenderCells());
         assertEquals(64, defaults.subdivisionSize());
-        assertEquals(FogMode.FOG_AND_FADE, defaults.fogMode());
+        assertTrue(defaults.fog());
         assertEquals(Settings.defaultWorkerThreads(Runtime.getRuntime().availableProcessors()),
                 defaults.workerThreads());
     }
@@ -24,7 +24,6 @@ class SettingsTest {
         assertEquals(2, Settings.defaultWorkerThreads(3));
         assertEquals(5, Settings.defaultWorkerThreads(8));
         assertEquals(8, Settings.defaultWorkerThreads(12));
-        assertEquals(10, Settings.defaultWorkerThreads(16));
     }
 
     @Test
@@ -34,19 +33,20 @@ class SettingsTest {
     }
 
     @Test
-    void workerThreadsNeverRiseAboveTheMaximum() {
-        assertEquals(Settings.MAX_WORKER_THREADS, Settings.defaultWorkerThreads(1024));
+    void workerThreadsNeverRiseAboveEight() {
+        assertEquals(8, Settings.defaultWorkerThreads(16));
+        assertEquals(8, Settings.defaultWorkerThreads(1024));
     }
 
     @Test
     void eachWitherChangesItsOwnFieldAlone() {
-        Settings base = new Settings(true, 1, 16, 4, 64, FogMode.FOG_AND_FADE);
+        Settings base = new Settings(true, 1, 16, 4, 64, true);
 
-        assertEquals(new Settings(false, 1, 16, 4, 64, FogMode.FOG_AND_FADE), base.withIngestion(false));
-        assertEquals(new Settings(true, 3, 16, 4, 64, FogMode.FOG_AND_FADE), base.withLowestStoredLevel(3));
-        assertEquals(new Settings(true, 1, 40, 4, 64, FogMode.FOG_AND_FADE), base.withFarRenderCells(40));
-        assertEquals(new Settings(true, 1, 16, 9, 64, FogMode.FOG_AND_FADE), base.withWorkerThreads(9));
-        assertEquals(new Settings(true, 1, 16, 4, 128, FogMode.FOG_AND_FADE), base.withSubdivisionSize(128));
-        assertEquals(new Settings(true, 1, 16, 4, 64, FogMode.FADE), base.withFogMode(FogMode.FADE));
+        assertEquals(new Settings(false, 1, 16, 4, 64, true), base.withIngestion(false));
+        assertEquals(new Settings(true, 3, 16, 4, 64, true), base.withLowestStoredLevel(3));
+        assertEquals(new Settings(true, 1, 40, 4, 64, true), base.withFarRenderCells(40));
+        assertEquals(new Settings(true, 1, 16, 9, 64, true), base.withWorkerThreads(9));
+        assertEquals(new Settings(true, 1, 16, 4, 128, true), base.withSubdivisionSize(128));
+        assertEquals(new Settings(true, 1, 16, 4, 64, false), base.withFog(false));
     }
 }

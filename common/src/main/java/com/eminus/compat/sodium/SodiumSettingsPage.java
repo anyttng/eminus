@@ -6,7 +6,6 @@ import java.util.function.UnaryOperator;
 
 import com.eminus.Eminus;
 import com.eminus.client.settings.SettingsText;
-import com.eminus.settings.FogMode;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
 
@@ -22,7 +21,7 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
     private static final String FAR_RENDER_CELLS_ID = "far_render_cells";
     private static final String WORKER_THREADS_ID = "worker_threads";
     private static final String SUBDIVISION_SIZE_ID = "subdivision_size";
-    private static final String FOG_MODE_ID = "fog_mode";
+    private static final String FOG_ID = "fog";
 
     private static final String PIXEL_UNIT = "px";
     private static final int STEP = 1;
@@ -46,7 +45,7 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setTooltip(SettingsText.hint(SettingsText.LOWEST_STORED_LEVEL_KEY))
                         .setStorageHandler(this::save)
                         .setRange(Settings.MIN_DETAIL_LEVEL, Settings.MAX_DETAIL_LEVEL, STEP)
-                        .setValueFormatter(SodiumSettingsPage::number)
+                        .setValueFormatter(SettingsText::lowestStoredLevel)
                         .setDefaultValue(defaults.lowestStoredLevel())
                         .setBinding(value -> edit(settings -> settings.withLowestStoredLevel(value)),
                                 () -> current().lowestStoredLevel()))
@@ -77,14 +76,13 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setDefaultValue(defaults.subdivisionSize())
                         .setBinding(value -> edit(settings -> settings.withSubdivisionSize(value)),
                                 () -> current().subdivisionSize()))
-                .addOption(builder.createEnumOption(id(FOG_MODE_ID), FogMode.class)
-                        .setName(Component.translatable(SettingsText.FOG_MODE_KEY))
-                        .setTooltip(SettingsText.hint(SettingsText.FOG_MODE_KEY))
+                .addOption(builder.createBooleanOption(id(FOG_ID))
+                        .setName(Component.translatable(SettingsText.FOG_KEY))
+                        .setTooltip(SettingsText.hint(SettingsText.FOG_KEY))
                         .setStorageHandler(this::save)
-                        .setElementNameProvider(SettingsText::fogMode)
-                        .setDefaultValue(defaults.fogMode())
-                        .setBinding(value -> edit(settings -> settings.withFogMode(value)),
-                                () -> current().fogMode()));
+                        .setDefaultValue(defaults.fog())
+                        .setBinding(value -> edit(settings -> settings.withFog(value)),
+                                () -> current().fog()));
 
         builder.registerOwnModOptions()
                 .addPage(builder.createOptionPage()

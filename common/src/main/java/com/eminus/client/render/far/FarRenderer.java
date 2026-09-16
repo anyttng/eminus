@@ -149,8 +149,7 @@ public final class FarRenderer implements AutoCloseable {
             return false;
         }
 
-        return !CompositeFog.skipped(SettingsService.get().settings().fogMode(), gameFog.environmentalEnd,
-                renderDistanceChunks * FarDistance.BLOCKS_PER_CHUNK);
+        return !CompositeFog.skipped(gameFog.environmentalEnd, renderDistanceChunks * FarDistance.BLOCKS_PER_CHUNK);
     }
 
     public void frame(Minecraft client) {
@@ -189,7 +188,7 @@ public final class FarRenderer implements AutoCloseable {
 
         FogData gameFog = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData;
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
-        CompositeFog fog = CompositeFog.of(settings.fogMode(), gameFog.environmentalStart, gameFog.environmentalEnd,
+        CompositeFog fog = CompositeFog.of(settings.fog(), gameFog.environmentalStart, gameFog.environmentalEnd,
                 nearBlocks, settings.farRenderCells());
         if (fog.skip()) {
             return;

@@ -1,19 +1,15 @@
 package com.eminus.client.settings;
 
-import java.util.List;
-
 import static com.eminus.client.settings.SettingsText.FAR_RENDER_CELLS_KEY;
-import static com.eminus.client.settings.SettingsText.FOG_MODE_KEY;
+import static com.eminus.client.settings.SettingsText.FOG_KEY;
 import static com.eminus.client.settings.SettingsText.INGESTION_KEY;
 import static com.eminus.client.settings.SettingsText.LOWEST_STORED_LEVEL_KEY;
 import static com.eminus.client.settings.SettingsText.SUBDIVISION_SIZE_KEY;
 import static com.eminus.client.settings.SettingsText.TITLE_KEY;
 import static com.eminus.client.settings.SettingsText.WORKER_THREADS_KEY;
 
-import com.eminus.settings.FogMode;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
-import com.mojang.serialization.Codec;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
@@ -25,9 +21,6 @@ import net.minecraft.network.chat.Component;
 public class SettingsScreen extends OptionsSubScreen {
     private static final String VANILLA_PIXEL_VALUE_KEY = "options.pixel_value";
 
-    private static final Codec<FogMode> FOG_MODE_CODEC =
-            Codec.STRING.xmap(key -> FogMode.fromKey(key).orElse(Settings.DEFAULT_FOG_MODE), FogMode::key);
-
     private static final boolean APPLY_ON_RELEASE = false;
 
     private final OptionInstance<Boolean> ingestion;
@@ -35,7 +28,7 @@ public class SettingsScreen extends OptionsSubScreen {
     private final OptionInstance<Integer> farRenderCells;
     private final OptionInstance<Integer> workerThreads;
     private final OptionInstance<Integer> subdivisionSize;
-    private final OptionInstance<FogMode> fogMode;
+    private final OptionInstance<Boolean> fog;
 
     public SettingsScreen(Screen lastScreen) {
         super(lastScreen, Minecraft.getInstance().options, Component.translatable(TITLE_KEY));
@@ -45,7 +38,7 @@ public class SettingsScreen extends OptionsSubScreen {
         this.ingestion = OptionInstance.createBoolean(INGESTION_KEY, hint(INGESTION_KEY), settings.ingestion(),
                 value -> this.apply());
         this.lowestStoredLevel = new OptionInstance<>(LOWEST_STORED_LEVEL_KEY, hint(LOWEST_STORED_LEVEL_KEY),
-                (caption, value) -> Options.genericValueLabel(caption, value),
+                (caption, value) -> Options.genericValueLabel(caption, SettingsText.lowestStoredLevel(value)),
                 new OptionInstance.IntRange(Settings.MIN_DETAIL_LEVEL, Settings.MAX_DETAIL_LEVEL, APPLY_ON_RELEASE),
                 settings.lowestStoredLevel(), value -> this.apply());
         this.farRenderCells = new OptionInstance<>(FAR_RENDER_CELLS_KEY, hint(FAR_RENDER_CELLS_KEY),
@@ -63,10 +56,7 @@ public class SettingsScreen extends OptionsSubScreen {
                 new OptionInstance.IntRange(Settings.MIN_SUBDIVISION_SIZE, Settings.MAX_SUBDIVISION_SIZE,
                         APPLY_ON_RELEASE),
                 settings.subdivisionSize(), value -> this.apply());
-        this.fogMode = new OptionInstance<>(FOG_MODE_KEY, hint(FOG_MODE_KEY),
-                (caption, value) -> Options.genericValueLabel(caption, SettingsText.fogMode(value)),
-                new OptionInstance.Enum<>(List.of(FogMode.values()), FOG_MODE_CODEC),
-                settings.fogMode(), value -> this.apply());
+        this.fog = OptionInstance.createBoolean(FOG_KEY, hint(FOG_KEY), settings.fog(), value -> this.apply());
     }
 
     @Override
@@ -76,7 +66,7 @@ public class SettingsScreen extends OptionsSubScreen {
         this.list.addBig(this.farRenderCells);
         this.list.addBig(this.workerThreads);
         this.list.addBig(this.subdivisionSize);
-        this.list.addBig(this.fogMode);
+        this.list.addBig(this.fog);
     }
 
     // Vanilla's OptionsSubScreen rewrites options.txt here, and this screen owns no vanilla option.
@@ -91,7 +81,7 @@ public class SettingsScreen extends OptionsSubScreen {
                 this.farRenderCells.get(),
                 this.workerThreads.get(),
                 this.subdivisionSize.get(),
-                this.fogMode.get()));
+                this.fog.get()));
     }
 
     private static <T> OptionInstance.TooltipSupplier<T> hint(String captionKey) {

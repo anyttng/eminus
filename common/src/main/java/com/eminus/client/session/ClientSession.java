@@ -26,6 +26,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.lighting.LevelLightEngine;
+import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.level.storage.LevelResource;
 
 import org.joml.Matrix4fc;
@@ -113,10 +114,12 @@ public final class ClientSession {
             return;
         }
 
-        GameRenderState state = Minecraft.getInstance().gameRenderer.gameRenderState();
+        Minecraft client = Minecraft.getInstance();
+        GameRenderState state = client.gameRenderer.gameRenderState();
         FogData fog = state.levelRenderState.cameraRenderState.fogData;
         if (renderer.covers(fog, state.optionsRenderState.renderDistance)) {
-            NearFieldOverride.apply(fog, state.optionsRenderState);
+            boolean inAir = client.gameRenderer.mainCamera().getFluidInCamera() == FogType.NONE;
+            NearFieldOverride.apply(fog, state.optionsRenderState, inAir && !SettingsService.get().settings().fog());
         }
     }
 

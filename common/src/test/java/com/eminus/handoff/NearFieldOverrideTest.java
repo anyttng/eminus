@@ -8,6 +8,8 @@ import net.minecraft.client.renderer.state.OptionsRenderState;
 import org.junit.jupiter.api.Test;
 
 class NearFieldOverrideTest {
+    private static final boolean CLEAR_ATMOSPHERIC_FOG = true;
+    private static final boolean KEEP_ATMOSPHERIC_FOG = false;
     private static final float ENVIRONMENTAL_START = 10.0F;
     private static final float ENVIRONMENTAL_END = 1024.0F;
     private static final float RENDER_DISTANCE_START = 128.0F;
@@ -22,25 +24,40 @@ class NearFieldOverrideTest {
         FogData fog = fogData();
         OptionsRenderState options = options();
 
-        NearFieldOverride.apply(fog, options);
+        NearFieldOverride.apply(fog, options, KEEP_ATMOSPHERIC_FOG);
 
-        assertEquals(NearFieldOverride.NO_RENDER_DISTANCE_FOG, fog.renderDistanceStart);
-        assertEquals(NearFieldOverride.NO_RENDER_DISTANCE_FOG, fog.renderDistanceEnd);
+        assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceStart);
+        assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceEnd);
         assertEquals(NearFieldOverride.NO_FADE_IN, options.chunkSectionFadeInTime);
     }
 
     @Test
-    void theEnvironmentalFogTheSkyTheCloudsAndTheOtherOptionsAreLeftAlone() {
+    void keptAtmosphericFogLeavesTheEnvironmentalFogTheSkyTheCloudsAndTheOtherOptionsAlone() {
         FogData fog = fogData();
         OptionsRenderState options = options();
 
-        NearFieldOverride.apply(fog, options);
+        NearFieldOverride.apply(fog, options, KEEP_ATMOSPHERIC_FOG);
 
         assertEquals(ENVIRONMENTAL_START, fog.environmentalStart);
         assertEquals(ENVIRONMENTAL_END, fog.environmentalEnd);
         assertEquals(SKY_END, fog.skyEnd);
         assertEquals(CLOUD_END, fog.cloudEnd);
         assertEquals(RENDER_DISTANCE_CHUNKS, options.renderDistance);
+    }
+
+    @Test
+    void clearedAtmosphericFogSendsTheEnvironmentalFogToInfinityAndLeavesTheSkyAndCloudsAlone() {
+        FogData fog = fogData();
+        OptionsRenderState options = options();
+
+        NearFieldOverride.apply(fog, options, CLEAR_ATMOSPHERIC_FOG);
+
+        assertEquals(NearFieldOverride.NO_FOG, fog.environmentalStart);
+        assertEquals(NearFieldOverride.NO_FOG, fog.environmentalEnd);
+        assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceStart);
+        assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceEnd);
+        assertEquals(SKY_END, fog.skyEnd);
+        assertEquals(CLOUD_END, fog.cloudEnd);
     }
 
     private static FogData fogData() {
