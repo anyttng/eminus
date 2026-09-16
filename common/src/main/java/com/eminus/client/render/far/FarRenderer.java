@@ -16,6 +16,7 @@ import com.eminus.handoff.NearSections;
 import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.client.handoff.NearSectionTable;
 import com.eminus.mesh.BakeryModels;
+import com.eminus.mesh.BakeryTints;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
 import com.eminus.model.ModelIndex;
@@ -129,7 +130,7 @@ public final class FarRenderer implements AutoCloseable {
 
         ClientBakery baking = ClientBakery.start(client);
         FarRenderer renderer = new FarRenderer(runtime, baking,
-                ModelPublisher.start(baking.bakery(), baking.colours(), runtime.biomes()), arena,
+                ModelPublisher.start(baking.bakery()), arena,
                 FarTarget.create(support.depthStencilFormat(), main.width, main.height), FarFrame.create(),
                 NearMaskPass.create(FarTarget.COLOUR_FORMAT), NearSectionTable.create(),
                 OpaquePass.create(support.depth()), OcclusionPass.create(support.depth()),
@@ -139,6 +140,7 @@ public final class FarRenderer implements AutoCloseable {
 
         renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(),
                 new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
+                new BakeryTints(baking.colours(), runtime.biomes()), client.options.biomeBlendRadius().get(),
                 baking.opacity(runtime.states()), renderer.tree);
         runtime.listenTo(renderer.tree);
         Eminus.LOGGER.info("Far renderer started for {}", runtime.identity().dimension());

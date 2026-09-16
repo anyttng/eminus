@@ -6,13 +6,19 @@ import com.eminus.Eminus;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.Dictionary;
 import com.eminus.cell.StateTable;
+import com.eminus.mixin.BiomeManagerAccessor;
 import com.eminus.work.WorkService;
 
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.core.QuartPos;
 import net.minecraft.core.SectionPos;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -21,6 +27,9 @@ import net.minecraft.world.level.lighting.LevelLightEngine;
 import org.jspecify.annotations.Nullable;
 
 public final class IngestService {
+    private static final int NEIGHBOUR_REACH = 1;
+    private static final int NEIGHBOUR_SIDE = 2 * NEIGHBOUR_REACH + 1;
+
     private final WorkService<SectionPyramid> service;
     private final StateTable states;
     private final Dictionary<String> biomes;
@@ -72,7 +81,7 @@ public final class IngestService {
                 continue;
             }
 
-            submit(light, sections[index], chunkX, chunk.getSectionYFromSectionIndex(index), chunkZ, remaining);
+            submit(light, chunk, index, remaining);
         }
     }
 
@@ -103,14 +112,18 @@ public final class IngestService {
             return;
         }
 
-        submit(level.getLightEngine(), chunk.getSections()[index], sectionX, sectionY, sectionZ, null);
+        submit(level.getLightEngine(), chunk, index, null);
     }
 
-    private void submit(LevelLightEngine light, LevelChunkSection section, int sectionX, int sectionY, int sectionZ,
-            @Nullable AtomicInteger remaining) {
+    private void submit(LevelLightEngine light, LevelChunk chunk, int index, @Nullable AtomicInteger remaining) {
+        LevelChunkSection section = chunk.getSections()[index];
+        int sectionX = chunk.getPos().x();
+        int sectionY = chunk.getSectionYFromSectionIndex(index);
+        int sectionZ = chunk.getPos().z();
         SectionPos sectionPos = SectionPos.of(sectionX, sectionY, sectionZ);
         DataLayer skyLight = layer(light, LightLayer.SKY, sectionPos);
         DataLayer blockLight = layer(light, LightLayer.BLOCK, sectionPos);
+        BiomeWindow window = biomeWindow(chunk, sectionY);
 
         service.enqueue(pyramid -> {
             if (!running) {
@@ -118,7 +131,8 @@ public final class IngestService {
             }
 
             try {
-                SectionConverter.convert(section, skyLight, blockLight, states, biomes, pyramid);
+                SectionConverter.convert(section, window, skyLight, blockLight, states, biomes, pyramid);
+
                 PyramidDownsampler.build(pyramid, states);
                 merger.merge(pyramid, sectionX, sectionY, sectionZ);
             } finally {
@@ -134,6 +148,44 @@ public final class IngestService {
             coverage.persist(chunkX, chunkZ);
             listener.covered(chunkX, chunkZ);
         }
+    }
+
+    private static BiomeWindow biomeWindow(LevelChunk chunk, int sectionY) {
+        Level level = chunk.getLevel();
+        ChunkPos pos = chunk.getPos();
+        LevelChunk[] around = new LevelChunk[NEIGHBOUR_SIDE * NEIGHBOUR_SIDE];
+        for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
+            for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
+                around[neighbourIndex(dx, dz)] = dx == 0 && dz == 0
+                        ? chunk
+                        : level.getChunkSource().getChunkNow(pos.x() + dx, pos.z() + dz);
+            }
+        }
+
+        long seed = ((BiomeManagerAccessor) level.getBiomeManager()).eminus$biomeZoomSeed();
+        return BiomeWindow.capture((quartX, quartY, quartZ) -> noiseBiome(chunk, around, quartX, quartY, quartZ),
+                pos.x(), sectionY, pos.z(), seed);
+    }
+
+    private static Holder<Biome> noiseBiome(LevelChunk chunk, LevelChunk[] around, int quartX, int quartY,
+            int quartZ) {
+        ChunkPos pos = chunk.getPos();
+        LevelChunk neighbour = around[neighbourIndex(QuartPos.toSection(quartX) - pos.x(),
+                QuartPos.toSection(quartZ) - pos.z())];
+        if (neighbour != null) {
+            return neighbour.getNoiseBiome(quartX, quartY, quartZ);
+        }
+
+        return chunk.getNoiseBiome(ownQuart(quartX, pos.x()), quartY, ownQuart(quartZ, pos.z()));
+    }
+
+    private static int ownQuart(int quart, int chunk) {
+        int first = QuartPos.fromSection(chunk);
+        return Mth.clamp(quart, first, first + BiomeWindow.QUARTS_PER_SECTION - 1);
+    }
+
+    private static int neighbourIndex(int dx, int dz) {
+        return (dz + NEIGHBOUR_REACH) * NEIGHBOUR_SIDE + dx + NEIGHBOUR_REACH;
     }
 
     private static int solidSections(LevelChunkSection[] sections) {

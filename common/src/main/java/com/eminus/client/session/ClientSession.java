@@ -39,6 +39,7 @@ public final class ClientSession {
 
     private static boolean heldChunksPending;
     private static boolean renderedCutoutLeaves;
+    private static int renderedBiomeBlend;
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
     private static FarRenderer renderer;
@@ -147,7 +148,8 @@ public final class ClientSession {
             swapLevel(current);
         }
 
-        if (renderer != null && minecraft.options.cutoutLeaves().get() != renderedCutoutLeaves) {
+        if (renderer != null && (minecraft.options.cutoutLeaves().get() != renderedCutoutLeaves
+                || minecraft.options.biomeBlendRadius().get() != renderedBiomeBlend)) {
             restartRenderer();
         }
 
@@ -238,6 +240,7 @@ public final class ClientSession {
         Minecraft minecraft = Minecraft.getInstance();
         rendered = SettingsService.get().settings();
         renderedCutoutLeaves = minecraft.options.cutoutLeaves().get();
+        renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
         renderer = FarRenderer.start(minecraft, instance, runtime, level.getHeight(), rendered);
     }
 

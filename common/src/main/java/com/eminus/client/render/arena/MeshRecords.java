@@ -16,7 +16,7 @@ public final class MeshRecords implements AutoCloseable {
     private static final String LABEL = "eminus-mesh-records";
     private static final int USAGE = GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER | GpuBuffer.USAGE_COPY_DST;
     private static final int KEY_SHIFT = 32;
-    private static final int MAX_BLOCKS_PER_MESH = ArenaAllocator.blocksFor(ArenaUploader.MAX_QUADS);
+    private static final int MAX_BLOCKS_PER_MESH = ArenaAllocator.blocksFor(ArenaUploader.MAX_SLOTS);
 
     private final GpuBuffer buffer;
     private final int capacity;
@@ -45,7 +45,7 @@ public final class MeshRecords implements AutoCloseable {
     // Every block of the mesh carries the record, so the vertex stage reads it by the quad's own block.
     public void write(MeshSlot mesh) {
         RenderSystem.assertOnRenderThread();
-        int blocks = ArenaAllocator.blocksFor(mesh.quads());
+        int blocks = ArenaAllocator.blocksFor(mesh.slots());
         scratch.clear();
 
         for (int block = 0; block < blocks; block++) {

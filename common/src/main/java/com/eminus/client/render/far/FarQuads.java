@@ -41,7 +41,6 @@ final class FarQuads {
             .withUniform("Quads", UniformType.TEXEL_BUFFER, GpuFormat.RG32_UINT)
             .withUniform("MeshRecords", UniformType.TEXEL_BUFFER, GpuFormat.RGBA32_UINT)
             .withUniform("ModelRecords", UniformType.TEXEL_BUFFER, GpuFormat.RGBA32_FLOAT)
-            .withUniform("TintColours", UniformType.TEXEL_BUFFER, GpuFormat.R32_UINT)
             .withUniform("NearSections", UniformType.TEXEL_BUFFER, GpuFormat.R32_UINT)
             .withSampler("Atlas")
             .withSampler("TintMask")
@@ -58,7 +57,6 @@ final class FarQuads {
                 .withBindGroupLayout(LAYOUT)
                 .withShaderDefine("QUADS_PER_BLOCK", ArenaAllocator.QUADS_PER_BLOCK)
                 .withShaderDefine("VOXELS_PER_SIDE", DetailLevel.VOXELS_PER_SIDE)
-                .withShaderDefine("BIOME_STRIDE", TintTable.BIOME_STRIDE)
                 .withShaderDefine("MIN_HORIZONTAL", CellKey.MIN_HORIZONTAL)
                 .withShaderDefine("MIN_VERTICAL", CellKey.MIN_VERTICAL)
                 .withShaderDefine("MODEL_FACES", BakedModel.FACE_COUNT)
@@ -84,7 +82,6 @@ final class FarQuads {
         pass.setUniform("Quads", arena.quads());
         pass.setUniform("MeshRecords", arena.records().buffer());
         pass.setUniform("ModelRecords", models.records().buffer());
-        pass.setUniform("TintColours", models.tints().buffer());
         pass.setUniform("NearSections", nearSections);
         pass.bindTexture("Atlas", models.atlas().colourView(), atlasSampler());
         pass.bindTexture("TintMask", models.atlas().tintMaskView(), atlasSampler());

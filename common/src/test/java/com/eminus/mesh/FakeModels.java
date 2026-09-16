@@ -7,10 +7,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.eminus.model.BiomeColours;
+
 final class FakeModels implements MeshModels {
     private final Map<Integer, Integer> ids = new HashMap<>();
     private final Map<Integer, Integer> fluidIds = new HashMap<>();
     private final Map<Integer, Integer> words = new HashMap<>();
+    private final Map<Integer, Integer> tintRows = new HashMap<>();
     private final Set<Integer> unbaked = new HashSet<>();
     private final Set<Integer> unbakedFluids = new HashSet<>();
     private final List<Runnable> waiters = new ArrayList<>();
@@ -21,6 +24,10 @@ final class FakeModels implements MeshModels {
     void define(int stateId, int modelId, int metadata) {
         ids.put(stateId, modelId);
         words.put(modelId, metadata);
+    }
+
+    void tint(int modelId, int row) {
+        tintRows.put(modelId, row);
     }
 
     void defineFluid(int stateId, int fluidModelId, int metadata) {
@@ -85,5 +92,10 @@ final class FakeModels implements MeshModels {
         }
 
         return words.getOrDefault(modelId, 0);
+    }
+
+    @Override
+    public int tintRow(int modelId) {
+        return tintRows.getOrDefault(modelId, BiomeColours.NO_ROW);
     }
 }

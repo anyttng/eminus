@@ -4,11 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.eminus.VanillaBootstrap;
 
@@ -41,7 +40,7 @@ class BiomeColoursTest {
     }
 
     private final BiomeColours colours = new BiomeColours(
-            Map.of(PLAINS, new TintLevel(PLAINS_BIOME), DESERT, new TintLevel(DESERT_BIOME)));
+            Map.of(PLAINS, new TintLevel(PLAINS_BIOME), DESERT, new TintLevel(DESERT_BIOME)), Set.of());
 
     @Test
     void aSourceThatVariesByBiomeResolvesToItsRowAndHoldsOneColourPerBiome() {
@@ -89,13 +88,5 @@ class BiomeColoursTest {
     @Test
     void noSourceMeansNoTint() {
         assertNull(colours.resolve(null, stone));
-    }
-
-    @Test
-    void moreRowsThanTheTableHoldsAreRefused() {
-        List<BiomeColours.Colours> ranked =
-                Collections.nCopies(BiomeColours.MAX_ROWS + 1, colours.sample(BlockTintSources.grass(), stone));
-
-        assertThrows(IllegalArgumentException.class, () -> colours.assign(ranked));
     }
 }

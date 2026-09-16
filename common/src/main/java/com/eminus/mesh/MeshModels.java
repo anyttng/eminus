@@ -9,4 +9,6 @@ public interface MeshModels {
     int fluidModelId(int stateId, Runnable whenBaked);
 
     int metadata(int modelId);
+
+    int tintRow(int modelId);
 }

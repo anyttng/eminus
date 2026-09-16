@@ -144,7 +144,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     }
 
     private @Nullable MeshSlot place(CellMesh mesh) {
-        int block = allocator.allocate(mesh.quadCount());
+        int block = allocator.allocate(mesh.slotCount());
         if (block == ArenaAllocator.NO_BLOCK) {
             return null;
         }
@@ -181,7 +181,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     private void release(long key) {
         MeshSlot released = held.remove(key);
         if (released != null) {
-            allocator.free(released.block(), released.quads());
+            allocator.free(released.block(), released.slots());
         }
     }
 

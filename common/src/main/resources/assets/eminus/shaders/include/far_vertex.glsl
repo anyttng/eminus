@@ -36,7 +36,7 @@ FarVertex far_vertex(int vertexId) {
     int height = int((quad.x >> 22u) & 15u) + 1;
     int light = int(((quad.x >> 26u) | ((quad.y & 3u) << 6u)) & 255u);
     int modelId = int((quad.y >> 2u) & 0x3FFFFu);
-    int biomeId = int((quad.y >> 20u) & 0xFFFu);
+    int colourIndex = int((quad.y >> 20u) & 0xFFFu);
 
     vec4 first = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS);
     vec4 second = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 1);
@@ -94,7 +94,7 @@ FarVertex far_vertex(int vertexId) {
 
     vertex.tint = vec3(1.0);
     if (tintRow != FAR_NO_TINT) {
-        uint tint = texelFetch(TintColours, tintRow * BIOME_STRIDE + biomeId).r;
+        uint tint = texelFetch(Quads, int(mesh.z + mesh.w) + colourIndex).r;
         vertex.tint = vec3((tint >> 16u) & 255u, (tint >> 8u) & 255u, tint & 255u) / 255.0;
     }
 

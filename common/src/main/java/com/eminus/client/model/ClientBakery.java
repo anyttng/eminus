@@ -1,7 +1,9 @@
 package com.eminus.client.model;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import com.eminus.cell.StateTable;
 import com.eminus.mesh.MeshOpacity;
@@ -17,6 +19,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.resources.model.ModelManager;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.biome.BiomeSpecialEffects;
 
 public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cutoutLeaves) {
     public static ClientBakery start(Minecraft client) {
@@ -26,7 +29,7 @@ public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cut
     public static ClientBakery start(Minecraft client, boolean cutoutLeaves) {
         ModelManager manager = client.getModelManager();
         SolidSprites sprites = new SolidSprites();
-        BiomeColours colours = new BiomeColours(levels(client.level));
+        BiomeColours colours = new BiomeColours(levels(client.level), positional(client.level));
         ModelBakery bakery = ModelBakery.start(new ModelBaker(manager.getBlockStateModelSet(),
                 client.getBlockColors(), new FluidBaker(manager.getFluidStateModelSet(), sprites), sprites, colours,
                 cutoutLeaves));
@@ -50,5 +53,18 @@ public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cut
         level.registryAccess().lookupOrThrow(Registries.BIOME).listElements().forEach(biome ->
                 levels.put(biome.key().identifier().toString(), new BakeLevel(biome.value())));
         return levels;
+    }
+
+    private static Set<String> positional(ClientLevel level) {
+        Set<String> positional = new HashSet<>();
+        if (level == null) {
+            return positional;
+        }
+
+        level.registryAccess().lookupOrThrow(Registries.BIOME).listElements()
+                .filter(biome -> biome.value().getSpecialEffects().grassColorModifier()
+                        != BiomeSpecialEffects.GrassColorModifier.NONE)
+                .forEach(biome -> positional.add(biome.key().identifier().toString()));
+        return positional;
     }
 }

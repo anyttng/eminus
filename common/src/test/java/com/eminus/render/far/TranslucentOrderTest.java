@@ -128,6 +128,6 @@ class TranslucentOrderTest {
     private static CellMesh mesh(long key, int group) {
         int[] counts = new int[QuadGroups.COUNT];
         counts[group] = ONE_QUAD;
-        return new CellMesh(key, 0, new long[ONE_QUAD], new int[QuadGroups.COUNT], counts);
+        return new CellMesh(key, 0, new long[ONE_QUAD], new int[QuadGroups.COUNT], counts, new int[0]);
     }
 }
