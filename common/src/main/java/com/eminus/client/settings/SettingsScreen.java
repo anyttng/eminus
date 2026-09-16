@@ -1,15 +1,20 @@
 package com.eminus.client.settings;
 
+import java.util.List;
+
+import static com.eminus.client.settings.SettingsText.DETAIL_DISTANCE_KEY;
+import static com.eminus.client.settings.SettingsText.FADE_KEY;
 import static com.eminus.client.settings.SettingsText.FAR_RENDER_CELLS_KEY;
 import static com.eminus.client.settings.SettingsText.FOG_KEY;
 import static com.eminus.client.settings.SettingsText.INGESTION_KEY;
 import static com.eminus.client.settings.SettingsText.LOWEST_STORED_LEVEL_KEY;
-import static com.eminus.client.settings.SettingsText.SUBDIVISION_SIZE_KEY;
 import static com.eminus.client.settings.SettingsText.TITLE_KEY;
 import static com.eminus.client.settings.SettingsText.WORKER_THREADS_KEY;
 
+import com.eminus.settings.DetailDistance;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
+import com.mojang.serialization.Codec;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
@@ -19,7 +24,8 @@ import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.network.chat.Component;
 
 public class SettingsScreen extends OptionsSubScreen {
-    private static final String VANILLA_PIXEL_VALUE_KEY = "options.pixel_value";
+    private static final Codec<DetailDistance> DETAIL_DISTANCE_CODEC = Codec.STRING.xmap(
+            key -> DetailDistance.fromKey(key).orElse(Settings.DEFAULT_DETAIL_DISTANCE), DetailDistance::key);
 
     private static final boolean APPLY_ON_RELEASE = false;
 
@@ -27,8 +33,9 @@ public class SettingsScreen extends OptionsSubScreen {
     private final OptionInstance<Integer> lowestStoredLevel;
     private final OptionInstance<Integer> farRenderCells;
     private final OptionInstance<Integer> workerThreads;
-    private final OptionInstance<Integer> subdivisionSize;
+    private final OptionInstance<DetailDistance> detailDistance;
     private final OptionInstance<Boolean> fog;
+    private final OptionInstance<Boolean> fade;
 
     public SettingsScreen(Screen lastScreen) {
         super(lastScreen, Minecraft.getInstance().options, Component.translatable(TITLE_KEY));
@@ -51,12 +58,12 @@ public class SettingsScreen extends OptionsSubScreen {
                 new OptionInstance.IntRange(Settings.MIN_WORKER_THREADS, Settings.MAX_WORKER_THREADS,
                         APPLY_ON_RELEASE),
                 settings.workerThreads(), value -> this.apply());
-        this.subdivisionSize = new OptionInstance<>(SUBDIVISION_SIZE_KEY, hint(SUBDIVISION_SIZE_KEY),
-                (caption, value) -> Component.translatable(VANILLA_PIXEL_VALUE_KEY, caption, value),
-                new OptionInstance.IntRange(Settings.MIN_SUBDIVISION_SIZE, Settings.MAX_SUBDIVISION_SIZE,
-                        APPLY_ON_RELEASE),
-                settings.subdivisionSize(), value -> this.apply());
+        this.detailDistance = new OptionInstance<>(DETAIL_DISTANCE_KEY, hint(DETAIL_DISTANCE_KEY),
+                (caption, value) -> Options.genericValueLabel(caption, SettingsText.detailDistance(value)),
+                new OptionInstance.Enum<>(List.of(DetailDistance.values()), DETAIL_DISTANCE_CODEC),
+                settings.detailDistance(), value -> this.apply());
         this.fog = OptionInstance.createBoolean(FOG_KEY, hint(FOG_KEY), settings.fog(), value -> this.apply());
+        this.fade = OptionInstance.createBoolean(FADE_KEY, hint(FADE_KEY), settings.fade(), value -> this.apply());
     }
 
     @Override
@@ -65,8 +72,9 @@ public class SettingsScreen extends OptionsSubScreen {
         this.list.addBig(this.lowestStoredLevel);
         this.list.addBig(this.farRenderCells);
         this.list.addBig(this.workerThreads);
-        this.list.addBig(this.subdivisionSize);
+        this.list.addBig(this.detailDistance);
         this.list.addBig(this.fog);
+        this.list.addBig(this.fade);
     }
 
     // Vanilla's OptionsSubScreen rewrites options.txt here, and this screen owns no vanilla option.
@@ -80,8 +88,9 @@ public class SettingsScreen extends OptionsSubScreen {
                 this.lowestStoredLevel.get(),
                 this.farRenderCells.get(),
                 this.workerThreads.get(),
-                this.subdivisionSize.get(),
-                this.fog.get()));
+                this.detailDistance.get(),
+                this.fog.get(),
+                this.fade.get()));
     }
 
     private static <T> OptionInstance.TooltipSupplier<T> hint(String captionKey) {

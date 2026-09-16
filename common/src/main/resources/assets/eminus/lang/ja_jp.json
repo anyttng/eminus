@@ -13,8 +13,15 @@
   "gui.eminus.settings.far_render_cells.hint": "遠景層が届く距離。処理量はこの距離の 2 乗で増え、1 フレームあたりに辿るメッシュも、ビデオメモリに置くメッシュも増えます。",
   "gui.eminus.settings.worker_threads": "ワーカースレッド",
   "gui.eminus.settings.worker_threads.hint": "遠景を構築するバックグラウンドスレッド。多いほど追いつくのが速くなり、ゲーム自身のチャンク構築と強く競合します。少ないほどその逆です。",
-  "gui.eminus.settings.subdivision_size": "分割サイズ",
-  "gui.eminus.settings.subdivision_size.hint": "遠景の一片が、より細かい片に置き換わるまでに画面上で占めてよい大きさ。画面ピクセルで測るため、解像度が高いほど同じ数値でもより細かく分割されます。小さいほど詳細が手前まで来て、負荷も増えます。",
+  "gui.eminus.settings.detail_distance": "詳細距離",
+  "gui.eminus.settings.detail_distance.hint": "遠景の地形の細かい詳細がどこまで届くか。1 段階上げるごとにその距離が 2 倍になり、ビデオメモリをより多く使います。画面の解像度が高いほど、同じ段階でもより遠くまで届きます。",
+  "gui.eminus.settings.detail_distance.ultra": "ウルトラ",
+  "gui.eminus.settings.detail_distance.high": "高",
+  "gui.eminus.settings.detail_distance.medium": "中",
+  "gui.eminus.settings.detail_distance.low": "低",
+  "gui.eminus.settings.detail_distance.minimal": "最小",
   "gui.eminus.settings.fog": "霧",
-  "gui.eminus.settings.fog.hint": "遠景の地形にかかる霧。ゲーム自身の霧を引き継ぎ、遠景の描画距離で最も濃くなります。オフにすると読み込まれたチャンクの屋外の霧も消え、景色全体がくっきりします。ネザー、ボス、水中、盲目による霧は残ります。"
+  "gui.eminus.settings.fog.hint": "遠景の地形にかかる霧。ゲーム自身の霧を引き継ぎ、遠景の描画距離で最も濃くなります。オフにすると読み込まれたチャンクの屋外の霧も消え、景色全体がくっきりします。ネザー、ボス、水中、盲目による霧は残ります。",
+  "gui.eminus.settings.fade": "フェード",
+  "gui.eminus.settings.fade.hint": "遠景の地形をくっきりした縁で終わらせず、最後の 512 ブロックでフェードアウトさせます。"
 }

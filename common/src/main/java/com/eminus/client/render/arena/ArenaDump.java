@@ -70,7 +70,7 @@ public final class ArenaDump {
         Settings settings = SettingsService.get().settings();
         float focalPixels = FarProjection.focalPixels(client.options.fov().get(),
                 client.gameRenderer.mainRenderTarget().height);
-        long wanted = ArenaSizing.wanted(settings.farRenderCells(), settings.subdivisionSize(), focalPixels,
+        long wanted = ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(), focalPixels,
                 runtime.lowestStoredLevel());
         long limit = RenderSystem.getDevice().getDeviceInfo().limits().maxMemoryAllocationSize();
         return ArenaSizing.fitted(wanted, limit);

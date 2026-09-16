@@ -28,7 +28,7 @@ class SettingsFileTest {
     @Test
     void anEditedValueLoadsBack() {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings edited = new Settings(false, 2, 24, 3, 32, false);
+        Settings edited = new Settings(false, 2, 24, 3, DetailDistance.HIGH, false, true);
 
         SettingsFile.save(file, edited);
 
@@ -38,7 +38,7 @@ class SettingsFileTest {
     @Test
     void theSavedFileCarriesTheSettingCommentsAndStillReadsBack() throws IOException {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings written = new Settings(true, 2, 24, 3, 32, false);
+        Settings written = new Settings(true, 2, 24, 3, DetailDistance.LOW, false, false);
 
         SettingsFile.save(file, written);
         String content = Files.readString(file, StandardCharsets.UTF_8);
@@ -46,8 +46,9 @@ class SettingsFileTest {
         assertTrue(content.contains("// Finest detail level kept on disk, 0..4"), content);
         assertTrue(content.contains("// Radius of the far layer, in top-level cells"), content);
         assertTrue(content.contains("// Background worker threads."), content);
-        assertTrue(content.contains("// How large a node may look on screen, in pixels"), content);
+        assertTrue(content.contains("// How far out the finer detail levels reach"), content);
         assertTrue(content.contains("// Fog over the far layer"), content);
+        assertTrue(content.contains("// Whether the far layer's outer edge fades out"), content);
         assertEquals(written, SettingsFile.load(file));
     }
 
@@ -57,13 +58,17 @@ class SettingsFileTest {
                 {
                   "ingestion": false,
                   "far_render_cells": "many",
-                  "fog": "sideways"
+                  "detail_distance": "sideways",
+                  "fog": "sideways",
+                  "fade": 3
                 }
                 """);
 
         assertFalse(loaded.ingestion());
         assertEquals(Settings.DEFAULT_FAR_RENDER_CELLS, loaded.farRenderCells());
+        assertEquals(Settings.DEFAULT_DETAIL_DISTANCE, loaded.detailDistance());
         assertEquals(Settings.DEFAULT_FOG, loaded.fog());
+        assertEquals(Settings.DEFAULT_FADE, loaded.fade());
     }
 
     @Test
@@ -85,28 +90,26 @@ class SettingsFileTest {
         Settings loaded = loadJson("""
                 {
                   "far_render_cells": %d,
-                  "worker_threads": %d,
-                  "subdivision_size": %d
+                  "worker_threads": %d
                 }
-                """.formatted(Settings.MAX_FAR_RENDER_CELLS + 1, Settings.MAX_WORKER_THREADS + 1,
-                Settings.MAX_SUBDIVISION_SIZE + 1));
+                """.formatted(Settings.MAX_FAR_RENDER_CELLS + 1, Settings.MAX_WORKER_THREADS + 1));
 
         assertEquals(defaults.farRenderCells(), loaded.farRenderCells());
         assertEquals(defaults.workerThreads(), loaded.workerThreads());
-        assertEquals(defaults.subdivisionSize(), loaded.subdivisionSize());
     }
 
     @Test
     void aMissingValueFallsBackToItsDefault() throws IOException {
         Settings defaults = Settings.defaults();
-        Settings loaded = loadJson("{\"subdivision_size\": 16}");
+        Settings loaded = loadJson("{\"detail_distance\": \"ultra\"}");
 
-        assertEquals(16, loaded.subdivisionSize());
+        assertEquals(DetailDistance.ULTRA, loaded.detailDistance());
         assertEquals(defaults.ingestion(), loaded.ingestion());
         assertEquals(defaults.lowestStoredLevel(), loaded.lowestStoredLevel());
         assertEquals(defaults.farRenderCells(), loaded.farRenderCells());
         assertEquals(defaults.workerThreads(), loaded.workerThreads());
         assertEquals(defaults.fog(), loaded.fog());
+        assertEquals(defaults.fade(), loaded.fade());
     }
 
     @Test
@@ -115,12 +118,14 @@ class SettingsFileTest {
                 {
                   "enabled": true,
                   "ingestion": false,
-                  "subdivision_size": 16
+                  "subdivision_size": 16,
+                  "fog_mode": "fade"
                 }
                 """);
 
         assertFalse(loaded.ingestion());
-        assertEquals(16, loaded.subdivisionSize());
+        assertEquals(Settings.DEFAULT_DETAIL_DISTANCE, loaded.detailDistance());
+        assertEquals(Settings.DEFAULT_FOG, loaded.fog());
     }
 
     @Test

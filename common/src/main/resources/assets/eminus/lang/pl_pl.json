@@ -13,8 +13,15 @@
   "gui.eminus.settings.far_render_cells.hint": "Jak daleko sięga daleka warstwa. Praca rośnie z kwadratem tej odległości: więcej siatek przechodzonych co klatkę i więcej ich w pamięci karty graficznej.",
   "gui.eminus.settings.worker_threads": "Wątki robocze",
   "gui.eminus.settings.worker_threads.hint": "Wątki w tle budujące daleki teren. Więcej nadrabia szybciej i mocniej konkuruje z własnymi budowniczymi chunków gry; mniej — odwrotnie.",
-  "gui.eminus.settings.subdivision_size": "Rozmiar podziału",
-  "gui.eminus.settings.subdivision_size.hint": "Jak duży może wyglądać na ekranie kawałek dalekiego terenu, zanim zastąpią go drobniejsze. Mierzone w pikselach ekranu, więc przy wyższej rozdzielczości ta sama liczba dzieli drobniej. Mniejsza wartość przybliża szczegóły i kosztuje więcej.",
+  "gui.eminus.settings.detail_distance": "Zasięg szczegółów",
+  "gui.eminus.settings.detail_distance.hint": "Jak daleko sięgają drobne szczegóły dalekiego terenu. Każdy stopień w górę podwaja tę odległość i kosztuje więcej pamięci wideo. Przy wyższej rozdzielczości ekranu ten sam stopień sięga dalej.",
+  "gui.eminus.settings.detail_distance.ultra": "Ultra",
+  "gui.eminus.settings.detail_distance.high": "Wysoki",
+  "gui.eminus.settings.detail_distance.medium": "Średni",
+  "gui.eminus.settings.detail_distance.low": "Niski",
+  "gui.eminus.settings.detail_distance.minimal": "Minimalny",
   "gui.eminus.settings.fog": "Mgła",
-  "gui.eminus.settings.fog.hint": "Mgła nad dalekim terenem, przejmująca mgłę samej gry i pełna na dalekim zasięgu. Wyłączona usuwa też mgłę pod gołym niebem z wczytanych chunków, więc cały widok pozostaje wyraźny. Mgła w Netherze, od bossa, pod wodą lub od ślepoty zostaje."
+  "gui.eminus.settings.fog.hint": "Mgła nad dalekim terenem, przejmująca mgłę samej gry i pełna na dalekim zasięgu. Wyłączona usuwa też mgłę pod gołym niebem z wczytanych chunków, więc cały widok pozostaje wyraźny. Mgła w Netherze, od bossa, pod wodą lub od ślepoty zostaje.",
+  "gui.eminus.settings.fade": "Zanikanie",
+  "gui.eminus.settings.fade.hint": "Wygasza daleki teren na jego ostatnich 512 blokach zamiast kończyć go ostrą krawędzią."
 }

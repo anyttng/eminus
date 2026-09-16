@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 class CompositeFogTest {
     private static final boolean FOG = true;
     private static final boolean NO_FOG = false;
+    private static final boolean FADE = true;
+    private static final boolean NO_FADE = false;
     private static final float OVERWORLD_FOG_START = 0.0F;
     private static final float OVERWORLD_FOG_END = 1024.0F;
     private static final float NETHER_FOG_START = 10.0F;
@@ -21,7 +23,8 @@ class CompositeFogTest {
 
     @Test
     void fogReachesFullAtTheFarRenderDistanceAndTheGameValueAtTheNearEdge() {
-        CompositeFog fog = CompositeFog.of(FOG, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS, FAR_CELLS);
+        CompositeFog fog = CompositeFog.of(FOG, FADE, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS,
+                FAR_CELLS);
 
         assertEquals(FAR_BLOCKS, fog.fogEnd());
         assertEquals(NEAR_12_CHUNKS / OVERWORLD_FOG_END, valueAt(fog, NEAR_12_CHUNKS), TOLERANCE);
@@ -30,7 +33,7 @@ class CompositeFogTest {
 
     @Test
     void aGameFogStartAboveZeroKeepsItsValueAtTheNearEdge() {
-        CompositeFog fog = CompositeFog.of(FOG, NETHER_FOG_START, NETHER_FOG_END, NEAR_2_CHUNKS, FAR_CELLS);
+        CompositeFog fog = CompositeFog.of(FOG, FADE, NETHER_FOG_START, NETHER_FOG_END, NEAR_2_CHUNKS, FAR_CELLS);
 
         float atNear = (NEAR_2_CHUNKS - NETHER_FOG_START) / (NETHER_FOG_END - NETHER_FOG_START);
         assertEquals(atNear, valueAt(fog, NEAR_2_CHUNKS), TOLERANCE);
@@ -40,7 +43,8 @@ class CompositeFogTest {
 
     @Test
     void theOuterBandFadesWithTheFogOn() {
-        CompositeFog fog = CompositeFog.of(FOG, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS, FAR_CELLS);
+        CompositeFog fog = CompositeFog.of(FOG, FADE, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS,
+                FAR_CELLS);
 
         assertEquals(FAR_BLOCKS - CompositeFog.FADE_BAND_BLOCKS, fog.fadeStart());
         assertEquals(FAR_BLOCKS, fog.fadeEnd());
@@ -48,7 +52,8 @@ class CompositeFogTest {
 
     @Test
     void theFogOffLeavesTheFogOutAndTheOuterBandFading() {
-        CompositeFog fog = CompositeFog.of(NO_FOG, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS, FAR_CELLS);
+        CompositeFog fog = CompositeFog.of(NO_FOG, FADE, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS,
+                FAR_CELLS);
 
         assertEquals(CompositeFog.NONE, fog.fogStart());
         assertEquals(CompositeFog.NONE, fog.fogEnd());
@@ -57,22 +62,48 @@ class CompositeFogTest {
     }
 
     @Test
+    void theFadeOffLeavesTheOuterBandOutAndTheFogOn() {
+        CompositeFog fog = CompositeFog.of(FOG, NO_FADE, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS,
+                FAR_CELLS);
+
+        assertEquals(CompositeFog.NONE, fog.fadeStart());
+        assertEquals(CompositeFog.NONE, fog.fadeEnd());
+        assertEquals(FAR_BLOCKS, fog.fogEnd());
+    }
+
+    @Test
+    void bothOffLeaveEverythingOutAndStillSkipUnderANearFogEnd() {
+        CompositeFog open = CompositeFog.of(NO_FOG, NO_FADE, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS,
+                FAR_CELLS);
+        CompositeFog nether = CompositeFog.of(NO_FOG, NO_FADE, NETHER_FOG_START, NETHER_FOG_END, NEAR_12_CHUNKS,
+                FAR_CELLS);
+
+        assertEquals(CompositeFog.NONE, open.fogStart());
+        assertEquals(CompositeFog.NONE, open.fogEnd());
+        assertEquals(CompositeFog.NONE, open.fadeStart());
+        assertEquals(CompositeFog.NONE, open.fadeEnd());
+        assertFalse(open.skip());
+        assertTrue(nether.skip());
+    }
+
+    @Test
     void aFogEndAtOrNearerThanTheRenderDistanceSkipsWhateverTheFogSetting() {
-        assertTrue(CompositeFog.of(FOG, NETHER_FOG_START, NETHER_FOG_END, NEAR_12_CHUNKS, FAR_CELLS).skip());
-        assertTrue(CompositeFog.of(FOG, NETHER_FOG_START, NEAR_12_CHUNKS, NEAR_12_CHUNKS, FAR_CELLS).skip());
-        assertTrue(CompositeFog.of(NO_FOG, NETHER_FOG_START, NETHER_FOG_END, NEAR_12_CHUNKS, FAR_CELLS).skip());
+        assertTrue(CompositeFog.of(FOG, FADE, NETHER_FOG_START, NETHER_FOG_END, NEAR_12_CHUNKS, FAR_CELLS).skip());
+        assertTrue(CompositeFog.of(FOG, FADE, NETHER_FOG_START, NEAR_12_CHUNKS, NEAR_12_CHUNKS, FAR_CELLS).skip());
+        assertTrue(CompositeFog.of(NO_FOG, FADE, NETHER_FOG_START, NETHER_FOG_END, NEAR_12_CHUNKS, FAR_CELLS).skip());
     }
 
     @Test
     void aFogEndBeyondTheRenderDistanceDoesNotSkip() {
-        assertFalse(CompositeFog.of(FOG, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS, FAR_CELLS).skip());
-        assertFalse(CompositeFog.of(NO_FOG, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS, FAR_CELLS)
+        assertFalse(CompositeFog.of(FOG, FADE, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS, FAR_CELLS)
+                .skip());
+        assertFalse(CompositeFog.of(NO_FOG, FADE, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS, FAR_CELLS)
                 .skip());
     }
 
     @Test
     void aFarDistanceInsideTheNearFieldKeepsTheGameFog() {
-        CompositeFog fog = CompositeFog.of(FOG, OVERWORLD_FOG_START, OVERWORLD_FOG_END, 1024.0F, 1);
+        CompositeFog fog = CompositeFog.of(FOG, FADE, OVERWORLD_FOG_START, OVERWORLD_FOG_END, 1024.0F, 1);
 
         assertEquals(OVERWORLD_FOG_START, fog.fogStart());
         assertEquals(OVERWORLD_FOG_END, fog.fogEnd());
@@ -80,7 +111,7 @@ class CompositeFogTest {
 
     @Test
     void oneCellOfFarDistanceFadesFromTheCamera() {
-        CompositeFog fog = CompositeFog.of(NO_FOG, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS, 1);
+        CompositeFog fog = CompositeFog.of(NO_FOG, FADE, OVERWORLD_FOG_START, OVERWORLD_FOG_END, NEAR_12_CHUNKS, 1);
 
         assertEquals(0.0F, fog.fadeStart());
         assertEquals(CompositeFog.FADE_BAND_BLOCKS, fog.fadeEnd());

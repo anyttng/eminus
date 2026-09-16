@@ -6,6 +6,7 @@ import java.util.function.UnaryOperator;
 
 import com.eminus.Eminus;
 import com.eminus.client.settings.SettingsText;
+import com.eminus.settings.DetailDistance;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
 
@@ -20,10 +21,10 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
     private static final String LOWEST_STORED_LEVEL_ID = "lowest_stored_level";
     private static final String FAR_RENDER_CELLS_ID = "far_render_cells";
     private static final String WORKER_THREADS_ID = "worker_threads";
-    private static final String SUBDIVISION_SIZE_ID = "subdivision_size";
+    private static final String DETAIL_DISTANCE_ID = "detail_distance";
     private static final String FOG_ID = "fog";
+    private static final String FADE_ID = "fade";
 
-    private static final String PIXEL_UNIT = "px";
     private static final int STEP = 1;
 
     private final List<UnaryOperator<Settings>> edits = new ArrayList<>();
@@ -67,22 +68,28 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setDefaultValue(defaults.workerThreads())
                         .setBinding(value -> edit(settings -> settings.withWorkerThreads(value)),
                                 () -> current().workerThreads()))
-                .addOption(builder.createIntegerOption(id(SUBDIVISION_SIZE_ID))
-                        .setName(Component.translatable(SettingsText.SUBDIVISION_SIZE_KEY))
-                        .setTooltip(SettingsText.hint(SettingsText.SUBDIVISION_SIZE_KEY))
+                .addOption(builder.createEnumOption(id(DETAIL_DISTANCE_ID), DetailDistance.class)
+                        .setName(Component.translatable(SettingsText.DETAIL_DISTANCE_KEY))
+                        .setTooltip(SettingsText.hint(SettingsText.DETAIL_DISTANCE_KEY))
                         .setStorageHandler(this::save)
-                        .setRange(Settings.MIN_SUBDIVISION_SIZE, Settings.MAX_SUBDIVISION_SIZE, STEP)
-                        .setValueFormatter(value -> Component.literal(value + PIXEL_UNIT))
-                        .setDefaultValue(defaults.subdivisionSize())
-                        .setBinding(value -> edit(settings -> settings.withSubdivisionSize(value)),
-                                () -> current().subdivisionSize()))
+                        .setElementNameProvider(SettingsText::detailDistance)
+                        .setDefaultValue(defaults.detailDistance())
+                        .setBinding(value -> edit(settings -> settings.withDetailDistance(value)),
+                                () -> current().detailDistance()))
                 .addOption(builder.createBooleanOption(id(FOG_ID))
                         .setName(Component.translatable(SettingsText.FOG_KEY))
                         .setTooltip(SettingsText.hint(SettingsText.FOG_KEY))
                         .setStorageHandler(this::save)
                         .setDefaultValue(defaults.fog())
                         .setBinding(value -> edit(settings -> settings.withFog(value)),
-                                () -> current().fog()));
+                                () -> current().fog()))
+                .addOption(builder.createBooleanOption(id(FADE_ID))
+                        .setName(Component.translatable(SettingsText.FADE_KEY))
+                        .setTooltip(SettingsText.hint(SettingsText.FADE_KEY))
+                        .setStorageHandler(this::save)
+                        .setDefaultValue(defaults.fade())
+                        .setBinding(value -> edit(settings -> settings.withFade(value)),
+                                () -> current().fade()));
 
         builder.registerOwnModOptions()
                 .addPage(builder.createOptionPage()

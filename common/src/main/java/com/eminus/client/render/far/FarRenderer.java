@@ -106,7 +106,7 @@ public final class FarRenderer implements AutoCloseable {
 
         RenderTarget main = client.gameRenderer.mainRenderTarget();
         long bytes = ArenaSizing.fitted(
-                ArenaSizing.wanted(settings.farRenderCells(), settings.subdivisionSize(),
+                ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
                         FarProjection.focalPixels(client.options.fov().get(), main.height),
                         runtime.lowestStoredLevel()),
                 RenderSystem.getDevice().getDeviceInfo().limits().maxMemoryAllocationSize());
@@ -137,7 +137,7 @@ public final class FarRenderer implements AutoCloseable {
 
     public static boolean recreates(Settings built, Settings updated) {
         return built.farRenderCells() != updated.farRenderCells()
-                || built.subdivisionSize() != updated.subdivisionSize();
+                || built.detailDistance() != updated.detailDistance();
     }
 
     public void captureLevelProjection(Matrix4fc levelProjection, Matrix4fc cameraProjection) {
@@ -184,12 +184,12 @@ public final class FarRenderer implements AutoCloseable {
         Settings settings = SettingsService.get().settings();
         float focalPixels = FarProjection.focalPixels(client.options.fov().get(), main.height);
         tree.frame(new CameraFrame(eye.x, eye.y, eye.z, new Matrix4f(farViewProjection), focalPixels,
-                settings.farRenderCells(), settings.subdivisionSize(), arena.pressure()));
+                settings.farRenderCells(), settings.detailDistance().pixels(), arena.pressure()));
 
         FogData gameFog = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData;
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
-        CompositeFog fog = CompositeFog.of(settings.fog(), gameFog.environmentalStart, gameFog.environmentalEnd,
-                nearBlocks, settings.farRenderCells());
+        CompositeFog fog = CompositeFog.of(settings.fog(), settings.fade(), gameFog.environmentalStart,
+                gameFog.environmentalEnd, nearBlocks, settings.farRenderCells());
         if (fog.skip()) {
             return;
         }

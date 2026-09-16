@@ -13,8 +13,15 @@
   "gui.eminus.settings.far_render_cells.hint": "Wie weit die Fernschicht reicht. Der Aufwand wächst mit dem Quadrat dieser Entfernung: mehr Meshes pro Bild und mehr davon im Videospeicher.",
   "gui.eminus.settings.worker_threads": "Arbeitsthreads",
   "gui.eminus.settings.worker_threads.hint": "Hintergrundthreads, die das ferne Gelände bauen. Mehr holt schneller auf und konkurriert stärker mit den Chunk-Buildern des Spiels; weniger umgekehrt.",
-  "gui.eminus.settings.subdivision_size": "Unterteilungsgröße",
-  "gui.eminus.settings.subdivision_size.hint": "Wie groß ein Stück fernes Gelände auf dem Bildschirm sein darf, bevor feinere Stücke es ersetzen. In Bildschirmpixeln gemessen, daher unterteilt eine höhere Auflösung beim gleichen Wert feiner. Kleiner holt Details näher heran und kostet mehr.",
+  "gui.eminus.settings.detail_distance": "Detailreichweite",
+  "gui.eminus.settings.detail_distance.hint": "Wie weit die feineren Details des fernen Geländes reichen. Jede Stufe höher verdoppelt diese Entfernung und kostet mehr Grafikspeicher. Bei höherer Bildschirmauflösung reicht dieselbe Stufe weiter.",
+  "gui.eminus.settings.detail_distance.ultra": "Ultra",
+  "gui.eminus.settings.detail_distance.high": "Hoch",
+  "gui.eminus.settings.detail_distance.medium": "Mittel",
+  "gui.eminus.settings.detail_distance.low": "Niedrig",
+  "gui.eminus.settings.detail_distance.minimal": "Minimal",
   "gui.eminus.settings.fog": "Nebel",
-  "gui.eminus.settings.fog.hint": "Nebel über dem fernen Gelände, fortgesetzt aus dem Nebel des Spiels und voll bei der Fernsichtweite. Aus entfernt auch den Nebel unter freiem Himmel aus den geladenen Chunks, sodass die ganze Sicht klar bleibt. Nebel im Nether, von einem Boss, unter Wasser oder durch Blindheit bleibt."
+  "gui.eminus.settings.fog.hint": "Nebel über dem fernen Gelände, fortgesetzt aus dem Nebel des Spiels und voll bei der Fernsichtweite. Aus entfernt auch den Nebel unter freiem Himmel aus den geladenen Chunks, sodass die ganze Sicht klar bleibt. Nebel im Nether, von einem Boss, unter Wasser oder durch Blindheit bleibt.",
+  "gui.eminus.settings.fade": "Ausblenden",
+  "gui.eminus.settings.fade.hint": "Das ferne Gelände auf seinen letzten 512 Blöcken ausblenden, statt es mit einer harten Kante enden zu lassen."
 }

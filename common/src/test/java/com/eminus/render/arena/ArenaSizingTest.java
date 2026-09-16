@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.eminus.cell.DetailLevel;
+import com.eminus.settings.DetailDistance;
 import com.eminus.settings.Settings;
 
 import org.junit.jupiter.api.Test;
@@ -13,13 +14,13 @@ class ArenaSizingTest {
     private static final long CRAMPED_DEVICE = 64L * 1024 * 1024;
     private static final float FOCAL_PIXELS = 978.0F;
     private static final int FAR_CELLS = Settings.DEFAULT_FAR_RENDER_CELLS;
-    private static final int SUBDIVISION = Settings.DEFAULT_SUBDIVISION_SIZE;
+    private static final int SUBDIVISION = Settings.DEFAULT_DETAIL_DISTANCE.pixels();
     private static final int LOWEST_LEVEL = Settings.DEFAULT_LOWEST_STORED_LEVEL;
 
     @Test
     void aBudgetBelowTheFloorIsLiftedToIt() {
         assertEquals(ArenaSizing.MIN_BYTES, ArenaSizing.wanted(Settings.MIN_FAR_RENDER_CELLS,
-                Settings.MAX_SUBDIVISION_SIZE, FOCAL_PIXELS, DetailLevel.MAX));
+                DetailDistance.MINIMAL.pixels(), FOCAL_PIXELS, DetailLevel.MAX));
     }
 
     @Test

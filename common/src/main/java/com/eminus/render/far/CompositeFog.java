@@ -6,15 +6,15 @@ public record CompositeFog(float fogStart, float fogEnd, float fadeStart, float 
     public static final float NONE = Float.MAX_VALUE;
     public static final float FADE_BAND_BLOCKS = FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
 
-    public static CompositeFog of(boolean fog, float environmentalStart, float environmentalEnd, float nearBlocks,
-            int farCells) {
+    public static CompositeFog of(boolean fog, boolean fade, float environmentalStart, float environmentalEnd,
+            float nearBlocks, int farCells) {
         float farBlocks = (float) farCells * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
 
         return new CompositeFog(
                 fog ? stretchedStart(environmentalStart, environmentalEnd, nearBlocks, farBlocks) : NONE,
                 fog ? stretchedEnd(environmentalEnd, nearBlocks, farBlocks) : NONE,
-                farBlocks - FADE_BAND_BLOCKS,
-                farBlocks,
+                fade ? farBlocks - FADE_BAND_BLOCKS : NONE,
+                fade ? farBlocks : NONE,
                 skipped(environmentalEnd, nearBlocks));
     }
 

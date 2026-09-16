@@ -13,8 +13,15 @@
   "gui.eminus.settings.far_render_cells.hint": "원거리 층이 닿는 거리. 작업량은 이 거리의 제곱으로 늘어나, 프레임마다 훑는 메시도 비디오 메모리에 올라가는 메시도 많아집니다.",
   "gui.eminus.settings.worker_threads": "작업 스레드",
   "gui.eminus.settings.worker_threads.hint": "원거리 지형을 만드는 백그라운드 스레드. 많을수록 빨리 따라잡고 게임 자체의 청크 빌더와 더 많이 경쟁하며, 적을수록 그 반대입니다.",
-  "gui.eminus.settings.subdivision_size": "분할 크기",
-  "gui.eminus.settings.subdivision_size.hint": "원거리 지형 조각이 더 세밀한 조각으로 교체되기 전까지 화면에서 차지할 수 있는 크기. 화면 픽셀로 재므로 해상도가 높을수록 같은 값에서 더 세밀하게 나뉜니다. 작을수록 세부가 가까이 오고 비용도 커집니다.",
+  "gui.eminus.settings.detail_distance": "세부 거리",
+  "gui.eminus.settings.detail_distance.hint": "원거리 지형의 세밀한 디테일이 어디까지 닿는지. 한 단계 올릴 때마다 그 거리가 두 배가 되고 비디오 메모리를 더 씁니다. 화면 해상도가 높을수록 같은 단계에서도 더 멀리 닿습니다.",
+  "gui.eminus.settings.detail_distance.ultra": "울트라",
+  "gui.eminus.settings.detail_distance.high": "높음",
+  "gui.eminus.settings.detail_distance.medium": "중간",
+  "gui.eminus.settings.detail_distance.low": "낮음",
+  "gui.eminus.settings.detail_distance.minimal": "최소",
   "gui.eminus.settings.fog": "안개",
-  "gui.eminus.settings.fog.hint": "원거리 지형에 드리우는 안개. 게임 자체의 안개를 이어받아 원거리 렌더 거리에서 가장 짙어집니다. 끄면 불러온 청크의 야외 안개도 사라져 시야 전체가 선명해집니다. 네더, 보스, 물속, 실명으로 생기는 안개는 남습니다."
+  "gui.eminus.settings.fog.hint": "원거리 지형에 드리우는 안개. 게임 자체의 안개를 이어받아 원거리 렌더 거리에서 가장 짙어집니다. 끄면 불러온 청크의 야외 안개도 사라져 시야 전체가 선명해집니다. 네더, 보스, 물속, 실명으로 생기는 안개는 남습니다.",
+  "gui.eminus.settings.fade": "페이드",
+  "gui.eminus.settings.fade.hint": "원거리 지형을 뚜렷한 경계로 끝내지 않고 마지막 512블록에 걸쳐 흐려지게 합니다."
 }
