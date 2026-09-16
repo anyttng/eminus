@@ -2,7 +2,8 @@ package com.eminus.cell;
 
 public final class VoxelEntry {
     public static final int AIR_STATE_ID = 0;
-    public static final int MAX_BIOME_ID = 0xFFFF;
+    public static final int UNKNOWN_BIOME = 0xFFFF;
+    public static final int MAX_BIOME_ID = UNKNOWN_BIOME - 1;
     public static final int MAX_LIGHT = 15;
 
     private static final int BIOME_SHIFT = 32;
@@ -13,7 +14,7 @@ public final class VoxelEntry {
     private static final long LIGHT_MASK = 0xFFL;
     private static final int NIBBLE_MASK = 0xF;
 
-    public static final long AIR = pack(AIR_STATE_ID, 0, light(MAX_LIGHT, 0));
+    public static final long AIR = pack(AIR_STATE_ID, UNKNOWN_BIOME, light(MAX_LIGHT, 0));
 
     public static long pack(int stateId, int biomeId, int light) {
         return (stateId & STATE_MASK)
@@ -31,6 +32,10 @@ public final class VoxelEntry {
 
     public static int biome(long entry) {
         return (int) ((entry >>> BIOME_SHIFT) & BIOME_MASK);
+    }
+
+    public static boolean hasBiome(long entry) {
+        return biome(entry) != UNKNOWN_BIOME;
     }
 
     public static int light(long entry) {

@@ -22,6 +22,7 @@ class DrawCommandsTest {
     private static final int CAPACITY = 4;
     private static final int LEVEL = 0;
     private static final int BLOCK = 3;
+    private static final int NO_COLOURS = 0;
     private static final int FAR_BLOCK = 9;
     private static final int UP_QUADS = 5;
     private static final int DOWN_QUADS = 7;
@@ -149,7 +150,8 @@ class DrawCommandsTest {
             groupCount[group] = UP_QUADS;
         }
 
-        write(slots(new MeshSlot(key, BLOCK, QuadGroups.DIRECTIONAL_COUNT * UP_QUADS, groupStart, groupCount)), INSIDE);
+        write(slots(new MeshSlot(key, BLOCK, QuadGroups.DIRECTIONAL_COUNT * UP_QUADS, NO_COLOURS, groupStart,
+                groupCount)), INSIDE);
 
         assertEquals(CAPACITY, commands.opaqueCount());
         assertEquals(QuadGroups.DIRECTIONAL_COUNT - CAPACITY, commands.dropped());
@@ -173,7 +175,7 @@ class DrawCommandsTest {
         groupCount[Direction.DOWN.ordinal()] = DOWN_QUADS;
         groupStart[Direction.UP.ordinal()] = DOWN_QUADS;
         groupCount[Direction.UP.ordinal()] = UP_QUADS;
-        return new MeshSlot(key, block, DOWN_QUADS + UP_QUADS, groupStart, groupCount);
+        return new MeshSlot(key, block, DOWN_QUADS + UP_QUADS, NO_COLOURS, groupStart, groupCount);
     }
 
     private static MeshSlot water(long key, int block) {
@@ -181,7 +183,7 @@ class DrawCommandsTest {
         int[] groupCount = new int[QuadGroups.COUNT];
         groupStart[QuadGroups.TRANSLUCENT] = WATER_START;
         groupCount[QuadGroups.TRANSLUCENT] = WATER_QUADS;
-        return new MeshSlot(key, block, WATER_START + WATER_QUADS, groupStart, groupCount);
+        return new MeshSlot(key, block, WATER_START + WATER_QUADS, NO_COLOURS, groupStart, groupCount);
     }
 
     private static MeshSlot both(long key, int block) {
@@ -190,7 +192,7 @@ class DrawCommandsTest {
         int[] groupCount = opaque.groupCount().clone();
         groupStart[QuadGroups.TRANSLUCENT] = WATER_START;
         groupCount[QuadGroups.TRANSLUCENT] = WATER_QUADS;
-        return new MeshSlot(key, block, WATER_START + WATER_QUADS, groupStart, groupCount);
+        return new MeshSlot(key, block, WATER_START + WATER_QUADS, NO_COLOURS, groupStart, groupCount);
     }
 
     private static CellMesh mesh(long key) {

@@ -1,9 +1,7 @@
 package com.eminus.client.render.far;
 
 import com.eminus.Eminus;
-import com.eminus.cell.Dictionary;
 import com.eminus.model.BakedModel;
-import com.eminus.model.BiomeColours;
 import com.eminus.model.ModelBakery;
 import com.eminus.client.model.ModelAtlas;
 import com.eminus.client.model.ModelRecords;
@@ -17,30 +15,22 @@ public final class ModelPublisher implements AutoCloseable {
     private static final int GROWTH = 2;
 
     private final ModelBakery bakery;
-    private final BiomeColours colours;
-    private final Dictionary<String> biomes;
     private final ModelAtlas atlas;
-    private final TintTable tints;
 
     private ModelRecords records;
     private int recordCapacity = START_RECORDS;
     private int published;
     private boolean atlasFull;
 
-    private ModelPublisher(ModelBakery bakery, BiomeColours colours, Dictionary<String> biomes,
-            ModelAtlas atlas, TintTable tints, ModelRecords records) {
+    private ModelPublisher(ModelBakery bakery, ModelAtlas atlas, ModelRecords records) {
         this.bakery = bakery;
-        this.colours = colours;
-        this.biomes = biomes;
         this.atlas = atlas;
-        this.tints = tints;
         this.records = records;
     }
 
-    public static ModelPublisher start(ModelBakery bakery, BiomeColours colours, Dictionary<String> biomes) {
+    public static ModelPublisher start(ModelBakery bakery) {
         RenderSystem.assertOnRenderThread();
-        return new ModelPublisher(bakery, colours, biomes, ModelAtlas.create(START_CELLS), TintTable.create(),
-                ModelRecords.create(START_RECORDS));
+        return new ModelPublisher(bakery, ModelAtlas.create(START_CELLS), ModelRecords.create(START_RECORDS));
     }
 
     public ModelAtlas atlas() {
@@ -51,18 +41,12 @@ public final class ModelPublisher implements AutoCloseable {
         return records;
     }
 
-    public TintTable tints() {
-        return tints;
-    }
-
     public int published() {
         return published;
     }
 
     public void publish() {
         RenderSystem.assertOnRenderThread();
-        tints.appendBiomes(colours, biomes);
-
         int baked = bakery.modelCount();
         if (baked > recordCapacity) {
             growRecords(baked);
@@ -71,7 +55,7 @@ public final class ModelPublisher implements AutoCloseable {
         while (published < baked && fitAtlas(published)) {
             BakedModel model = bakery.model(published);
             atlas.upload(published, model);
-            records.write(published, model, tintRow(model));
+            records.write(published, model, model.tintRow());
             published++;
         }
     }
@@ -79,7 +63,6 @@ public final class ModelPublisher implements AutoCloseable {
     @Override
     public void close() {
         records.close();
-        tints.close();
         atlas.close();
     }
 
@@ -110,16 +93,7 @@ public final class ModelPublisher implements AutoCloseable {
 
         for (int modelId = 0; modelId < published; modelId++) {
             BakedModel model = bakery.model(modelId);
-            records.write(modelId, model, tintRow(model));
+            records.write(modelId, model, model.tintRow());
         }
-    }
-
-    private int tintRow(BakedModel model) {
-        int row = model.tintRow();
-        if (row != BiomeColours.NO_ROW && !tints.holds(row)) {
-            tints.writeRow(row, colours, biomes);
-        }
-
-        return row;
     }
 }

@@ -45,6 +45,7 @@ class MeshServiceTest {
     private static final int OPENED_CELLS = QuadGroups.DIRECTIONAL_COUNT + 1;
     private static final int FIRST_VOXEL = 0;
     private static final int LAST_VOXEL = DetailLevel.VOXELS_PER_SIDE - 1;
+    private static final int NO_BLEND = 0;
 
     private static final int STONE = 1;
     private static final int STONE_MODEL = 7;
@@ -65,7 +66,7 @@ class MeshServiceTest {
 
     private final MeshService service = new MeshService(
             harness.register(MESH_SERVICE, MeshScratch::new), cache, ColumnCoverage.everything(), models,
-            level -> opacity, (mesh, request) -> delivered.set(mesh));
+            new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh));
 
     @BeforeAll
     static void bootstrapVanilla() {
@@ -161,7 +162,7 @@ class MeshServiceTest {
         WorkerPool idle = WorkerPool.start(NO_WORKERS);
         WorkService<MeshScratch> queued = idle.register(QUEUED_SERVICE, 1, WorkService.UNLIMITED, MeshScratch::new);
         MeshService waiting = new MeshService(queued, cache, ColumnCoverage.everything(), models,
-                level -> opacity, (mesh, request) -> delivered.set(mesh));
+                new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh));
 
         try {
             harness.run(() -> waiting.build(MeshTask.fresh(KEY), new MeshScratch()));

@@ -41,6 +41,7 @@ class CellMesherTest {
     private static final int GRASS = 9;
     private static final int OPAQUE_LEAVES = 19;
     private static final int CUTOUT_LEAVES = 20;
+    private static final int GRASS_BLOCK = 23;
 
     private static final int STONE_MODEL = 10;
     private static final int GLASS_MODEL = 11;
@@ -53,6 +54,13 @@ class CellMesherTest {
     private static final int GRASS_MODEL = 18;
     private static final int OPAQUE_LEAVES_MODEL = 21;
     private static final int CUTOUT_LEAVES_MODEL = 22;
+    private static final int GRASS_BLOCK_MODEL = 24;
+    private static final int GRASS_ROW = 0;
+    private static final int PLAINS = 5;
+    private static final int PLAINS_GREEN = 0x91BD59;
+    private static final int SWAMP_GREEN = 0x6A7039;
+    private static final int PLAINS_WIDTH = 8;
+    private static final int NO_BLEND = 0;
 
     private static final int BIOME = 3;
     private static final int FULL_SKY = 15;
@@ -73,6 +81,7 @@ class CellMesherTest {
 
     private final Map<Integer, Integer> opacities = new HashMap<>();
     private final FakeModels models = new FakeModels();
+    private final FakeTints tints = new FakeTints();
     private final StateOpacity opacity = stateId -> opacities.getOrDefault(stateId, 0);
 
     private int bakeRequests;
@@ -413,6 +422,31 @@ class CellMesherTest {
         }
     }
 
+    @Test
+    void aTintedFloorSplitsItsQuadsWhereTheColourChangesAndCarriesBothColours() {
+        defineBlocks();
+        tints.define(GRASS_ROW, PLAINS, PLAINS_GREEN);
+        tints.define(GRASS_ROW, BIOME, SWAMP_GREEN);
+        Cell cell = blank();
+        for (int z = 0; z < SIDE; z++) {
+            for (int x = 0; x < SIDE; x++) {
+                int biome = x < PLAINS_WIDTH ? PLAINS : BIOME;
+                cell.set(x, 0, z, VoxelEntry.pack(GRASS_BLOCK, biome, VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT)));
+            }
+        }
+
+        CellMesh mesh = mesh(cell, ground(), 0);
+
+        int up = Direction.UP.ordinal();
+        assertEquals(6, mesh.groupCount(up));
+        assertEquals(3, mesh.colours().length);
+        for (int index = mesh.groupStart(up); index < mesh.groupStart(up) + mesh.groupCount(up); index++) {
+            long quad = mesh.quad(index);
+            int expected = Quad.x(quad) < PLAINS_WIDTH ? PLAINS_GREEN : SWAMP_GREEN;
+            assertEquals(expected, mesh.colours()[Quad.colourIndex(quad)]);
+        }
+    }
+
     private void defineBlocks() {
         int solid = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0);
         int clear = ModelMetadata.pack(FaceMask.ALL, FaceMask.NONE, FaceMask.ALL, 0, 0);
@@ -432,6 +466,8 @@ class CellMesherTest {
                 FaceMask.NONE, FaceMask.NONE, FaceMask.NONE, 0, ModelMetadata.BLADED));
         models.define(OPAQUE_LEAVES, OPAQUE_LEAVES_MODEL, solid);
         models.define(CUTOUT_LEAVES, CUTOUT_LEAVES_MODEL, clear);
+        models.define(GRASS_BLOCK, GRASS_BLOCK_MODEL, solid);
+        models.tint(GRASS_BLOCK_MODEL, GRASS_ROW);
         models.defineFluid(WATERLOGGED, WATER_MODEL, translucent);
         models.defineFluid(WET_LEAVES, WATER_MODEL, translucent);
 
@@ -440,6 +476,7 @@ class CellMesherTest {
         opacities.put(WET_LEAVES, StateTable.FULL_OPACITY);
         opacities.put(OPAQUE_LEAVES, StateTable.FULL_OPACITY);
         opacities.put(CUTOUT_LEAVES, StateTable.FULL_OPACITY);
+        opacities.put(GRASS_BLOCK, StateTable.FULL_OPACITY);
     }
 
     private CellMesh mesh(Cell centre, Map<Direction, Cell> around, ColumnCoverage coverage) {
@@ -448,6 +485,7 @@ class CellMesherTest {
         scratch.voxels().load(centre);
         around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
         scratch.voxels().loadCoverage(coverage, key);
+        scratch.blend().begin(scratch.voxels(), tints, key, NO_BLEND);
 
         return new CellMesher(scratch, models).mesh(key, centre.occupancy(), opacity, () -> bakeRequests++);
     }
@@ -465,9 +503,10 @@ class CellMesherTest {
         MeshScratch scratch = new MeshScratch();
         scratch.voxels().load(centre);
         around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
+        long key = CellKey.pack(level, 0, 0, 0);
+        scratch.blend().begin(scratch.voxels(), tints, key, NO_BLEND);
 
-        return new CellMesher(scratch, models)
-                .mesh(CellKey.pack(level, 0, 0, 0), centre.occupancy(), opacity, () -> bakeRequests++);
+        return new CellMesher(scratch, models).mesh(key, centre.occupancy(), opacity, () -> bakeRequests++);
     }
 
     private static Cell blank() {

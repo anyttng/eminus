@@ -5,7 +5,7 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.mesh.CellMesh;
 
-public record MeshSlot(long key, int block, int quads, int[] groupStart, int[] groupCount) {
+public record MeshSlot(long key, int block, int quads, int colours, int[] groupStart, int[] groupCount) {
     public static final int MIN_X = 0;
     public static final int MIN_Y = 1;
     public static final int MIN_Z = 2;
@@ -15,7 +15,12 @@ public record MeshSlot(long key, int block, int quads, int[] groupStart, int[] g
     public static final int BOUNDS = 6;
 
     public static MeshSlot of(CellMesh mesh, int block) {
-        return new MeshSlot(mesh.key(), block, mesh.quadCount(), mesh.groupStart(), mesh.groupCount());
+        return new MeshSlot(mesh.key(), block, mesh.quadCount(), mesh.colours().length, mesh.groupStart(),
+                mesh.groupCount());
+    }
+
+    public int slots() {
+        return quads + colours;
     }
 
     public int baseQuad() {

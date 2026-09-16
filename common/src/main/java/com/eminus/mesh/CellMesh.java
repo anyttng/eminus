@@ -2,17 +2,22 @@ package com.eminus.mesh;
 
 import com.eminus.cell.OccupancyMask;
 
-public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount) {
+public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, int[] colours) {
     public static CellMesh empty(long key) {
         return empty(key, OccupancyMask.EMPTY);
     }
 
     public static CellMesh empty(long key, int occupancy) {
-        return new CellMesh(key, occupancy, new long[0], new int[QuadGroups.COUNT], new int[QuadGroups.COUNT]);
+        return new CellMesh(key, occupancy, new long[0], new int[QuadGroups.COUNT], new int[QuadGroups.COUNT],
+                new int[0]);
     }
 
     public int quadCount() {
         return quads.length;
+    }
+
+    public int slotCount() {
+        return quads.length + colours.length;
     }
 
     public boolean isEmpty() {

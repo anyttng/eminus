@@ -5,6 +5,7 @@ import java.util.Arrays;
 import com.eminus.cell.Cell;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.DetailLevel;
+import com.eminus.cell.VoxelEntry;
 
 import net.minecraft.core.Direction;
 
@@ -13,6 +14,8 @@ public final class CellVoxels {
     private static final int LAST = SIDE - 1;
     private static final int LAYER_SIZE = SIDE * SIDE;
     private static final int SIDES = Direction.values().length;
+    private static final int BIOME_MARGIN = TintBlend.MAX_RADIUS;
+    private static final int BIOME_WINDOW = SIDE + 2 * BIOME_MARGIN;
 
     private static final int DOWN = Direction.DOWN.ordinal();
     private static final int UP = Direction.UP.ordinal();
@@ -24,6 +27,7 @@ public final class CellVoxels {
     private final long[] voxels = new long[DetailLevel.VOXELS_PER_CELL];
     private final long[][] layers = new long[SIDES][LAYER_SIZE];
     private final boolean[] covered = new boolean[ColumnCoverage.GRID_SIDE * ColumnCoverage.GRID_SIDE];
+    private final int[] biomes = new int[BIOME_WINDOW * BIOME_WINDOW * SIDE];
 
     public CellVoxels() {
         Arrays.fill(covered, true);
@@ -31,6 +35,36 @@ public final class CellVoxels {
 
     public void load(Cell cell) {
         cell.expand(voxels);
+        Arrays.fill(biomes, VoxelEntry.UNKNOWN_BIOME);
+
+        for (int y = 0; y < SIDE; y++) {
+            for (int z = 0; z < SIDE; z++) {
+                for (int x = 0; x < SIDE; x++) {
+                    biomes[biomeIndex(x, y, z)] = VoxelEntry.biome(voxels[DetailLevel.voxelIndex(x, y, z)]);
+                }
+            }
+        }
+    }
+
+    public void loadBiomes(Cell neighbour, int cellX, int cellZ, int radius) {
+        int offsetX = cellX * SIDE;
+        int offsetZ = cellZ * SIDE;
+        int fromX = Math.max(-radius, offsetX);
+        int toX = Math.min(SIDE + radius, offsetX + SIDE);
+        int fromZ = Math.max(-radius, offsetZ);
+        int toZ = Math.min(SIDE + radius, offsetZ + SIDE);
+
+        for (int y = 0; y < SIDE; y++) {
+            for (int z = fromZ; z < toZ; z++) {
+                for (int x = fromX; x < toX; x++) {
+                    biomes[biomeIndex(x, y, z)] = VoxelEntry.biome(neighbour.get(x - offsetX, y, z - offsetZ));
+                }
+            }
+        }
+    }
+
+    public int biome(int x, int y, int z) {
+        return biomes[biomeIndex(x, y, z)];
     }
 
     public void loadCoverage(ColumnCoverage coverage, long key) {
@@ -101,5 +135,9 @@ public final class CellVoxels {
         }
 
         return voxels[DetailLevel.voxelIndex(x, y, z)];
+    }
+
+    private static int biomeIndex(int x, int y, int z) {
+        return (y * BIOME_WINDOW + z + BIOME_MARGIN) * BIOME_WINDOW + x + BIOME_MARGIN;
     }
 }

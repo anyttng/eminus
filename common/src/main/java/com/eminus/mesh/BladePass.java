@@ -51,7 +51,7 @@ public final class BladePass {
             return;
         }
 
-        long data = Quad.data(QuadLight.of(entry, metadata), modelId, VoxelEntry.biome(entry));
+        long data = Quad.data(QuadLight.of(entry, metadata), modelId, QuadTint.of(scratch, models, modelId, x, y, z));
         int group = QuadGroups.ofBlade(metadata);
 
         for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {

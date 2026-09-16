@@ -16,7 +16,6 @@ layout(std140) uniform FarFrame {
 uniform usamplerBuffer Quads;
 uniform usamplerBuffer MeshRecords;
 uniform samplerBuffer ModelRecords;
-uniform usamplerBuffer TintColours;
 uniform sampler2D Lightmap;
 
 #include <eminus:far_vertex.glsl>
