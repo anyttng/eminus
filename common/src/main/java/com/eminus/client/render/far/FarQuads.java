@@ -26,12 +26,6 @@ import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.resources.Identifier;
 
 final class FarQuads {
-    // The near field bakes these into its vertex colour through BlockModelLighter.AdjacencyInfo.
-    static final float SHADE_DOWN = 0.5F;
-    static final float SHADE_UP = 1.0F;
-    static final float SHADE_NORTH_SOUTH = 0.8F;
-    static final float SHADE_WEST_EAST = 0.6F;
-
     static final float SHADE_BLADE = 1.0F;
 
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/far_quads");
@@ -63,10 +57,6 @@ final class FarQuads {
                 .withShaderDefine("FIRST_BLADE_FACE", Quad.FIRST_BLADE_FACE)
                 .withShaderDefine("FACE_SIDE", BakedModel.FACE_SIDE)
                 .withShaderDefine("ALPHA_CUTOUT", alphaCutout)
-                .withShaderDefine("SHADE_DOWN", SHADE_DOWN)
-                .withShaderDefine("SHADE_UP", SHADE_UP)
-                .withShaderDefine("SHADE_NORTH_SOUTH", SHADE_NORTH_SOUTH)
-                .withShaderDefine("SHADE_WEST_EAST", SHADE_WEST_EAST)
                 .withShaderDefine("SHADE_BLADE", SHADE_BLADE)
                 .withShaderDefine("NEAR_SECTION_BLOCKS", NearSections.SECTION_BLOCKS)
                 .withShaderDefine("NEAR_TEXEL_BITS", NearSections.BITS_PER_TEXEL)

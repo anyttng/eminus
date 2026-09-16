@@ -10,6 +10,12 @@ layout(std140) uniform FarFrame {
     int NearSide;
     int NearHeight;
     ivec3 NearOrigin;
+    float ShadeDown;
+    float ShadeUp;
+    float ShadeNorth;
+    float ShadeSouth;
+    float ShadeWest;
+    float ShadeEast;
 };
 
 uniform sampler2D Atlas;

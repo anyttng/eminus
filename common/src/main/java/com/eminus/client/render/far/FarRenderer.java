@@ -11,6 +11,7 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.handoff.NearPlane;
+import com.eminus.handoff.NearReach;
 import com.eminus.ingest.IngestService;
 import com.eminus.handoff.NearSections;
 import com.eminus.client.handoff.NearMaskPass;
@@ -208,8 +209,11 @@ public final class FarRenderer implements AutoCloseable {
 
         FogData gameFog = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData;
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
+        ClientLevel level = client.level;
+        float reachBlocks = NearReach.blocks(renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, eye.y,
+                level.getMinY(), level.getMinY() + level.getHeight());
         CompositeFog fog = CompositeFog.of(settings.fog(), settings.fade(), gameFog.environmentalStart,
-                gameFog.environmentalEnd, nearBlocks, settings.farRenderCells());
+                gameFog.environmentalEnd, nearBlocks, reachBlocks, settings.farRenderCells());
         if (fog.skip()) {
             return;
         }
@@ -224,7 +228,7 @@ public final class FarRenderer implements AutoCloseable {
             }
 
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
-                    nearSections.sections());
+                    nearSections.sections(), level.cardinalLighting());
             mask.draw(target.maskView(), target.colourView(), target.width(), target.height(),
                     main.getDepthTextureView());
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(),
