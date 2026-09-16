@@ -37,4 +37,16 @@ class SettingsTest {
     void workerThreadsNeverRiseAboveTheMaximum() {
         assertEquals(Settings.MAX_WORKER_THREADS, Settings.defaultWorkerThreads(1024));
     }
+
+    @Test
+    void eachWitherChangesItsOwnFieldAlone() {
+        Settings base = new Settings(true, 1, 16, 4, 64, FogMode.FOG_AND_FADE);
+
+        assertEquals(new Settings(false, 1, 16, 4, 64, FogMode.FOG_AND_FADE), base.withIngestion(false));
+        assertEquals(new Settings(true, 3, 16, 4, 64, FogMode.FOG_AND_FADE), base.withLowestStoredLevel(3));
+        assertEquals(new Settings(true, 1, 40, 4, 64, FogMode.FOG_AND_FADE), base.withFarRenderCells(40));
+        assertEquals(new Settings(true, 1, 16, 9, 64, FogMode.FOG_AND_FADE), base.withWorkerThreads(9));
+        assertEquals(new Settings(true, 1, 16, 4, 128, FogMode.FOG_AND_FADE), base.withSubdivisionSize(128));
+        assertEquals(new Settings(true, 1, 16, 4, 64, FogMode.FADE), base.withFogMode(FogMode.FADE));
+    }
 }

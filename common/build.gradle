@@ -24,6 +24,24 @@ dependencies {
     compileOnly "io.github.llamalad7:mixinextras-common:${mixinextras_version}"
 }
 
+// Sodium's config API for the page in its options screen. The Fabric artifact is taken because the NeoForge one
+// nests its classes in an inner jar; the API types name vanilla alone. compileOnly — Sodium asks for the class itself.
+repositories {
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
+}
+
+dependencies {
+    compileOnly("maven.modrinth:sodium:${sodium_version}") {
+        transitive = false
+    }
+}
+
 // The cell store's fixed stack. This module compiles and tests against them; the loader modules bundle them.
 dependencies {
     implementation "org.xerial:sqlite-jdbc:${sqlite_jdbc_version}"

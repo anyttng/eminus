@@ -38,6 +38,14 @@ repositories {
             includeGroup 'com.terraformersmc'
         }
     }
+    // Sodium, for the 'sodium:config_api_user' entrypoint.
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
 }
 
 dependencies {
@@ -47,6 +55,11 @@ dependencies {
 
     // The 'modmenu' entrypoint class is only ever asked for by ModMenu itself, so it never loads without it.
     compileOnly "com.terraformersmc:modmenu:${modmenu_version}"
+
+    // The 'sodium:config_api_user' entrypoint class is likewise only ever asked for by Sodium.
+    compileOnly("maven.modrinth:sodium:${sodium_version}") {
+        transitive = false
+    }
 
     // Bundled into the jar for production; no annotation processor — with no remapping there is no refmap to generate.
     include(implementation("io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"))
