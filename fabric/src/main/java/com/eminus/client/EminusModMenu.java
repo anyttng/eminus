@@ -1,6 +1,6 @@
 package com.eminus.client;
 
-import com.eminus.settings.client.SettingsScreen;
+import com.eminus.client.settings.SettingsScreen;
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
 

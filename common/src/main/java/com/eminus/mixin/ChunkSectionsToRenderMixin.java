@@ -2,7 +2,7 @@ package com.eminus.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
 
-import com.eminus.session.client.ClientSession;
+import com.eminus.client.session.ClientSession;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;

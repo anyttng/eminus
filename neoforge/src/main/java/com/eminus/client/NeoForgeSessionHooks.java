@@ -1,6 +1,6 @@
 package com.eminus.client;
 
-import com.eminus.session.client.ClientSession;
+import com.eminus.client.session.ClientSession;
 import com.eminus.settings.SettingsService;
 
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;

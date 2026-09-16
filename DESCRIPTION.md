@@ -6,7 +6,7 @@
 - That copy is drawn behind the game's own terrain, from 32 up to 2048 chunks away — 512 by default.
 - Far terrain never draws over near terrain.
 - Block changes in the chunks around you reach the far terrain too.
-- Runs on both of the game's graphics APIs, OpenGL and Vulkan.
+- Runs on the game's OpenGL graphics API.
 - Client-only: works on any server, with nothing installed there.
 
 ## Settings
@@ -24,12 +24,12 @@ Worker threads and Lowest stored level take effect on the next world join.
 
 ## Compatibility
 
-Runs on **NeoForge** and **Fabric**, Minecraft 26.2. Mod Menu is optional on Fabric.
+Runs on **NeoForge** and **Fabric**, Minecraft 26.2. Mod Menu is optional on Fabric. **Sodium** is supported on both loaders.
 
 ## Before you download
 
 - Far terrain appears only where you have already been — there is no import of existing worlds and no pregeneration.
-- Sodium is not supported yet.
+- Vulkan support is in development.
 - Under a shader pack the far terrain is not lit by the pack.
 
 ## Bug reports

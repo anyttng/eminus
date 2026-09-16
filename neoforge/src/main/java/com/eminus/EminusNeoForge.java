@@ -5,7 +5,7 @@ import com.eminus.client.NeoForgeSessionHooks;
 import com.eminus.platform.NeoForgePlatform;
 import com.eminus.platform.Platforms;
 import com.eminus.settings.SettingsService;
-import com.eminus.settings.client.SettingsScreen;
+import com.eminus.client.settings.SettingsScreen;
 
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;

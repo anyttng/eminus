@@ -2,10 +2,10 @@ package com.eminus.client;
 
 import com.eminus.Eminus;
 import com.eminus.cell.DetailLevel;
-import com.eminus.mesh.client.MeshDump;
-import com.eminus.model.client.ModelDump;
-import com.eminus.render.arena.client.ArenaDump;
-import com.eminus.render.tree.client.TreeDump;
+import com.eminus.client.mesh.MeshDump;
+import com.eminus.client.model.ModelDump;
+import com.eminus.client.render.arena.ArenaDump;
+import com.eminus.client.render.tree.TreeDump;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
