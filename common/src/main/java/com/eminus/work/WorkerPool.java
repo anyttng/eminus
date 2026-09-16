@@ -1,0 +1,243 @@
+package com.eminus.work;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
+
+public final class WorkerPool {
+    public static final String THREAD_NAME_PREFIX = "eminus-worker-";
+    public static final int THREAD_PRIORITY = Thread.NORM_PRIORITY - 1;
+
+    private static final ThreadLocal<Boolean> ON_WORKER_THREAD = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition work = lock.newCondition();
+    private final Condition idle = lock.newCondition();
+    private final List<WorkService<?>> services = new ArrayList<>();
+    private final List<Worker> workers = new ArrayList<>();
+    private final ServiceSelector selector = new ServiceSelector();
+
+    private boolean running = true;
+
+    private WorkerPool() {
+    }
+
+    public static boolean onWorkerThread() {
+        return ON_WORKER_THREAD.get();
+    }
+
+    public static void requireWorkerThread(String operation) {
+        if (!onWorkerThread()) {
+            throw new IllegalStateException(
+                    operation + " runs on a worker thread only, not on " + Thread.currentThread().getName() + ".");
+        }
+    }
+
+    public static WorkerPool start(int threadCount) {
+        WorkerPool pool = new WorkerPool();
+        pool.resize(threadCount);
+        return pool;
+    }
+
+    public <C> WorkService<C> register(String name, int weight, int maxInFlight, Supplier<C> scratchFactory) {
+        WorkService<C> service = new WorkService<>(this, name, weight, maxInFlight, scratchFactory);
+
+        lock.lock();
+        try {
+            services.add(service);
+        } finally {
+            lock.unlock();
+        }
+
+        return service;
+    }
+
+    public int size() {
+        lock.lock();
+        try {
+            return workers.size();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void resize(int threadCount) {
+        lock.lock();
+        try {
+            while (workers.size() > threadCount) {
+                workers.remove(workers.size() - 1).retired = true;
+            }
+
+            while (workers.size() < threadCount) {
+                Worker worker = new Worker(THREAD_NAME_PREFIX + (workers.size() + 1));
+                workers.add(worker);
+                worker.thread.start();
+            }
+
+            work.signalAll();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void shutdown() {
+        List<Worker> joined;
+        lock.lock();
+        try {
+            running = false;
+            joined = new ArrayList<>(workers);
+            work.signalAll();
+        } finally {
+            lock.unlock();
+        }
+
+        for (Worker worker : joined) {
+            try {
+                worker.thread.join();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
+    void signalWork() {
+        lock.lock();
+        try {
+            work.signal();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    void discardRemainder(WorkService<?> service) {
+        lock.lock();
+
+        try {
+            service.discardQueued();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    void runRemainderInline(WorkService<?> service) {
+        Object scratch = null;
+
+        while (true) {
+            Job<?> job;
+            lock.lock();
+            try {
+                job = service.claim();
+            } finally {
+                lock.unlock();
+            }
+
+            if (job == null) {
+                return;
+            }
+
+            if (scratch == null) {
+                scratch = service.newScratch();
+            }
+
+            service.run(job, scratch);
+            signalFinished();
+        }
+    }
+
+    void awaitFinished(WorkService<?> service) {
+        lock.lock();
+        try {
+            while (!service.finished()) {
+                if (!running) {
+                    throw new IllegalStateException(
+                            "Service " + service.name() + " still has work, but the pool is already shut down.");
+                }
+
+                work.signalAll();
+                idle.await();
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private Claim awaitClaim(Worker worker) {
+        lock.lock();
+        try {
+            while (running && !worker.retired) {
+                Claim claim = nextClaim();
+                if (claim != null) {
+                    return claim;
+                }
+
+                work.await();
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        } finally {
+            lock.unlock();
+        }
+
+        return null;
+    }
+
+    private Claim nextClaim() {
+        int index = selector.pick(services);
+        if (index == ServiceSelector.NONE) {
+            return null;
+        }
+
+        WorkService<?> service = services.get(index);
+        Job<?> job = service.claim();
+        return job == null ? null : new Claim(service, job);
+    }
+
+    private void signalFinished() {
+        lock.lock();
+        try {
+            idle.signalAll();
+            work.signal();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private record Claim(WorkService<?> service, Job<?> job) {
+    }
+
+    private final class Worker implements Runnable {
+        private final Thread thread;
+        private final Map<WorkService<?>, Object> scratch = new HashMap<>();
+
+        private boolean retired;
+
+        private Worker(String name) {
+            thread = new Thread(this, name);
+            thread.setDaemon(true);
+            thread.setPriority(THREAD_PRIORITY);
+        }
+
+        @Override
+        public void run() {
+            ON_WORKER_THREAD.set(Boolean.TRUE);
+
+            while (true) {
+                Claim claim = awaitClaim(this);
+                if (claim == null) {
+                    return;
+                }
+
+                Object context = scratch.computeIfAbsent(claim.service(), WorkService::newScratch);
+                claim.service().run(claim.job(), context);
+                signalFinished();
+            }
+        }
+    }
+}

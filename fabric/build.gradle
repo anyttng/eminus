@@ -29,13 +29,44 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 sourceSets.main.java.srcDir '../common/src/main/java'
 sourceSets.main.resources.srcDir '../common/src/main/resources'
 
+repositories {
+    // ModMenu, for the config-screen entrypoint.
+    maven {
+        name = 'Terraformers'
+        url = 'https://maven.terraformersmc.com/releases'
+        content {
+            includeGroup 'com.terraformersmc'
+        }
+    }
+    // Sodium, for the 'sodium:config_api_user' entrypoint.
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
 
+    // The 'modmenu' entrypoint class is only ever asked for by ModMenu itself, so it never loads without it.
+    compileOnly "com.terraformersmc:modmenu:${modmenu_version}"
+
+    // The 'sodium:config_api_user' entrypoint class is likewise only ever asked for by Sodium.
+    compileOnly("maven.modrinth:sodium:${sodium_version}") {
+        transitive = false
+    }
+
     // Bundled into the jar for production; no annotation processor — with no remapping there is no refmap to generate.
     include(implementation("io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"))
+
+    // The cell store's fixed stack, bundled the same way; Loom wraps a plain library jar as a nested mod itself.
+    include(implementation("org.xerial:sqlite-jdbc:${sqlite_jdbc_version}"))
+    include(implementation("io.airlift:aircompressor:${aircompressor_version}"))
 }
 
 tasks.named('jar', Jar) {
@@ -43,7 +74,7 @@ tasks.named('jar', Jar) {
 }
 
 tasks.named('assemble') {
-    dependsOn ':common:jar'
+    dependsOn ':common:jar', ':common:apiJar'
 }
 
 // The loader-bound tests shared with the neoforge module, run here under Fabric Loader's JUnit launcher so the

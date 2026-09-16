@@ -26,6 +26,10 @@ description='''
 Terrain far beyond the render distance: a coarse, persistent copy of every chunk you have seen, drawn as a far layer behind the game's own terrain, on OpenGL and Vulkan alike.
 '''
 
+# Sodium reads this property to find the page it adds to its options screen; nothing loads the class without Sodium.
+[modproperties.${mod_id}]
+"sodium:config_api_user"="com.eminus.compat.sodium.SodiumSettingsPage"
+
 # NeoForge dependency. The mod is client-only: a dedicated server loads the jar and runs nothing of it.
 [[dependencies.${mod_id}]]
     modId="neoforge"
@@ -44,3 +48,6 @@ Terrain far beyond the render distance: a coarse, persistent copy of every chunk
 
 [[mixins]]
 config="eminus.mixins.json"
+
+[[mixins]]
+config="eminus.compat.sodium.mixins.json"

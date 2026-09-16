@@ -4,6 +4,13 @@
   "package": "com.eminus.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
+    "BiomeManagerAccessor",
+    "ChunkSectionsToRenderMixin",
+    "ClientLevelMixin",
+    "ClientPacketListenerMixin",
+    "GameRendererMixin",
+    "SpriteContentsAccessor",
+    "StairBlockAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

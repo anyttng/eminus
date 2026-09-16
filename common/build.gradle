@@ -24,6 +24,30 @@ dependencies {
     compileOnly "io.github.llamalad7:mixinextras-common:${mixinextras_version}"
 }
 
+// Sodium's config API for the page in its options screen. The Fabric artifact is taken because the NeoForge one
+// nests its classes in an inner jar; the API types name vanilla alone. compileOnly — Sodium asks for the class itself.
+repositories {
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
+}
+
+dependencies {
+    compileOnly("maven.modrinth:sodium:${sodium_version}") {
+        transitive = false
+    }
+}
+
+// The cell store's fixed stack. This module compiles and tests against them; the loader modules bundle them.
+dependencies {
+    implementation "org.xerial:sqlite-jdbc:${sqlite_jdbc_version}"
+    implementation "io.airlift:aircompressor:${aircompressor_version}"
+}
+
 // Plain JUnit on the NeoForm vanilla classpath: NeoForm mode has no FML, hence no junit run-type and no applied
 // mixins — a test that needs a mixin at runtime belongs to a loader module.
 neoForge.addModdingDependenciesTo(sourceSets.test)
@@ -45,6 +69,16 @@ test {
     doFirst { workingDir.mkdirs() }
     // The working directory is not the module, so a test that writes a report is told where the module's reports go.
     systemProperty 'eminus.reports', layout.buildDirectory.dir('reports').get().asFile.absolutePath
+    // ApiSurfaceTest lists the api sources, which are not on the classpath, so it is given the repo root.
+    systemProperty 'eminus.repoRoot', rootDir.absolutePath
+}
+
+// The artifact the harness compiles against: com/eminus/api alone, so its compile classpath cannot reach an internal
+// type at all. That the API's own signatures name no internal is ApiSurfaceTest's guarantee.
+tasks.register('apiJar', Jar) {
+    archiveBaseName = 'eminus-api'
+    from sourceSets.main.output
+    include 'com/eminus/api/**'
 }
 
 tasks.withType(JavaCompile).configureEach {

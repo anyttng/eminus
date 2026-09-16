@@ -32,10 +32,10 @@ tasks.named('jar', Jar) {
     from(project(':common').sourceSets.main.output)
 }
 
-// 'common' is also this mod's API artifact — a loader build reads its classes directly and would never produce the
-// jar consumers compile against.
+// 'common' builds this mod's jar and its API artifact — a loader build reads common's classes directly and would never
+// produce the jar the harness compiles against.
 tasks.named('assemble') {
-    dependsOn ':common:jar'
+    dependsOn ':common:jar', ':common:apiJar'
 }
 
 // Mojang ships Java 25 to end users, so mods should target Java 25.
@@ -73,6 +73,21 @@ neoForge {
 
 dependencies {
     implementation project(':common')
+
+    // The cell store's fixed stack, bundled into the jar. The open range is a floor, not a pin — where another mod
+    // already carries a newer copy, JarJar keeps that one and ours is dropped.
+    jarJar(implementation("org.xerial:sqlite-jdbc")) {
+        version {
+            require "[${sqlite_jdbc_version},)"
+            prefer "${sqlite_jdbc_version}"
+        }
+    }
+    jarJar(implementation("io.airlift:aircompressor")) {
+        version {
+            require "[${aircompressor_version},)"
+            prefer "${aircompressor_version}"
+        }
+    }
 
     testImplementation platform("org.junit:junit-bom:${junit_version}")
     testImplementation 'org.junit.jupiter:junit-jupiter'
