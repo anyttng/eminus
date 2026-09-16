@@ -7,6 +7,10 @@ import org.jspecify.annotations.Nullable;
 public final class TreeBatches {
     private final AtomicReference<TreeBatch> published = new AtomicReference<>();
 
+    public @Nullable TreeBatch peek() {
+        return published.get();
+    }
+
     public @Nullable TreeBatch take() {
         return published.getAndSet(null);
     }

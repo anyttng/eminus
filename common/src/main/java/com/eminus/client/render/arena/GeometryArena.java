@@ -1,6 +1,5 @@
 package com.eminus.client.render.arena;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import com.eminus.Eminus;
@@ -14,6 +13,7 @@ import com.eminus.render.backend.BackendSupport;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.StagingBuffer;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongList;
@@ -97,35 +97,42 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         return held.get(key);
     }
 
-    public void accept(List<CellMesh> meshes) {
+    public int accept(List<CellMesh> meshes, int from) {
         RenderSystem.assertOnRenderThread();
-        List<ArenaUpload> uploads = new ArrayList<>(meshes.size());
         refused = 0;
+        int index = from;
 
-        for (CellMesh mesh : meshes) {
-            release(mesh.key());
+        try (ArenaUploader.Step step = uploader.step()) {
+            while (index < meshes.size()) {
+                CellMesh mesh = meshes.get(index);
+                if (mesh.isEmpty()) {
+                    release(mesh.key());
+                    index++;
+                    continue;
+                }
 
-            if (mesh.isEmpty()) {
-                continue;
+                StagingBuffer.BufferHandle handle = step.stage(mesh);
+                if (handle == null) {
+                    break;
+                }
+
+                release(mesh.key());
+                MeshSlot placed = place(mesh);
+                if (placed == null) {
+                    refuse(mesh.quadCount());
+                } else {
+                    step.copy(handle, quads, placed.block() * ArenaSizing.BLOCK_BYTES);
+                }
+
+                index++;
             }
-
-            ArenaUpload placed = place(mesh);
-            if (placed == null) {
-                refuse(mesh.quadCount());
-                continue;
-            }
-
-            uploads.add(placed);
-        }
-
-        for (ArenaUpload dropped : uploader.upload(quads, uploads)) {
-            release(dropped.mesh().key());
-            refuse(dropped.mesh().quadCount());
         }
 
         if (refused > 0) {
             warnAboutRefusals();
         }
+
+        return index;
     }
 
     public void evict(LongList keys) {
@@ -136,7 +143,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         }
     }
 
-    private @Nullable ArenaUpload place(CellMesh mesh) {
+    private @Nullable MeshSlot place(CellMesh mesh) {
         int block = allocator.allocate(mesh.quadCount());
         if (block == ArenaAllocator.NO_BLOCK) {
             return null;
@@ -146,7 +153,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         held.put(mesh.key(), placed);
         records.write(placed);
 
-        return new ArenaUpload(mesh, block, block * ArenaSizing.BLOCK_BYTES);
+        return placed;
     }
 
     private void refuse(int quads) {

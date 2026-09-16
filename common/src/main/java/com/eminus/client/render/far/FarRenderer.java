@@ -16,6 +16,7 @@ import com.eminus.handoff.NearSections;
 import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.client.handoff.NearSectionTable;
 import com.eminus.mesh.BakeryModels;
+import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
 import com.eminus.model.ModelIndex;
 import com.eminus.client.model.ClientBakery;
@@ -85,6 +86,8 @@ public final class FarRenderer implements AutoCloseable {
 
     private volatile MeshService meshes;
     private RenderList renderList = RenderList.EMPTY;
+    private @Nullable TreeBatch uploading;
+    private int uploaded;
     private boolean stopped;
 
     private FarRenderer(DimensionRuntime runtime, ClientBakery baking, ModelPublisher models, GeometryArena arena,
@@ -179,14 +182,9 @@ public final class FarRenderer implements AutoCloseable {
 
         models.publish();
 
-        TreeBatch batch = tree.batches().take();
+        TreeBatch batch = tree.batches().peek();
         if (batch != null) {
-            arena.evict(batch.evicted());
-            arena.accept(batch.meshes());
-            RenderList walked = batch.renderList();
-            if (walked != null) {
-                renderList = walked;
-            }
+            upload(batch);
         }
 
         RenderTarget main = client.gameRenderer.mainRenderTarget();
@@ -237,6 +235,28 @@ public final class FarRenderer implements AutoCloseable {
                     commands.translucentCount(), frame.buffer(), nearSections.buffer());
             composite.draw(target, main, farViewProjection, gameViewProjection, fog, gameFog.color);
         }
+    }
+
+    private void upload(TreeBatch batch) {
+        if (batch != uploading) {
+            uploading = batch;
+            uploaded = 0;
+            arena.evict(batch.evicted());
+        }
+
+        List<CellMesh> batchMeshes = batch.meshes();
+        uploaded = arena.accept(batchMeshes, uploaded);
+        if (uploaded < batchMeshes.size()) {
+            return;
+        }
+
+        RenderList walked = batch.renderList();
+        if (walked != null) {
+            renderList = walked;
+        }
+
+        tree.batches().take();
+        uploading = null;
     }
 
     public CompletableFuture<FarLayerState> state() {
