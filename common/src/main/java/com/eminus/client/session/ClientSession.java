@@ -38,6 +38,7 @@ public final class ClientSession {
     public static final int CLIENT_EXTRA_CHUNKS = 3;
 
     private static boolean heldChunksPending;
+    private static boolean renderedCutoutLeaves;
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
     private static FarRenderer renderer;
@@ -140,9 +141,14 @@ public final class ClientSession {
             return;
         }
 
-        ClientLevel current = Minecraft.getInstance().level;
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientLevel current = minecraft.level;
         if (current != level) {
             swapLevel(current);
+        }
+
+        if (renderer != null && minecraft.options.cutoutLeaves().get() != renderedCutoutLeaves) {
+            restartRenderer();
         }
 
         if (heldChunksPending) {
@@ -231,6 +237,7 @@ public final class ClientSession {
     private static void startRenderer() {
         Minecraft minecraft = Minecraft.getInstance();
         rendered = SettingsService.get().settings();
+        renderedCutoutLeaves = minecraft.options.cutoutLeaves().get();
         renderer = FarRenderer.start(minecraft, instance, runtime, level.getHeight(), rendered);
     }
 

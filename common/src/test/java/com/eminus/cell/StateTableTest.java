@@ -3,6 +3,7 @@ package com.eminus.cell;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.eminus.VanillaBootstrap;
 
@@ -43,6 +44,25 @@ class StateTableTest {
         assertEquals(StateTable.FULL_OPACITY, stone.getLightDampening());
         assertEquals(stone.getLightDampening(), table.opacity(table.idOf(stone)));
         assertEquals(glass.getLightDampening(), table.opacity(table.idOf(glass)));
+    }
+
+    @Test
+    void leavesArePinnedToFullOpacityAboveTheirLightDampening() {
+        BlockState leaves = Blocks.OAK_LEAVES.defaultBlockState();
+        StateTable table = new StateTable(ids);
+
+        assertTrue(leaves.getLightDampening() < StateTable.FULL_OPACITY);
+        assertEquals(StateTable.FULL_OPACITY, table.opacity(table.idOf(leaves)));
+    }
+
+    @Test
+    void theSeeThroughViewGivesLeavesTheirLightDampeningAndLeavesTheRestAlone() {
+        BlockState leaves = Blocks.OAK_LEAVES.defaultBlockState();
+        BlockState stone = Blocks.STONE.defaultBlockState();
+        StateTable table = new StateTable(ids);
+
+        assertEquals(leaves.getLightDampening(), table.seeThroughLeaves().opacity(table.idOf(leaves)));
+        assertEquals(StateTable.FULL_OPACITY, table.seeThroughLeaves().opacity(table.idOf(stone)));
     }
 
     @Test

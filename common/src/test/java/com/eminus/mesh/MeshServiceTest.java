@@ -64,8 +64,8 @@ class MeshServiceTest {
     private final StateOpacity opacity = stateId -> stateId == STONE ? StateTable.FULL_OPACITY : 0;
 
     private final MeshService service = new MeshService(
-            harness.register(MESH_SERVICE, MeshScratch::new), cache, ColumnCoverage.everything(), models, opacity,
-            (mesh, request) -> delivered.set(mesh));
+            harness.register(MESH_SERVICE, MeshScratch::new), cache, ColumnCoverage.everything(), models,
+            level -> opacity, (mesh, request) -> delivered.set(mesh));
 
     @BeforeAll
     static void bootstrapVanilla() {
@@ -160,8 +160,8 @@ class MeshServiceTest {
 
         WorkerPool idle = WorkerPool.start(NO_WORKERS);
         WorkService<MeshScratch> queued = idle.register(QUEUED_SERVICE, 1, WorkService.UNLIMITED, MeshScratch::new);
-        MeshService waiting = new MeshService(queued, cache, ColumnCoverage.everything(), models, opacity,
-                (mesh, request) -> delivered.set(mesh));
+        MeshService waiting = new MeshService(queued, cache, ColumnCoverage.everything(), models,
+                level -> opacity, (mesh, request) -> delivered.set(mesh));
 
         try {
             harness.run(() -> waiting.build(MeshTask.fresh(KEY), new MeshScratch()));

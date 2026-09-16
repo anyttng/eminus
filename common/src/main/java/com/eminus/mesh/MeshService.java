@@ -4,7 +4,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.eminus.cell.CellKey;
 import com.eminus.cell.ColumnCoverage;
-import com.eminus.cell.StateOpacity;
 import com.eminus.cell.cache.CellAccess;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.work.WorkService;
@@ -20,12 +19,12 @@ public final class MeshService {
     private final CellAccess cells;
     private final ColumnCoverage coverage;
     private final MeshModels models;
-    private final StateOpacity opacity;
+    private final MeshOpacity opacity;
     private final MeshListener listener;
     private final MeshQueue queue = new MeshQueue();
 
     public MeshService(WorkService<MeshScratch> work, CellAccess cells, ColumnCoverage coverage, MeshModels models,
-            StateOpacity opacity, MeshListener listener) {
+            MeshOpacity opacity, MeshListener listener) {
         this.work = work;
         this.cells = cells;
         this.coverage = coverage;
@@ -93,7 +92,8 @@ public final class MeshService {
             }
 
             AtomicBoolean retried = new AtomicBoolean();
-            CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy, opacity, () -> {
+            CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy,
+                    opacity.at(CellKey.level(task.key())), () -> {
                 if (retried.compareAndSet(false, true)) {
                     submit(task.retry());
                 }

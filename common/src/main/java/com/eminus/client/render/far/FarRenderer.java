@@ -136,7 +136,7 @@ public final class FarRenderer implements AutoCloseable {
 
         renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(),
                 new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
-                runtime.states(), renderer.tree);
+                baking.opacity(runtime.states()), renderer.tree);
         runtime.listenTo(renderer.tree);
         Eminus.LOGGER.info("Far renderer started for {}", runtime.identity().dimension());
 

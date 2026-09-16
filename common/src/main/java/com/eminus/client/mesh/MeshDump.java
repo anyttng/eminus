@@ -2,18 +2,13 @@ package com.eminus.client.mesh;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.ExecutionException;
 
 import com.eminus.Eminus;
 import com.eminus.cell.CellKey;
-import com.eminus.mesh.BakeryModels;
 import com.eminus.mesh.CellMesh;
-import com.eminus.mesh.MeshService;
 import com.eminus.mesh.ObjWriter;
 import com.eminus.mesh.QuadGroups;
-import com.eminus.model.ModelIndex;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
@@ -62,28 +57,10 @@ public final class MeshDump {
 
     private static @Nullable CellMesh build(DimensionRuntime runtime, EminusInstance instance,
             ClientBakery baking, long key) {
-        AtomicReference<CellMesh> result = new AtomicReference<>();
-        CountDownLatch done = new CountDownLatch(1);
-        MeshService service = new MeshService(
-                instance.build(),
-                runtime.cells(),
-                runtime.coverage(),
-                new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
-                runtime.states(),
-                (mesh, request) -> {
-                    result.set(mesh);
-                    done.countDown();
-                });
-
-        service.request(key);
-
         try {
-            if (done.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                return result.get();
-            }
-
-            Eminus.LOGGER.error("{} stalled backlog={}", PROBE, service.backlog());
-            service.drop();
+            return CellMeshing.mesh(runtime, instance, baking, new long[] {key}, TIMEOUT_SECONDS).get().get(key);
+        } catch (ExecutionException stalled) {
+            Eminus.LOGGER.error("{} stalled cell=({}, {}, {})", PROBE, CellKey.x(key), CellKey.y(key), CellKey.z(key));
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
         }

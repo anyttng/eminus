@@ -39,6 +39,8 @@ class CellMesherTest {
     private static final int WATERLOGGED = 7;
     private static final int WET_LEAVES = 8;
     private static final int GRASS = 9;
+    private static final int OPAQUE_LEAVES = 19;
+    private static final int CUTOUT_LEAVES = 20;
 
     private static final int STONE_MODEL = 10;
     private static final int GLASS_MODEL = 11;
@@ -49,6 +51,8 @@ class CellMesherTest {
     private static final int WATERLOGGED_MODEL = 16;
     private static final int WET_LEAVES_MODEL = 17;
     private static final int GRASS_MODEL = 18;
+    private static final int OPAQUE_LEAVES_MODEL = 21;
+    private static final int CUTOUT_LEAVES_MODEL = 22;
 
     private static final int BIOME = 3;
     private static final int FULL_SKY = 15;
@@ -59,6 +63,8 @@ class CellMesherTest {
     private static final int GLASS_FACES_IN_AIR = 5;
     private static final int CUBE_SIDE = 2;
     private static final int CUBE_FACES = 6;
+    private static final int CANOPY_SIDE = 3;
+    private static final int SEE_THROUGH_DAMPENING = 1;
     private static final int NEIGHBOUR_X = 2;
     private static final int WATERLOGGED_FACES = QuadGroups.DIRECTIONAL_COUNT * 2;
     private static final int LAST_IN_FIRST_CHUNK = 15;
@@ -365,6 +371,48 @@ class CellMesherTest {
         assertTrue(has(mesh, Direction.WEST, 6, 6, 7, STONE_MODEL));
     }
 
+    @Test
+    void aLeafCanopyShowsItsOuterShellWhetherItsModelIsOpaqueOrCutout() {
+        defineBlocks();
+
+        assertEquals(CUBE_FACES, mesh(cube(OPAQUE_LEAVES), airAround(), 0).quadCount());
+        assertEquals(CUBE_FACES, mesh(cube(CUTOUT_LEAVES), airAround(), 0).quadCount());
+    }
+
+    @Test
+    void seeThroughLeavesShowTheCanopysInsideFaces() {
+        defineBlocks();
+        opacities.put(CUTOUT_LEAVES, SEE_THROUGH_DAMPENING);
+
+        CellMesh mesh = mesh(cube(CUTOUT_LEAVES), airAround(), 0);
+
+        assertEquals(CUBE_FACES * 2, mesh.quadCount());
+    }
+
+    @Test
+    void aTrunkInsideSeeThroughLeavesShowsItsFacesAndOneInsidePinnedLeavesDoesNot() {
+        defineBlocks();
+        Cell cell = blank();
+        for (int y = 0; y < CANOPY_SIDE; y++) {
+            for (int z = 0; z < CANOPY_SIDE; z++) {
+                for (int x = 0; x < CANOPY_SIDE; x++) {
+                    cell.set(x, y, z, block(CUTOUT_LEAVES));
+                }
+            }
+        }
+
+        cell.set(1, 1, 1, block(STONE));
+
+        CellMesh pinned = mesh(cell, airAround(), 0);
+        opacities.put(CUTOUT_LEAVES, SEE_THROUGH_DAMPENING);
+        CellMesh seeThrough = mesh(cell, airAround(), 0);
+
+        for (Direction face : Direction.values()) {
+            assertFalse(has(pinned, face, 1, 1, 1, STONE_MODEL), face.getName());
+            assertTrue(has(seeThrough, face, 1, 1, 1, STONE_MODEL), face.getName());
+        }
+    }
+
     private void defineBlocks() {
         int solid = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0);
         int clear = ModelMetadata.pack(FaceMask.ALL, FaceMask.NONE, FaceMask.ALL, 0, 0);
@@ -382,12 +430,16 @@ class CellMesherTest {
         models.define(WET_LEAVES, WET_LEAVES_MODEL, solid);
         models.define(GRASS, GRASS_MODEL, ModelMetadata.pack(
                 FaceMask.NONE, FaceMask.NONE, FaceMask.NONE, 0, ModelMetadata.BLADED));
+        models.define(OPAQUE_LEAVES, OPAQUE_LEAVES_MODEL, solid);
+        models.define(CUTOUT_LEAVES, CUTOUT_LEAVES_MODEL, clear);
         models.defineFluid(WATERLOGGED, WATER_MODEL, translucent);
         models.defineFluid(WET_LEAVES, WATER_MODEL, translucent);
 
         opacities.put(STONE, StateTable.FULL_OPACITY);
         opacities.put(LAVA, StateTable.FULL_OPACITY);
         opacities.put(WET_LEAVES, StateTable.FULL_OPACITY);
+        opacities.put(OPAQUE_LEAVES, StateTable.FULL_OPACITY);
+        opacities.put(CUTOUT_LEAVES, StateTable.FULL_OPACITY);
     }
 
     private CellMesh mesh(Cell centre, Map<Direction, Cell> around, ColumnCoverage coverage) {
@@ -424,6 +476,19 @@ class CellMesherTest {
 
     private static long block(int stateId) {
         return VoxelEntry.pack(stateId, BIOME, VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT));
+    }
+
+    private static Cell cube(int stateId) {
+        Cell cell = blank();
+        for (int y = 0; y < CUBE_SIDE; y++) {
+            for (int z = 0; z < CUBE_SIDE; z++) {
+                for (int x = 0; x < CUBE_SIDE; x++) {
+                    cell.set(x, y, z, block(stateId));
+                }
+            }
+        }
+
+        return cell;
     }
 
     private static Cell floor() {

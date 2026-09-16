@@ -20,7 +20,6 @@ import net.minecraft.world.level.material.FluidState;
 
 public final class ModelBaker implements StateBaker {
     private static final long BAKE_SEED = 0L;
-    private static final boolean CUTOUT_LEAVES = false;
     private static final int ALPHA_MASK = 0xFF00_0000;
     private static final Direction[] FACES = Direction.values();
 
@@ -29,6 +28,7 @@ public final class ModelBaker implements StateBaker {
     private final FluidBaker fluids;
     private final SolidSprites sprites;
     private final BiomeColours colours;
+    private final boolean cutoutLeaves;
     private final FaceRasterizer rasterizer = new FaceRasterizer();
     private final RandomSource random = RandomSource.create();
     private final List<BlockStateModelPart> parts = new ArrayList<>();
@@ -37,12 +37,13 @@ public final class ModelBaker implements StateBaker {
     private boolean swept;
 
     public ModelBaker(BlockStateModelSet blockModels, BlockColors blockColors, FluidBaker fluids,
-            SolidSprites sprites, BiomeColours colours) {
+            SolidSprites sprites, BiomeColours colours, boolean cutoutLeaves) {
         this.blockModels = blockModels;
         this.blockColors = blockColors;
         this.fluids = fluids;
         this.sprites = sprites;
         this.colours = colours;
+        this.cutoutLeaves = cutoutLeaves;
     }
 
     @Override
@@ -88,7 +89,7 @@ public final class ModelBaker implements StateBaker {
     }
 
     private QuadTexels texels(BlockState state) {
-        return ModelBlockRenderer.forceOpaque(CUTOUT_LEAVES, state)
+        return ModelBlockRenderer.forceOpaque(cutoutLeaves, state)
                 ? (quad, u, v) -> sprites.argb(quad.materialInfo().sprite(), u, v) | ALPHA_MASK
                 : (quad, u, v) -> sprites.argb(quad.materialInfo().sprite(), u, v);
     }

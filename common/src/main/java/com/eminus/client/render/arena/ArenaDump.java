@@ -129,7 +129,7 @@ public final class ArenaDump {
                 runtime.cells(),
                 runtime.coverage(),
                 new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
-                runtime.states(),
+                baking.opacity(runtime.states()),
                 (mesh, request) -> {
                     synchronized (built) {
                         built.add(mesh);
