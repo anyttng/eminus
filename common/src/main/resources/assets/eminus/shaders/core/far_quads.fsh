@@ -15,6 +15,8 @@ uniform sampler2D Atlas;
 uniform sampler2D TintMask;
 uniform sampler2D NearMask;
 
+#moj_import <eminus:far_surface.glsl>
+
 in vec2 faceUV;
 in vec4 vertexColor;
 flat in vec3 tintColour;
@@ -46,20 +48,10 @@ void main() {
     }
 #endif
 
-    vec2 cell = vec2(1.0) / float(AtlasCells);
-    float margin = 0.5 / float(FACE_SIDE);
-    vec2 within = clamp(fract(faceUV), margin, 1.0 - margin);
-    vec2 uv = (vec2(atlasCell) + within) * cell;
-
-    vec2 gradX = dFdx(faceUV) * cell;
-    vec2 gradY = dFdy(faceUV) * cell;
-
-    vec4 colour = textureGrad(Atlas, uv, gradX, gradY) * vertexColor;
+    vec4 colour = far_surface(atlasCell, faceUV, tintColour) * vertexColor;
     if (colour.a < ALPHA_CUTOUT) {
         discard;
     }
-
-    colour.rgb *= mix(vec3(1.0), tintColour, textureGrad(TintMask, uv, gradX, gradY).r);
 
 #ifdef FULL_COVERAGE
     fragColor = vec4(colour.rgb, 1.0);
