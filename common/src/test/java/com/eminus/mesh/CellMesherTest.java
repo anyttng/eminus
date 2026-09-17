@@ -55,6 +55,7 @@ class CellMesherTest {
     private static final int OPAQUE_LEAVES_MODEL = 21;
     private static final int CUTOUT_LEAVES_MODEL = 22;
     private static final int GRASS_BLOCK_MODEL = 24;
+    private static final int SUBMERGED_WATER_MODEL = 25;
     private static final int GRASS_ROW = 0;
     private static final int PLAINS = 5;
     private static final int PLAINS_GREEN = 0x91BD59;
@@ -78,6 +79,7 @@ class CellMesherTest {
     private static final int LAST_IN_FIRST_CHUNK = 15;
     private static final long FIRST_CHUNK = ColumnCoverage.pack(0, 0);
     private static final long SECOND_CHUNK = ColumnCoverage.pack(1, 0);
+    private static final int NO_QUAD = -1;
 
     private final Map<Integer, Integer> opacities = new HashMap<>();
     private final FakeModels models = new FakeModels();
@@ -350,21 +352,48 @@ class CellMesherTest {
     }
 
     @Test
-    void aFaceTowardsAColumnNeverIngestedIsNotDrawnAndOneTowardsCoveredAirIs() {
+    void everyClassCutsTowardsAColumnNeverIngestedUntilItsNeighbourLands() {
         defineBlocks();
         Cell cell = blank();
         cell.set(LAST_IN_FIRST_CHUNK, 16, 5, block(STONE));
         cell.set(LAST_IN_FIRST_CHUNK, 16, 9, block(WATER));
+        cell.set(LAST_IN_FIRST_CHUNK, 16, 13, block(GLASS));
 
         CellMesh uncovered = mesh(cell, airAround(), coverage(FIRST_CHUNK));
+
+        assertEquals(VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT),
+                lightAt(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
+        assertEquals(VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT),
+                lightAt(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
+        assertEquals(VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT),
+                lightAt(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 13, GLASS_MODEL));
+
+        cell.set(LAST_IN_FIRST_CHUNK + 1, 16, 5, block(STONE));
+        cell.set(LAST_IN_FIRST_CHUNK + 1, 16, 9, block(WATER));
         CellMesh covered = mesh(cell, airAround(), coverage(FIRST_CHUNK, SECOND_CHUNK));
 
-        assertFalse(has(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
-        assertFalse(has(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
-        assertTrue(has(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
-        assertTrue(has(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
-        assertTrue(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
-        assertTrue(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
+        assertFalse(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
+        assertFalse(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
+        assertTrue(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 13, GLASS_MODEL));
+    }
+
+    @Test
+    void waterBelowTheSameFluidTakesItsSubmergedModelAndOnlyTheSurfaceVoxelStopsShort() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 8, 4, block(WATERLOGGED));
+        cell.set(4, 9, 4, block(WATER));
+        cell.set(4, 10, 4, block(WATER));
+        cell.set(4, 11, 4, block(WATER));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(has(mesh, Direction.EAST, 4, 11, 4, WATER_MODEL));
+        assertTrue(has(mesh, Direction.EAST, 4, 9, 4, SUBMERGED_WATER_MODEL));
+        assertTrue(has(mesh, Direction.EAST, 4, 8, 4, SUBMERGED_WATER_MODEL));
+        assertFalse(has(mesh, Direction.EAST, 4, 9, 4, WATER_MODEL));
+        assertFalse(has(mesh, Direction.EAST, 4, 8, 4, WATER_MODEL));
+        assertTrue(absent(mesh, Direction.UP, 4, 10, 4));
     }
 
     @Test
@@ -470,6 +499,7 @@ class CellMesherTest {
         models.tint(GRASS_BLOCK_MODEL, GRASS_ROW);
         models.defineFluid(WATERLOGGED, WATER_MODEL, translucent);
         models.defineFluid(WET_LEAVES, WATER_MODEL, translucent);
+        models.submerge(WATER_MODEL, SUBMERGED_WATER_MODEL);
 
         opacities.put(STONE, StateTable.FULL_OPACITY);
         opacities.put(LAVA, StateTable.FULL_OPACITY);
@@ -614,6 +644,18 @@ class CellMesherTest {
         }
 
         return false;
+    }
+
+    private static int lightAt(CellMesh mesh, Direction face, int x, int y, int z, int modelId) {
+        for (int index = 0; index < mesh.quadCount(); index++) {
+            long quad = mesh.quad(index);
+            if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y
+                    && Quad.z(quad) == z && Quad.modelId(quad) == modelId) {
+                return Quad.light(quad);
+            }
+        }
+
+        return NO_QUAD;
     }
 
     private static boolean absent(CellMesh mesh, Direction face, int x, int y, int z) {

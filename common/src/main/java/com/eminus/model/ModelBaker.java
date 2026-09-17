@@ -58,12 +58,22 @@ public final class ModelBaker implements StateBaker {
         FluidState fluid = state.getFluidState();
 
         if (quads.isEmpty()) {
-            return new BakedState(fluid.isEmpty() ? BakedModel.empty() : fluidModel(fluid, state), null);
+            if (fluid.isEmpty()) {
+                return new BakedState(BakedModel.empty(), null);
+            }
+
+            BakedModel surface = fluidModel(fluid, state);
+            return new BakedState(surface, null, FluidBaker.submerged(surface));
         }
 
         BakedModel model = rasterizer.rasterize(quads, texels(shape),
                 layer -> colours.resolve(blockColors.getTintSource(shape, layer), shape));
-        return new BakedState(emissive(model, state), fluid.isEmpty() ? null : fluidModel(fluid, state));
+        if (fluid.isEmpty()) {
+            return new BakedState(emissive(model, state), null);
+        }
+
+        BakedModel surface = fluidModel(fluid, state);
+        return new BakedState(emissive(model, state), surface, FluidBaker.submerged(surface));
     }
 
     private BakedModel fluidModel(FluidState fluid, BlockState state) {

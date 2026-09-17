@@ -26,6 +26,11 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     }
 
     @Override
+    public int submergedModelId(int modelId) {
+        return index.submergedModelId(modelId);
+    }
+
+    @Override
     public int metadata(int modelId) {
         BakedModel model = models.model(modelId);
         return model == null ? NO_METADATA : model.metadata();

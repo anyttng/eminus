@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 class ModelBakeryTest {
     private static final int WHITE = 0xFFFF_FFFF;
     private static final int BLUE = 0xFF00_00FF;
+    private static final int GREEN = 0xFF00_FF00;
     private static final int BOTH_MODELS = 2;
     private static final int SECONDS = 5;
     private static final int RACED_STATES = 2000;
@@ -134,6 +135,25 @@ class ModelBakeryTest {
             assertNotEquals(bakery.modelId(stone), bakery.fluidModelId(stone));
             assertEquals(BakedModel.solid(BLUE), bakery.model(bakery.fluidModelId(stone)));
             assertEquals(BOTH_MODELS, bakery.modelCount());
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void aSubmergedTwinAnswersForTheFluidModelAndEveryOtherModelAnswersItself() throws InterruptedException {
+        ModelBakery bakery = ModelBakery.start(state -> state == stone
+                ? new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE), BakedModel.solid(GREEN))
+                : new BakedState(BakedModel.solid(BLUE), null, BakedModel.solid(GREEN)));
+
+        try {
+            awaitBake(bakery, stone);
+            awaitBake(bakery, dirt);
+
+            int twin = bakery.submergedModelId(bakery.fluidModelId(stone));
+            assertEquals(BakedModel.solid(GREEN), bakery.model(twin));
+            assertEquals(twin, bakery.submergedModelId(bakery.modelId(dirt)));
+            assertEquals(bakery.modelId(stone), bakery.submergedModelId(bakery.modelId(stone)));
         } finally {
             bakery.stop();
         }

@@ -54,6 +54,11 @@ public final class FluidBaker {
         return new BakedModel(faces, tintMask, surfaceInsets(), surfaceBounds(), metadata, tintRow);
     }
 
+    public static BakedModel submerged(BakedModel surface) {
+        return new BakedModel(surface.faces(), surface.tintMask(), new float[BakedModel.FACE_COUNT],
+                BakedModel.fullBounds(), surface.metadata(), surface.tintRow());
+    }
+
     static float[] surfaceInsets() {
         float[] insets = new float[BakedModel.FACE_COUNT];
         insets[UP] = 1.0F - SURFACE_HEIGHT;

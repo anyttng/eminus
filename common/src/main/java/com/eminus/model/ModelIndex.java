@@ -38,6 +38,10 @@ public final class ModelIndex {
         return resolve(stateId, whenBaked) ? remembered(fluidIds, stateId) : ModelBakery.MISSING;
     }
 
+    public int submergedModelId(int modelId) {
+        return bakery.submergedModelId(modelId);
+    }
+
     private boolean resolve(int stateId, Runnable whenBaked) {
         BlockState state = states.state(stateId);
         int modelId = bakery.request(state, whenBaked);
