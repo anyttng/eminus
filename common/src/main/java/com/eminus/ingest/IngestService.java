@@ -9,6 +9,8 @@ import com.eminus.cell.StateTable;
 import com.eminus.mixin.BiomeManagerAccessor;
 import com.eminus.work.WorkService;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -37,6 +39,7 @@ public final class IngestService {
     private final ColumnCoverage coverage;
     private final CellChangeListener listener;
     private final SectionDebounce debounce = new SectionDebounce(SectionDebounce.WINDOW_MILLIS);
+    private final LongOpenHashSet deferred = new LongOpenHashSet();
 
     private volatile boolean running = true;
 
@@ -59,6 +62,25 @@ public final class IngestService {
     }
 
     public void submitChunk(LevelChunk chunk) {
+        ChunkPos chunkPos = chunk.getPos();
+        retryDeferred(chunk.getLevel(), chunkPos.x(), chunkPos.z());
+        ingestChunk(chunk);
+    }
+
+    private void retryDeferred(Level level, int chunkX, int chunkZ) {
+        for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
+            for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
+                if ((dx != 0 || dz != 0) && deferred.remove(column(chunkX + dx, chunkZ + dz))) {
+                    LevelChunk waiting = level.getChunkSource().getChunkNow(chunkX + dx, chunkZ + dz);
+                    if (waiting != null) {
+                        ingestChunk(waiting);
+                    }
+                }
+            }
+        }
+    }
+
+    private void ingestChunk(LevelChunk chunk) {
         LevelLightEngine light = chunk.getLevel().getLightEngine();
         ChunkPos chunkPos = chunk.getPos();
         LevelChunkSection[] sections = chunk.getSections();
@@ -75,6 +97,11 @@ public final class IngestService {
 
         int chunkX = chunkPos.x();
         int chunkZ = chunkPos.z();
+        if (!neighboursLoaded(chunk.getLevel(), chunkX, chunkZ)) {
+            deferred.add(column(chunkX, chunkZ));
+            return;
+        }
+
         boolean[] submitted = new boolean[sections.length];
         int count = 0;
         for (int index = 0; index < sections.length; index++) {
@@ -103,6 +130,8 @@ public final class IngestService {
 
     public void pollDebounce(ClientLevel level, long now) {
         debounce.drain(now, sectionNode -> submitMarked(level, sectionNode));
+        deferred.removeIf(
+                column -> level.getChunkSource().getChunkNow(SectionPos.x(column), SectionPos.z(column)) == null);
     }
 
     public void stop() {
@@ -120,7 +149,7 @@ public final class IngestService {
             return;
         }
 
-        if (!coverage.covers(sectionX, sectionZ)) {
+        if (!coverage.covers(sectionX, sectionZ) || !neighboursLoaded(level, sectionX, sectionZ)) {
             submitChunk(chunk);
             return;
         }
@@ -195,6 +224,22 @@ public final class IngestService {
     private static int ownQuart(int quart, int chunk) {
         int first = QuartPos.fromSection(chunk);
         return Mth.clamp(quart, first, first + BiomeWindow.QUARTS_PER_SECTION - 1);
+    }
+
+    private static boolean neighboursLoaded(Level level, int chunkX, int chunkZ) {
+        for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
+            for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
+                if (level.getChunkSource().getChunkNow(chunkX + dx, chunkZ + dz) == null) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static long column(int chunkX, int chunkZ) {
+        return SectionPos.getZeroNode(chunkX, chunkZ);
     }
 
     private static int neighbourIndex(int dx, int dz) {
