@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import com.eminus.Eminus;
 import com.eminus.handoff.NearFieldOverride;
 import com.eminus.ingest.IngestService;
+import com.eminus.ingest.IngestTrigger;
 import com.eminus.mixin.BiomeManagerAccessor;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.session.DimensionRuntime;
@@ -20,6 +21,7 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -164,10 +166,10 @@ public final class ClientSession {
         }
     }
 
-    public static void submitChunk(LevelChunk chunk) {
+    public static void submitChunk(LevelChunk chunk, IngestTrigger trigger) {
         IngestService ingest = ingestFor(chunk.getLevel());
         if (ingest != null) {
-            ingest.submitChunk(chunk);
+            ingest.submitChunk(chunk, trigger);
         }
     }
 
@@ -175,6 +177,13 @@ public final class ClientSession {
         IngestService ingest = ingestFor(source);
         if (ingest != null) {
             ingest.markBlockChange(pos, System.currentTimeMillis());
+        }
+    }
+
+    public static void lightUpdated(ClientLevel source, SectionPos pos) {
+        IngestService ingest = ingestFor(source);
+        if (ingest != null) {
+            ingest.markLightUpdate(pos, System.currentTimeMillis());
         }
     }
 
@@ -220,7 +229,7 @@ public final class ClientSession {
                 int chunkZ = centre.z() + dz;
                 LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
                 if (chunk != null) {
-                    ingest.submitChunk(chunk);
+                    ingest.submitChunk(chunk, IngestTrigger.HELD);
                 }
             }
         }

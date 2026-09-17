@@ -1,6 +1,7 @@
 package com.eminus.client;
 
 import com.eminus.client.session.ClientSession;
+import com.eminus.ingest.IngestTrigger;
 import com.eminus.settings.SettingsService;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
@@ -19,7 +20,8 @@ public final class FabricSessionHooks {
                 (listener, client) -> client.execute(ClientSession::disconnect));
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ClientSession.disconnect());
         ClientTickEvents.END_CLIENT_TICK.register(client -> ClientSession.tick());
-        ClientChunkEvents.CHUNK_UNLOAD.register((world, chunk) -> ClientSession.submitChunk(chunk));
+        ClientChunkEvents.CHUNK_UNLOAD.register(
+                (world, chunk) -> ClientSession.submitChunk(chunk, IngestTrigger.UNLOAD));
 
         ResourceManagerReloadListener reload = manager -> ClientSession.resourcesReloaded();
         ResourceLoader loader = ResourceLoader.get(PackType.CLIENT_RESOURCES);
