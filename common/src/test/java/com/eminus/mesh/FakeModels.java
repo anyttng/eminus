@@ -12,12 +12,18 @@ import com.eminus.model.BiomeColours;
 import net.minecraft.world.level.block.state.BlockState;
 
 final class FakeModels implements MeshModels {
+    @FunctionalInterface
+    interface PositionalIds {
+        int at(int blockX, int blockY, int blockZ);
+    }
+
     private final Map<Integer, Integer> ids = new HashMap<>();
     private final Map<Integer, Integer> fluidIds = new HashMap<>();
     private final Map<Integer, Integer> submergedIds = new HashMap<>();
     private final Map<Integer, Integer> words = new HashMap<>();
     private final Map<Integer, Integer> tintRows = new HashMap<>();
     private final Map<Integer, BlockState> offsetStates = new HashMap<>();
+    private final Map<Integer, PositionalIds> positional = new HashMap<>();
     private final Set<Integer> unbaked = new HashSet<>();
     private final Set<Integer> unbakedFluids = new HashSet<>();
     private final List<Runnable> waiters = new ArrayList<>();
@@ -27,6 +33,14 @@ final class FakeModels implements MeshModels {
 
     void define(int stateId, int modelId, int metadata) {
         ids.put(stateId, modelId);
+        words.put(modelId, metadata);
+    }
+
+    void positional(int stateId, PositionalIds ids) {
+        positional.put(stateId, ids);
+    }
+
+    void describe(int modelId, int metadata) {
         words.put(modelId, metadata);
     }
 
@@ -82,8 +96,17 @@ final class FakeModels implements MeshModels {
             return MISSING;
         }
 
+        if (positional.containsKey(stateId)) {
+            return POSITIONAL;
+        }
+
         Integer modelId = ids.get(stateId);
         return modelId == null ? MISSING : modelId;
+    }
+
+    @Override
+    public int positionalModelId(int stateId, int blockX, int blockY, int blockZ, Runnable whenBaked) {
+        return positional.get(stateId).at(blockX, blockY, blockZ);
     }
 
     @Override

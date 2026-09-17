@@ -48,6 +48,7 @@ class CellMesherTest {
     private static final int OPAQUE_LEAVES = 19;
     private static final int CUTOUT_LEAVES = 20;
     private static final int GRASS_BLOCK = 23;
+    private static final int VARIED = 26;
 
     private static final int STONE_MODEL = 10;
     private static final int GLASS_MODEL = 11;
@@ -62,6 +63,8 @@ class CellMesherTest {
     private static final int CUTOUT_LEAVES_MODEL = 22;
     private static final int GRASS_BLOCK_MODEL = 24;
     private static final int SUBMERGED_WATER_MODEL = 25;
+    private static final int VARIED_MODEL = 27;
+    private static final int VARIED_ROW = 4;
     private static final int GRASS_ROW = 0;
     private static final int PLAINS = 5;
     private static final int PLAINS_GREEN = 0x91BD59;
@@ -533,6 +536,65 @@ class CellMesherTest {
         for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
             assertEquals(MeshBuffer.UNTINTED, Quad.colourIndex(bladeAt(mesh, blade, 5, 6, 7)), "blade " + blade);
         }
+    }
+
+    @Test
+    void aPositionalRowTakesEachBlocksOwnModelAndMergesNoTwoDifferentNeighbours() {
+        defineVaried((blockX, blockY, blockZ) -> VARIED_MODEL + Math.floorMod(blockX, 2));
+        Cell cell = blank();
+        for (int x = 0; x < VARIED_ROW; x++) {
+            cell.set(x, 0, 0, block(VARIED));
+        }
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        int up = Direction.UP.ordinal();
+        assertEquals(VARIED_ROW, mesh.groupCount(up));
+        for (int index = mesh.groupStart(up); index < mesh.groupStart(up) + mesh.groupCount(up); index++) {
+            long quad = mesh.quad(index);
+            assertEquals(1, Quad.width(quad));
+            assertEquals(VARIED_MODEL + Quad.x(quad) % 2, Quad.modelId(quad));
+        }
+    }
+
+    @Test
+    void aPositionalStateOfOneModelEverywhereStillMerges() {
+        defineVaried((blockX, blockY, blockZ) -> VARIED_MODEL);
+        Cell cell = blank();
+        for (int x = 0; x < VARIED_ROW; x++) {
+            cell.set(x, 0, 0, block(VARIED));
+        }
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        long top = mesh.quad(mesh.groupStart(Direction.UP.ordinal()));
+        assertEquals(1, mesh.groupCount(Direction.UP.ordinal()));
+        assertEquals(VARIED_ROW, Quad.width(top));
+    }
+
+    @Test
+    void aCoarseLevelPicksThePositionalModelOfTheVoxelsOriginBlock() {
+        defineVaried((blockX, blockY, blockZ) -> blockX == 2 && blockY == MIN_BLOCK_Y + 2 && blockZ == 4
+                ? VARIED_MODEL + 1
+                : VARIED_MODEL);
+        Cell cell = blank();
+        cell.set(1, 1, 2, block(VARIED));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT, mesh.quadCount());
+        for (int index = 0; index < mesh.quadCount(); index++) {
+            assertEquals(VARIED_MODEL + 1, Quad.modelId(mesh.quad(index)));
+        }
+    }
+
+    private void defineVaried(FakeModels.PositionalIds ids) {
+        defineBlocks();
+        int solid = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0);
+        models.positional(VARIED, ids);
+        models.describe(VARIED_MODEL, solid);
+        models.describe(VARIED_MODEL + 1, solid);
+        opacities.put(VARIED, StateTable.FULL_OPACITY);
     }
 
     private static void assertBladesOffset(CellMesh mesh, int x, int y, int z, Vec3 expected) {

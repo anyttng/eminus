@@ -12,6 +12,16 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     @Override
     public int modelId(int stateId, Runnable whenBaked) {
         int modelId = index.modelId(stateId, whenBaked);
+        if (modelId == ModelBakery.POSITIONAL) {
+            return POSITIONAL;
+        }
+
+        return modelId == ModelBakery.MISSING ? MISSING : modelId;
+    }
+
+    @Override
+    public int positionalModelId(int stateId, int blockX, int blockY, int blockZ, Runnable whenBaked) {
+        int modelId = index.positionalModelId(stateId, blockX, blockY, blockZ, whenBaked);
         return modelId == ModelBakery.MISSING ? MISSING : modelId;
     }
 

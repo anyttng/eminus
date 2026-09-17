@@ -10,7 +10,8 @@
     "ClientPacketListenerMixin",
     "GameRendererMixin",
     "SpriteContentsAccessor",
-    "StairBlockAccessor"
+    "StairBlockAccessor",
+    "WeightedVariantsAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

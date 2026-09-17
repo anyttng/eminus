@@ -16,7 +16,6 @@ public final class ModelRecords implements AutoCloseable {
 
     private static final String LABEL = "eminus-model-records";
     private static final int USAGE = GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER | GpuBuffer.USAGE_COPY_DST;
-    private static final float PADDING = 0.0F;
 
     private final GpuBuffer buffer;
     private final ByteBuffer scratch = ByteBuffer.allocateDirect(BYTES).order(ByteOrder.nativeOrder());
@@ -35,7 +34,7 @@ public final class ModelRecords implements AutoCloseable {
         return buffer;
     }
 
-    public void write(int modelId, BakedModel model, int tintRow) {
+    public void write(int modelId, BakedModel model, int variantStart) {
         RenderSystem.assertOnRenderThread();
         float[] insets = model.insets();
         float[] bounds = model.bounds();
@@ -54,9 +53,9 @@ public final class ModelRecords implements AutoCloseable {
                 .putFloat(bounds[BakedModel.MAX_Y])
                 .putFloat(bounds[BakedModel.MAX_Z])
                 .putFloat(Float.intBitsToFloat(model.metadata()))
-                .putFloat(Float.intBitsToFloat(tintRow))
-                .putFloat(PADDING)
-                .putFloat(PADDING);
+                .putFloat(Float.intBitsToFloat(model.tintRow()))
+                .putFloat(variantStart)
+                .putFloat(model.variantCount());
         scratch.flip();
 
         RenderSystem.getDevice().createCommandEncoder()

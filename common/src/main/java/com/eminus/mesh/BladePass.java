@@ -29,7 +29,7 @@ public final class BladePass {
                         continue;
                     }
 
-                    int modelId = models.modelId(VoxelEntry.state(entry), whenBaked);
+                    int modelId = scratch.voxelModels().at(models, VoxelEntry.state(entry), x, y, z, whenBaked);
                     if (modelId == MeshModels.MISSING) {
                         return false;
                     }
