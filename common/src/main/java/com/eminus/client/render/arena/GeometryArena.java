@@ -6,6 +6,7 @@ import com.eminus.Eminus;
 import com.eminus.api.v1.ArenaState;
 import com.eminus.mesh.CellMesh;
 import com.eminus.render.arena.ArenaAllocator;
+import com.eminus.render.arena.ArenaPressure;
 import com.eminus.render.arena.ArenaSizing;
 import com.eminus.render.arena.MeshSlot;
 import com.eminus.render.arena.MeshSlots;
@@ -25,8 +26,6 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     private static final int USAGE =
             GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER | GpuBuffer.USAGE_COPY_DST;
     private static final long WARNING_PERIOD_NANOS = 1_000_000_000L;
-    private static final int HIGH_WATER_PERCENT = 85;
-    private static final int WHOLE_PERCENT = 100;
 
     private final GpuBuffer quads;
     private final long bytes;
@@ -34,6 +33,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     private final MeshRecords records;
     private final ArenaUploader uploader;
     private final Long2ObjectOpenHashMap<MeshSlot> held = new Long2ObjectOpenHashMap<>();
+    private final ArenaPressure pressure = new ArenaPressure();
 
     private int refused;
     private long refusedTotal;
@@ -88,8 +88,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     }
 
     public boolean pressure() {
-        return refused > 0
-                || (long) allocator.usedBlocks() * WHOLE_PERCENT >= (long) allocator.blocks() * HIGH_WATER_PERCENT;
+        return pressure.holding();
     }
 
     @Override
@@ -132,6 +131,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
             warnAboutRefusals();
         }
 
+        pressure.update(allocator.usedBlocks(), allocator.blocks(), refused > 0);
         return index;
     }
 

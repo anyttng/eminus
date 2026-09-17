@@ -12,11 +12,11 @@ final class TreeCleaner {
 
     private final List<TreeNode> candidates = new ArrayList<>();
 
-    List<TreeNode> pick(Collection<TreeNode> all, boolean pressure) {
+    List<TreeNode> pick(Collection<TreeNode> all, boolean pressure, long walk) {
         candidates.clear();
 
         for (TreeNode node : all) {
-            if (!node.isRoot() && node.mesh() != null) {
+            if (!node.isRoot() && node.mesh() != null && node.lastSeen() < walk) {
                 candidates.add(node);
             }
         }

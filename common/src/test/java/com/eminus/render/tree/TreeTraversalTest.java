@@ -1,6 +1,7 @@
 package com.eminus.render.tree;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -106,6 +107,49 @@ class TreeTraversalTest {
         CellMesh second = TestMeshes.of(children.get(1).key(), OccupancyMask.EMPTY);
         children.get(1).meshed(second);
         assertEquals(List.of(first, second), traversal.walk(nodes.roots(), inside(), BUDGET, WALK + 2).meshes());
+    }
+
+    @Test
+    void theChildrenOfANodeWaitingForTheRestAreSeenByTheWalk() {
+        meshedRoot(rootKey, TWO_CORNERS);
+        traversal.walk(nodes.roots(), inside(), BUDGET, WALK);
+        List<TreeNode> children = List.copyOf(traversal.requested());
+        children.get(0).meshed(TestMeshes.of(children.get(0).key(), OccupancyMask.EMPTY));
+
+        traversal.walk(nodes.roots(), inside(), BUDGET, WALK + 1);
+
+        assertEquals(WALK + 1, children.get(0).lastSeen());
+        assertEquals(WALK + 1, children.get(1).lastSeen());
+    }
+
+    @Test
+    void theChildrenOfADescendedNodeBeyondTheFarRenderDistanceAreSeenByTheWalk() {
+        long edgeKey = CellKey.pack(DetailLevel.MAX, NEXT_CELL, 0, 0);
+        meshedRoot(edgeKey, ALL_OCTANTS);
+        CameraFrame atEdge = FakeCameras.everything(0.0, INSIDE, INSIDE, ONE_CELL, FakeCameras.CLOSE_PIXELS_PER_BLOCK);
+        traversal.walk(nodes.roots(), atEdge, BUDGET, WALK);
+        List<TreeNode> children = List.copyOf(traversal.requested());
+        assertEquals(OccupancyMask.OCTANTS, children.size());
+        for (TreeNode child : children) {
+            child.meshed(TestMeshes.of(child.key(), OccupancyMask.EMPTY));
+        }
+
+        traversal.walk(nodes.roots(), atEdge, BUDGET, WALK + 1);
+
+        for (TreeNode child : children) {
+            assertEquals(WALK + 1, child.lastSeen());
+        }
+    }
+
+    @Test
+    void underArenaPressureAWalkRequestsNothingAndIsNotStarved() {
+        TreeNode root = meshedRoot(rootKey, ALL_OCTANTS);
+
+        RenderList list = traversal.walk(nodes.roots(), FakeCameras.underPressure(inside()), BUDGET, WALK);
+
+        assertEquals(List.of(root.mesh()), list.meshes());
+        assertTrue(traversal.requested().isEmpty());
+        assertFalse(traversal.starved());
     }
 
     @Test

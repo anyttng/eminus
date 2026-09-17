@@ -11,8 +11,9 @@ package com.eminus.api.v1;
  * @param largestFreeRun the longest run of adjacent free blocks — the largest mesh that still fits
  * @param freeRuns       the number of separate free runs
  * @param refusals       the meshes refused for want of a free run since the renderer started
- * @param pressure       whether the arena is past its high-water mark or refused a mesh in its last upload, which
- *                       makes the tree evict the nodes it has seen least recently
+ * @param pressure       whether the arena is holding: from crossing its high-water mark or refusing a mesh until it
+ *                       falls below its low-water mark, the tree requests no children and evicts the nodes its last
+ *                       walk did not use
  */
 public record ArenaState(
         long bytes,
