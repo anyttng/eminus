@@ -42,8 +42,8 @@ public final class MeshService {
         submit(MeshTask.fresh(key));
     }
 
-    public void request(long key, @Nullable CellHandle held, int references, long request) {
-        submit(MeshTask.carrying(key, held, references, request));
+    public void request(long key, @Nullable CellHandle held, int references, long request, float priority) {
+        submit(MeshTask.carrying(key, held, references, request, priority));
     }
 
     public void release(CellHandle held, int references) {

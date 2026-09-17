@@ -9,7 +9,7 @@ import com.eminus.cell.cache.CellHandle;
 import org.jspecify.annotations.Nullable;
 
 final class FakeBuilds implements TreeBuilds {
-    record Call(long key, @Nullable CellHandle handle, int references, long request) {
+    record Call(long key, @Nullable CellHandle handle, int references, long request, float priority) {
     }
 
     record Release(CellHandle handle, int references) {
@@ -23,8 +23,8 @@ final class FakeBuilds implements TreeBuilds {
     private volatile int backlog;
 
     @Override
-    public void build(long key, @Nullable CellHandle handle, int references, long request) {
-        calls.add(new Call(key, handle, references, request));
+    public void build(long key, @Nullable CellHandle handle, int references, long request, float priority) {
+        calls.add(new Call(key, handle, references, request, priority));
     }
 
     @Override

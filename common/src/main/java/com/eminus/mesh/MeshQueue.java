@@ -1,57 +1,42 @@
 package com.eminus.mesh;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.List;
-
-import com.eminus.cell.DetailLevel;
+import java.util.Comparator;
+import java.util.PriorityQueue;
 
 import org.jspecify.annotations.Nullable;
 
 public final class MeshQueue {
-    public static final int CLASSES = DetailLevel.COUNT * 2;
-
-    private static final int PER_LEVEL = 2;
-    private static final int RETRY_OFFSET = 1;
-
-    private final List<Deque<MeshTask>> classes = new ArrayList<>(CLASSES);
-
-    private int size;
-
-    public MeshQueue() {
-        for (int index = 0; index < CLASSES; index++) {
-            classes.add(new ArrayDeque<>());
+    private static final Comparator<Waiting> ORDER = (first, second) -> {
+        int byPriority = Float.compare(second.task().priority(), first.task().priority());
+        if (byPriority != 0) {
+            return byPriority;
         }
+
+        int byRetry = Boolean.compare(first.task().retried(), second.task().retried());
+        return byRetry != 0 ? byRetry : Long.compare(first.arrival(), second.arrival());
+    };
+
+    private final PriorityQueue<Waiting> waiting = new PriorityQueue<>(ORDER);
+
+    private long arrivals;
+
+    private record Waiting(MeshTask task, long arrival) {
     }
 
     public synchronized void add(MeshTask task) {
-        classes.get(classOf(task)).addLast(task);
-        size++;
+        waiting.add(new Waiting(task, arrivals++));
     }
 
     public synchronized @Nullable MeshTask poll() {
-        for (Deque<MeshTask> waiting : classes) {
-            MeshTask task = waiting.pollFirst();
-            if (task != null) {
-                size--;
-                return task;
-            }
-        }
-
-        return null;
+        Waiting next = waiting.poll();
+        return next == null ? null : next.task();
     }
 
     public synchronized int size() {
-        return size;
+        return waiting.size();
     }
 
     public synchronized void clear() {
-        classes.forEach(Deque::clear);
-        size = 0;
-    }
-
-    static int classOf(MeshTask task) {
-        return (DetailLevel.MAX - task.level()) * PER_LEVEL + (task.retried() ? RETRY_OFFSET : 0);
+        waiting.clear();
     }
 }

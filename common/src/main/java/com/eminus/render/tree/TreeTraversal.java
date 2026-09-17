@@ -2,6 +2,7 @@ package com.eminus.render.tree;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 
 import com.eminus.cell.CellFrame;
@@ -11,10 +12,13 @@ import com.eminus.cell.OccupancyMask;
 import com.eminus.mesh.CellMesh;
 import com.eminus.settings.FarDistance;
 
+import it.unimi.dsi.fastutil.floats.FloatArrayList;
+
 import org.joml.FrustumIntersection;
 
 final class TreeTraversal {
-    private static final double INSIDE_DISTANCE = 1.0;
+    private static final Comparator<Candidate> LARGEST_FIRST =
+            (first, second) -> Float.compare(second.size(), first.size());
 
     private final NodeTable nodes;
     private final TreeExtent extent;
@@ -22,7 +26,9 @@ final class TreeTraversal {
     private final List<TreeNode> current = new ArrayList<>();
     private final List<TreeNode> next = new ArrayList<>();
     private final List<CellMesh> drawn = new ArrayList<>();
+    private final List<Candidate> candidates = new ArrayList<>();
     private final List<TreeNode> requested = new ArrayList<>();
+    private final FloatArrayList requestedPriorities = new FloatArrayList();
 
     private boolean starved;
     private double minX;
@@ -31,6 +37,9 @@ final class TreeTraversal {
     private double maxX;
     private double maxY;
     private double maxZ;
+
+    private record Candidate(TreeNode node, float size) {
+    }
 
     TreeTraversal(NodeTable nodes, TreeExtent extent) {
         this.nodes = nodes;
@@ -42,7 +51,9 @@ final class TreeTraversal {
         current.clear();
         current.addAll(roots);
         drawn.clear();
+        candidates.clear();
         requested.clear();
+        requestedPriorities.clear();
         starved = false;
         double farBlocks = (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
 
@@ -50,13 +61,14 @@ final class TreeTraversal {
             next.clear();
 
             for (TreeNode node : current) {
-                budget = visit(node, camera, farBlocks, budget, walk);
+                visit(node, camera, farBlocks, walk);
             }
 
             current.clear();
             current.addAll(next);
         }
 
+        request(budget);
         return new RenderList(List.copyOf(drawn));
     }
 
@@ -65,72 +77,76 @@ final class TreeTraversal {
         return requested;
     }
 
+    float requestedPriority(int index) {
+        return requestedPriorities.getFloat(index);
+    }
+
     boolean starved() {
         return starved;
     }
 
-    private int visit(TreeNode node, CameraFrame camera, double farBlocks, int budget, long walk) {
+    private void visit(TreeNode node, CameraFrame camera, double farBlocks, long walk) {
         box(node, camera);
 
-        double horizontal = Math.sqrt(axisDistanceSquared(minX, maxX) + axisDistanceSquared(minZ, maxZ));
+        double horizontal = Math.sqrt(ProjectedSize.axisDistanceSquared(minX, maxX)
+                + ProjectedSize.axisDistanceSquared(minZ, maxZ));
         if (horizontal > farBlocks) {
-            return budget;
+            return;
         }
 
         if (!frustum.testAab((float) minX, (float) minY, (float) minZ, (float) maxX, (float) maxY, (float) maxZ)) {
-            return budget;
+            return;
         }
 
         node.seen(walk);
 
-        if (subdivides(node, camera)) {
-            budget = request(node, budget);
+        float size = size(node, camera);
+        if (node.level() > extent.lowestLevel() && size > camera.subdivisionPixels()) {
+            if (node.missingOctants() != OccupancyMask.EMPTY) {
+                candidates.add(new Candidate(node, size));
+            }
 
             if (node.occupancy() != OccupancyMask.EMPTY && node.childrenReady()) {
                 node.markDescended();
                 descend(node);
-                return budget;
+                return;
             }
         }
 
         draw(node);
-        return budget;
     }
 
-    private boolean subdivides(TreeNode node, CameraFrame camera) {
-        if (node.level() <= extent.lowestLevel()) {
-            return false;
-        }
-
-        double distance = Math.sqrt(axisDistanceSquared(minX, maxX)
-                + axisDistanceSquared(minY, maxY)
-                + axisDistanceSquared(minZ, maxZ));
-        if (distance < INSIDE_DISTANCE) {
-            return true;
-        }
-
-        double projected = DetailLevel.blocksPerCell(node.level()) * camera.pixelsPerBlock() / distance;
-        return projected > camera.subdivisionPixels();
+    private float size(TreeNode node, CameraFrame camera) {
+        double distance = Math.sqrt(ProjectedSize.axisDistanceSquared(minX, maxX)
+                + ProjectedSize.axisDistanceSquared(minY, maxY)
+                + ProjectedSize.axisDistanceSquared(minZ, maxZ));
+        return ProjectedSize.of(node.level(), distance, camera);
     }
 
-    private int request(TreeNode node, int budget) {
-        int missing = node.missingOctants();
+    private void request(int budget) {
+        candidates.sort(LARGEST_FIRST);
 
-        while (missing != 0 && budget > 0) {
-            int octant = Integer.numberOfTrailingZeros(missing);
-            TreeNode child = nodes.child(node, octant);
-            if (child == null) {
-                starved = true;
-                return 0;
+        for (Candidate candidate : candidates) {
+            int missing = candidate.node().missingOctants();
+
+            while (missing != 0 && budget > 0) {
+                TreeNode child = nodes.child(candidate.node(), Integer.numberOfTrailingZeros(missing));
+                if (child == null) {
+                    starved = true;
+                    return;
+                }
+
+                requested.add(child);
+                requestedPriorities.add(candidate.size());
+                budget--;
+                missing &= missing - 1;
             }
 
-            requested.add(child);
-            budget--;
-            missing &= missing - 1;
+            if (missing != 0) {
+                starved = true;
+                return;
+            }
         }
-
-        starved |= missing != 0;
-        return budget;
     }
 
     private void descend(TreeNode node) {
@@ -163,10 +179,5 @@ final class TreeTraversal {
         maxX = minX + side;
         maxY = minY + side;
         maxZ = minZ + side;
-    }
-
-    private static double axisDistanceSquared(double min, double max) {
-        double outside = Math.max(min, Math.max(0.0, -max));
-        return outside * outside;
     }
 }

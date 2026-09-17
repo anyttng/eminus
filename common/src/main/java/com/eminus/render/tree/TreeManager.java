@@ -21,6 +21,7 @@ import com.eminus.settings.FarDistance;
 import net.minecraft.core.Direction;
 
 import org.joml.Matrix4f;
+import org.jspecify.annotations.Nullable;
 
 public final class TreeManager implements CellChangeListener, MeshListener {
     public static final String THREAD_NAME = "eminus-tree";
@@ -52,6 +53,8 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private boolean lastStarved;
     private int lastDrawn;
     private long pressureEvictions;
+    private int refinements;
+    private @Nullable CameraFrame camera;
     private double lastEyeX;
     private double lastEyeY;
     private double lastEyeZ;
@@ -263,13 +266,17 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             return;
         }
 
+        if (!node.isRoot()) {
+            refinements--;
+        }
+
         node.meshed(mesh);
         pruneStaleChildren(node);
         batch.add(mesh);
         treeChanged = true;
 
         if (node.takeRebuild()) {
-            dispatch(node);
+            dispatch(node, priority(node));
         }
     }
 
@@ -278,6 +285,8 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         if (camera == null) {
             return;
         }
+
+        this.camera = camera;
 
         if (ring.update(camera.eyeX(), camera.eyeZ(), camera.farCells(), columns)) {
             treeChanged = true;
@@ -288,15 +297,16 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         }
 
         long walk = walks + 1;
-        int budget = Math.min(RequestBudget.perWalk(builds.backlog()), nodes.free());
+        int budget = Math.min(RequestBudget.perWalk(refinements), nodes.free());
         RenderList walked = traversal.walk(nodes.roots(), camera, budget, walk);
         batch.renderList(walked);
         lastRequested = traversal.requested().size();
         lastStarved = traversal.starved();
         lastDrawn = walked.meshes().size();
 
-        for (TreeNode child : traversal.requested()) {
-            dispatch(child);
+        List<TreeNode> requested = traversal.requested();
+        for (int index = 0; index < requested.size(); index++) {
+            dispatch(requested.get(index), traversal.requestedPriority(index));
         }
 
         List<TreeNode> stale = cleaner.pick(nodes.all(), camera.arenaPressure());
@@ -348,6 +358,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
                 batch.evict(removed.key());
             }
 
+            if (removed.building() && !removed.isRoot()) {
+                refinements--;
+            }
+
             CellHandle pending = removed.pending();
             if (pending != null) {
                 builds.release(pending, removed.pendingReferences());
@@ -375,16 +389,24 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             return;
         }
 
-        dispatch(node);
+        dispatch(node, priority(node));
     }
 
-    private void dispatch(TreeNode node) {
+    private float priority(TreeNode node) {
+        return camera == null ? ProjectedSize.UNKNOWN : ProjectedSize.of(extent.frame(), node.key(), camera);
+    }
+
+    private void dispatch(TreeNode node, float priority) {
+        if (!node.isRoot() && !node.building()) {
+            refinements++;
+        }
+
         CellHandle handle = node.pending();
         int references = node.pendingReferences();
         long request = ++requests;
         node.clearPending();
         node.startBuild(request);
-        builds.build(node.key(), handle, references, request);
+        builds.build(node.key(), handle, references, request, priority);
     }
 
     private void publish() {
@@ -399,7 +421,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             for (int cellY = 0; cellY < extent.heightCells(); cellY++) {
                 TreeNode root = nodes.root(CellKey.pack(DetailLevel.MAX, cellX, cellY, cellZ));
                 if (root.mesh() == null && !root.building()) {
-                    dispatch(root);
+                    dispatch(root, priority(root));
                 }
             }
 

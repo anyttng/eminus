@@ -8,24 +8,27 @@ import com.eminus.cell.CellKey;
 import org.junit.jupiter.api.Test;
 
 class MeshQueueTest {
+    private static final float SMALL = 10.0F;
+    private static final float LARGE = 500.0F;
+
     @Test
-    void aCoarseTaskQueuedLaterStillRunsFirst() {
+    void aLargerPriorityRunsFirstWhateverItsLevel() {
         MeshQueue queue = new MeshQueue();
-        MeshTask fine = MeshTask.fresh(CellKey.pack(0, 1, 2, 3));
-        MeshTask coarse = MeshTask.fresh(CellKey.pack(4, 1, 2, 3));
+        MeshTask farRoot = task(CellKey.pack(4, 1, 2, 3), SMALL);
+        MeshTask nearFine = task(CellKey.pack(1, 1, 2, 3), LARGE);
 
-        queue.add(fine);
-        queue.add(coarse);
+        queue.add(farRoot);
+        queue.add(nearFine);
 
-        assertEquals(coarse, queue.poll());
-        assertEquals(fine, queue.poll());
+        assertEquals(nearFine, queue.poll());
+        assertEquals(farRoot, queue.poll());
     }
 
     @Test
-    void aRetriedTaskRunsAfterTheFreshTasksOfItsLevel() {
+    void aRetriedTaskRunsAfterTheFreshTasksOfItsPriority() {
         MeshQueue queue = new MeshQueue();
-        MeshTask retried = MeshTask.fresh(CellKey.pack(2, 0, 0, 0)).retry();
-        MeshTask fresh = MeshTask.fresh(CellKey.pack(2, 9, 9, 9));
+        MeshTask retried = task(CellKey.pack(2, 0, 0, 0), SMALL).retry();
+        MeshTask fresh = task(CellKey.pack(2, 9, 9, 9), SMALL);
 
         queue.add(retried);
         queue.add(fresh);
@@ -35,24 +38,24 @@ class MeshQueueTest {
     }
 
     @Test
-    void aRetriedTaskStillRunsBeforeAnyFinerLevel() {
+    void aRetriedTaskKeepsItsPriorityAndStillRunsBeforeASmallerOne() {
         MeshQueue queue = new MeshQueue();
-        MeshTask retriedCoarse = MeshTask.fresh(CellKey.pack(3, 0, 0, 0)).retry();
-        MeshTask freshFine = MeshTask.fresh(CellKey.pack(1, 0, 0, 0));
+        MeshTask retriedLarge = task(CellKey.pack(1, 0, 0, 0), LARGE).retry();
+        MeshTask freshSmall = task(CellKey.pack(3, 0, 0, 0), SMALL);
 
-        queue.add(freshFine);
-        queue.add(retriedCoarse);
+        queue.add(freshSmall);
+        queue.add(retriedLarge);
 
-        assertEquals(retriedCoarse, queue.poll());
-        assertEquals(freshFine, queue.poll());
+        assertEquals(retriedLarge, queue.poll());
+        assertEquals(freshSmall, queue.poll());
     }
 
     @Test
-    void tasksOfOneClassComeBackInTheOrderTheyArrived() {
+    void tasksOfOnePriorityComeBackInTheOrderTheyArrived() {
         MeshQueue queue = new MeshQueue();
         MeshTask first = MeshTask.fresh(CellKey.pack(1, 1, 0, 0));
-        MeshTask second = MeshTask.fresh(CellKey.pack(1, 2, 0, 0));
-        MeshTask third = MeshTask.fresh(CellKey.pack(1, 3, 0, 0));
+        MeshTask second = MeshTask.fresh(CellKey.pack(4, 2, 0, 0));
+        MeshTask third = MeshTask.fresh(CellKey.pack(0, 3, 0, 0));
 
         queue.add(first);
         queue.add(second);
@@ -74,5 +77,9 @@ class MeshQueueTest {
         queue.poll();
         assertEquals(0, queue.size());
         assertNull(queue.poll());
+    }
+
+    private static MeshTask task(long key, float priority) {
+        return MeshTask.carrying(key, null, 0, MeshTask.NO_REQUEST, priority);
     }
 }
