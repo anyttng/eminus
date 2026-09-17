@@ -145,10 +145,14 @@ public final class ModelBaker implements StateBaker {
 
     private void gather(List<BlockStateModelPart> collected) {
         quads.clear();
+        gather(collected, quads);
+    }
+
+    public static void gather(List<BlockStateModelPart> collected, List<BakedQuad> into) {
         for (BlockStateModelPart part : collected) {
-            quads.addAll(part.getQuads(null));
+            into.addAll(part.getQuads(null));
             for (Direction face : FACES) {
-                quads.addAll(part.getQuads(face));
+                into.addAll(part.getQuads(face));
             }
         }
     }

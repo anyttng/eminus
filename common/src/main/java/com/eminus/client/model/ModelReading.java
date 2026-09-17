@@ -87,7 +87,7 @@ public final class ModelReading {
         }
     }
 
-    private static void bake(ModelBakery bakery, List<BlockState> states, int models) {
+    static void bake(ModelBakery bakery, List<BlockState> states, int models) {
         for (BlockState state : states) {
             if (bakery.modelCount() >= models) {
                 return;
@@ -174,7 +174,7 @@ public final class ModelReading {
         return rows;
     }
 
-    private static List<BlockState> everyState() {
+    static List<BlockState> everyState() {
         List<BlockState> states = new ArrayList<>();
         BuiltInRegistries.BLOCK.forEach(block -> states.addAll(block.getStateDefinition().getPossibleStates()));
         return states;
