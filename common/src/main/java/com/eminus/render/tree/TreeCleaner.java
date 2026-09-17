@@ -6,13 +6,15 @@ import java.util.Comparator;
 import java.util.List;
 
 final class TreeCleaner {
-    static final int MESH_CAP = 32768;
     static final int PRESSURE_EVICTIONS = 64;
-    static final int MAX_PER_WALK = 256;
 
     private final List<TreeNode> candidates = new ArrayList<>();
 
     List<TreeNode> pick(Collection<TreeNode> all, boolean pressure, long walk) {
+        if (!pressure) {
+            return List.of();
+        }
+
         candidates.clear();
 
         for (TreeNode node : all) {
@@ -21,8 +23,7 @@ final class TreeCleaner {
             }
         }
 
-        int wanted = Math.max(0, candidates.size() - MESH_CAP) + (pressure ? PRESSURE_EVICTIONS : 0);
-        wanted = Math.min(Math.min(wanted, MAX_PER_WALK), candidates.size());
+        int wanted = Math.min(PRESSURE_EVICTIONS, candidates.size());
         if (wanted == 0) {
             return List.of();
         }

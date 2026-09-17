@@ -313,9 +313,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         for (TreeNode node : stale) {
             if (nodes.get(node.key()) == node) {
                 evict(node);
-                if (camera.arenaPressure()) {
-                    pressureEvictions++;
-                }
+                pressureEvictions++;
             }
         }
 
