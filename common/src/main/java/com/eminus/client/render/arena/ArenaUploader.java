@@ -81,9 +81,7 @@ public final class ArenaUploader implements AutoCloseable {
     private ByteBuffer fill(CellMesh mesh) {
         quads.clear();
         quads.put(mesh.quads(), 0, mesh.quadCount());
-        for (int colour : mesh.colours()) {
-            quads.put(Integer.toUnsignedLong(colour));
-        }
+        quads.put(mesh.colours());
 
         return scratch.clear().limit(mesh.slotCount() * ArenaSizing.QUAD_BYTES);
     }

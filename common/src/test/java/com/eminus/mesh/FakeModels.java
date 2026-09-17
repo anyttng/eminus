@@ -9,12 +9,15 @@ import java.util.Set;
 
 import com.eminus.model.BiomeColours;
 
+import net.minecraft.world.level.block.state.BlockState;
+
 final class FakeModels implements MeshModels {
     private final Map<Integer, Integer> ids = new HashMap<>();
     private final Map<Integer, Integer> fluidIds = new HashMap<>();
     private final Map<Integer, Integer> submergedIds = new HashMap<>();
     private final Map<Integer, Integer> words = new HashMap<>();
     private final Map<Integer, Integer> tintRows = new HashMap<>();
+    private final Map<Integer, BlockState> offsetStates = new HashMap<>();
     private final Set<Integer> unbaked = new HashSet<>();
     private final Set<Integer> unbakedFluids = new HashSet<>();
     private final List<Runnable> waiters = new ArrayList<>();
@@ -29,6 +32,10 @@ final class FakeModels implements MeshModels {
 
     void tint(int modelId, int row) {
         tintRows.put(modelId, row);
+    }
+
+    void offsetLike(int stateId, BlockState state) {
+        offsetStates.put(stateId, state);
     }
 
     void defineFluid(int stateId, int fluidModelId, int metadata) {
@@ -108,5 +115,11 @@ final class FakeModels implements MeshModels {
     @Override
     public int tintRow(int modelId) {
         return tintRows.getOrDefault(modelId, BiomeColours.NO_ROW);
+    }
+
+    @Override
+    public int offset(int stateId, int blockX, int blockY, int blockZ) {
+        BlockState state = offsetStates.get(stateId);
+        return state == null ? QuadOffset.NONE : QuadOffset.of(state, blockX, blockY, blockZ);
     }
 }

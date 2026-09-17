@@ -9,7 +9,7 @@ final class TestMeshes {
     static CellMesh of(long key, int occupancy) {
         int[] counts = new int[QuadGroups.COUNT];
         counts[0] = ONE_QUAD;
-        return new CellMesh(key, occupancy, new long[ONE_QUAD], new int[QuadGroups.COUNT], counts, new int[0]);
+        return new CellMesh(key, occupancy, new long[ONE_QUAD], new int[QuadGroups.COUNT], counts, new long[0]);
     }
 
     private TestMeshes() {

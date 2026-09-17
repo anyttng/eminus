@@ -25,6 +25,7 @@ public final class CellMeshing {
                 instance.build(),
                 runtime.cells(),
                 runtime.coverage(),
+                runtime.frame(),
                 new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
                 new BakeryTints(baking.colours(), runtime.biomes()),
                 Minecraft.getInstance().options.biomeBlendRadius().get(),

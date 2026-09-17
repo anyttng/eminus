@@ -13,4 +13,6 @@ public interface MeshModels {
     int metadata(int modelId);
 
     int tintRow(int modelId);
+
+    int offset(int stateId, int blockX, int blockY, int blockZ);
 }

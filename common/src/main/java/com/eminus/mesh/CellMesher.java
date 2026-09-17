@@ -1,5 +1,6 @@
 package com.eminus.mesh;
 
+import com.eminus.cell.CellFrame;
 import com.eminus.cell.StateOpacity;
 
 import net.minecraft.core.Direction;
@@ -9,17 +10,20 @@ import org.jspecify.annotations.Nullable;
 public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
     private final MeshScratch scratch;
     private final MeshModels models;
+    private final CellFrame frame;
 
     private Direction face;
     private int plane;
 
-    public CellMesher(MeshScratch scratch, MeshModels models) {
+    public CellMesher(MeshScratch scratch, MeshModels models, CellFrame frame) {
         this.scratch = scratch;
         this.models = models;
+        this.frame = frame;
     }
 
     public @Nullable CellMesh mesh(long key, int occupancy, StateOpacity opacity, Runnable whenBaked) {
         scratch.reset();
+        scratch.offsets().begin(frame, key);
         FacePasses passes = new FacePasses(scratch, opacity, models, whenBaked, this);
         BladePass blades = new BladePass(scratch, models, whenBaked);
 
