@@ -309,7 +309,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             dispatch(requested.get(index), traversal.requestedPriority(index));
         }
 
-        List<TreeNode> stale = cleaner.pick(nodes.all(), camera.arenaPressure());
+        List<TreeNode> stale = cleaner.pick(nodes.all(), camera.arenaPressure(), walk);
         for (TreeNode node : stale) {
             if (nodes.get(node.key()) == node) {
                 evict(node);

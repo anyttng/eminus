@@ -16,6 +16,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import com.eminus.api.v1.TreeState;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
@@ -256,6 +257,26 @@ class TreeManagerTest {
         manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
         manager.frame(frame(EYE_X + ONE_BLOCK, EYE_Z));
         awaitWalks(3);
+    }
+
+    @Test
+    void underArenaPressureATreeInViewEvictsNothingAndRequestsNothingAgain() throws Exception {
+        startRing();
+        manager.meshed(TestMeshes.of(KEY, ONE_OCTANT), rootRequests.get(KEY));
+        manager.frame(close(EYE_X, EYE_Z));
+        FakeBuilds.Call request = builds.take();
+        CellMesh child = TestMeshes.of(request.key(), OccupancyMask.EMPTY);
+        manager.meshed(child, request.request());
+        awaitRenderList(close(EYE_X + ONE_BLOCK, EYE_Z), list -> list.meshes().contains(child), meshes -> { });
+
+        CameraFrame pressed = FakeCameras.underPressure(close(EYE_X + 2 * ONE_BLOCK, EYE_Z));
+        manager.frame(pressed);
+        manager.snapshot().get(AWAIT_MILLIS, TimeUnit.MILLISECONDS);
+        manager.frame(pressed);
+        TreeState state = manager.snapshot().get(AWAIT_MILLIS, TimeUnit.MILLISECONDS);
+
+        assertEquals(0L, state.pressureEvictions());
+        assertTrue(builds.idle());
     }
 
     @Test

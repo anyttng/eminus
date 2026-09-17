@@ -68,7 +68,10 @@ final class TreeTraversal {
             current.addAll(next);
         }
 
-        request(budget);
+        if (!camera.arenaPressure()) {
+            request(budget);
+        }
+
         return new RenderList(List.copyOf(drawn));
     }
 
@@ -84,6 +87,7 @@ final class TreeTraversal {
     boolean starved() {
         return starved;
     }
+
 
     private void visit(TreeNode node, CameraFrame camera, double farBlocks, long walk) {
         box(node, camera);
@@ -106,6 +110,7 @@ final class TreeTraversal {
                 candidates.add(new Candidate(node, size));
             }
 
+            keepChildren(node, walk);
             if (node.occupancy() != OccupancyMask.EMPTY && node.childrenReady()) {
                 node.markDescended();
                 descend(node);
@@ -114,6 +119,15 @@ final class TreeTraversal {
         }
 
         draw(node);
+    }
+
+    private static void keepChildren(TreeNode node, long walk) {
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            TreeNode child = node.child(octant);
+            if (child != null) {
+                child.seen(walk);
+            }
+        }
     }
 
     private float size(TreeNode node, CameraFrame camera) {
