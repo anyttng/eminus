@@ -14,6 +14,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 
+import org.jspecify.annotations.Nullable;
+
 public final class SectionConverter {
     public static final String DICTIONARY_NAME = "biome";
     public static final int DEFAULT_SKY_LIGHT = VoxelEntry.MAX_LIGHT;
@@ -21,6 +23,7 @@ public final class SectionConverter {
 
     private static final String UNREGISTERED_BIOME = Eminus.MODID + ":unregistered";
     private static final int FALLBACK_BIOME_ID = 0;
+    private static final int NIBBLE_BITS = 4;
 
     public static void convert(LevelChunkSection section, BiomeWindow window, DataLayer skyLight,
             DataLayer blockLight, StateTable states, Dictionary<String> biomes, SectionPyramid into) {
@@ -49,6 +52,29 @@ public final class SectionConverter {
                 }
             }
         }
+    }
+
+    public static boolean lightDiffersFromBlank(@Nullable DataLayer skyLight, @Nullable DataLayer blockLight) {
+        return !filledWith(skyLight, DEFAULT_SKY_LIGHT) || !filledWith(blockLight, DEFAULT_BLOCK_LIGHT);
+    }
+
+    private static boolean filledWith(@Nullable DataLayer layer, int value) {
+        if (layer == null || layer.isDefinitelyFilledWith(value)) {
+            return true;
+        }
+
+        if (layer.isDefinitelyHomogenous()) {
+            return false;
+        }
+
+        byte packed = (byte) (value << NIBBLE_BITS | value);
+        for (byte nibbles : layer.getData()) {
+            if (nibbles != packed) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static int biomeId(Holder<Biome> holder, Dictionary<String> biomes, SectionPyramid into) {

@@ -75,18 +75,25 @@ public final class IngestService {
 
         int chunkX = chunkPos.x();
         int chunkZ = chunkPos.z();
-        AtomicInteger remaining = new AtomicInteger(solidSections(sections));
-        if (remaining.get() == 0) {
+        boolean[] submitted = new boolean[sections.length];
+        int count = 0;
+        for (int index = 0; index < sections.length; index++) {
+            submitted[index] = submits(light, chunk, index);
+            if (submitted[index]) {
+                count++;
+            }
+        }
+
+        if (count == 0) {
             service.enqueue(pyramid -> cover(chunkX, chunkZ));
             return;
         }
 
+        AtomicInteger remaining = new AtomicInteger(count);
         for (int index = 0; index < sections.length; index++) {
-            if (sections[index].hasOnlyAir()) {
-                continue;
+            if (submitted[index]) {
+                submit(light, chunk, index, remaining);
             }
-
-            submit(light, chunk, index, remaining);
         }
     }
 
@@ -194,15 +201,14 @@ public final class IngestService {
         return (dz + NEIGHBOUR_REACH) * NEIGHBOUR_SIDE + dx + NEIGHBOUR_REACH;
     }
 
-    private static int solidSections(LevelChunkSection[] sections) {
-        int solid = 0;
-        for (LevelChunkSection section : sections) {
-            if (!section.hasOnlyAir()) {
-                solid++;
-            }
+    private static boolean submits(LevelLightEngine light, LevelChunk chunk, int index) {
+        if (!chunk.getSections()[index].hasOnlyAir()) {
+            return true;
         }
 
-        return solid;
+        SectionPos sectionPos = SectionPos.of(chunk.getPos(), chunk.getSectionYFromSectionIndex(index));
+        return SectionConverter.lightDiffersFromBlank(layer(light, LightLayer.SKY, sectionPos),
+                layer(light, LightLayer.BLOCK, sectionPos));
     }
 
     private static boolean lightOn(LevelLightEngine light, int chunkX, int chunkZ) {
