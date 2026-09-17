@@ -16,6 +16,10 @@ public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, 
         return quads.length;
     }
 
+    public MeshSummary summary() {
+        return new MeshSummary(key, occupancy, quads.length, groupCount[QuadGroups.TRANSLUCENT]);
+    }
+
     public int slotCount() {
         return quads.length + colours.length;
     }

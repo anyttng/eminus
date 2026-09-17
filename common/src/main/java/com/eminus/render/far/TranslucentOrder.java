@@ -7,8 +7,7 @@ import java.util.List;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
-import com.eminus.mesh.CellMesh;
-import com.eminus.mesh.QuadGroups;
+import com.eminus.mesh.MeshSummary;
 import com.eminus.render.tree.RenderList;
 
 public final class TranslucentOrder {
@@ -16,14 +15,14 @@ public final class TranslucentOrder {
     private static final long INDEX_MASK = 0xFFFF_FFFFL;
     private static final float HALF = 0.5F;
 
-    private final List<CellMesh> ordered = new ArrayList<>();
+    private final List<MeshSummary> ordered = new ArrayList<>();
 
-    private List<CellMesh> seen = List.of();
+    private List<MeshSummary> seen = List.of();
     private long[] distances = new long[0];
     private long cameraCell;
     private int sorts;
 
-    public List<CellMesh> meshes() {
+    public List<MeshSummary> meshes() {
         return ordered;
     }
 
@@ -34,7 +33,7 @@ public final class TranslucentOrder {
     }
 
     public void update(RenderList list, CellFrame frame, double cameraX, double cameraY, double cameraZ) {
-        List<CellMesh> meshes = list.meshes();
+        List<MeshSummary> meshes = list.meshes();
         long cell = frame.keyAt(DetailLevel.MIN, floor(cameraX), floor(cameraY), floor(cameraZ));
         if (cell == cameraCell && sameMembers(meshes)) {
             return;
@@ -46,7 +45,7 @@ public final class TranslucentOrder {
         sorts++;
     }
 
-    private boolean sameMembers(List<CellMesh> meshes) {
+    private boolean sameMembers(List<MeshSummary> meshes) {
         if (meshes == seen) {
             return true;
         }
@@ -64,15 +63,15 @@ public final class TranslucentOrder {
         return true;
     }
 
-    private void sort(List<CellMesh> meshes, CellFrame frame, double cameraX, double cameraY, double cameraZ) {
+    private void sort(List<MeshSummary> meshes, CellFrame frame, double cameraX, double cameraY, double cameraZ) {
         if (distances.length < meshes.size()) {
             distances = new long[meshes.size()];
         }
 
         int count = 0;
         for (int index = 0; index < meshes.size(); index++) {
-            CellMesh mesh = meshes.get(index);
-            if (mesh.groupCount(QuadGroups.TRANSLUCENT) > 0) {
+            MeshSummary mesh = meshes.get(index);
+            if (mesh.translucentQuads() > 0) {
                 float squared = distanceSquared(mesh.key(), frame, cameraX, cameraY, cameraZ);
                 distances[count++] = (long) Float.floatToRawIntBits(squared) << INDEX_BITS | index;
             }

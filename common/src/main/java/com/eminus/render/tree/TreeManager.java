@@ -16,6 +16,7 @@ import com.eminus.cell.cache.CellHandle;
 import com.eminus.ingest.CellChangeListener;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshListener;
+import com.eminus.mesh.MeshSummary;
 import com.eminus.settings.FarDistance;
 
 import net.minecraft.core.Direction;
@@ -172,7 +173,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         for (long[] row : rows) {
             TreeNode node = nodes.get(CellKey.pack((int) row[NodeRow.LEVEL], (int) row[NodeRow.CELL_X],
                     (int) row[NodeRow.CELL_Y], (int) row[NodeRow.CELL_Z]));
-            CellMesh mesh = node == null ? null : node.mesh();
+            MeshSummary mesh = node == null ? null : node.mesh();
             row[NodeRow.NODE_PRESENT] = node == null ? 0 : 1;
             row[NodeRow.MESHED] = mesh == null ? 0 : 1;
             row[NodeRow.MESH_QUADS] = mesh == null ? 0 : mesh.quadCount();
@@ -204,7 +205,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
                 building++;
             }
 
-            CellMesh mesh = node.mesh();
+            MeshSummary mesh = node.mesh();
             if (mesh != null) {
                 levelMeshed[level]++;
                 levelQuads[level] += mesh.quadCount();
@@ -270,7 +271,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             refinements--;
         }
 
-        node.meshed(mesh);
+        node.meshed(mesh.summary());
         pruneStaleChildren(node);
         batch.add(mesh);
         treeChanged = true;

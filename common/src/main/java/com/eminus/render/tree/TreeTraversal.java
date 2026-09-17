@@ -9,7 +9,7 @@ import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.OccupancyMask;
-import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.MeshSummary;
 import com.eminus.settings.FarDistance;
 
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
@@ -25,7 +25,7 @@ final class TreeTraversal {
     private final FrustumIntersection frustum = new FrustumIntersection();
     private final List<TreeNode> current = new ArrayList<>();
     private final List<TreeNode> next = new ArrayList<>();
-    private final List<CellMesh> drawn = new ArrayList<>();
+    private final List<MeshSummary> drawn = new ArrayList<>();
     private final List<Candidate> candidates = new ArrayList<>();
     private final List<TreeNode> requested = new ArrayList<>();
     private final FloatArrayList requestedPriorities = new FloatArrayList();
@@ -175,7 +175,7 @@ final class TreeTraversal {
     }
 
     private void draw(TreeNode node) {
-        CellMesh mesh = node.mesh();
+        MeshSummary mesh = node.mesh();
         if (mesh != null && !mesh.isEmpty()) {
             drawn.add(mesh);
         }
