@@ -30,6 +30,9 @@ layout(location = 0) out vec2 faceUV;
 layout(location = 1) out vec4 vertexColor;
 layout(location = 2) flat out vec3 tintColour;
 layout(location = 3) flat out ivec2 atlasCell;
+layout(location = 5) flat out ivec4 variantInfo;
+layout(location = 6) flat out ivec3 cellOrigin;
+layout(location = 7) out vec3 voxelPoint;
 
 #ifdef NEAR_SECTIONS
 layout(location = 4) out vec3 nearPoint;
@@ -47,6 +50,9 @@ void main() {
 
     faceUV = vertex.faceUV;
     atlasCell = vertex.atlasCell;
+    variantInfo = ivec4(vertex.variantStart, vertex.variantCount, vertex.faceSlot, vertex.level);
+    cellOrigin = vertex.cellOrigin;
+    voxelPoint = vertex.voxelPoint;
     tintColour = vertex.tint;
 
     vec4 colour = sample_lightmap(Lightmap, ivec2(vertex.blockLight * LIGHT_STEP, vertex.skyLight * LIGHT_STEP));

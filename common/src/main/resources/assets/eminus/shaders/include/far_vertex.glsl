@@ -10,6 +10,12 @@ struct FarVertex {
     ivec2 atlasCell;
     vec2 faceUV;
     vec3 tint;
+    ivec3 cellOrigin;
+    int level;
+    vec3 voxelPoint;
+    int faceSlot;
+    int variantStart;
+    int variantCount;
 };
 
 const int FAR_CORNERS_PER_QUAD = 6;
@@ -54,6 +60,7 @@ FarVertex far_vertex(int vertexId) {
     vec4 first = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS);
     vec4 second = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 1);
     vec4 third = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 2);
+    vec4 fourth = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 3);
     float insets[6] = float[6](first.x, first.y, first.z, first.w, second.x, second.y);
     vec3 boundsMin = vec3(second.z, second.w, third.x);
     vec3 boundsMax = vec3(third.y, third.z, third.w);
@@ -101,12 +108,18 @@ FarVertex far_vertex(int vertexId) {
         faceLocal[faceAxis] = float(voxel[faceAxis]) + FAR_HALF_VOXEL + offset[faceAxis];
     }
     vertex.facePoint = vec3(origin - CameraBlockPos) + faceLocal * float(1 << level);
+    vertex.voxelPoint = faceLocal - offset;
+    vertex.cellOrigin = origin;
+    vertex.level = level;
 
     vertex.faceUV = vec2(face == 2 || face == 5 ? float(width) - extent.x : extent.x,
                          face == 1 ? float(height) - extent.y : extent.y);
 
-    int slot = modelId * MODEL_FACES + (face >= FIRST_BLADE_FACE ? face - FIRST_BLADE_FACE : face);
+    vertex.faceSlot = face >= FIRST_BLADE_FACE ? face - FIRST_BLADE_FACE : face;
+    int slot = modelId * MODEL_FACES + vertex.faceSlot;
     vertex.atlasCell = ivec2(slot % AtlasCells, slot / AtlasCells);
+    vertex.variantStart = int(fourth.z);
+    vertex.variantCount = int(fourth.w);
 
     vertex.face = face;
     vertex.blockLight = light & FAR_NIBBLE;

@@ -21,13 +21,18 @@ layout(std140) uniform FarFrame {
 uniform sampler2D Atlas;
 uniform sampler2D TintMask;
 uniform sampler2D NearMask;
+uniform usamplerBuffer ModelVariants;
 
 #include <eminus:far_surface.glsl>
+#include <eminus:far_variant.glsl>
 
 layout(location = 0) in vec2 faceUV;
 layout(location = 1) in vec4 vertexColor;
 layout(location = 2) flat in vec3 tintColour;
 layout(location = 3) flat in ivec2 atlasCell;
+layout(location = 5) flat in ivec4 variantInfo;
+layout(location = 6) flat in ivec3 cellOrigin;
+layout(location = 7) in vec3 voxelPoint;
 
 #ifdef NEAR_SECTIONS
 uniform usamplerBuffer NearSections;
@@ -55,7 +60,15 @@ void main() {
     }
 #endif
 
-    vec4 colour = far_surface(atlasCell, faceUV, tintColour) * vertexColor;
+    ivec2 cell = atlasCell;
+    if (variantInfo.y > 0) {
+        ivec3 voxel = clamp(ivec3(floor(voxelPoint)), ivec3(0), ivec3(VOXELS_PER_SIDE - 1));
+        int slot = far_variant_model(variantInfo.x, variantInfo.y, cellOrigin + (voxel << variantInfo.w))
+                * MODEL_FACES + variantInfo.z;
+        cell = ivec2(slot % AtlasCells, slot / AtlasCells);
+    }
+
+    vec4 colour = far_surface(cell, faceUV, tintColour) * vertexColor;
     if (colour.a < ALPHA_CUTOUT) {
         discard;
     }

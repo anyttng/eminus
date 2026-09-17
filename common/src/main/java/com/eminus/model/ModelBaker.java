@@ -4,19 +4,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.eminus.mixin.StairBlockAccessor;
+import com.eminus.mixin.WeightedVariantsAccessor;
 
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.block.BlockStateModelSet;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.block.dispatch.WeightedVariants;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
+import net.minecraft.util.random.Weighted;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
+
+import org.jspecify.annotations.Nullable;
 
 public final class ModelBaker implements StateBaker {
     private static final long BAKE_SEED = 0L;
@@ -30,7 +36,7 @@ public final class ModelBaker implements StateBaker {
     private final BiomeColours colours;
     private final boolean cutoutLeaves;
     private final FaceRasterizer rasterizer = new FaceRasterizer();
-    private final RandomSource random = RandomSource.create();
+    private final CountingRandom random = new CountingRandom();
     private final List<BlockStateModelPart> parts = new ArrayList<>();
     private final List<BakedQuad> quads = new ArrayList<>();
 
@@ -54,7 +60,8 @@ public final class ModelBaker implements StateBaker {
         }
 
         BlockState shape = baseOf(state);
-        collect(shape);
+        BlockStateModel model = modelOf(shape);
+        boolean drew = collect(model);
         FluidState fluid = state.getFluidState();
 
         if (quads.isEmpty()) {
@@ -66,31 +73,79 @@ public final class ModelBaker implements StateBaker {
             return new BakedState(surface, null, FluidBaker.submerged(surface));
         }
 
-        BakedModel model = rasterizer.rasterize(quads, texels(shape),
-                layer -> colours.resolve(blockColors.getTintSource(shape, layer), shape));
-        if (fluid.isEmpty()) {
-            return new BakedState(emissive(model, state), null);
+        BakedModel block = emissive(rasterize(shape), state);
+        BakedModel surface = fluid.isEmpty() ? null : fluidModel(fluid, state);
+        BakedModel submerged = surface == null ? null : FluidBaker.submerged(surface);
+        if (!drew) {
+            return new BakedState(block, surface, submerged);
         }
 
-        BakedModel surface = fluidModel(fluid, state);
-        return new BakedState(emissive(model, state), surface, FluidBaker.submerged(surface));
+        List<Weighted<BakedModel>> variants = variants(model, shape, state);
+        return new BakedState(block, surface, submerged, variants, variants.isEmpty());
+    }
+
+    @Override
+    public void pick(BlockState state, RandomSource random, List<BlockStateModelPart> parts) {
+        blockModels.get(baseOf(state)).collectParts(random, parts);
+    }
+
+    @Override
+    public BakedModel bakeParts(BlockState state, List<BlockStateModelPart> picked) {
+        BlockState shape = baseOf(state);
+        gather(picked);
+        return quads.isEmpty() ? BakedModel.empty() : emissive(rasterize(shape), state);
+    }
+
+    private List<Weighted<BakedModel>> variants(@Nullable BlockStateModel model, BlockState shape, BlockState state) {
+        if (!(model instanceof WeightedVariants weighted) || SeedOverrides.overridden(state.getBlock())) {
+            return List.of();
+        }
+
+        List<Weighted<BlockStateModel>> entries = ((WeightedVariantsAccessor) weighted).eminus$list().unwrap();
+        List<Weighted<BakedModel>> baked = new ArrayList<>(entries.size());
+        for (Weighted<BlockStateModel> entry : entries) {
+            if (collect(entry.value()) || quads.isEmpty()) {
+                return List.of();
+            }
+
+            BakedModel variant = emissive(rasterize(shape), state);
+            if (!baked.isEmpty() && !baked.getFirst().value().sameGeometry(variant)) {
+                return List.of();
+            }
+
+            baked.add(new Weighted<>(variant, entry.weight()));
+        }
+
+        return baked;
+    }
+
+    private BakedModel rasterize(BlockState shape) {
+        return rasterizer.rasterize(quads, texels(shape),
+                layer -> colours.resolve(blockColors.getTintSource(shape, layer), shape));
     }
 
     private BakedModel fluidModel(FluidState fluid, BlockState state) {
         return emissive(fluids.bake(fluid, colours.resolve(fluids.tintSource(fluid), state)), state);
     }
 
-    private void collect(BlockState state) {
-        quads.clear();
-        if (state.getRenderShape() == RenderShape.INVISIBLE) {
-            return;
+    private @Nullable BlockStateModel modelOf(BlockState shape) {
+        return shape.getRenderShape() == RenderShape.INVISIBLE ? null : blockModels.get(shape);
+    }
+
+    private boolean collect(@Nullable BlockStateModel model) {
+        parts.clear();
+        random.restart(BAKE_SEED);
+        if (model != null) {
+            model.collectParts(random, parts);
         }
 
-        parts.clear();
-        random.setSeed(BAKE_SEED);
-        blockModels.get(state).collectParts(random, parts);
+        gather(parts);
+        return random.drew();
+    }
 
-        for (BlockStateModelPart part : parts) {
+    private void gather(List<BlockStateModelPart> collected) {
+        quads.clear();
+        for (BlockStateModelPart part : collected) {
             quads.addAll(part.getQuads(null));
             for (Direction face : FACES) {
                 quads.addAll(part.getQuads(face));

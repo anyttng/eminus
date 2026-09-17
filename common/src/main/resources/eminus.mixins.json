@@ -10,7 +10,8 @@
     "GameRendererMixin",
     "LevelRendererMixin",
     "SpriteContentsAccessor",
-    "StairBlockAccessor"
+    "StairBlockAccessor",
+    "WeightedVariantsAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
