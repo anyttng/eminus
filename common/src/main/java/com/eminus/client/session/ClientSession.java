@@ -111,6 +111,7 @@ public final class ClientSession {
 
     public static void overrideNearField() {
         if (renderer == null) {
+            NearFieldOverride.skip();
             return;
         }
 
@@ -120,6 +121,8 @@ public final class ClientSession {
         if (renderer.covers(fog, state.optionsRenderState.renderDistance)) {
             boolean inAir = client.gameRenderer.mainCamera().getFluidInCamera() == FogType.NONE;
             NearFieldOverride.apply(fog, state.optionsRenderState, inAir && !SettingsService.get().settings().fog());
+        } else {
+            NearFieldOverride.skip();
         }
     }
 
