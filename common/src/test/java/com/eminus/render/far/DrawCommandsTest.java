@@ -142,7 +142,7 @@ class DrawCommandsTest {
     }
 
     @Test
-    void theSurplusPastTheCapacityIsDroppedForTheFrame() {
+    void aWritePastTheCapacityGrowsTheBufferAndKeepsEveryCommand() {
         int[] groupStart = new int[QuadGroups.COUNT];
         int[] groupCount = new int[QuadGroups.COUNT];
         for (int group = 0; group < QuadGroups.DIRECTIONAL_COUNT; group++) {
@@ -153,8 +153,13 @@ class DrawCommandsTest {
         write(slots(new MeshSlot(key, BLOCK, QuadGroups.DIRECTIONAL_COUNT * UP_QUADS, NO_COLOURS, groupStart,
                 groupCount)), INSIDE);
 
-        assertEquals(CAPACITY, commands.opaqueCount());
-        assertEquals(QuadGroups.DIRECTIONAL_COUNT - CAPACITY, commands.dropped());
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT, commands.opaqueCount());
+
+        IntBuffer written = commands.buffer().asIntBuffer();
+        for (int group = 0; group < QuadGroups.DIRECTIONAL_COUNT; group++) {
+            assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + group * UP_QUADS) * DrawCommands.VERTICES_PER_QUAD,
+                    written.get(group * DrawCommands.COMMAND_INTS + 2));
+        }
     }
 
     private void write(MeshSlots slots, double cameraY) {

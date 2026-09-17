@@ -5,7 +5,6 @@ import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.util.List;
 
-import com.eminus.Eminus;
 import com.eminus.cell.CellFrame;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.QuadGroups;
@@ -20,25 +19,23 @@ public final class DrawCommands {
 
     private static final int ONE_INSTANCE = 1;
     private static final int FIRST_INSTANCE = 0;
+    private static final int GROWTH = 2;
 
-    private final int capacity;
-    private final ByteBuffer bytes;
-    private final IntBuffer commands;
     private final float[] bounds = new float[MeshSlot.BOUNDS];
 
+    private int capacity;
+    private ByteBuffer bytes;
+    private IntBuffer commands;
     private int opaqueCount;
     private int translucentCount;
     private int quads;
-    private int dropped;
 
     public DrawCommands(int capacity) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("An indirect buffer of " + capacity + " commands draws nothing.");
         }
 
-        this.capacity = capacity;
-        bytes = ByteBuffer.allocateDirect(capacity * COMMAND_BYTES).order(ByteOrder.nativeOrder());
-        commands = bytes.asIntBuffer();
+        allocate(capacity);
     }
 
     public int capacity() {
@@ -61,10 +58,6 @@ public final class DrawCommands {
         return quads;
     }
 
-    public int dropped() {
-        return dropped;
-    }
-
     public ByteBuffer buffer() {
         return bytes.clear().limit(count() * COMMAND_BYTES);
     }
@@ -75,7 +68,6 @@ public final class DrawCommands {
         opaqueCount = 0;
         translucentCount = 0;
         quads = 0;
-        dropped = 0;
 
         for (CellMesh mesh : list.meshes()) {
             MeshSlot slot = slots.slot(mesh.key());
@@ -89,11 +81,6 @@ public final class DrawCommands {
             if (slot != null && put(slot, QuadGroups.TRANSLUCENT)) {
                 translucentCount++;
             }
-        }
-
-        if (dropped > 0) {
-            Eminus.LOGGER.warn("The indirect buffer holds {} commands; {} quad groups are dropped for this frame",
-                    capacity, dropped);
         }
     }
 
@@ -118,8 +105,7 @@ public final class DrawCommands {
         }
 
         if (count() == capacity) {
-            dropped++;
-            return false;
+            grow();
         }
 
         commands.put(groupQuads * VERTICES_PER_QUAD)
@@ -128,5 +114,18 @@ public final class DrawCommands {
                 .put(FIRST_INSTANCE);
         quads += groupQuads;
         return true;
+    }
+
+    private void grow() {
+        ByteBuffer written = bytes.clear().limit(count() * COMMAND_BYTES);
+        allocate(capacity * GROWTH);
+        bytes.put(written).clear();
+        commands.position(count() * COMMAND_INTS);
+    }
+
+    private void allocate(int commandCapacity) {
+        capacity = commandCapacity;
+        bytes = ByteBuffer.allocateDirect(commandCapacity * COMMAND_BYTES).order(ByteOrder.nativeOrder());
+        commands = bytes.asIntBuffer();
     }
 }
