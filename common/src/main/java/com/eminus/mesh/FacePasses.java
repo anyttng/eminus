@@ -107,14 +107,12 @@ public final class FacePasses {
 
                 long low = RowMasks.entryAt(voxels, axis, u, v, plane - 1);
                 long high = RowMasks.entryAt(voxels, axis, u, v, plane + 1);
-                boolean lowCovered = covered(u, plane - 1);
-                boolean highCovered = covered(u, plane + 1);
 
-                if (!blockFaces(u, v, plane, row, low, high, modelId, lowCovered, highCovered)) {
+                if (!blockFaces(u, v, plane, row, low, high, modelId)) {
                     return false;
                 }
 
-                if (!fluidFaces(u, v, plane, owner, low, high, lowCovered, highCovered)) {
+                if (!fluidFaces(u, v, plane, owner, low, high)) {
                     return false;
                 }
             }
@@ -123,8 +121,7 @@ public final class FacePasses {
         return true;
     }
 
-    private boolean blockFaces(int u, int v, int plane, int row, long low, long high, int modelId,
-            boolean lowCovered, boolean highCovered) {
+    private boolean blockFaces(int u, int v, int plane, int row, long low, long high, int modelId) {
         if (!Quad.fitsModelId(modelId)) {
             scratch.buffer().dropUnaddressable();
             return true;
@@ -133,13 +130,23 @@ public final class FacePasses {
         RowMasks masks = scratch.masks();
         int metadata = models.metadata(modelId);
 
+        int drawn = drawnModel(modelId, u, v, plane);
+        if (drawn == MeshModels.MISSING) {
+            return false;
+        }
+
+        if (!Quad.fitsModelId(drawn)) {
+            scratch.buffer().dropUnaddressable();
+            return true;
+        }
+
         if (masks.opaque(row, plane)) {
-            if (lowCovered && masks.facesNegative(row, plane)) {
-                scratch.negativePlane().set(u, v, data(u, v, plane, low, metadata, modelId));
+            if (masks.facesNegative(row, plane)) {
+                scratch.negativePlane().set(u, v, data(u, v, plane, low, metadata, drawn));
             }
 
-            if (highCovered && masks.facesPositive(row, plane)) {
-                scratch.positivePlane().set(u, v, data(u, v, plane, high, metadata, modelId));
+            if (masks.facesPositive(row, plane)) {
+                scratch.positivePlane().set(u, v, data(u, v, plane, high, metadata, drawn));
             }
 
             return true;
@@ -151,31 +158,20 @@ public final class FacePasses {
             return false;
         }
 
-        if (lowCovered && !facingHoldsSameTranslucent(metadata, modelId, lowModel, low)
+        if (!facingHoldsSameTranslucent(metadata, modelId, lowModel, low)
                 && visible(metadata, metadataOf(lowModel), towardsLow)) {
-            scratch.negativePlane().set(u, v, data(u, v, plane, low, metadata, modelId));
+            scratch.negativePlane().set(u, v, data(u, v, plane, low, metadata, drawn));
         }
 
-        if (highCovered && !facingHoldsSameTranslucent(metadata, modelId, highModel, high)
+        if (!facingHoldsSameTranslucent(metadata, modelId, highModel, high)
                 && visible(metadata, metadataOf(highModel), towardsHigh)) {
-            scratch.positivePlane().set(u, v, data(u, v, plane, high, metadata, modelId));
+            scratch.positivePlane().set(u, v, data(u, v, plane, high, metadata, drawn));
         }
 
         return true;
     }
 
-    private boolean covered(int u, int at) {
-        CellVoxels voxels = scratch.voxels();
-
-        return switch (axis) {
-            case X -> voxels.covered(at, u);
-            case Y -> true;
-            case Z -> voxels.covered(u, at);
-        };
-    }
-
-    private boolean fluidFaces(int u, int v, int plane, long owner, long low, long high, boolean lowCovered,
-            boolean highCovered) {
+    private boolean fluidFaces(int u, int v, int plane, long owner, long low, long high) {
         int fluidModel = models.fluidModelId(VoxelEntry.state(owner), whenBaked);
         if (fluidModel == MeshModels.MISSING) {
             return false;
@@ -196,19 +192,46 @@ public final class FacePasses {
             return false;
         }
 
-        int metadata = models.metadata(fluidModel);
-
-        if (lowCovered && !facingHoldsSameTranslucent(metadata, fluidModel, lowModel, low)
-                && visible(metadata, metadataOf(lowModel), towardsLow)) {
-            scratch.negativeFluidPlane().set(u, v, data(u, v, plane, low, metadata, fluidModel));
+        int drawn = drawnModel(fluidModel, u, v, plane);
+        if (drawn == MeshModels.MISSING) {
+            return false;
         }
 
-        if (highCovered && !facingHoldsSameTranslucent(metadata, fluidModel, highModel, high)
+        if (!Quad.fitsModelId(drawn)) {
+            scratch.buffer().dropUnaddressable();
+            return true;
+        }
+
+        int metadata = models.metadata(fluidModel);
+
+        if (!facingHoldsSameTranslucent(metadata, fluidModel, lowModel, low)
+                && visible(metadata, metadataOf(lowModel), towardsLow)) {
+            scratch.negativeFluidPlane().set(u, v, data(u, v, plane, low, metadata, drawn));
+        }
+
+        if (!facingHoldsSameTranslucent(metadata, fluidModel, highModel, high)
                 && visible(metadata, metadataOf(highModel), towardsHigh)) {
-            scratch.positiveFluidPlane().set(u, v, data(u, v, plane, high, metadata, fluidModel));
+            scratch.positiveFluidPlane().set(u, v, data(u, v, plane, high, metadata, drawn));
         }
 
         return true;
+    }
+
+    private int drawnModel(int surfaceModel, int u, int v, int plane) {
+        int submergedModel = models.submergedModelId(surfaceModel);
+        if (submergedModel == surfaceModel) {
+            return surfaceModel;
+        }
+
+        long above = axis == Direction.Axis.Y
+                ? RowMasks.entryAt(scratch.voxels(), axis, u, v, plane + 1)
+                : RowMasks.entryAt(scratch.voxels(), axis, u, v + 1, plane);
+        int aboveModel = facingFluidModel(above);
+        if (aboveModel == MeshModels.MISSING) {
+            return MeshModels.MISSING;
+        }
+
+        return aboveModel == surfaceModel ? submergedModel : surfaceModel;
     }
 
     private int facingModel(long entry) {

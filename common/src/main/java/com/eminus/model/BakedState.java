@@ -2,5 +2,8 @@ package com.eminus.model;
 
 import org.jspecify.annotations.Nullable;
 
-public record BakedState(BakedModel block, @Nullable BakedModel fluid) {
+public record BakedState(BakedModel block, @Nullable BakedModel fluid, @Nullable BakedModel submerged) {
+    public BakedState(BakedModel block, @Nullable BakedModel fluid) {
+        this(block, fluid, null);
+    }
 }

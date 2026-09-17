@@ -12,6 +12,7 @@ import com.eminus.model.BiomeColours;
 final class FakeModels implements MeshModels {
     private final Map<Integer, Integer> ids = new HashMap<>();
     private final Map<Integer, Integer> fluidIds = new HashMap<>();
+    private final Map<Integer, Integer> submergedIds = new HashMap<>();
     private final Map<Integer, Integer> words = new HashMap<>();
     private final Map<Integer, Integer> tintRows = new HashMap<>();
     private final Set<Integer> unbaked = new HashSet<>();
@@ -33,6 +34,11 @@ final class FakeModels implements MeshModels {
     void defineFluid(int stateId, int fluidModelId, int metadata) {
         fluidIds.put(stateId, fluidModelId);
         words.put(fluidModelId, metadata);
+    }
+
+    void submerge(int surfaceModelId, int submergedModelId) {
+        submergedIds.put(surfaceModelId, submergedModelId);
+        words.put(submergedModelId, words.get(surfaceModelId));
     }
 
     void unbake(int stateId) {
@@ -83,6 +89,11 @@ final class FakeModels implements MeshModels {
 
         Integer fluidModelId = fluidIds.get(stateId);
         return fluidModelId == null ? NO_FLUID : fluidModelId;
+    }
+
+    @Override
+    public int submergedModelId(int modelId) {
+        return submergedIds.getOrDefault(modelId, modelId);
     }
 
     @Override

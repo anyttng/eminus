@@ -1,6 +1,7 @@
 package com.eminus.model;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ public final class ModelBakery implements ModelSource {
     private final Dictionary<BakedModel> models = new Dictionary<>((id, model) -> { });
     private final Map<BlockState, Integer> idByState = new ConcurrentHashMap<>();
     private final Map<BlockState, Integer> fluidIdByState = new ConcurrentHashMap<>();
+    private volatile int[] submergedIds = new int[0];
     private final BlockingQueue<BlockState> requests = new LinkedBlockingQueue<>();
     private final Map<BlockState, List<Runnable>> waiting = new HashMap<>();
     private final Thread thread = new Thread(this::serve, THREAD_NAME);
@@ -52,6 +54,12 @@ public final class ModelBakery implements ModelSource {
     public int fluidModelId(BlockState state) {
         Integer known = fluidIdByState.get(state);
         return known == null ? MISSING : known;
+    }
+
+    public int submergedModelId(int modelId) {
+        int[] snapshot = submergedIds;
+        int twin = modelId >= 0 && modelId < snapshot.length ? snapshot[modelId] : MISSING;
+        return twin == MISSING ? modelId : twin;
     }
 
     @Override
@@ -125,10 +133,29 @@ public final class ModelBakery implements ModelSource {
         }
     }
 
+    private void remember(int surfaceId, int submergedId) {
+        int[] current = submergedIds;
+        int known = current.length;
+        if (surfaceId >= known) {
+            int size = Math.max(known * 2, surfaceId + 1);
+            current = Arrays.copyOf(current, size);
+            Arrays.fill(current, known, size, MISSING);
+        }
+
+        current[surfaceId] = submergedId;
+        submergedIds = current;
+    }
+
     private void publish(BlockState state, BakedState baked) {
         BakedModel fluid = baked.fluid();
-        fluidIdByState.put(state, fluid == null ? NO_FLUID : models.register(fluid));
-        idByState.put(state, models.register(baked.block()));
+        int fluidId = fluid == null ? NO_FLUID : models.register(fluid);
+        int blockId = models.register(baked.block());
+        if (baked.submerged() != null) {
+            remember(fluid == null ? blockId : fluidId, models.register(baked.submerged()));
+        }
+
+        fluidIdByState.put(state, fluidId);
+        idByState.put(state, blockId);
 
         List<Runnable> waiters;
         synchronized (waiting) {
