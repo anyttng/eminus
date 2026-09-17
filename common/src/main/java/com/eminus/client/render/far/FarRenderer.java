@@ -59,7 +59,7 @@ import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 
 public final class FarRenderer implements AutoCloseable {
-    public static final int COMMAND_CAPACITY = 32768;
+    public static final int START_COMMANDS = 32768;
     public static final String ARENA_CAP_PROPERTY = "eminus.arena.maxMiB";
 
     private static final long BYTES_PER_MIB = 1L << 20;
@@ -76,8 +76,7 @@ public final class FarRenderer implements AutoCloseable {
     private final OcclusionPass occlusion;
     private final TranslucentPass translucent;
     private final CompositePass composite;
-    private final IndirectCommands indirect;
-    private final DrawCommands commands = new DrawCommands(COMMAND_CAPACITY);
+    private final DrawCommands commands = new DrawCommands(START_COMMANDS);
     private final TranslucentOrder order = new TranslucentOrder();
     private final FarProjection projection = new FarProjection();
     private final LevelProjection levelProjection = new LevelProjection();
@@ -86,6 +85,7 @@ public final class FarRenderer implements AutoCloseable {
     private final Matrix4f viewRotation = new Matrix4f();
     private final TreeManager tree;
 
+    private IndirectCommands indirect;
     private volatile MeshService meshes;
     private RenderList renderList = RenderList.EMPTY;
     private @Nullable TreeBatch uploading;
@@ -136,7 +136,7 @@ public final class FarRenderer implements AutoCloseable {
                 NearMaskPass.create(FarTarget.COLOUR_FORMAT), NearSectionTable.create(),
                 OpaquePass.create(support.depth()), OcclusionPass.create(support.depth()),
                 TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),
-                IndirectCommands.create(COMMAND_CAPACITY),
+                IndirectCommands.create(START_COMMANDS),
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
 
         renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(),
@@ -221,6 +221,11 @@ public final class FarRenderer implements AutoCloseable {
         commands.write(renderList, order.meshes(), arena, runtime.frame(), eye.x, eye.y, eye.z);
 
         if (commands.count() > 0) {
+            if (indirect.capacity() < commands.capacity()) {
+                indirect.close();
+                indirect = IndirectCommands.create(commands.capacity());
+            }
+
             indirect.write(commands);
             if (commands.translucentCount() > 0) {
                 fillNearSections(client, renderDistance, eye);
