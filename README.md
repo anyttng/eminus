@@ -1,6 +1,6 @@
 # Eminus
 
-A NeoForge and Fabric client mod that draws terrain far beyond the game's render distance. Eminus keeps a coarse, persistent copy of every chunk the client has seen and renders that copy as a far layer behind the game's own terrain, on both graphics APIs the game offers — OpenGL and Vulkan.
+A NeoForge and Fabric client mod that draws terrain far beyond the game's render distance. Eminus keeps a coarse, persistent copy of every chunk the client has seen and renders that copy as a far layer behind the game's own terrain.
 
 *Eminus* is Latin for "from afar".
 
@@ -12,4 +12,4 @@ A NeoForge and Fabric client mod that draws terrain far beyond the game's render
 
 ## Status
 
-In design. There is no build yet.
+In development. Runs on the game's OpenGL backend; Vulkan is in development, and shader-pack support is planned. Sodium is supported on both loaders. Nothing is uploaded to Modrinth or CurseForge yet.
