@@ -1,6 +1,7 @@
 package com.eminus.client;
 
 import com.eminus.client.session.ClientSession;
+import com.eminus.ingest.IngestTrigger;
 import com.eminus.settings.SettingsService;
 
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
@@ -34,7 +35,7 @@ public final class NeoForgeSessionHooks {
 
     private static void onChunkUnload(ChunkEvent.Unload event) {
         if (event.getLevel().isClientSide()) {
-            ClientSession.submitChunk(event.getChunk());
+            ClientSession.submitChunk(event.getChunk(), IngestTrigger.UNLOAD);
         }
     }
 
