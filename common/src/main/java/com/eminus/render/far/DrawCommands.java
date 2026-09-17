@@ -6,7 +6,7 @@ import java.nio.IntBuffer;
 import java.util.List;
 
 import com.eminus.cell.CellFrame;
-import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.MeshSummary;
 import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.MeshSlot;
 import com.eminus.render.arena.MeshSlots;
@@ -62,21 +62,21 @@ public final class DrawCommands {
         return bytes.clear().limit(count() * COMMAND_BYTES);
     }
 
-    public void write(RenderList list, List<CellMesh> translucent, MeshSlots slots, CellFrame frame,
+    public void write(RenderList list, List<MeshSummary> translucent, MeshSlots slots, CellFrame frame,
             double cameraX, double cameraY, double cameraZ) {
         commands.clear();
         opaqueCount = 0;
         translucentCount = 0;
         quads = 0;
 
-        for (CellMesh mesh : list.meshes()) {
+        for (MeshSummary mesh : list.meshes()) {
             MeshSlot slot = slots.slot(mesh.key());
             if (slot != null) {
                 writeGroups(slot, frame, cameraX, cameraY, cameraZ);
             }
         }
 
-        for (CellMesh mesh : translucent) {
+        for (MeshSummary mesh : translucent) {
             MeshSlot slot = slots.slot(mesh.key());
             if (slot != null && put(slot, QuadGroups.TRANSLUCENT)) {
                 translucentCount++;

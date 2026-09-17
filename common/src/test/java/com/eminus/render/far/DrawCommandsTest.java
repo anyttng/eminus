@@ -8,6 +8,7 @@ import java.util.List;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.MeshSummary;
 import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.MeshSlot;
@@ -166,7 +167,7 @@ class DrawCommandsTest {
         commands.write(new RenderList(List.of(mesh(key))), List.of(), slots, frame, INSIDE, cameraY, INSIDE);
     }
 
-    private void translucent(MeshSlots slots, CellMesh... ordered) {
+    private void translucent(MeshSlots slots, MeshSummary... ordered) {
         commands.write(RenderList.EMPTY, List.of(ordered), slots, frame, INSIDE, INSIDE, INSIDE);
     }
 
@@ -200,7 +201,7 @@ class DrawCommandsTest {
         return new MeshSlot(key, block, WATER_START + WATER_QUADS, NO_COLOURS, groupStart, groupCount);
     }
 
-    private static CellMesh mesh(long key) {
-        return CellMesh.empty(key);
+    private static MeshSummary mesh(long key) {
+        return CellMesh.empty(key).summary();
     }
 }

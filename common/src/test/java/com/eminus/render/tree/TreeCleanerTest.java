@@ -28,7 +28,7 @@ class TreeCleanerTest {
     private final TreeNode unmeshed = nodes.child(root, 3);
 
     TreeCleanerTest() {
-        root.meshed(TestMeshes.of(root.key(), FOUR_OCTANTS));
+        root.meshed(TestMeshes.summary(root.key(), FOUR_OCTANTS));
         root.seen(OLDEST);
     }
 
@@ -60,7 +60,7 @@ class TreeCleanerTest {
     }
 
     private static void subdivide(NodeTable table, TreeNode node) {
-        node.meshed(TestMeshes.of(node.key(), FOUR_OCTANTS));
+        node.meshed(TestMeshes.summary(node.key(), FOUR_OCTANTS));
         node.seen(OLDEST);
         if (CellKey.level(node.key()) == DetailLevel.MIN) {
             return;
@@ -77,7 +77,7 @@ class TreeCleanerTest {
 
     private TreeNode child(int octant, long seen) {
         TreeNode child = nodes.child(root, octant);
-        child.meshed(TestMeshes.of(child.key(), OccupancyMask.EMPTY));
+        child.meshed(TestMeshes.summary(child.key(), OccupancyMask.EMPTY));
         child.seen(seen);
         return child;
     }
