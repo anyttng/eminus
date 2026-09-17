@@ -20,12 +20,10 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -212,14 +210,13 @@ public final class ClientSession {
         heldChunksPending = false;
         ChunkPos centre = minecraft.player.chunkPosition();
         int radius = minecraft.options.getEffectiveRenderDistance() + CLIENT_EXTRA_CHUNKS;
-        LevelLightEngine light = level.getLightEngine();
 
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 int chunkX = centre.x() + dx;
                 int chunkZ = centre.z() + dz;
                 LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
-                if (chunk != null && light.lightOnInColumn(SectionPos.getZeroNode(chunkX, chunkZ))) {
+                if (chunk != null) {
                     ingest.submitChunk(chunk);
                 }
             }

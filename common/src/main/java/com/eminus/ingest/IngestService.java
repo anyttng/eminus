@@ -63,6 +63,11 @@ public final class IngestService {
         ChunkPos chunkPos = chunk.getPos();
         LevelChunkSection[] sections = chunk.getSections();
 
+        if (!lightOn(light, chunkPos.x(), chunkPos.z())) {
+            Eminus.LOGGER.debug("Chunk {} has no light applied yet; it waits for its light trigger.", chunkPos);
+            return;
+        }
+
         if (!hasLightData(light, chunk, chunkPos, sections.length)) {
             Eminus.LOGGER.debug("Chunk {} carries no light data; it is skipped.", chunkPos);
             return;
@@ -103,7 +108,8 @@ public final class IngestService {
         int sectionZ = SectionPos.z(sectionNode);
         LevelChunk chunk = level.getChunkSource().getChunkNow(sectionX, sectionZ);
         int index = chunk == null ? -1 : chunk.getSectionIndexFromSectionY(sectionY);
-        if (chunk == null || index < 0 || index >= chunk.getSections().length) {
+        if (chunk == null || index < 0 || index >= chunk.getSections().length
+                || !lightOn(level.getLightEngine(), sectionX, sectionZ)) {
             return;
         }
 
@@ -197,6 +203,10 @@ public final class IngestService {
         }
 
         return solid;
+    }
+
+    private static boolean lightOn(LevelLightEngine light, int chunkX, int chunkZ) {
+        return light.lightOnInColumn(SectionPos.getZeroNode(chunkX, chunkZ));
     }
 
     private static boolean hasLightData(LevelLightEngine light, LevelChunk chunk, ChunkPos chunkPos, int sectionCount) {
