@@ -52,6 +52,7 @@ class TreeManagerTest {
     private static final double ONE_BLOCK = 1.0;
     private static final double TELEPORT = 2_000.0;
     private static final int ONE_OCTANT = 0b1;
+    private static final int QUEUED_ROOTS = 800;
     private static final List<long[]> NO_ROWS = List.of();
     private static final int BOUNDARY_CHUNK_X = CELL_X * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL / FarDistance.BLOCKS_PER_CHUNK;
     private static final int INTERIOR_CHUNK_Z = (int) EYE_Z / FarDistance.BLOCKS_PER_CHUNK;
@@ -61,6 +62,7 @@ class TreeManagerTest {
     private final CellCache cache = new CellCache(store, handle -> { }, () -> 0L);
     private final FakeBuilds builds = new FakeBuilds();
     private final Map<Long, Long> rootRequests = new HashMap<>();
+    private final Map<Long, Float> rootPriorities = new HashMap<>();
     private final TreeManager manager =
             TreeManager.start(builds, new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN));
 
@@ -163,6 +165,26 @@ class TreeManagerTest {
     }
 
     @Test
+    void aFullQueueOfRootBuildsStillLetsTheNodeUnderTheCameraRequestItsChildren() {
+        startRing();
+        builds.backlog(QUEUED_ROOTS);
+        manager.meshed(TestMeshes.of(KEY, ONE_OCTANT), rootRequests.get(KEY));
+        manager.frame(close(EYE_X, EYE_Z));
+
+        FakeBuilds.Call request = builds.take();
+        assertEquals(CellKey.child(KEY, 0), request.key());
+        assertEquals(ProjectedSize.CONTAINS_CAMERA, request.priority());
+    }
+
+    @Test
+    void aRootUnderTheCameraIsBuiltAheadOfTheRootsAroundIt() {
+        startRing();
+
+        assertEquals(ProjectedSize.CONTAINS_CAMERA, rootPriorities.get(KEY));
+        assertTrue(rootPriorities.get(WEST) < rootPriorities.get(KEY));
+    }
+
+    @Test
     void aBoundaryChangeRebuildsOnlyTheNeighboursThatAreNodes() {
         settleRing();
 
@@ -255,6 +277,7 @@ class TreeManagerTest {
             FakeBuilds.Call call = builds.take();
             assertNull(call.handle());
             rootRequests.put(call.key(), call.request());
+            rootPriorities.put(call.key(), call.priority());
         }
 
         assertTrue(rootRequests.containsKey(KEY));

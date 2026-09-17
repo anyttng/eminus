@@ -1,6 +1,7 @@
 package com.eminus.render.tree;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -30,6 +31,7 @@ class TreeTraversalTest {
     private static final int ALL_OCTANTS = 0xFF;
     private static final int LOWEST_IS_TOP = DetailLevel.MAX;
     private static final int TINY_TABLE = 1;
+    private static final int NEXT_CELL = 1;
 
     private final NodeTable nodes = new NodeTable(NodeTable.CAPACITY);
     private final TreeExtent extent = new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN);
@@ -137,6 +139,23 @@ class TreeTraversalTest {
         nodes.remove(children.get(0), removed -> { });
 
         assertEquals(List.of(root.mesh()), traversal.walk(nodes.roots(), inside(), BUDGET, WALK + 2).meshes());
+    }
+
+    @Test
+    void theBudgetGoesToTheNodeLargestOnScreenWhateverTheWalkOrder() {
+        TreeNode next = meshedRoot(CellKey.pack(DetailLevel.MAX, NEXT_CELL, 0, 0), ALL_OCTANTS);
+        TreeNode under = meshedRoot(rootKey, ALL_OCTANTS);
+        assertSame(next, nodes.roots().iterator().next());
+
+        traversal.walk(nodes.roots(), inside(), OccupancyMask.OCTANTS, WALK);
+
+        assertEquals(OccupancyMask.OCTANTS, traversal.requested().size());
+        for (int index = 0; index < OccupancyMask.OCTANTS; index++) {
+            assertSame(under, traversal.requested().get(index).parent());
+            assertEquals(ProjectedSize.CONTAINS_CAMERA, traversal.requestedPriority(index));
+        }
+
+        assertTrue(traversal.starved());
     }
 
     @Test

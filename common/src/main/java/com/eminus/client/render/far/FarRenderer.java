@@ -328,8 +328,8 @@ public final class FarRenderer implements AutoCloseable {
 
     private final class Builds implements TreeBuilds {
         @Override
-        public void build(long key, @Nullable CellHandle handle, int references, long request) {
-            meshes.request(key, handle, references, request);
+        public void build(long key, @Nullable CellHandle handle, int references, long request, float priority) {
+            meshes.request(key, handle, references, request, priority);
         }
 
         @Override
