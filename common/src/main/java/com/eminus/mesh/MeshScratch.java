@@ -9,6 +9,9 @@ public final class MeshScratch {
     private final FacePlane negativeFluid = new FacePlane();
     private final FacePlane positiveFluid = new FacePlane();
     private final GreedyMerger merger = new GreedyMerger();
+    private final TintBlend blend = new TintBlend();
+    private final VoxelOffsets offsets = new VoxelOffsets();
+    private final VoxelModels voxelModels = new VoxelModels();
 
     public CellVoxels voxels() {
         return voxels;
@@ -40,6 +43,18 @@ public final class MeshScratch {
 
     public GreedyMerger merger() {
         return merger;
+    }
+
+    public TintBlend blend() {
+        return blend;
+    }
+
+    public VoxelOffsets offsets() {
+        return offsets;
+    }
+
+    public VoxelModels voxelModels() {
+        return voxelModels;
     }
 
     public void reset() {

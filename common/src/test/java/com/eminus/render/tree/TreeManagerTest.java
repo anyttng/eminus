@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
+import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -16,6 +18,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import com.eminus.api.v1.TreeState;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
@@ -24,6 +27,7 @@ import com.eminus.cell.OccupancyMask;
 import com.eminus.cell.cache.CellCache;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.MeshSummary;
 import com.eminus.settings.FarDistance;
 import com.eminus.store.FakeCellStore;
 import com.eminus.work.WorkerHarness;
@@ -52,7 +56,12 @@ class TreeManagerTest {
     private static final double ONE_BLOCK = 1.0;
     private static final double TELEPORT = 2_000.0;
     private static final int ONE_OCTANT = 0b1;
+    private static final int OLDER_QUADS = 2;
+    private static final int NEWER_QUADS = 3;
+    private static final int QUEUED_ROOTS = 800;
     private static final List<long[]> NO_ROWS = List.of();
+    private static final int COLLECTION_ATTEMPTS = 20;
+    private static final long COLLECTION_PAUSE_MILLIS = 25L;
     private static final int BOUNDARY_CHUNK_X = CELL_X * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL / FarDistance.BLOCKS_PER_CHUNK;
     private static final int INTERIOR_CHUNK_Z = (int) EYE_Z / FarDistance.BLOCKS_PER_CHUNK;
 
@@ -61,6 +70,7 @@ class TreeManagerTest {
     private final CellCache cache = new CellCache(store, handle -> { }, () -> 0L);
     private final FakeBuilds builds = new FakeBuilds();
     private final Map<Long, Long> rootRequests = new HashMap<>();
+    private final Map<Long, Float> rootPriorities = new HashMap<>();
     private final TreeManager manager =
             TreeManager.start(builds, new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN));
 
@@ -103,16 +113,16 @@ class TreeManagerTest {
         manager.meshed(CellMesh.empty(KEY), first.request());
         FakeBuilds.Call rebuilt = builds.take();
 
-        CellMesh late = TestMeshes.of(KEY, OccupancyMask.EMPTY);
-        CellMesh newest = TestMeshes.of(KEY, OccupancyMask.EMPTY);
+        CellMesh late = TestMeshes.of(KEY, OccupancyMask.EMPTY, OLDER_QUADS);
+        CellMesh newest = TestMeshes.of(KEY, OccupancyMask.EMPTY, NEWER_QUADS);
         manager.meshed(late, first.request());
         manager.meshed(newest, rebuilt.request());
 
         Set<CellMesh> uploaded = new HashSet<>();
         RenderList drawing = awaitRenderList(frame(EYE_X + ONE_BLOCK, EYE_Z),
-                list -> list.meshes().contains(newest), uploaded::addAll);
+                list -> list.meshes().contains(newest.summary()), uploaded::addAll);
         assertFalse(uploaded.contains(late));
-        assertFalse(drawing.meshes().contains(late));
+        assertFalse(drawing.meshes().contains(late.summary()));
     }
 
     @Test
@@ -132,14 +142,14 @@ class TreeManagerTest {
     void theRenderListCarriesEveryMeshedNodeOnceWithItsNewestMesh() {
         startRing();
 
-        CellMesh first = TestMeshes.of(KEY, OccupancyMask.EMPTY);
-        CellMesh second = TestMeshes.of(KEY, OccupancyMask.EMPTY);
+        CellMesh first = TestMeshes.of(KEY, OccupancyMask.EMPTY, OLDER_QUADS);
+        CellMesh second = TestMeshes.of(KEY, OccupancyMask.EMPTY, NEWER_QUADS);
         manager.meshed(first, rootRequests.get(KEY));
         manager.meshed(second, rootRequests.get(KEY));
-        List<CellMesh> listed =
-                awaitRenderList(frame(EYE_X, EYE_Z), list -> list.meshes().contains(second), meshes -> { }).meshes();
+        List<MeshSummary> listed = awaitRenderList(frame(EYE_X, EYE_Z),
+                list -> list.meshes().contains(second.summary()), meshes -> { }).meshes();
         assertEquals(1, listed.size());
-        assertSame(second, listed.get(0));
+        assertEquals(second.summary(), listed.get(0));
     }
 
     @Test
@@ -157,9 +167,29 @@ class TreeManagerTest {
 
         Set<CellMesh> uploaded = new HashSet<>();
         RenderList drawing = awaitRenderList(close(EYE_X + ONE_BLOCK, EYE_Z),
-                list -> list.meshes().contains(child), uploaded::addAll);
+                list -> list.meshes().contains(child.summary()), uploaded::addAll);
         assertTrue(uploaded.contains(child));
-        assertFalse(drawing.meshes().contains(parent));
+        assertFalse(drawing.meshes().contains(parent.summary()));
+    }
+
+    @Test
+    void aFullQueueOfRootBuildsStillLetsTheNodeUnderTheCameraRequestItsChildren() {
+        startRing();
+        builds.backlog(QUEUED_ROOTS);
+        manager.meshed(TestMeshes.of(KEY, ONE_OCTANT), rootRequests.get(KEY));
+        manager.frame(close(EYE_X, EYE_Z));
+
+        FakeBuilds.Call request = builds.take();
+        assertEquals(CellKey.child(KEY, 0), request.key());
+        assertEquals(ProjectedSize.CONTAINS_CAMERA, request.priority());
+    }
+
+    @Test
+    void aRootUnderTheCameraIsBuiltAheadOfTheRootsAroundIt() {
+        startRing();
+
+        assertEquals(ProjectedSize.CONTAINS_CAMERA, rootPriorities.get(KEY));
+        assertTrue(rootPriorities.get(WEST) < rootPriorities.get(KEY));
     }
 
     @Test
@@ -237,6 +267,27 @@ class TreeManagerTest {
     }
 
     @Test
+    void underArenaPressureATreeInViewEvictsNothingAndRequestsNothingAgain() throws Exception {
+        startRing();
+        manager.meshed(TestMeshes.of(KEY, ONE_OCTANT), rootRequests.get(KEY));
+        manager.frame(close(EYE_X, EYE_Z));
+        FakeBuilds.Call request = builds.take();
+        CellMesh child = TestMeshes.of(request.key(), OccupancyMask.EMPTY);
+        manager.meshed(child, request.request());
+        awaitRenderList(close(EYE_X + ONE_BLOCK, EYE_Z), list -> list.meshes().contains(child.summary()),
+                meshes -> { });
+
+        CameraFrame pressed = FakeCameras.underPressure(close(EYE_X + 2 * ONE_BLOCK, EYE_Z));
+        manager.frame(pressed);
+        manager.snapshot().get(AWAIT_MILLIS, TimeUnit.MILLISECONDS);
+        manager.frame(pressed);
+        TreeState state = manager.snapshot().get(AWAIT_MILLIS, TimeUnit.MILLISECONDS);
+
+        assertEquals(0L, state.pressureEvictions());
+        assertTrue(builds.idle());
+    }
+
+    @Test
     void aRemovedColumnEvictsTheGeometryOfItsRoot() {
         startRing();
         CellMesh mesh = TestMeshes.of(KEY, OccupancyMask.EMPTY);
@@ -248,6 +299,41 @@ class TreeManagerTest {
         awaitBatch(taken -> taken.evicted().contains(KEY));
     }
 
+    @Test
+    void aMeshIsUnreachableOnceItsBatchIsTaken() {
+        startRing();
+
+        assertCleared(meshOneRoot());
+    }
+
+    // Inlined into the test, the mesh would stay on that frame's stack and the assertion would read it rather than the tree.
+    private WeakReference<CellMesh> meshOneRoot() {
+        CellMesh mesh = TestMeshes.of(KEY, OccupancyMask.EMPTY);
+        WeakReference<CellMesh> reference = new WeakReference<>(mesh);
+        manager.meshed(mesh, rootRequests.get(KEY));
+        awaitBatch(taken -> taken.meshes().contains(mesh));
+
+        return reference;
+    }
+
+    private static void assertCleared(WeakReference<CellMesh> mesh) {
+        for (int attempt = 0; attempt < COLLECTION_ATTEMPTS; attempt++) {
+            System.gc();
+            if (mesh.refersTo(null)) {
+                return;
+            }
+
+            try {
+                Thread.sleep(COLLECTION_PAUSE_MILLIS);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        fail("The mesh is still reachable after its batch was taken, so something holds its quads and colours.");
+    }
+
     private void startRing() {
         manager.frame(frame(EYE_X, EYE_Z));
 
@@ -255,6 +341,7 @@ class TreeManagerTest {
             FakeBuilds.Call call = builds.take();
             assertNull(call.handle());
             rootRequests.put(call.key(), call.request());
+            rootPriorities.put(call.key(), call.priority());
         }
 
         assertTrue(rootRequests.containsKey(KEY));

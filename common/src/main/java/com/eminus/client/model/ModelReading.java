@@ -87,7 +87,7 @@ public final class ModelReading {
         }
     }
 
-    private static void bake(ModelBakery bakery, List<BlockState> states, int models) {
+    static void bake(ModelBakery bakery, List<BlockState> states, int models) {
         for (BlockState state : states) {
             if (bakery.modelCount() >= models) {
                 return;
@@ -116,6 +116,7 @@ public final class ModelReading {
         try (ModelAtlas atlas = ModelAtlas.create(START_CELLS);
                 ModelRecords records = ModelRecords.create(Math.max(count, 1))) {
             summary[CELLS_FROM] = atlas.cellsPerSide();
+            int variantStart = 0;
 
             for (int modelId = 0; modelId < count; modelId++) {
                 while (!atlas.fits(modelId)) {
@@ -134,7 +135,8 @@ public final class ModelReading {
 
                 BakedModel model = bakery.model(modelId);
                 atlas.upload(modelId, model);
-                records.write(modelId, model, model.tintRow());
+                records.write(modelId, model, variantStart);
+                variantStart += model.variantCount();
                 summary[UPLOADED]++;
             }
 
@@ -172,7 +174,7 @@ public final class ModelReading {
         return rows;
     }
 
-    private static List<BlockState> everyState() {
+    static List<BlockState> everyState() {
         List<BlockState> states = new ArrayList<>();
         BuiltInRegistries.BLOCK.forEach(block -> states.addAll(block.getStateDefinition().getPossibleStates()));
         return states;

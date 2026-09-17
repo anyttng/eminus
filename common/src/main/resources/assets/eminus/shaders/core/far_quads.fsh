@@ -1,6 +1,7 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
+#include <minecraft:globals.glsl>
 
 layout(std140) uniform FarFrame {
     mat4 FarProjView;
@@ -9,25 +10,36 @@ layout(std140) uniform FarFrame {
     int NearSide;
     int NearHeight;
     ivec3 NearOrigin;
+    float ShadeDown;
+    float ShadeUp;
+    float ShadeNorth;
+    float ShadeSouth;
+    float ShadeWest;
+    float ShadeEast;
 };
 
 uniform sampler2D Atlas;
 uniform sampler2D TintMask;
 uniform sampler2D NearMask;
+uniform usamplerBuffer ModelVariants;
 
-#moj_import <eminus:far_surface.glsl>
+#include <eminus:far_surface.glsl>
+#include <eminus:far_variant.glsl>
 
-in vec2 faceUV;
-in vec4 vertexColor;
-flat in vec3 tintColour;
-flat in ivec2 atlasCell;
+layout(location = 0) in vec2 faceUV;
+layout(location = 1) in vec4 vertexColor;
+layout(location = 2) flat in vec3 tintColour;
+layout(location = 3) flat in ivec2 atlasCell;
+layout(location = 5) flat in ivec4 variantInfo;
+layout(location = 6) flat in ivec3 cellOrigin;
+layout(location = 7) in vec3 voxelPoint;
 
 #ifdef NEAR_SECTIONS
 uniform usamplerBuffer NearSections;
-in vec3 nearPoint;
+layout(location = 4) in vec3 nearPoint;
 #endif
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 void main() {
     if (gl_FragCoord.z > texelFetch(NearMask, ivec2(gl_FragCoord.xy), 0).r) {
@@ -48,7 +60,15 @@ void main() {
     }
 #endif
 
-    vec4 colour = far_surface(atlasCell, faceUV, tintColour) * vertexColor;
+    ivec2 cell = atlasCell;
+    if (variantInfo.y > 0) {
+        ivec3 voxel = clamp(ivec3(floor(voxelPoint)), ivec3(0), ivec3(VOXELS_PER_SIDE - 1));
+        int slot = far_variant_model(variantInfo.x, variantInfo.y, cellOrigin + (voxel << variantInfo.w))
+                * MODEL_FACES + variantInfo.z;
+        cell = ivec2(slot % AtlasCells, slot / AtlasCells);
+    }
+
+    vec4 colour = far_surface(cell, faceUV, tintColour) * vertexColor;
     if (colour.a < ALPHA_CUTOUT) {
         discard;
     }

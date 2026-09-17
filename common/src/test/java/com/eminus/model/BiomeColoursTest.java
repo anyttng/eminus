@@ -4,18 +4,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.eminus.VanillaBootstrap;
 
 import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.client.color.block.BlockTintSources;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -41,7 +40,7 @@ class BiomeColoursTest {
     }
 
     private final BiomeColours colours = new BiomeColours(
-            Map.of(PLAINS, new TintLevel(PLAINS_BIOME), DESERT, new TintLevel(DESERT_BIOME)));
+            Map.of(PLAINS, new TintLevel(PLAINS_BIOME), DESERT, new TintLevel(DESERT_BIOME)), Set.of());
 
     @Test
     void aSourceThatVariesByBiomeResolvesToItsRowAndHoldsOneColourPerBiome() {
@@ -75,8 +74,8 @@ class BiomeColoursTest {
     @Test
     void aStateDependentSourceResolvesPerState() {
         BlockTintSource redstone = BlockTintSources.redstone();
-        BlockState unpowered = Blocks.REDSTONE_WIRE.defaultBlockState().setValue(RedStoneWireBlock.POWER, UNPOWERED);
-        BlockState powered = unpowered.setValue(RedStoneWireBlock.POWER, FULL_POWER);
+        BlockState unpowered = Blocks.REDSTONE_WIRE.defaultBlockState().setValue(RedstoneWireBlock.POWER, UNPOWERED);
+        BlockState powered = unpowered.setValue(RedstoneWireBlock.POWER, FULL_POWER);
 
         assertNotEquals(colours.resolve(redstone, unpowered), colours.resolve(redstone, powered));
     }
@@ -89,13 +88,5 @@ class BiomeColoursTest {
     @Test
     void noSourceMeansNoTint() {
         assertNull(colours.resolve(null, stone));
-    }
-
-    @Test
-    void moreRowsThanTheTableHoldsAreRefused() {
-        List<BiomeColours.Colours> ranked =
-                Collections.nCopies(BiomeColours.MAX_ROWS + 1, colours.sample(BlockTintSources.grass(), stone));
-
-        assertThrows(IllegalArgumentException.class, () -> colours.assign(ranked));
     }
 }

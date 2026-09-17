@@ -2,8 +2,8 @@ package com.eminus.render.tree;
 
 import java.util.List;
 
-import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.MeshSummary;
 
-public record RenderList(List<CellMesh> meshes) {
+public record RenderList(List<MeshSummary> meshes) {
     public static final RenderList EMPTY = new RenderList(List.of());
 }

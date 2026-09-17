@@ -47,23 +47,21 @@ class TintSweepTest {
     }
 
     @Test
-    void vanillaColoursNeedFourRowsAndDropNothing() {
+    void vanillaColoursNeedFourRows() {
         BlockTintSource water = BlockTintSources.water();
         BiomeColours colours = colours();
 
-        List<Block> dropped = TintSweep.sweep(Block.BLOCK_STATE_REGISTRY, BlockColors.createDefault(),
+        TintSweep.sweep(Block.BLOCK_STATE_REGISTRY, BlockColors.createDefault(),
                 fluid -> fluid.getType().isSame(Fluids.WATER) ? water : null, OWN_SHAPE, colours);
 
         assertEquals(VANILLA_ROWS, colours.rowCount());
-        assertTrue(dropped.isEmpty());
         assertTrue(colours.resolve(BlockTintSources.grassBlock(), Blocks.GRASS_BLOCK.defaultBlockState()).hasRow());
     }
 
     @Test
-    void theEightSetsUsedByTheMostBlocksKeepARowAndTheRestNameTheirBlocks() {
+    void everySetKeepsARowAndTheSetUsedByTheMostBlocksTakesTheFirst() {
         BlockColors blockColors = new BlockColors();
         List<BlockTintSource> sources = new ArrayList<>();
-        Map<Integer, List<Block>> usersBySet = new HashMap<>();
         int next = 0;
 
         for (int set = 0; set < SETS; set++) {
@@ -71,18 +69,15 @@ class TintSweepTest {
             sources.add(source);
             List<Block> users = blocks.subList(next, next + set + 1);
             next += set + 1;
-            usersBySet.put(set, users);
             blockColors.register(List.of(source), users.toArray(Block[]::new));
         }
 
         BiomeColours colours = colours();
-        List<Block> dropped = TintSweep.sweep(states(blocks), blockColors, NO_FLUID_TINTS, OWN_SHAPE, colours);
+        TintSweep.sweep(states(blocks), blockColors, NO_FLUID_TINTS, OWN_SHAPE, colours);
 
-        List<Block> expected = new ArrayList<>(usersBySet.get(0));
-        expected.addAll(usersBySet.get(1));
-        assertEquals(Set.copyOf(expected), Set.copyOf(dropped));
+        assertEquals(SETS, colours.rowCount());
         assertEquals(Tint.row(0), colours.resolve(sources.get(SETS - 1), blocks.getLast().defaultBlockState()));
-        assertEquals(Tint.UNTINTED, colours.resolve(sources.getFirst(), blocks.getFirst().defaultBlockState()));
+        assertEquals(Tint.row(SETS - 1), colours.resolve(sources.getFirst(), blocks.getFirst().defaultBlockState()));
     }
 
     @Test
@@ -99,11 +94,9 @@ class TintSweepTest {
 
         BiomeColours forward = colours();
         BiomeColours backward = colours();
-        List<Block> forwardDropped = TintSweep.sweep(states(users), blockColors, NO_FLUID_TINTS, OWN_SHAPE, forward);
-        List<Block> backwardDropped =
-                TintSweep.sweep(states(users.reversed()), blockColors, NO_FLUID_TINTS, OWN_SHAPE, backward);
+        TintSweep.sweep(states(users), blockColors, NO_FLUID_TINTS, OWN_SHAPE, forward);
+        TintSweep.sweep(states(users.reversed()), blockColors, NO_FLUID_TINTS, OWN_SHAPE, backward);
 
-        assertEquals(forwardDropped, backwardDropped);
         for (int set = 0; set < SETS; set++) {
             BlockState state = users.get(set).defaultBlockState();
             assertEquals(forward.resolve(sources.get(set), state), backward.resolve(sources.get(set), state));
@@ -116,7 +109,7 @@ class TintSweepTest {
             levels.put("test:biome_" + biome, new TintLevel(biome));
         }
 
-        return new BiomeColours(levels);
+        return new BiomeColours(levels, Set.of());
     }
 
     private static List<BlockState> states(List<Block> blocks) {

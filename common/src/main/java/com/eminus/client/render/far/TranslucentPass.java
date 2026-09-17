@@ -7,16 +7,16 @@ import com.eminus.Eminus;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.render.backend.DepthConvention;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.ColorTargetState;
-import com.mojang.blaze3d.pipeline.DepthStencilState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.systems.RenderPass;
-import com.mojang.blaze3d.systems.RenderPassDescriptor;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.commands.RenderPassDescriptor;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 
 import net.minecraft.resources.Identifier;
 
@@ -45,17 +45,18 @@ public final class TranslucentPass {
         }
 
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(target))) {
-            pass.setPipeline(pipeline);
+            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
             FarQuads.bind(pass, arena, models, lightmap, target.maskView(), frame, nearSections);
             pass.drawIndirect(commands, drawCount);
         }
     }
 
     private static RenderPassDescriptor descriptor(FarTarget target) {
-        return RenderPassDescriptor.create(() -> PASS_LABEL)
+        return RenderPassDescriptor.builder(() -> PASS_LABEL)
                 .withColorAttachment(target.colourView(), Optional.empty())
                 .withDepthAttachment(target.depthStencilView(), OptionalDouble.empty())
-                .withRenderArea(new RenderPass.RenderArea(0, 0, target.width(), target.height()));
+                .withRenderArea(new RenderPass.RenderArea(0, 0, target.width(), target.height()))
+                .build();
     }
 
     private static RenderPipeline pipeline(DepthConvention depth) {

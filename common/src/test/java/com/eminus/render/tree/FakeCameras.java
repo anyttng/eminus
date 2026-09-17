@@ -29,6 +29,11 @@ final class FakeCameras {
         return new CameraFrame(x, y, z, viewProjection, pixelsPerBlock, farCells, THRESHOLD_PIXELS, false);
     }
 
+    static CameraFrame underPressure(CameraFrame frame) {
+        return new CameraFrame(frame.eyeX(), frame.eyeY(), frame.eyeZ(), frame.viewProjection(),
+                frame.pixelsPerBlock(), frame.farCells(), frame.subdivisionPixels(), true);
+    }
+
     private FakeCameras() {
     }
 }

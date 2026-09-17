@@ -2,6 +2,7 @@ package com.eminus.mesh;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,6 +12,7 @@ import java.util.Map;
 
 import com.eminus.VanillaBootstrap;
 import com.eminus.cell.Cell;
+import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.DetailLevel;
@@ -20,7 +22,11 @@ import com.eminus.cell.StateTable;
 import com.eminus.cell.VoxelEntry;
 import com.eminus.model.ModelMetadata;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -41,6 +47,8 @@ class CellMesherTest {
     private static final int GRASS = 9;
     private static final int OPAQUE_LEAVES = 19;
     private static final int CUTOUT_LEAVES = 20;
+    private static final int GRASS_BLOCK = 23;
+    private static final int VARIED = 26;
 
     private static final int STONE_MODEL = 10;
     private static final int GLASS_MODEL = 11;
@@ -53,6 +61,16 @@ class CellMesherTest {
     private static final int GRASS_MODEL = 18;
     private static final int OPAQUE_LEAVES_MODEL = 21;
     private static final int CUTOUT_LEAVES_MODEL = 22;
+    private static final int GRASS_BLOCK_MODEL = 24;
+    private static final int SUBMERGED_WATER_MODEL = 25;
+    private static final int VARIED_MODEL = 27;
+    private static final int VARIED_ROW = 4;
+    private static final int GRASS_ROW = 0;
+    private static final int PLAINS = 5;
+    private static final int PLAINS_GREEN = 0x91BD59;
+    private static final int SWAMP_GREEN = 0x6A7039;
+    private static final int PLAINS_WIDTH = 8;
+    private static final int NO_BLEND = 0;
 
     private static final int BIOME = 3;
     private static final int FULL_SKY = 15;
@@ -70,9 +88,15 @@ class CellMesherTest {
     private static final int LAST_IN_FIRST_CHUNK = 15;
     private static final long FIRST_CHUNK = ColumnCoverage.pack(0, 0);
     private static final long SECOND_CHUNK = ColumnCoverage.pack(1, 0);
+    private static final int NO_QUAD = -1;
+    private static final int MIN_BLOCK_Y = -64;
+    private static final CellFrame FRAME = new CellFrame(MIN_BLOCK_Y);
+    private static final float OFFSET_TOLERANCE = 1.0F / 512.0F;
+    private static final int COARSE_LEVEL = 1;
 
     private final Map<Integer, Integer> opacities = new HashMap<>();
     private final FakeModels models = new FakeModels();
+    private final FakeTints tints = new FakeTints();
     private final StateOpacity opacity = stateId -> opacities.getOrDefault(stateId, 0);
 
     private int bakeRequests;
@@ -341,21 +365,48 @@ class CellMesherTest {
     }
 
     @Test
-    void aFaceTowardsAColumnNeverIngestedIsNotDrawnAndOneTowardsCoveredAirIs() {
+    void everyClassCutsTowardsAColumnNeverIngestedUntilItsNeighbourLands() {
         defineBlocks();
         Cell cell = blank();
         cell.set(LAST_IN_FIRST_CHUNK, 16, 5, block(STONE));
         cell.set(LAST_IN_FIRST_CHUNK, 16, 9, block(WATER));
+        cell.set(LAST_IN_FIRST_CHUNK, 16, 13, block(GLASS));
 
         CellMesh uncovered = mesh(cell, airAround(), coverage(FIRST_CHUNK));
+
+        assertEquals(VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT),
+                lightAt(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
+        assertEquals(VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT),
+                lightAt(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
+        assertEquals(VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT),
+                lightAt(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 13, GLASS_MODEL));
+
+        cell.set(LAST_IN_FIRST_CHUNK + 1, 16, 5, block(STONE));
+        cell.set(LAST_IN_FIRST_CHUNK + 1, 16, 9, block(WATER));
         CellMesh covered = mesh(cell, airAround(), coverage(FIRST_CHUNK, SECOND_CHUNK));
 
-        assertFalse(has(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
-        assertFalse(has(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
-        assertTrue(has(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
-        assertTrue(has(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
-        assertTrue(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
-        assertTrue(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
+        assertFalse(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
+        assertFalse(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
+        assertTrue(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 13, GLASS_MODEL));
+    }
+
+    @Test
+    void waterBelowTheSameFluidTakesItsSubmergedModelAndOnlyTheSurfaceVoxelStopsShort() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 8, 4, block(WATERLOGGED));
+        cell.set(4, 9, 4, block(WATER));
+        cell.set(4, 10, 4, block(WATER));
+        cell.set(4, 11, 4, block(WATER));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(has(mesh, Direction.EAST, 4, 11, 4, WATER_MODEL));
+        assertTrue(has(mesh, Direction.EAST, 4, 9, 4, SUBMERGED_WATER_MODEL));
+        assertTrue(has(mesh, Direction.EAST, 4, 8, 4, SUBMERGED_WATER_MODEL));
+        assertFalse(has(mesh, Direction.EAST, 4, 9, 4, WATER_MODEL));
+        assertFalse(has(mesh, Direction.EAST, 4, 8, 4, WATER_MODEL));
+        assertTrue(absent(mesh, Direction.UP, 4, 10, 4));
     }
 
     @Test
@@ -413,6 +464,160 @@ class CellMesherTest {
         }
     }
 
+    @Test
+    void aTintedFloorSplitsItsQuadsWhereTheColourChangesAndCarriesBothColours() {
+        defineBlocks();
+        tints.define(GRASS_ROW, PLAINS, PLAINS_GREEN);
+        tints.define(GRASS_ROW, BIOME, SWAMP_GREEN);
+        Cell cell = blank();
+        for (int z = 0; z < SIDE; z++) {
+            for (int x = 0; x < SIDE; x++) {
+                int biome = x < PLAINS_WIDTH ? PLAINS : BIOME;
+                cell.set(x, 0, z, VoxelEntry.pack(GRASS_BLOCK, biome, VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT)));
+            }
+        }
+
+        CellMesh mesh = mesh(cell, ground(), 0);
+
+        int up = Direction.UP.ordinal();
+        assertEquals(6, mesh.groupCount(up));
+        assertEquals(3, mesh.colours().length);
+        for (int index = mesh.groupStart(up); index < mesh.groupStart(up) + mesh.groupCount(up); index++) {
+            long quad = mesh.quad(index);
+            int expected = Quad.x(quad) < PLAINS_WIDTH ? PLAINS_GREEN : SWAMP_GREEN;
+            assertEquals(expected, mesh.colour(quad));
+        }
+    }
+
+    @Test
+    void aBladedVoxelOfAnOffsetStateCarriesTheOffsetItsBlockPositionGives() {
+        defineBlocks();
+        BlockState grass = Blocks.SHORT_GRASS.defaultBlockState();
+        models.offsetLike(GRASS, grass);
+        Cell cell = blank();
+        cell.set(5, 6, 7, block(GRASS));
+        cell.set(6, 6, 7, block(GRASS));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        Vec3 first = grass.getOffset(new BlockPos(5, MIN_BLOCK_Y + 6, 7));
+        Vec3 second = grass.getOffset(new BlockPos(6, MIN_BLOCK_Y + 6, 7));
+        assertNotEquals(first, second);
+        assertBladesOffset(mesh, 5, 6, 7, first);
+        assertBladesOffset(mesh, 6, 6, 7, second);
+        assertEquals(MeshBuffer.WHITE, mesh.colour(bladeAt(mesh, 0, 5, 6, 7)));
+    }
+
+    @Test
+    void aBladedVoxelOfAStateWithoutAnOffsetFunctionStaysAtTheFirstEntry() {
+        defineBlocks();
+        BlockState cobweb = Blocks.COBWEB.defaultBlockState();
+        assertFalse(cobweb.hasOffsetFunction());
+        models.offsetLike(GRASS, cobweb);
+        Cell cell = blank();
+        cell.set(5, 6, 7, block(GRASS));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
+            assertEquals(MeshBuffer.UNTINTED, Quad.colourIndex(bladeAt(mesh, blade, 5, 6, 7)), "blade " + blade);
+        }
+    }
+
+    @Test
+    void aCoarseLevelLeavesAnOffsetStateUnshifted() {
+        defineBlocks();
+        models.offsetLike(GRASS, Blocks.SHORT_GRASS.defaultBlockState());
+        Cell cell = blank();
+        cell.set(5, 6, 7, block(GRASS));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
+            assertEquals(MeshBuffer.UNTINTED, Quad.colourIndex(bladeAt(mesh, blade, 5, 6, 7)), "blade " + blade);
+        }
+    }
+
+    @Test
+    void aPositionalRowTakesEachBlocksOwnModelAndMergesNoTwoDifferentNeighbours() {
+        defineVaried((blockX, blockY, blockZ) -> VARIED_MODEL + Math.floorMod(blockX, 2));
+        Cell cell = blank();
+        for (int x = 0; x < VARIED_ROW; x++) {
+            cell.set(x, 0, 0, block(VARIED));
+        }
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        int up = Direction.UP.ordinal();
+        assertEquals(VARIED_ROW, mesh.groupCount(up));
+        for (int index = mesh.groupStart(up); index < mesh.groupStart(up) + mesh.groupCount(up); index++) {
+            long quad = mesh.quad(index);
+            assertEquals(1, Quad.width(quad));
+            assertEquals(VARIED_MODEL + Quad.x(quad) % 2, Quad.modelId(quad));
+        }
+    }
+
+    @Test
+    void aPositionalStateOfOneModelEverywhereStillMerges() {
+        defineVaried((blockX, blockY, blockZ) -> VARIED_MODEL);
+        Cell cell = blank();
+        for (int x = 0; x < VARIED_ROW; x++) {
+            cell.set(x, 0, 0, block(VARIED));
+        }
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        long top = mesh.quad(mesh.groupStart(Direction.UP.ordinal()));
+        assertEquals(1, mesh.groupCount(Direction.UP.ordinal()));
+        assertEquals(VARIED_ROW, Quad.width(top));
+    }
+
+    @Test
+    void aCoarseLevelPicksThePositionalModelOfTheVoxelsOriginBlock() {
+        defineVaried((blockX, blockY, blockZ) -> blockX == 2 && blockY == MIN_BLOCK_Y + 2 && blockZ == 4
+                ? VARIED_MODEL + 1
+                : VARIED_MODEL);
+        Cell cell = blank();
+        cell.set(1, 1, 2, block(VARIED));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT, mesh.quadCount());
+        for (int index = 0; index < mesh.quadCount(); index++) {
+            assertEquals(VARIED_MODEL + 1, Quad.modelId(mesh.quad(index)));
+        }
+    }
+
+    private void defineVaried(FakeModels.PositionalIds ids) {
+        defineBlocks();
+        int solid = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0);
+        models.positional(VARIED, ids);
+        models.describe(VARIED_MODEL, solid);
+        models.describe(VARIED_MODEL + 1, solid);
+        opacities.put(VARIED, StateTable.FULL_OPACITY);
+    }
+
+    private static void assertBladesOffset(CellMesh mesh, int x, int y, int z, Vec3 expected) {
+        for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
+            int offset = mesh.offset(bladeAt(mesh, blade, x, y, z));
+            assertEquals(expected.x, QuadOffset.x(offset), OFFSET_TOLERANCE, "x of blade " + blade);
+            assertEquals(expected.y, QuadOffset.y(offset), OFFSET_TOLERANCE, "y of blade " + blade);
+            assertEquals(expected.z, QuadOffset.z(offset), OFFSET_TOLERANCE, "z of blade " + blade);
+        }
+    }
+
+    private static long bladeAt(CellMesh mesh, int blade, int x, int y, int z) {
+        for (int index = 0; index < mesh.quadCount(); index++) {
+            long quad = mesh.quad(index);
+            if (Quad.face(quad) == Quad.bladeFace(blade) && Quad.x(quad) == x && Quad.y(quad) == y
+                    && Quad.z(quad) == z) {
+                return quad;
+            }
+        }
+
+        throw new AssertionError("No blade " + blade + " at " + x + ", " + y + ", " + z);
+    }
+
     private void defineBlocks() {
         int solid = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0);
         int clear = ModelMetadata.pack(FaceMask.ALL, FaceMask.NONE, FaceMask.ALL, 0, 0);
@@ -432,14 +637,18 @@ class CellMesherTest {
                 FaceMask.NONE, FaceMask.NONE, FaceMask.NONE, 0, ModelMetadata.BLADED));
         models.define(OPAQUE_LEAVES, OPAQUE_LEAVES_MODEL, solid);
         models.define(CUTOUT_LEAVES, CUTOUT_LEAVES_MODEL, clear);
+        models.define(GRASS_BLOCK, GRASS_BLOCK_MODEL, solid);
+        models.tint(GRASS_BLOCK_MODEL, GRASS_ROW);
         models.defineFluid(WATERLOGGED, WATER_MODEL, translucent);
         models.defineFluid(WET_LEAVES, WATER_MODEL, translucent);
+        models.submerge(WATER_MODEL, SUBMERGED_WATER_MODEL);
 
         opacities.put(STONE, StateTable.FULL_OPACITY);
         opacities.put(LAVA, StateTable.FULL_OPACITY);
         opacities.put(WET_LEAVES, StateTable.FULL_OPACITY);
         opacities.put(OPAQUE_LEAVES, StateTable.FULL_OPACITY);
         opacities.put(CUTOUT_LEAVES, StateTable.FULL_OPACITY);
+        opacities.put(GRASS_BLOCK, StateTable.FULL_OPACITY);
     }
 
     private CellMesh mesh(Cell centre, Map<Direction, Cell> around, ColumnCoverage coverage) {
@@ -448,8 +657,10 @@ class CellMesherTest {
         scratch.voxels().load(centre);
         around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
         scratch.voxels().loadCoverage(coverage, key);
+        scratch.blend().begin(scratch.voxels(), tints, key, NO_BLEND);
 
-        return new CellMesher(scratch, models).mesh(key, centre.occupancy(), opacity, () -> bakeRequests++);
+        return new CellMesher(scratch, models, FRAME)
+                .mesh(key, centre.occupancy(), opacity, () -> bakeRequests++);
     }
 
     private static ColumnCoverage coverage(long... chunks) {
@@ -465,9 +676,11 @@ class CellMesherTest {
         MeshScratch scratch = new MeshScratch();
         scratch.voxels().load(centre);
         around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
+        long key = CellKey.pack(level, 0, 0, 0);
+        scratch.blend().begin(scratch.voxels(), tints, key, NO_BLEND);
 
-        return new CellMesher(scratch, models)
-                .mesh(CellKey.pack(level, 0, 0, 0), centre.occupancy(), opacity, () -> bakeRequests++);
+        return new CellMesher(scratch, models, FRAME)
+                .mesh(key, centre.occupancy(), opacity, () -> bakeRequests++);
     }
 
     private static Cell blank() {
@@ -575,6 +788,18 @@ class CellMesherTest {
         }
 
         return false;
+    }
+
+    private static int lightAt(CellMesh mesh, Direction face, int x, int y, int z, int modelId) {
+        for (int index = 0; index < mesh.quadCount(); index++) {
+            long quad = mesh.quad(index);
+            if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y
+                    && Quad.z(quad) == z && Quad.modelId(quad) == modelId) {
+                return Quad.light(quad);
+            }
+        }
+
+        return NO_QUAD;
     }
 
     private static boolean absent(CellMesh mesh, Direction face, int x, int y, int z) {

@@ -18,9 +18,9 @@ import org.joml.Matrix4f;
 @Mixin(GameRenderer.class)
 public class GameRendererMixin {
     private static final String LEVEL_RENDER = "Lnet/minecraft/client/renderer/LevelRenderer;render("
-            + "Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;Lnet/minecraft/client/DeltaTracker;Z"
-            + "Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lorg/joml/Matrix4fc;"
-            + "Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;Z)V";
+            + "Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;Z"
+            + "Lnet/minecraft/client/renderer/state/level/CameraRenderState;"
+            + "Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;Lorg/joml/Vector4f;ZZ)V";
 
     @Inject(method = "extract", at = @At("RETURN"))
     private void eminus$overrideNearField(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo callback) {
@@ -28,8 +28,7 @@ public class GameRendererMixin {
     }
 
     @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = LEVEL_RENDER))
-    private void eminus$captureLevelProjection(DeltaTracker deltaTracker, CallbackInfo callback,
-            @Local Matrix4f levelProjection, @Local CameraRenderState cameraState) {
+    private void eminus$captureLevelProjection(CallbackInfo callback, @Local Matrix4f levelProjection, @Local CameraRenderState cameraState) {
         ClientSession.captureLevelProjection(levelProjection, cameraState.projectionMatrix);
     }
 }

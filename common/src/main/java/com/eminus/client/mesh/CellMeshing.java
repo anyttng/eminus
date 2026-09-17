@@ -7,11 +7,14 @@ import java.util.concurrent.TimeUnit;
 
 import com.eminus.client.model.ClientBakery;
 import com.eminus.mesh.BakeryModels;
+import com.eminus.mesh.BakeryTints;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
 import com.eminus.model.ModelIndex;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
+
+import net.minecraft.client.Minecraft;
 
 public final class CellMeshing {
     public static CompletableFuture<Map<Long, CellMesh>> mesh(DimensionRuntime runtime, EminusInstance instance,
@@ -22,7 +25,10 @@ public final class CellMeshing {
                 instance.build(),
                 runtime.cells(),
                 runtime.coverage(),
+                runtime.frame(),
                 new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
+                new BakeryTints(baking.colours(), runtime.biomes()),
+                Minecraft.getInstance().options.biomeBlendRadius().get(),
                 baking.opacity(runtime.states()),
                 (mesh, request) -> {
                     meshes.put(mesh.key(), mesh);

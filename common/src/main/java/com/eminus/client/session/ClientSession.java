@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import com.eminus.Eminus;
 import com.eminus.handoff.NearFieldOverride;
 import com.eminus.ingest.IngestService;
+import com.eminus.ingest.IngestTrigger;
 import com.eminus.mixin.BiomeManagerAccessor;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.session.DimensionRuntime;
@@ -25,7 +26,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -39,6 +39,7 @@ public final class ClientSession {
 
     private static boolean heldChunksPending;
     private static boolean renderedCutoutLeaves;
+    private static int renderedBiomeBlend;
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
     private static FarRenderer renderer;
@@ -112,6 +113,7 @@ public final class ClientSession {
 
     public static void overrideNearField() {
         if (renderer == null) {
+            NearFieldOverride.skip();
             return;
         }
 
@@ -121,6 +123,8 @@ public final class ClientSession {
         if (renderer.covers(fog, state.optionsRenderState.renderDistance)) {
             boolean inAir = client.gameRenderer.mainCamera().getFluidInCamera() == FogType.NONE;
             NearFieldOverride.apply(fog, state.optionsRenderState, inAir && !SettingsService.get().settings().fog());
+        } else {
+            NearFieldOverride.skip();
         }
     }
 
@@ -147,7 +151,8 @@ public final class ClientSession {
             swapLevel(current);
         }
 
-        if (renderer != null && minecraft.options.cutoutLeaves().get() != renderedCutoutLeaves) {
+        if (renderer != null && (minecraft.options.cutoutLeaves().get() != renderedCutoutLeaves
+                || minecraft.options.biomeBlendRadius().get() != renderedBiomeBlend)) {
             restartRenderer();
         }
 
@@ -161,10 +166,10 @@ public final class ClientSession {
         }
     }
 
-    public static void submitChunk(LevelChunk chunk) {
+    public static void submitChunk(LevelChunk chunk, IngestTrigger trigger) {
         IngestService ingest = ingestFor(chunk.getLevel());
         if (ingest != null) {
-            ingest.submitChunk(chunk);
+            ingest.submitChunk(chunk, trigger);
         }
     }
 
@@ -172,6 +177,13 @@ public final class ClientSession {
         IngestService ingest = ingestFor(source);
         if (ingest != null) {
             ingest.markBlockChange(pos, System.currentTimeMillis());
+        }
+    }
+
+    public static void lightUpdated(ClientLevel source, SectionPos pos) {
+        IngestService ingest = ingestFor(source);
+        if (ingest != null) {
+            ingest.markLightUpdate(pos, System.currentTimeMillis());
         }
     }
 
@@ -210,15 +222,14 @@ public final class ClientSession {
         heldChunksPending = false;
         ChunkPos centre = minecraft.player.chunkPosition();
         int radius = minecraft.options.getEffectiveRenderDistance() + CLIENT_EXTRA_CHUNKS;
-        LevelLightEngine light = level.getLightEngine();
 
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 int chunkX = centre.x() + dx;
                 int chunkZ = centre.z() + dz;
                 LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
-                if (chunk != null && light.lightOnInColumn(SectionPos.getZeroNode(chunkX, chunkZ))) {
-                    ingest.submitChunk(chunk);
+                if (chunk != null) {
+                    ingest.submitChunk(chunk, IngestTrigger.HELD);
                 }
             }
         }
@@ -238,6 +249,7 @@ public final class ClientSession {
         Minecraft minecraft = Minecraft.getInstance();
         rendered = SettingsService.get().settings();
         renderedCutoutLeaves = minecraft.options.cutoutLeaves().get();
+        renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
         renderer = FarRenderer.start(minecraft, instance, runtime, level.getHeight(), rendered);
     }
 

@@ -7,21 +7,21 @@ import com.eminus.Eminus;
 import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.render.backend.DepthConvention;
 
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.buffers.Std140SizeCalculator;
-import com.mojang.blaze3d.pipeline.BindGroupLayout;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.ColorTargetState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.platform.BlendFactor;
-import com.mojang.blaze3d.shaders.UniformType;
-import com.mojang.blaze3d.systems.RenderPass;
-import com.mojang.blaze3d.systems.RenderPassDescriptor;
+import com.mojang.renderpearl.api.pipeline.BlendFactor;
+import com.mojang.renderpearl.api.pipeline.UniformType;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.commands.RenderPassDescriptor;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.FilterMode;
 
 import net.minecraft.resources.Identifier;
 
@@ -56,8 +56,8 @@ public final class OcclusionPass implements AutoCloseable {
 
     private static final BindGroupLayout LAYOUT = BindGroupLayout.builder()
             .withUniform("Occlusion", UniformType.UNIFORM_BUFFER)
-            .withSampler("FarDepth")
-            .withSampler("GameDepth")
+            .withUniform("FarDepth", UniformType.COMBINED_IMAGE_SAMPLER)
+            .withUniform("GameDepth", UniformType.COMBINED_IMAGE_SAMPLER)
             .build();
 
     private final RenderPipeline pipeline;
@@ -81,11 +81,11 @@ public final class OcclusionPass implements AutoCloseable {
         write(farViewProjection, gameViewProjection, far.height());
 
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(far))) {
-            pass.setPipeline(pipeline);
+            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
             pass.setUniform("Occlusion", uniform);
-            pass.bindTexture("FarDepth", far.depthStencilView(),
+            pass.setUniform("FarDepth", far.depthStencilView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.bindTexture("GameDepth", game.getDepthTextureView(),
+            pass.setUniform("GameDepth", game.getDepthTextureView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
             pass.draw(VERTICES, INSTANCES, 0, 0);
         }
@@ -120,9 +120,10 @@ public final class OcclusionPass implements AutoCloseable {
     }
 
     private static RenderPassDescriptor descriptor(FarTarget far) {
-        return RenderPassDescriptor.create(() -> PASS_LABEL)
+        return RenderPassDescriptor.builder(() -> PASS_LABEL)
                 .withColorAttachment(far.colourView(), Optional.empty())
-                .withRenderArea(new RenderPass.RenderArea(0, 0, far.width(), far.height()));
+                .withRenderArea(new RenderPass.RenderArea(0, 0, far.width(), far.height()))
+                .build();
     }
 
     private static RenderPipeline pipeline(DepthConvention depth) {

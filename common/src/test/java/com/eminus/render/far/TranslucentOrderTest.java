@@ -6,8 +6,7 @@ import java.util.List;
 
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
-import com.eminus.mesh.CellMesh;
-import com.eminus.mesh.QuadGroups;
+import com.eminus.mesh.MeshSummary;
 import com.eminus.render.tree.RenderList;
 
 import org.junit.jupiter.api.Test;
@@ -15,6 +14,8 @@ import org.junit.jupiter.api.Test;
 class TranslucentOrderTest {
     private static final int LEVEL = 0;
     private static final int ONE_QUAD = 1;
+    private static final int NO_QUADS = 0;
+    private static final int NO_OCCUPANCY = 0;
     private static final double CAMERA_X = 16.0;
     private static final double CAMERA_Y = 16.0;
     private static final double CAMERA_Z = 16.0;
@@ -22,9 +23,9 @@ class TranslucentOrderTest {
 
     private final CellFrame frame = new CellFrame(0);
     private final TranslucentOrder order = new TranslucentOrder();
-    private final CellMesh near = translucent(CellKey.pack(LEVEL, 0, 0, 0));
-    private final CellMesh middle = translucent(CellKey.pack(LEVEL, 2, 0, 0));
-    private final CellMesh far = translucent(CellKey.pack(LEVEL, 5, 0, 0));
+    private final MeshSummary near = translucent(CellKey.pack(LEVEL, 0, 0, 0));
+    private final MeshSummary middle = translucent(CellKey.pack(LEVEL, 2, 0, 0));
+    private final MeshSummary far = translucent(CellKey.pack(LEVEL, 5, 0, 0));
 
     @Test
     void farCellsAreOrderedBeforeNearOnes() {
@@ -36,7 +37,7 @@ class TranslucentOrderTest {
 
     @Test
     void aCellWithoutTranslucentQuadsIsLeftOut() {
-        CellMesh opaque = opaque(CellKey.pack(LEVEL, 1, 0, 0));
+        MeshSummary opaque = opaque(CellKey.pack(LEVEL, 1, 0, 0));
 
         update(list(near, opaque, far));
 
@@ -46,7 +47,7 @@ class TranslucentOrderTest {
 
     @Test
     void aCoarseCellSortsByItsOwnCentre() {
-        CellMesh coarse = translucent(CellKey.pack(2, 1, 0, 0));
+        MeshSummary coarse = translucent(CellKey.pack(2, 1, 0, 0));
 
         update(list(coarse, far));
 
@@ -113,21 +114,15 @@ class TranslucentOrderTest {
         order.update(walked, frame, CAMERA_X, CAMERA_Y, CAMERA_Z);
     }
 
-    private static RenderList list(CellMesh... meshes) {
+    private static RenderList list(MeshSummary... meshes) {
         return new RenderList(List.of(meshes));
     }
 
-    private static CellMesh translucent(long key) {
-        return mesh(key, QuadGroups.TRANSLUCENT);
+    private static MeshSummary translucent(long key) {
+        return new MeshSummary(key, NO_OCCUPANCY, ONE_QUAD, ONE_QUAD);
     }
 
-    private static CellMesh opaque(long key) {
-        return mesh(key, 0);
-    }
-
-    private static CellMesh mesh(long key, int group) {
-        int[] counts = new int[QuadGroups.COUNT];
-        counts[group] = ONE_QUAD;
-        return new CellMesh(key, 0, new long[ONE_QUAD], new int[QuadGroups.COUNT], counts);
+    private static MeshSummary opaque(long key) {
+        return new MeshSummary(key, NO_OCCUPANCY, ONE_QUAD, NO_QUADS);
     }
 }

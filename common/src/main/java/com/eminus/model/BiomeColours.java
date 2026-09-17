@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
@@ -15,12 +16,12 @@ import org.jspecify.annotations.Nullable;
 public final class BiomeColours {
     public static final int NO_COLOUR = -1;
     public static final int NO_ROW = -1;
-    public static final int MAX_ROWS = 8;
+    public static final int NO_BIOME = -1;
 
     private static final BlockPos SAMPLE = BlockPos.ZERO;
     private static final int RGB_MASK = 0x00FF_FFFF;
 
-    public record Colours(int[] values) implements Comparable<Colours> {
+    public record Colours(int[] values, BlockTintSource source, BlockState state) implements Comparable<Colours> {
         public boolean uniform() {
             return Arrays.stream(values).allMatch(value -> value == values[0]);
         }
@@ -43,14 +44,17 @@ public final class BiomeColours {
 
     private final Map<String, Integer> biomeIndex = new HashMap<>();
     private final List<BlockAndTintGetter> levels;
+    private final boolean[] positional;
 
     private volatile List<Colours> rows = List.of();
     private volatile Map<Colours, Integer> rowByColours = Map.of();
 
-    public BiomeColours(Map<String, BlockAndTintGetter> levels) {
+    public BiomeColours(Map<String, BlockAndTintGetter> levels, Set<String> positional) {
         List<String> biomes = levels.keySet().stream().sorted().toList();
+        this.positional = new boolean[biomes.size()];
         for (int index = 0; index < biomes.size(); index++) {
             biomeIndex.put(biomes.get(index), index);
+            this.positional[index] = positional.contains(biomes.get(index));
         }
 
         this.levels = biomes.stream().map(levels::get).toList();
@@ -62,7 +66,7 @@ public final class BiomeColours {
             values[index] = tint.colorInWorld(state, levels.get(index), SAMPLE) & RGB_MASK;
         }
 
-        return new Colours(values);
+        return new Colours(values, tint, state);
     }
 
     public @Nullable Tint resolve(@Nullable BlockTintSource tint, BlockState state) {
@@ -84,10 +88,6 @@ public final class BiomeColours {
     }
 
     public void assign(List<Colours> ranked) {
-        if (ranked.size() > MAX_ROWS) {
-            throw new IllegalArgumentException("At most " + MAX_ROWS + " tint rows, got " + ranked.size());
-        }
-
         Map<Colours, Integer> byColours = new HashMap<>();
         for (int row = 0; row < ranked.size(); row++) {
             byColours.put(ranked.get(row), row);
@@ -100,6 +100,25 @@ public final class BiomeColours {
     public int colour(int row, String biome) {
         Integer index = biomeIndex.get(biome);
         return index == null || row < 0 || row >= rows.size() ? NO_COLOUR : rows.get(row).values()[index];
+    }
+
+    public int biomeIndex(String biome) {
+        Integer index = biomeIndex.get(biome);
+        return index == null ? NO_BIOME : index;
+    }
+
+    public boolean positional(int biomeIndex) {
+        return positional[biomeIndex];
+    }
+
+    public int colourAt(int row, int biomeIndex, int blockX, int blockZ) {
+        Colours colours = rows.get(row);
+        if (!positional[biomeIndex]) {
+            return colours.values()[biomeIndex];
+        }
+
+        BlockPos pos = new BlockPos(blockX, SAMPLE.getY(), blockZ);
+        return colours.source().colorInWorld(colours.state(), levels.get(biomeIndex), pos) & RGB_MASK;
     }
 
     public int biomeCount() {

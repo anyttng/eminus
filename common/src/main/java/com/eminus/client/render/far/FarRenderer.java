@@ -11,11 +11,13 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.handoff.NearPlane;
+import com.eminus.handoff.NearReach;
 import com.eminus.ingest.IngestService;
 import com.eminus.handoff.NearSections;
 import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.client.handoff.NearSectionTable;
 import com.eminus.mesh.BakeryModels;
+import com.eminus.mesh.BakeryTints;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
 import com.eminus.model.ModelIndex;
@@ -50,6 +52,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
 import net.minecraft.world.phys.Vec3;
 
 import org.joml.Matrix4f;
@@ -57,7 +60,7 @@ import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 
 public final class FarRenderer implements AutoCloseable {
-    public static final int COMMAND_CAPACITY = 32768;
+    public static final int START_COMMANDS = 32768;
     public static final String ARENA_CAP_PROPERTY = "eminus.arena.maxMiB";
 
     private static final long BYTES_PER_MIB = 1L << 20;
@@ -74,8 +77,7 @@ public final class FarRenderer implements AutoCloseable {
     private final OcclusionPass occlusion;
     private final TranslucentPass translucent;
     private final CompositePass composite;
-    private final IndirectCommands indirect;
-    private final DrawCommands commands = new DrawCommands(COMMAND_CAPACITY);
+    private final DrawCommands commands = new DrawCommands(START_COMMANDS);
     private final TranslucentOrder order = new TranslucentOrder();
     private final FarProjection projection = new FarProjection();
     private final LevelProjection levelProjection = new LevelProjection();
@@ -84,6 +86,7 @@ public final class FarRenderer implements AutoCloseable {
     private final Matrix4f viewRotation = new Matrix4f();
     private final TreeManager tree;
 
+    private IndirectCommands indirect;
     private volatile MeshService meshes;
     private RenderList renderList = RenderList.EMPTY;
     private @Nullable TreeBatch uploading;
@@ -129,16 +132,17 @@ public final class FarRenderer implements AutoCloseable {
 
         ClientBakery baking = ClientBakery.start(client);
         FarRenderer renderer = new FarRenderer(runtime, baking,
-                ModelPublisher.start(baking.bakery(), baking.colours(), runtime.biomes()), arena,
+                ModelPublisher.start(baking.bakery()), arena,
                 FarTarget.create(support.depthStencilFormat(), main.width, main.height), FarFrame.create(),
                 NearMaskPass.create(FarTarget.COLOUR_FORMAT), NearSectionTable.create(),
                 OpaquePass.create(support.depth()), OcclusionPass.create(support.depth()),
                 TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),
-                IndirectCommands.create(COMMAND_CAPACITY),
+                IndirectCommands.create(START_COMMANDS),
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
 
-        renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(),
+        renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(), runtime.frame(),
                 new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
+                new BakeryTints(baking.colours(), runtime.biomes()), client.options.biomeBlendRadius().get(),
                 baking.opacity(runtime.states()), renderer.tree);
         runtime.listenTo(renderer.tree);
         Eminus.LOGGER.info("Far renderer started for {}", runtime.identity().dimension());
@@ -180,12 +184,12 @@ public final class FarRenderer implements AutoCloseable {
             return;
         }
 
-        models.publish();
-
         TreeBatch batch = tree.batches().peek();
         if (batch != null) {
             upload(batch);
         }
+
+        models.publish();
 
         RenderTarget main = client.gameRenderer.mainRenderTarget();
         target.resize(main.width, main.height);
@@ -205,8 +209,11 @@ public final class FarRenderer implements AutoCloseable {
 
         FogData gameFog = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData;
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
+        ClientLevel level = client.level;
+        float reachBlocks = NearReach.blocks(renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, eye.y,
+                level.getMinY(), level.getMinY() + level.getHeight());
         CompositeFog fog = CompositeFog.of(settings.fog(), settings.fade(), gameFog.environmentalStart,
-                gameFog.environmentalEnd, nearBlocks, settings.farRenderCells());
+                gameFog.environmentalEnd, nearBlocks, reachBlocks, settings.farRenderCells());
         if (fog.skip()) {
             return;
         }
@@ -215,13 +222,18 @@ public final class FarRenderer implements AutoCloseable {
         commands.write(renderList, order.meshes(), arena, runtime.frame(), eye.x, eye.y, eye.z);
 
         if (commands.count() > 0) {
+            if (indirect.capacity() < commands.capacity()) {
+                indirect.close();
+                indirect = IndirectCommands.create(commands.capacity());
+            }
+
             indirect.write(commands);
             if (commands.translucentCount() > 0) {
                 fillNearSections(client, renderDistance, eye);
             }
 
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
-                    nearSections.sections());
+                    nearSections.sections(), level.cardinalLighting());
             mask.draw(target.maskView(), target.colourView(), target.width(), target.height(),
                     main.getDepthTextureView());
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(),
@@ -314,7 +326,9 @@ public final class FarRenderer implements AutoCloseable {
 
     private void fillNearSections(Minecraft client, int renderDistance, Vec3 eye) {
         ClientLevel level = client.level;
-        nearSections.fill(client.levelRenderer, order.meshes(), runtime.frame(),
+        nearSections.fill(client.levelRenderer,
+                Util.toMillis(client.gameRenderer.gameRenderState().optionsRenderState.chunkSectionFadeInTime),
+                order.meshes(), runtime.frame(),
                 NearSections.section(Mth.floor(eye.x)), NearSections.section(Mth.floor(eye.y)),
                 NearSections.section(Mth.floor(eye.z)), renderDistance,
                 renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSectionY(), level.getSectionsCount());
@@ -322,8 +336,8 @@ public final class FarRenderer implements AutoCloseable {
 
     private final class Builds implements TreeBuilds {
         @Override
-        public void build(long key, @Nullable CellHandle handle, int references, long request) {
-            meshes.request(key, handle, references, request);
+        public void build(long key, @Nullable CellHandle handle, int references, long request, float priority) {
+            meshes.request(key, handle, references, request, priority);
         }
 
         @Override

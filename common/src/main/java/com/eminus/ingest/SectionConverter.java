@@ -14,6 +14,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 
+import org.jspecify.annotations.Nullable;
+
 public final class SectionConverter {
     public static final String DICTIONARY_NAME = "biome";
     public static final int DEFAULT_SKY_LIGHT = VoxelEntry.MAX_LIGHT;
@@ -21,14 +23,13 @@ public final class SectionConverter {
 
     private static final String UNREGISTERED_BIOME = Eminus.MODID + ":unregistered";
     private static final int FALLBACK_BIOME_ID = 0;
+    private static final int NIBBLE_BITS = 4;
 
-    public static void convert(LevelChunkSection section, DataLayer skyLight, DataLayer blockLight,
-            StateTable states, Dictionary<String> biomes, SectionPyramid into) {
+    public static void convert(LevelChunkSection section, BiomeWindow window, DataLayer skyLight,
+            DataLayer blockLight, StateTable states, Dictionary<String> biomes, SectionPyramid into) {
         into.reset();
-        sampleBiomes(section, biomes, into);
 
         long[] level = into.level(DetailLevel.MIN);
-        int[] samples = into.biomeSamples();
         Reference2IntMap<BlockState> known = into.stateIds();
 
         for (int y = 0; y < SectionPyramid.SECTION_SIDE; y++) {
@@ -41,10 +42,7 @@ public final class SectionConverter {
                         known.put(state, stateId);
                     }
 
-                    int biomeId = samples[SectionPyramid.biomeIndexAt(
-                            x >> LevelChunkSection.BIOME_CONTAINER_BITS,
-                            y >> LevelChunkSection.BIOME_CONTAINER_BITS,
-                            z >> LevelChunkSection.BIOME_CONTAINER_BITS)];
+                    int biomeId = biomeId(window.at(x, y, z), biomes, into);
                     int light = VoxelEntry.light(
                             skyLight == null ? DEFAULT_SKY_LIGHT : skyLight.get(x, y, z),
                             blockLight == null ? DEFAULT_BLOCK_LIGHT : blockLight.get(x, y, z));
@@ -56,24 +54,38 @@ public final class SectionConverter {
         }
     }
 
-    private static void sampleBiomes(LevelChunkSection section, Dictionary<String> biomes, SectionPyramid into) {
-        int[] samples = into.biomeSamples();
-        Reference2IntMap<Holder<Biome>> known = into.biomeIds();
+    public static boolean lightDiffersFromBlank(@Nullable DataLayer skyLight, @Nullable DataLayer blockLight) {
+        return !filledWith(skyLight, DEFAULT_SKY_LIGHT) || !filledWith(blockLight, DEFAULT_BLOCK_LIGHT);
+    }
 
-        for (int quartY = 0; quartY < SectionPyramid.BIOME_SIDE; quartY++) {
-            for (int quartZ = 0; quartZ < SectionPyramid.BIOME_SIDE; quartZ++) {
-                for (int quartX = 0; quartX < SectionPyramid.BIOME_SIDE; quartX++) {
-                    Holder<Biome> holder = section.getNoiseBiome(quartX, quartY, quartZ);
-                    int id = known.getInt(holder);
-                    if (id == SectionPyramid.ABSENT) {
-                        id = idOf(holder, biomes);
-                        known.put(holder, id);
-                    }
+    private static boolean filledWith(@Nullable DataLayer layer, int value) {
+        if (layer == null || layer.isDefinitelyFilledWith(value)) {
+            return true;
+        }
 
-                    samples[SectionPyramid.biomeIndexAt(quartX, quartY, quartZ)] = id;
-                }
+        if (layer.isDefinitelyHomogenous()) {
+            return false;
+        }
+
+        byte packed = (byte) (value << NIBBLE_BITS | value);
+        for (byte nibbles : layer.getData()) {
+            if (nibbles != packed) {
+                return false;
             }
         }
+
+        return true;
+    }
+
+    private static int biomeId(Holder<Biome> holder, Dictionary<String> biomes, SectionPyramid into) {
+        Reference2IntMap<Holder<Biome>> known = into.biomeIds();
+        int id = known.getInt(holder);
+        if (id == SectionPyramid.ABSENT) {
+            id = idOf(holder, biomes);
+            known.put(holder, id);
+        }
+
+        return id;
     }
 
     private static int idOf(Holder<Biome> holder, Dictionary<String> biomes) {

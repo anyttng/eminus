@@ -1,7 +1,7 @@
 package com.eminus.render.backend;
 
-import com.mojang.blaze3d.platform.CompareOp;
-import com.mojang.blaze3d.systems.DeviceInfo;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.device.DeviceInfo;
 
 public record DepthConvention(boolean zeroToOne, CompareOp compare, double farthest) {
     // The game reverses depth unconditionally: Projection swaps near and far, DepthStencilState.DEFAULT tests GREATER_THAN_OR_EQUAL.

@@ -11,9 +11,9 @@ import com.eminus.cell.DetailLevel;
 import com.eminus.compat.sodium.SodiumDrawnSections;
 import com.eminus.compat.sodium.SodiumMixinPlugin;
 import com.eminus.handoff.NearSections;
-import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.MeshSummary;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.renderer.LevelRenderer;
@@ -32,6 +32,7 @@ public final class NearSectionTable implements AutoCloseable {
     private ByteBuffer scratch;
     private IntBuffer texels;
     private LevelRenderer levelRenderer;
+    private long sectionFadeMillis;
     private int cameraSectionX;
     private int cameraSectionY;
     private int cameraSectionZ;
@@ -54,17 +55,19 @@ public final class NearSectionTable implements AutoCloseable {
         return buffer;
     }
 
-    public void fill(LevelRenderer renderer, List<CellMesh> translucent, CellFrame frame, int cameraSectionX,
-            int cameraSectionY, int cameraSectionZ, int viewDistance, int radius, int minSectionY, int sectionCount) {
+    public void fill(LevelRenderer renderer, long sectionFadeMillis, List<MeshSummary> translucent, CellFrame frame,
+            int cameraSectionX, int cameraSectionY, int cameraSectionZ, int viewDistance, int radius, int minSectionY,
+            int sectionCount) {
         RenderSystem.assertOnRenderThread();
         levelRenderer = renderer;
+        this.sectionFadeMillis = sectionFadeMillis;
         this.cameraSectionX = cameraSectionX;
         this.cameraSectionY = cameraSectionY;
         this.cameraSectionZ = cameraSectionZ;
         this.viewDistance = viewDistance;
         sections.reset(cameraSectionX, cameraSectionZ, radius, minSectionY, sectionCount);
 
-        for (CellMesh mesh : translucent) {
+        for (MeshSummary mesh : translucent) {
             long key = mesh.key();
             int level = CellKey.level(key);
             int side = DetailLevel.blocksPerCell(level);
@@ -85,7 +88,7 @@ public final class NearSectionTable implements AutoCloseable {
 
     private boolean owned(int sectionX, int sectionY, int sectionZ) {
         return levelRenderer.isSectionCompiledAndVisible(pos.set(sectionX * NearSections.SECTION_BLOCKS,
-                sectionY * NearSections.SECTION_BLOCKS, sectionZ * NearSections.SECTION_BLOCKS))
+                sectionY * NearSections.SECTION_BLOCKS, sectionZ * NearSections.SECTION_BLOCKS), sectionFadeMillis)
                 && drawn(sectionX, sectionY, sectionZ);
     }
 

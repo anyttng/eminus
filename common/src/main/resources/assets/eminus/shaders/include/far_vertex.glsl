@@ -1,3 +1,6 @@
+#ifndef EMINUS_FAR_VERTEX_GLSL
+#define EMINUS_FAR_VERTEX_GLSL
+
 struct FarVertex {
     vec3 position;
     vec3 facePoint;
@@ -7,14 +10,30 @@ struct FarVertex {
     ivec2 atlasCell;
     vec2 faceUV;
     vec3 tint;
+    ivec3 cellOrigin;
+    int level;
+    vec3 voxelPoint;
+    int faceSlot;
+    int variantStart;
+    int variantCount;
 };
 
 const int FAR_CORNERS_PER_QUAD = 6;
 const int FAR_CORNER_OF[6] = int[6](0, 1, 2, 0, 2, 3);
 const int FAR_MODEL_TEXELS = 4;
-const int FAR_NO_TINT = -1;
+const uint FAR_OFFSET_MASK = 1023u;
+const int FAR_OFFSET_SIGN = 512;
+const float FAR_OFFSET_STEPS = 256.0;
+const uint FAR_OFFSET_X_SHIFT = 0u;
+const uint FAR_OFFSET_Y_SHIFT = 10u;
+const uint FAR_OFFSET_Z_SHIFT = 20u;
 const int FAR_NIBBLE = 15;
 const float FAR_HALF_VOXEL = 0.5;
+
+float far_offset_axis(uint bits, uint shift) {
+    int steps = int((bits >> shift) & FAR_OFFSET_MASK);
+    return float(steps >= FAR_OFFSET_SIGN ? steps - 2 * FAR_OFFSET_SIGN : steps) / FAR_OFFSET_STEPS;
+}
 
 FarVertex far_vertex(int vertexId) {
     FarVertex vertex;
@@ -36,7 +55,7 @@ FarVertex far_vertex(int vertexId) {
     int height = int((quad.x >> 22u) & 15u) + 1;
     int light = int(((quad.x >> 26u) | ((quad.y & 3u) << 6u)) & 255u);
     int modelId = int((quad.y >> 2u) & 0x3FFFFu);
-    int biomeId = int((quad.y >> 20u) & 0xFFFu);
+    int colourIndex = int((quad.y >> 20u) & 0xFFFu);
 
     vec4 first = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS);
     vec4 second = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 1);
@@ -45,9 +64,17 @@ FarVertex far_vertex(int vertexId) {
     float insets[6] = float[6](first.x, first.y, first.z, first.w, second.x, second.y);
     vec3 boundsMin = vec3(second.z, second.w, third.x);
     vec3 boundsMax = vec3(third.y, third.z, third.w);
-    int tintRow = floatBitsToInt(fourth.y);
 
-    vec3 local = vec3(voxel);
+    vertex.tint = vec3(1.0);
+    vec3 offset = vec3(0.0);
+    if (colourIndex != 0) {
+        uvec2 entry = texelFetch(Quads, int(mesh.z + mesh.w) + colourIndex).rg;
+        vertex.tint = vec3((entry.r >> 16u) & 255u, (entry.r >> 8u) & 255u, entry.r & 255u) / 255.0;
+        offset = vec3(far_offset_axis(entry.g, FAR_OFFSET_X_SHIFT), far_offset_axis(entry.g, FAR_OFFSET_Y_SHIFT),
+                      far_offset_axis(entry.g, FAR_OFFSET_Z_SHIFT));
+    }
+
+    vec3 local = vec3(voxel) + offset;
     vec2 extent;
 
     if (face >= FIRST_BLADE_FACE) {
@@ -78,25 +105,27 @@ FarVertex far_vertex(int vertexId) {
     vec3 faceLocal = local;
     if (face < FIRST_BLADE_FACE) {
         int faceAxis = face < 2 ? 1 : (face < 4 ? 2 : 0);
-        faceLocal[faceAxis] = float(voxel[faceAxis]) + FAR_HALF_VOXEL;
+        faceLocal[faceAxis] = float(voxel[faceAxis]) + FAR_HALF_VOXEL + offset[faceAxis];
     }
     vertex.facePoint = vec3(origin - CameraBlockPos) + faceLocal * float(1 << level);
+    vertex.voxelPoint = faceLocal - offset;
+    vertex.cellOrigin = origin;
+    vertex.level = level;
 
     vertex.faceUV = vec2(face == 2 || face == 5 ? float(width) - extent.x : extent.x,
                          face == 1 ? float(height) - extent.y : extent.y);
 
-    int slot = modelId * MODEL_FACES + (face >= FIRST_BLADE_FACE ? face - FIRST_BLADE_FACE : face);
+    vertex.faceSlot = face >= FIRST_BLADE_FACE ? face - FIRST_BLADE_FACE : face;
+    int slot = modelId * MODEL_FACES + vertex.faceSlot;
     vertex.atlasCell = ivec2(slot % AtlasCells, slot / AtlasCells);
+    vertex.variantStart = int(fourth.z);
+    vertex.variantCount = int(fourth.w);
 
     vertex.face = face;
     vertex.blockLight = light & FAR_NIBBLE;
     vertex.skyLight = (light >> 4) & FAR_NIBBLE;
 
-    vertex.tint = vec3(1.0);
-    if (tintRow != FAR_NO_TINT) {
-        uint tint = texelFetch(TintColours, tintRow * BIOME_STRIDE + biomeId).r;
-        vertex.tint = vec3((tint >> 16u) & 255u, (tint >> 8u) & 255u, tint & 255u) / 255.0;
-    }
-
     return vertex;
 }
+
+#endif

@@ -8,21 +8,21 @@ import com.eminus.Eminus;
 import com.eminus.render.backend.DepthConvention;
 import com.eminus.render.far.CompositeFog;
 
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.buffers.Std140SizeCalculator;
-import com.mojang.blaze3d.pipeline.BindGroupLayout;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.ColorTargetState;
-import com.mojang.blaze3d.pipeline.DepthStencilState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.shaders.UniformType;
-import com.mojang.blaze3d.systems.RenderPass;
-import com.mojang.blaze3d.systems.RenderPassDescriptor;
+import com.mojang.renderpearl.api.pipeline.UniformType;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.commands.RenderPassDescriptor;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.FilterMode;
 
 import net.minecraft.resources.Identifier;
 
@@ -41,6 +41,7 @@ public final class CompositePass implements AutoCloseable {
     private static final int UNIFORM_USAGE = GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST;
     private static final int SIZE = new Std140SizeCalculator()
             .putMat4f().putMat4f().putVec4()
+            .putFloat().putFloat().putFloat()
             .putFloat().putFloat().putFloat().putFloat().putFloat()
             .get();
     private static final int VERTICES = 3;
@@ -48,8 +49,8 @@ public final class CompositePass implements AutoCloseable {
 
     private static final BindGroupLayout LAYOUT = BindGroupLayout.builder()
             .withUniform("Composite", UniformType.UNIFORM_BUFFER)
-            .withSampler("FarColour")
-            .withSampler("FarDepth")
+            .withUniform("FarColour", UniformType.COMBINED_IMAGE_SAMPLER)
+            .withUniform("FarDepth", UniformType.COMBINED_IMAGE_SAMPLER)
             .build();
 
     private final RenderPipeline pipeline;
@@ -74,11 +75,11 @@ public final class CompositePass implements AutoCloseable {
         write(gameViewProjection, farViewProjection, fog, fogColour);
 
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(game))) {
-            pass.setPipeline(pipeline);
+            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
             pass.setUniform("Composite", uniform);
-            pass.bindTexture("FarColour", far.colourView(),
+            pass.setUniform("FarColour", far.colourView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.bindTexture("FarDepth", far.depthStencilView(),
+            pass.setUniform("FarDepth", far.depthStencilView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
             pass.draw(VERTICES, INSTANCES, 0, 0);
         }
@@ -98,6 +99,9 @@ public final class CompositePass implements AutoCloseable {
                     .putMat4f(reproject)
                     .putMat4f(farInverse)
                     .putVec4(fogColour)
+                    .putFloat(fog.gameFogStart())
+                    .putFloat(fog.gameFogEnd())
+                    .putFloat(fog.reach())
                     .putFloat(fog.fogStart())
                     .putFloat(fog.fogEnd())
                     .putFloat(fog.fadeStart())
@@ -109,10 +113,11 @@ public final class CompositePass implements AutoCloseable {
     }
 
     private static RenderPassDescriptor descriptor(RenderTarget game) {
-        return RenderPassDescriptor.create(() -> PASS_LABEL)
+        return RenderPassDescriptor.builder(() -> PASS_LABEL)
                 .withColorAttachment(game.getColorTextureView(), Optional.empty())
                 .withDepthAttachment(game.getDepthTextureView(), OptionalDouble.empty())
-                .withRenderArea(new RenderPass.RenderArea(0, 0, game.width, game.height));
+                .withRenderArea(new RenderPass.RenderArea(0, 0, game.width, game.height))
+                .build();
     }
 
     private static RenderPipeline pipeline(DepthConvention depth) {

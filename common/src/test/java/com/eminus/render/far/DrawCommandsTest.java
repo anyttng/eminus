@@ -8,6 +8,7 @@ import java.util.List;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.MeshSummary;
 import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.MeshSlot;
@@ -22,6 +23,7 @@ class DrawCommandsTest {
     private static final int CAPACITY = 4;
     private static final int LEVEL = 0;
     private static final int BLOCK = 3;
+    private static final int NO_COLOURS = 0;
     private static final int FAR_BLOCK = 9;
     private static final int UP_QUADS = 5;
     private static final int DOWN_QUADS = 7;
@@ -141,7 +143,7 @@ class DrawCommandsTest {
     }
 
     @Test
-    void theSurplusPastTheCapacityIsDroppedForTheFrame() {
+    void aWritePastTheCapacityGrowsTheBufferAndKeepsEveryCommand() {
         int[] groupStart = new int[QuadGroups.COUNT];
         int[] groupCount = new int[QuadGroups.COUNT];
         for (int group = 0; group < QuadGroups.DIRECTIONAL_COUNT; group++) {
@@ -149,17 +151,23 @@ class DrawCommandsTest {
             groupCount[group] = UP_QUADS;
         }
 
-        write(slots(new MeshSlot(key, BLOCK, QuadGroups.DIRECTIONAL_COUNT * UP_QUADS, groupStart, groupCount)), INSIDE);
+        write(slots(new MeshSlot(key, BLOCK, QuadGroups.DIRECTIONAL_COUNT * UP_QUADS, NO_COLOURS, groupStart,
+                groupCount)), INSIDE);
 
-        assertEquals(CAPACITY, commands.opaqueCount());
-        assertEquals(QuadGroups.DIRECTIONAL_COUNT - CAPACITY, commands.dropped());
+        assertEquals(QuadGroups.DIRECTIONAL_COUNT, commands.opaqueCount());
+
+        IntBuffer written = commands.buffer().asIntBuffer();
+        for (int group = 0; group < QuadGroups.DIRECTIONAL_COUNT; group++) {
+            assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + group * UP_QUADS) * DrawCommands.VERTICES_PER_QUAD,
+                    written.get(group * DrawCommands.COMMAND_INTS + 2));
+        }
     }
 
     private void write(MeshSlots slots, double cameraY) {
         commands.write(new RenderList(List.of(mesh(key))), List.of(), slots, frame, INSIDE, cameraY, INSIDE);
     }
 
-    private void translucent(MeshSlots slots, CellMesh... ordered) {
+    private void translucent(MeshSlots slots, MeshSummary... ordered) {
         commands.write(RenderList.EMPTY, List.of(ordered), slots, frame, INSIDE, INSIDE, INSIDE);
     }
 
@@ -173,7 +181,7 @@ class DrawCommandsTest {
         groupCount[Direction.DOWN.ordinal()] = DOWN_QUADS;
         groupStart[Direction.UP.ordinal()] = DOWN_QUADS;
         groupCount[Direction.UP.ordinal()] = UP_QUADS;
-        return new MeshSlot(key, block, DOWN_QUADS + UP_QUADS, groupStart, groupCount);
+        return new MeshSlot(key, block, DOWN_QUADS + UP_QUADS, NO_COLOURS, groupStart, groupCount);
     }
 
     private static MeshSlot water(long key, int block) {
@@ -181,7 +189,7 @@ class DrawCommandsTest {
         int[] groupCount = new int[QuadGroups.COUNT];
         groupStart[QuadGroups.TRANSLUCENT] = WATER_START;
         groupCount[QuadGroups.TRANSLUCENT] = WATER_QUADS;
-        return new MeshSlot(key, block, WATER_START + WATER_QUADS, groupStart, groupCount);
+        return new MeshSlot(key, block, WATER_START + WATER_QUADS, NO_COLOURS, groupStart, groupCount);
     }
 
     private static MeshSlot both(long key, int block) {
@@ -190,10 +198,10 @@ class DrawCommandsTest {
         int[] groupCount = opaque.groupCount().clone();
         groupStart[QuadGroups.TRANSLUCENT] = WATER_START;
         groupCount[QuadGroups.TRANSLUCENT] = WATER_QUADS;
-        return new MeshSlot(key, block, WATER_START + WATER_QUADS, groupStart, groupCount);
+        return new MeshSlot(key, block, WATER_START + WATER_QUADS, NO_COLOURS, groupStart, groupCount);
     }
 
-    private static CellMesh mesh(long key) {
-        return CellMesh.empty(key);
+    private static MeshSummary mesh(long key) {
+        return CellMesh.empty(key).summary();
     }
 }

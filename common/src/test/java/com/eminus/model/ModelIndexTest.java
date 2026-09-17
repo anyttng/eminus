@@ -3,6 +3,7 @@ package com.eminus.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -42,6 +43,25 @@ class ModelIndexTest {
             assertEquals(ModelBakery.MISSING, index.modelId(stateId, served::countDown));
             assertTrue(served.await(SECONDS, TimeUnit.SECONDS));
             assertEquals(bakery.modelId(stone), index.modelId(stateId, () -> { }));
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void aPositionalStateIdAnswersWithThePositionalMarker() throws InterruptedException {
+        StateTable states = new StateTable(new Dictionary<>((id, value) -> { }));
+        ModelBakery bakery = ModelBakery.start(
+                state -> new BakedState(BakedModel.solid(WHITE), null, null, List.of(), true));
+        ModelIndex index = new ModelIndex(states, bakery);
+
+        try {
+            int stateId = states.idOf(stone);
+            CountDownLatch served = new CountDownLatch(1);
+
+            assertEquals(ModelBakery.MISSING, index.modelId(stateId, served::countDown));
+            assertTrue(served.await(SECONDS, TimeUnit.SECONDS));
+            assertEquals(ModelBakery.POSITIONAL, index.modelId(stateId, () -> { }));
         } finally {
             bakery.stop();
         }

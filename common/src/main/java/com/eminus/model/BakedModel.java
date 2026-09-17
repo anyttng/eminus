@@ -5,7 +5,7 @@ import java.util.Arrays;
 import com.eminus.cell.FaceMask;
 
 public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] bounds, int metadata,
-        int tintRow) {
+        int tintRow, int[] variants) {
     public static final int FACE_COUNT = 6;
     public static final int FACE_SIDE = 16;
     public static final int FACE_TEXELS = FACE_SIDE * FACE_SIDE;
@@ -22,7 +22,16 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] b
 
     public static final float EMPTY_INSET = 1.0F;
 
+    public static final int VARIANT_WORDS = 2;
+    public static final int MAX_VARIANT_REJECTIONS = 8;
+
+    private static final int[] NO_VARIANTS = new int[0];
+
     private static final long ALL_TINTED = -1L;
+
+    public BakedModel(int[] faces, long[] tintMask, float[] insets, float[] bounds, int metadata, int tintRow) {
+        this(faces, tintMask, insets, bounds, metadata, tintRow, NO_VARIANTS);
+    }
 
     public static BakedModel empty() {
         float[] insets = new float[FACE_COUNT];
@@ -70,6 +79,21 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] b
         return faces[face * FACE_TEXELS + texel];
     }
 
+    public BakedModel withVariants(int[] table) {
+        return new BakedModel(faces, tintMask, insets, bounds, metadata, tintRow, table);
+    }
+
+    public boolean sameGeometry(BakedModel other) {
+        return metadata == other.metadata
+                && tintRow == other.tintRow
+                && Arrays.equals(insets, other.insets)
+                && Arrays.equals(bounds, other.bounds);
+    }
+
+    public int variantCount() {
+        return variants.length / VARIANT_WORDS;
+    }
+
     public boolean tinted(int face, int texel) {
         return tinted(tintMask, face * FACE_TEXELS + texel);
     }
@@ -82,7 +106,8 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] b
                 && Arrays.equals(faces, model.faces)
                 && Arrays.equals(tintMask, model.tintMask)
                 && Arrays.equals(insets, model.insets)
-                && Arrays.equals(bounds, model.bounds);
+                && Arrays.equals(bounds, model.bounds)
+                && Arrays.equals(variants, model.variants);
     }
 
     @Override
@@ -91,6 +116,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] b
         hash = 31 * hash + Arrays.hashCode(tintMask);
         hash = 31 * hash + Arrays.hashCode(insets);
         hash = 31 * hash + Arrays.hashCode(bounds);
+        hash = 31 * hash + Arrays.hashCode(variants);
         hash = 31 * hash + metadata;
         return 31 * hash + tintRow;
     }

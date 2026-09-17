@@ -5,12 +5,14 @@
   "compatibilityLevel": "JAVA_25",
   "client": [
     "BiomeManagerAccessor",
-    "ChunkSectionsToRenderMixin",
+    "ClientChunkCacheMixin",
     "ClientLevelMixin",
     "ClientPacketListenerMixin",
     "GameRendererMixin",
+    "LevelRendererMixin",
     "SpriteContentsAccessor",
-    "StairBlockAccessor"
+    "StairBlockAccessor",
+    "WeightedVariantsAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -3,7 +3,7 @@ package com.eminus.render.tree;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.OccupancyMask;
 import com.eminus.cell.cache.CellHandle;
-import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.MeshSummary;
 
 import org.jspecify.annotations.Nullable;
 
@@ -16,7 +16,7 @@ public final class TreeNode {
     private final int octant;
 
     private @Nullable TreeNode @Nullable [] children;
-    private @Nullable CellMesh mesh;
+    private @Nullable MeshSummary mesh;
     private @Nullable CellHandle pending;
     private int pendingReferences;
     private int requestedOctants;
@@ -45,7 +45,7 @@ public final class TreeNode {
         return level;
     }
 
-    public @Nullable CellMesh mesh() {
+    public @Nullable MeshSummary mesh() {
         return mesh;
     }
 
@@ -164,7 +164,7 @@ public final class TreeNode {
         building = true;
     }
 
-    void meshed(CellMesh built) {
+    void meshed(MeshSummary built) {
         mesh = built;
         building = false;
     }

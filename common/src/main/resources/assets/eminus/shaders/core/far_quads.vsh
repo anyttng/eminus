@@ -1,7 +1,8 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:globals.glsl>
-#moj_import <minecraft:sample_lightmap.glsl>
+#include <minecraft:globals.glsl>
+#include <minecraft:sample_lightmap.glsl>
 
 layout(std140) uniform FarFrame {
     mat4 FarProjView;
@@ -10,32 +11,37 @@ layout(std140) uniform FarFrame {
     int NearSide;
     int NearHeight;
     ivec3 NearOrigin;
+    float ShadeDown;
+    float ShadeUp;
+    float ShadeNorth;
+    float ShadeSouth;
+    float ShadeWest;
+    float ShadeEast;
 };
 
 uniform usamplerBuffer Quads;
 uniform usamplerBuffer MeshRecords;
 uniform samplerBuffer ModelRecords;
-uniform usamplerBuffer TintColours;
 uniform sampler2D Lightmap;
 
-#moj_import <eminus:far_vertex.glsl>
+#include <eminus:far_vertex.glsl>
 
-out vec2 faceUV;
-out vec4 vertexColor;
-flat out vec3 tintColour;
-flat out ivec2 atlasCell;
+layout(location = 0) out vec2 faceUV;
+layout(location = 1) out vec4 vertexColor;
+layout(location = 2) flat out vec3 tintColour;
+layout(location = 3) flat out ivec2 atlasCell;
+layout(location = 5) flat out ivec4 variantInfo;
+layout(location = 6) flat out ivec3 cellOrigin;
+layout(location = 7) out vec3 voxelPoint;
 
 #ifdef NEAR_SECTIONS
-out vec3 nearPoint;
+layout(location = 4) out vec3 nearPoint;
 #endif
 
-const float FACE_SHADE[8] = float[8](
-    SHADE_DOWN, SHADE_UP, SHADE_NORTH_SOUTH, SHADE_NORTH_SOUTH, SHADE_WEST_EAST, SHADE_WEST_EAST,
-    SHADE_BLADE, SHADE_BLADE);
 const int LIGHT_STEP = 16;
 
 void main() {
-    FarVertex vertex = far_vertex(gl_VertexID);
+    FarVertex vertex = far_vertex(gl_VertexIndex);
     gl_Position = FarProjView * vec4(vertex.position, 1.0);
 
 #ifdef NEAR_SECTIONS
@@ -44,9 +50,14 @@ void main() {
 
     faceUV = vertex.faceUV;
     atlasCell = vertex.atlasCell;
+    variantInfo = ivec4(vertex.variantStart, vertex.variantCount, vertex.faceSlot, vertex.level);
+    cellOrigin = vertex.cellOrigin;
+    voxelPoint = vertex.voxelPoint;
     tintColour = vertex.tint;
 
     vec4 colour = sample_lightmap(Lightmap, ivec2(vertex.blockLight * LIGHT_STEP, vertex.skyLight * LIGHT_STEP));
-    colour.rgb *= FACE_SHADE[vertex.face];
+    float faceShade[8] = float[8](ShadeDown, ShadeUp, ShadeNorth, ShadeSouth, ShadeWest, ShadeEast,
+        SHADE_BLADE, SHADE_BLADE);
+    colour.rgb *= faceShade[vertex.face];
     vertexColor = colour;
 }

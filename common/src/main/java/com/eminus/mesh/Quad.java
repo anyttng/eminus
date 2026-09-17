@@ -7,8 +7,7 @@ public final class Quad {
     public static final int FIRST_BLADE_FACE = 6;
     public static final int BLADE_COUNT = 2;
     public static final int MAX_MODEL_ID = (1 << 18) - 1;
-    public static final int MAX_BIOME_ID = (1 << 12) - 1;
-    public static final int CLAMPED_BIOME_ID = 0;
+    public static final int MAX_COLOUR_INDEX = (1 << 12) - 1;
 
     private static final int FACE_SHIFT = 0;
     private static final int X_SHIFT = 3;
@@ -18,19 +17,19 @@ public final class Quad {
     private static final int HEIGHT_SHIFT = 22;
     private static final int LIGHT_SHIFT = 26;
     private static final int MODEL_SHIFT = 34;
-    private static final int BIOME_SHIFT = 52;
+    private static final int COLOUR_SHIFT = 52;
 
     private static final long FACE_MASK = 0x7L;
     private static final long COORDINATE_MASK = DetailLevel.VOXELS_PER_SIDE - 1;
     private static final long SIDE_MASK = 0xFL;
     private static final long LIGHT_MASK = 0xFFL;
     private static final long MODEL_MASK = MAX_MODEL_ID;
-    private static final long BIOME_MASK = MAX_BIOME_ID;
+    private static final long COLOUR_MASK = MAX_COLOUR_INDEX;
 
-    public static long data(int light, int modelId, int biomeId) {
+    public static long data(int light, int modelId, int colourIndex) {
         return ((light & LIGHT_MASK) << LIGHT_SHIFT)
                 | ((modelId & MODEL_MASK) << MODEL_SHIFT)
-                | ((clampBiome(biomeId) & BIOME_MASK) << BIOME_SHIFT);
+                | ((colourIndex & COLOUR_MASK) << COLOUR_SHIFT);
     }
 
     public static long of(long data, int face, int x, int y, int z, int width, int height) {
@@ -53,10 +52,6 @@ public final class Quad {
 
     public static boolean fitsModelId(int modelId) {
         return modelId >= 0 && modelId <= MAX_MODEL_ID;
-    }
-
-    public static int clampBiome(int biomeId) {
-        return biomeId >= 0 && biomeId <= MAX_BIOME_ID ? biomeId : CLAMPED_BIOME_ID;
     }
 
     public static int face(long quad) {
@@ -91,8 +86,8 @@ public final class Quad {
         return (int) ((quad >>> MODEL_SHIFT) & MODEL_MASK);
     }
 
-    public static int biomeId(long quad) {
-        return (int) ((quad >>> BIOME_SHIFT) & BIOME_MASK);
+    public static int colourIndex(long quad) {
+        return (int) ((quad >>> COLOUR_SHIFT) & COLOUR_MASK);
     }
 
     private Quad() {

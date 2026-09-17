@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.eminus.VanillaBootstrap;
 import com.eminus.cell.Cell;
+import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.DetailLevel;
@@ -41,10 +42,13 @@ class MeshServiceTest {
     private static final long AWAIT_MILLIS = 10_000L;
     private static final int CUBE_AT = 8;
     private static final String MESH_SERVICE = "mesh";
+    private static final int MIN_BLOCK_Y = -64;
+    private static final CellFrame FRAME = new CellFrame(MIN_BLOCK_Y);
     private static final String QUEUED_SERVICE = "queued";
     private static final int OPENED_CELLS = QuadGroups.DIRECTIONAL_COUNT + 1;
     private static final int FIRST_VOXEL = 0;
     private static final int LAST_VOXEL = DetailLevel.VOXELS_PER_SIDE - 1;
+    private static final int NO_BLEND = 0;
 
     private static final int STONE = 1;
     private static final int STONE_MODEL = 7;
@@ -64,8 +68,8 @@ class MeshServiceTest {
     private final StateOpacity opacity = stateId -> stateId == STONE ? StateTable.FULL_OPACITY : 0;
 
     private final MeshService service = new MeshService(
-            harness.register(MESH_SERVICE, MeshScratch::new), cache, ColumnCoverage.everything(), models,
-            level -> opacity, (mesh, request) -> delivered.set(mesh));
+            harness.register(MESH_SERVICE, MeshScratch::new), cache, ColumnCoverage.everything(), FRAME, models,
+            new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh));
 
     @BeforeAll
     static void bootstrapVanilla() {
@@ -113,7 +117,7 @@ class MeshServiceTest {
 
         harness.run(() -> {
             CellHandle handle = cache.open(KEY);
-            service.build(MeshTask.carrying(KEY, handle, 1, MeshTask.NO_REQUEST), new MeshScratch());
+            service.build(MeshTask.carrying(KEY, handle, 1, MeshTask.NO_REQUEST, MeshTask.LOWEST_PRIORITY), new MeshScratch());
         });
 
         assertNotNull(delivered.get());
@@ -131,7 +135,7 @@ class MeshServiceTest {
             CellHandle handle = cache.open(KEY);
             cache.open(KEY);
             cache.open(KEY);
-            service.build(MeshTask.carrying(KEY, handle, 3, MeshTask.NO_REQUEST), new MeshScratch());
+            service.build(MeshTask.carrying(KEY, handle, 3, MeshTask.NO_REQUEST, MeshTask.LOWEST_PRIORITY), new MeshScratch());
         });
 
         assertEquals(0, cache.liveCount());
@@ -160,8 +164,8 @@ class MeshServiceTest {
 
         WorkerPool idle = WorkerPool.start(NO_WORKERS);
         WorkService<MeshScratch> queued = idle.register(QUEUED_SERVICE, 1, WorkService.UNLIMITED, MeshScratch::new);
-        MeshService waiting = new MeshService(queued, cache, ColumnCoverage.everything(), models,
-                level -> opacity, (mesh, request) -> delivered.set(mesh));
+        MeshService waiting = new MeshService(queued, cache, ColumnCoverage.everything(), FRAME, models,
+                new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh));
 
         try {
             harness.run(() -> waiting.build(MeshTask.fresh(KEY), new MeshScratch()));

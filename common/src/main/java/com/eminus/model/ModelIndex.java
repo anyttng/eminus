@@ -38,6 +38,18 @@ public final class ModelIndex {
         return resolve(stateId, whenBaked) ? remembered(fluidIds, stateId) : ModelBakery.MISSING;
     }
 
+    public int positionalModelId(int stateId, int blockX, int blockY, int blockZ, Runnable whenBaked) {
+        return bakery.positionalModelId(states.state(stateId), blockX, blockY, blockZ, whenBaked);
+    }
+
+    public int submergedModelId(int modelId) {
+        return bakery.submergedModelId(modelId);
+    }
+
+    public BlockState state(int stateId) {
+        return states.state(stateId);
+    }
+
     private boolean resolve(int stateId, Runnable whenBaked) {
         BlockState state = states.state(stateId);
         int modelId = bakery.request(state, whenBaked);
@@ -45,7 +57,7 @@ public final class ModelIndex {
             return false;
         }
 
-        remember(stateId, modelId, bakery.fluidModelId(state));
+        remember(stateId, bakery.positional(state) ? ModelBakery.POSITIONAL : modelId, bakery.fluidModelId(state));
         return true;
     }
 

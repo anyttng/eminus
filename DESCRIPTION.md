@@ -6,31 +6,33 @@
 - That copy is drawn behind the game's own terrain, from 32 up to 2048 chunks away — 512 by default.
 - Far terrain never draws over near terrain.
 - Block changes in the chunks around you reach the far terrain too.
+- Far terrain shows water and plants, carries sky and block light, and blends grass, leaf and water colours across biomes the way your Biome Blend is set.
 - Runs on the game's OpenGL graphics API.
 - Client-only: works on any server, with nothing installed there.
 
 ## Settings
 
-Open the settings screen from the mod list — Config on NeoForge, Configure through Mod Menu on Fabric — or edit `config/eminus.json`.
+Open the settings screen from the mod list — Config on NeoForge, Configure through Mod Menu on Fabric — or from the Eminus page in Sodium's video settings. The same values live in `config/eminus.json`.
 
 - **Ingestion** — turns saving of newly seen chunks on or off.
-- **Lowest stored level** — the finest detail kept on disk; raising it from 0 to 1 cuts disk use to about a seventh.
+- **Lowest stored level** — the finest detail kept on disk; raising it from Full to High cuts disk use to about a seventh.
 - **Far render distance** — how far the far terrain reaches.
 - **Worker threads** — background threads that build far terrain.
-- **Subdivision size** — how close finer detail starts; smaller costs more.
-- **Fog mode** — fog, fade or both where the far terrain ends.
+- **Detail distance** — how far out the finer detail of the far terrain reaches; each step up doubles that distance and costs more video memory.
+- **Fog** — fog over the far terrain, carried on from the game's own.
+- **Fade** — fades the far terrain out over its last 512 blocks instead of ending it in a hard line.
 
-Worker threads and Lowest stored level take effect on the next world join.
+Every setting takes effect where you change it; Lowest stored level restarts the far terrain and reads the chunks around you again.
 
 ## Compatibility
 
-Runs on **NeoForge** and **Fabric**, Minecraft 26.2. Mod Menu is optional on Fabric. **Sodium** is supported on both loaders.
+Runs on **NeoForge** and **Fabric**, Minecraft 26.3. Mod Menu is optional on Fabric. **Sodium** is supported on both loaders.
 
 ## Before you download
 
 - Far terrain appears only where you have already been — there is no import of existing worlds and no pregeneration.
-- Vulkan support is in development.
-- Under a shader pack the far terrain is not lit by the pack.
+- Vulkan is in development — keep the game on its OpenGL graphics API.
+- Shader packs are not supported yet; support is planned.
 
 ## Bug reports
 

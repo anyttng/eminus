@@ -20,6 +20,10 @@ public final class SectionDebounce {
         return marked.size();
     }
 
+    public boolean holds(long sectionNode) {
+        return marked.containsKey(sectionNode);
+    }
+
     public void mark(long sectionNode, long now) {
         marked.put(sectionNode, now);
     }

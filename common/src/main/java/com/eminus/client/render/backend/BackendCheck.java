@@ -9,17 +9,18 @@ import com.eminus.render.backend.BackendLimitation;
 import com.eminus.render.backend.BackendSupport;
 import com.eminus.render.backend.DepthConvention;
 
-import com.mojang.blaze3d.GpuFormat;
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.pipeline.DepthStencilState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.systems.DeviceFeatures;
-import com.mojang.blaze3d.systems.GpuDevice;
-import com.mojang.blaze3d.systems.RenderPass;
-import com.mojang.blaze3d.systems.RenderPassDescriptor;
+import com.mojang.renderpearl.api.GpuFormat;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.device.DeviceFeatures;
+import com.mojang.renderpearl.api.device.GpuDevice;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.commands.RenderPassDescriptor;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 
 import net.minecraft.resources.Identifier;
 
@@ -62,7 +63,7 @@ public final class BackendCheck {
         }
 
         RenderPipeline probe = probePipeline(depth);
-        if (!device.precompilePipeline(probe).isValid()) {
+        if (RenderSystem.getCompiledPipelineNullable(probe) == null) {
             return refuse(BackendLimitation.FRAGMENT_DEPTH, depth);
         }
 
@@ -89,7 +90,7 @@ public final class BackendCheck {
                 GpuTextureView colourView = device.createTextureView(colour);
                 GpuTextureView depthStencilView = device.createTextureView(depthStencil);
                 RenderPass pass = device.createCommandEncoder().createRenderPass(descriptor(colourView, depthStencilView))) {
-            pass.setPipeline(probe);
+            pass.setPipeline(RenderSystem.getCompiledPipeline(probe));
             pass.draw(PROBE_VERTICES, PROBE_INSTANCES, 0, 0);
             return true;
         } catch (RuntimeException refused) {
@@ -99,10 +100,11 @@ public final class BackendCheck {
     }
 
     private static RenderPassDescriptor descriptor(GpuTextureView colour, GpuTextureView depthStencil) {
-        return RenderPassDescriptor.create(() -> PASS_LABEL)
+        return RenderPassDescriptor.builder(() -> PASS_LABEL)
                 .withColorAttachment(colour, Optional.of(CLEAR_COLOUR))
                 .withDepthAttachment(depthStencil, OptionalDouble.of(DepthConvention.REVERSED_FARTHEST))
-                .withRenderArea(new RenderPass.RenderArea(0, 0, PROBE_SIDE, PROBE_SIDE));
+                .withRenderArea(new RenderPass.RenderArea(0, 0, PROBE_SIDE, PROBE_SIDE))
+                .build();
     }
 
     private static RenderPipeline probePipeline(DepthConvention depth) {
@@ -111,6 +113,7 @@ public final class BackendCheck {
                 .withVertexShader(PROBE_SHADER)
                 .withFragmentShader(PROBE_SHADER)
                 .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+                .withColorTargetState(new ColorTargetState(Optional.empty(), COLOUR_FORMAT, ColorTargetState.WRITE_ALL))
                 .withDepthStencilState(new DepthStencilState(depth.compare(), true))
                 .withCull(false)
                 .build();

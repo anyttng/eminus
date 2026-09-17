@@ -1,6 +1,6 @@
 package com.eminus.render.backend;
 
-import com.mojang.blaze3d.GpuFormat;
+import com.mojang.renderpearl.api.GpuFormat;
 
 import org.jspecify.annotations.Nullable;
 

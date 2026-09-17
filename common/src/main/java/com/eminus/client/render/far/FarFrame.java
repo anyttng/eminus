@@ -4,10 +4,12 @@ import java.nio.ByteBuffer;
 
 import com.eminus.handoff.NearSections;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.buffers.Std140SizeCalculator;
 import com.mojang.blaze3d.systems.RenderSystem;
+
+import net.minecraft.world.level.CardinalLighting;
 
 import org.joml.Matrix4fc;
 import org.lwjgl.system.MemoryStack;
@@ -16,6 +18,7 @@ public final class FarFrame implements AutoCloseable {
     public static final int SIZE = new Std140SizeCalculator()
             .putMat4f().putInt().putInt()
             .putInt().putInt().putIVec3()
+            .putFloat().putFloat().putFloat().putFloat().putFloat().putFloat()
             .get();
 
     private static final String LABEL = "eminus-far-frame";
@@ -36,7 +39,8 @@ public final class FarFrame implements AutoCloseable {
         return buffer;
     }
 
-    public void write(Matrix4fc viewProjection, int minBlockY, int atlasCells, NearSections near) {
+    public void write(Matrix4fc viewProjection, int minBlockY, int atlasCells, NearSections near,
+            CardinalLighting shade) {
         RenderSystem.assertOnRenderThread();
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -47,6 +51,12 @@ public final class FarFrame implements AutoCloseable {
                     .putInt(near.side())
                     .putInt(near.height())
                     .putIVec3(near.originBlockX(), near.originBlockY(), near.originBlockZ())
+                    .putFloat(shade.down())
+                    .putFloat(shade.up())
+                    .putFloat(shade.north())
+                    .putFloat(shade.south())
+                    .putFloat(shade.west())
+                    .putFloat(shade.east())
                     .get();
             RenderSystem.getDevice().createCommandEncoder().writeToBuffer(buffer.slice(), written);
         }

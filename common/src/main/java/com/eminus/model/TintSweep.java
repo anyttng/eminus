@@ -8,13 +8,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
-
-import com.eminus.Eminus;
 
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.color.block.BlockTintSource;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
@@ -25,7 +21,7 @@ public final class TintSweep {
     private TintSweep() {
     }
 
-    public static List<Block> sweep(Iterable<BlockState> states, BlockColors blockColors,
+    public static void sweep(Iterable<BlockState> states, BlockColors blockColors,
             Function<FluidState, @Nullable BlockTintSource> fluidTints, UnaryOperator<BlockState> shapes,
             BiomeColours colours) {
         Map<BiomeColours.Colours, Set<Block>> users = new HashMap<>();
@@ -47,22 +43,7 @@ public final class TintSweep {
                 .sorted(Comparator.comparingInt((BiomeColours.Colours set) -> users.get(set).size()).reversed()
                         .thenComparing(Comparator.naturalOrder()))
                 .toList();
-        int kept = Math.min(ranked.size(), BiomeColours.MAX_ROWS);
-        colours.assign(ranked.subList(0, kept));
-
-        List<Block> dropped = ranked.subList(kept, ranked.size()).stream()
-                .flatMap(set -> users.get(set).stream())
-                .distinct()
-                .sorted(Comparator.comparing(BuiltInRegistries.BLOCK::getKey))
-                .toList();
-        if (!dropped.isEmpty()) {
-            Eminus.LOGGER.warn("More than {} biome colour sets are in use; these blocks draw untinted: {}",
-                    BiomeColours.MAX_ROWS,
-                    dropped.stream().map(block -> BuiltInRegistries.BLOCK.getKey(block).toString())
-                            .collect(Collectors.joining(", ")));
-        }
-
-        return dropped;
+        colours.assign(ranked);
     }
 
     private static void count(Map<BiomeColours.Colours, Set<Block>> users, BiomeColours colours,

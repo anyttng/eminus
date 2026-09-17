@@ -29,16 +29,17 @@ public final class ObjWriter {
                 int start = mesh.groupStart(group);
 
                 for (int index = start; index < start + count; index++) {
-                    vertex = quad(out, mesh.quad(index), vertex);
+                    long quad = mesh.quad(index);
+                    vertex = quad(out, quad, mesh.offset(quad), vertex);
                 }
             }
         }
     }
 
-    private static int quad(BufferedWriter out, long quad, int vertex) throws IOException {
-        int x = Quad.x(quad);
-        int y = Quad.y(quad);
-        int z = Quad.z(quad);
+    private static int quad(BufferedWriter out, long quad, int offset, int vertex) throws IOException {
+        float x = Quad.x(quad) + QuadOffset.x(offset);
+        float y = Quad.y(quad) + QuadOffset.y(offset);
+        float z = Quad.z(quad) + QuadOffset.z(offset);
         int width = Quad.width(quad);
         int height = Quad.height(quad);
 
@@ -48,25 +49,25 @@ public final class ObjWriter {
         }
 
         Direction face = FACES[Quad.face(quad)];
-        int offset = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1 : 0;
+        int side = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1 : 0;
 
         switch (face.getAxis()) {
             case X -> {
-                int at = x + offset;
+                float at = x + side;
                 corner(out, at, y, z);
                 corner(out, at, y, z + width);
                 corner(out, at, y + height, z + width);
                 corner(out, at, y + height, z);
             }
             case Y -> {
-                int at = y + offset;
+                float at = y + side;
                 corner(out, x, at, z);
                 corner(out, x + width, at, z);
                 corner(out, x + width, at, z + height);
                 corner(out, x, at, z + height);
             }
             case Z -> {
-                int at = z + offset;
+                float at = z + side;
                 corner(out, x, y, at);
                 corner(out, x + width, y, at);
                 corner(out, x + width, y + height, at);
@@ -77,9 +78,10 @@ public final class ObjWriter {
         return face(out, vertex);
     }
 
-    private static void blade(BufferedWriter out, int blade, int x, int y, int z, int height) throws IOException {
-        int near = blade == 0 ? x : x + 1;
-        int far = blade == 0 ? x + 1 : x;
+    private static void blade(BufferedWriter out, int blade, float x, float y, float z, int height)
+            throws IOException {
+        float near = blade == 0 ? x : x + 1;
+        float far = blade == 0 ? x + 1 : x;
 
         corner(out, near, y, z);
         corner(out, far, y, z + 1);
@@ -93,7 +95,7 @@ public final class ObjWriter {
         return vertex + CORNERS;
     }
 
-    private static void corner(BufferedWriter out, int x, int y, int z) throws IOException {
+    private static void corner(BufferedWriter out, float x, float y, float z) throws IOException {
         out.write("v " + x + " " + y + " " + z);
         out.newLine();
     }

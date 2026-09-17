@@ -7,10 +7,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.eminus.model.BiomeColours;
+
+import net.minecraft.world.level.block.state.BlockState;
+
 final class FakeModels implements MeshModels {
+    @FunctionalInterface
+    interface PositionalIds {
+        int at(int blockX, int blockY, int blockZ);
+    }
+
     private final Map<Integer, Integer> ids = new HashMap<>();
     private final Map<Integer, Integer> fluidIds = new HashMap<>();
+    private final Map<Integer, Integer> submergedIds = new HashMap<>();
     private final Map<Integer, Integer> words = new HashMap<>();
+    private final Map<Integer, Integer> tintRows = new HashMap<>();
+    private final Map<Integer, BlockState> offsetStates = new HashMap<>();
+    private final Map<Integer, PositionalIds> positional = new HashMap<>();
     private final Set<Integer> unbaked = new HashSet<>();
     private final Set<Integer> unbakedFluids = new HashSet<>();
     private final List<Runnable> waiters = new ArrayList<>();
@@ -23,9 +36,30 @@ final class FakeModels implements MeshModels {
         words.put(modelId, metadata);
     }
 
+    void positional(int stateId, PositionalIds ids) {
+        positional.put(stateId, ids);
+    }
+
+    void describe(int modelId, int metadata) {
+        words.put(modelId, metadata);
+    }
+
+    void tint(int modelId, int row) {
+        tintRows.put(modelId, row);
+    }
+
+    void offsetLike(int stateId, BlockState state) {
+        offsetStates.put(stateId, state);
+    }
+
     void defineFluid(int stateId, int fluidModelId, int metadata) {
         fluidIds.put(stateId, fluidModelId);
         words.put(fluidModelId, metadata);
+    }
+
+    void submerge(int surfaceModelId, int submergedModelId) {
+        submergedIds.put(surfaceModelId, submergedModelId);
+        words.put(submergedModelId, words.get(surfaceModelId));
     }
 
     void unbake(int stateId) {
@@ -62,8 +96,17 @@ final class FakeModels implements MeshModels {
             return MISSING;
         }
 
+        if (positional.containsKey(stateId)) {
+            return POSITIONAL;
+        }
+
         Integer modelId = ids.get(stateId);
         return modelId == null ? MISSING : modelId;
+    }
+
+    @Override
+    public int positionalModelId(int stateId, int blockX, int blockY, int blockZ, Runnable whenBaked) {
+        return positional.get(stateId).at(blockX, blockY, blockZ);
     }
 
     @Override
@@ -79,11 +122,27 @@ final class FakeModels implements MeshModels {
     }
 
     @Override
+    public int submergedModelId(int modelId) {
+        return submergedIds.getOrDefault(modelId, modelId);
+    }
+
+    @Override
     public int metadata(int modelId) {
         if (throwOnMetadata) {
             throw new IllegalStateException("The fake model table refuses to answer.");
         }
 
         return words.getOrDefault(modelId, 0);
+    }
+
+    @Override
+    public int tintRow(int modelId) {
+        return tintRows.getOrDefault(modelId, BiomeColours.NO_ROW);
+    }
+
+    @Override
+    public int offset(int stateId, int blockX, int blockY, int blockZ) {
+        BlockState state = offsetStates.get(stateId);
+        return state == null ? QuadOffset.NONE : QuadOffset.of(state, blockX, blockY, blockZ);
     }
 }
