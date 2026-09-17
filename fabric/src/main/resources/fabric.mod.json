@@ -3,7 +3,7 @@
   "id": "eminus",
   "version": "${version}",
   "name": "Eminus",
-  "description": "Terrain far beyond the render distance: a coarse, persistent copy of every chunk you have seen, drawn as a far layer behind the game's own terrain, on OpenGL and Vulkan alike.",
+  "description": "Terrain far beyond the render distance: a coarse, persistent copy of every chunk you have seen, drawn as a far layer behind the game's own terrain. Runs on the game's OpenGL graphics API; Vulkan is in development.",
   "authors": [
     "Anyttng"
   ],
