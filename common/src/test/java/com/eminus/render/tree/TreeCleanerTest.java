@@ -49,6 +49,32 @@ class TreeCleanerTest {
         assertTrue(cleaner.pick(nodes.all(), true, OLDEST).isEmpty());
     }
 
+    @Test
+    void aFullTableWithoutPressureEvictsNothing() {
+        NodeTable full = new NodeTable(NodeTable.CAPACITY);
+        for (int x = 0; full.free() > 0; x++) {
+            subdivide(full, full.root(CellKey.pack(DetailLevel.MAX, x, 0, 0)));
+        }
+
+        assertTrue(cleaner.pick(full.all(), false, NEXT_WALK).isEmpty());
+    }
+
+    private static void subdivide(NodeTable table, TreeNode node) {
+        node.meshed(TestMeshes.of(node.key(), FOUR_OCTANTS));
+        node.seen(OLDEST);
+        if (CellKey.level(node.key()) == DetailLevel.MIN) {
+            return;
+        }
+
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            TreeNode child = table.child(node, octant);
+            if (child == null) {
+                return;
+            }
+            subdivide(table, child);
+        }
+    }
+
     private TreeNode child(int octant, long seen) {
         TreeNode child = nodes.child(root, octant);
         child.meshed(TestMeshes.of(child.key(), OccupancyMask.EMPTY));
