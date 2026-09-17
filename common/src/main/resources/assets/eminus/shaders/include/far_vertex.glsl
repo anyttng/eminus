@@ -12,9 +12,19 @@ struct FarVertex {
 const int FAR_CORNERS_PER_QUAD = 6;
 const int FAR_CORNER_OF[6] = int[6](0, 1, 2, 0, 2, 3);
 const int FAR_MODEL_TEXELS = 4;
-const int FAR_NO_TINT = -1;
+const uint FAR_OFFSET_MASK = 1023u;
+const int FAR_OFFSET_SIGN = 512;
+const float FAR_OFFSET_STEPS = 256.0;
+const uint FAR_OFFSET_X_SHIFT = 0u;
+const uint FAR_OFFSET_Y_SHIFT = 10u;
+const uint FAR_OFFSET_Z_SHIFT = 20u;
 const int FAR_NIBBLE = 15;
 const float FAR_HALF_VOXEL = 0.5;
+
+float far_offset_axis(uint bits, uint shift) {
+    int steps = int((bits >> shift) & FAR_OFFSET_MASK);
+    return float(steps >= FAR_OFFSET_SIGN ? steps - 2 * FAR_OFFSET_SIGN : steps) / FAR_OFFSET_STEPS;
+}
 
 FarVertex far_vertex(int vertexId) {
     FarVertex vertex;
@@ -41,13 +51,20 @@ FarVertex far_vertex(int vertexId) {
     vec4 first = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS);
     vec4 second = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 1);
     vec4 third = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 2);
-    vec4 fourth = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 3);
     float insets[6] = float[6](first.x, first.y, first.z, first.w, second.x, second.y);
     vec3 boundsMin = vec3(second.z, second.w, third.x);
     vec3 boundsMax = vec3(third.y, third.z, third.w);
-    int tintRow = floatBitsToInt(fourth.y);
 
-    vec3 local = vec3(voxel);
+    vertex.tint = vec3(1.0);
+    vec3 offset = vec3(0.0);
+    if (colourIndex != 0) {
+        uvec2 entry = texelFetch(Quads, int(mesh.z + mesh.w) + colourIndex).rg;
+        vertex.tint = vec3((entry.r >> 16u) & 255u, (entry.r >> 8u) & 255u, entry.r & 255u) / 255.0;
+        offset = vec3(far_offset_axis(entry.g, FAR_OFFSET_X_SHIFT), far_offset_axis(entry.g, FAR_OFFSET_Y_SHIFT),
+                      far_offset_axis(entry.g, FAR_OFFSET_Z_SHIFT));
+    }
+
+    vec3 local = vec3(voxel) + offset;
     vec2 extent;
 
     if (face >= FIRST_BLADE_FACE) {
@@ -78,7 +95,7 @@ FarVertex far_vertex(int vertexId) {
     vec3 faceLocal = local;
     if (face < FIRST_BLADE_FACE) {
         int faceAxis = face < 2 ? 1 : (face < 4 ? 2 : 0);
-        faceLocal[faceAxis] = float(voxel[faceAxis]) + FAR_HALF_VOXEL;
+        faceLocal[faceAxis] = float(voxel[faceAxis]) + FAR_HALF_VOXEL + offset[faceAxis];
     }
     vertex.facePoint = vec3(origin - CameraBlockPos) + faceLocal * float(1 << level);
 
@@ -91,12 +108,6 @@ FarVertex far_vertex(int vertexId) {
     vertex.face = face;
     vertex.blockLight = light & FAR_NIBBLE;
     vertex.skyLight = (light >> 4) & FAR_NIBBLE;
-
-    vertex.tint = vec3(1.0);
-    if (tintRow != FAR_NO_TINT) {
-        uint tint = texelFetch(Quads, int(mesh.z + mesh.w) + colourIndex).r;
-        vertex.tint = vec3((tint >> 16u) & 255u, (tint >> 8u) & 255u, tint & 255u) / 255.0;
-    }
 
     return vertex;
 }

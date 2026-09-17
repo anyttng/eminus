@@ -4,9 +4,8 @@ import com.eminus.Eminus;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 
-import it.unimi.dsi.fastutil.ints.Int2IntMap;
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.longs.Long2IntMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 public final class MeshBuffer {
@@ -19,10 +18,13 @@ public final class MeshBuffer {
     private static final int RED_SHIFT = 16;
     private static final int GREEN_SHIFT = 8;
     private static final int CHANNEL_MASK = 0xFF;
+    private static final int OFFSET_SHIFT = Integer.SIZE;
+    private static final long COLOUR_BITS = 0xFFFF_FFFFL;
+    private static final int OFFSET_MISMATCH = 1 << 18;
 
     private final LongArrayList[] groups = new LongArrayList[QuadGroups.COUNT];
-    private final IntArrayList colours = new IntArrayList();
-    private final Int2IntMap colourIndices = new Int2IntOpenHashMap();
+    private final LongArrayList colours = new LongArrayList();
+    private final Long2IntMap colourIndices = new Long2IntOpenHashMap();
 
     private int truncated;
     private int unaddressable;
@@ -34,21 +36,30 @@ public final class MeshBuffer {
         }
 
         colourIndices.defaultReturnValue(ABSENT);
-        addColour(WHITE);
+        addColour(entry(WHITE, QuadOffset.NONE));
     }
 
-    public int colourIndex(int colour) {
-        int index = colourIndices.get(colour);
+    public static int colourOf(long entry) {
+        return (int) (entry & COLOUR_BITS);
+    }
+
+    public static int offsetOf(long entry) {
+        return (int) (entry >>> OFFSET_SHIFT);
+    }
+
+    public int colourIndex(int colour, int offset) {
+        long entry = entry(colour, offset);
+        int index = colourIndices.get(entry);
         if (index != ABSENT) {
             return index;
         }
 
         if (colours.size() < MAX_COLOURS) {
-            return addColour(colour);
+            return addColour(entry);
         }
 
         substituted++;
-        return nearest(colour);
+        return nearest(entry);
     }
 
     public void add(int group, long quad) {
@@ -90,7 +101,7 @@ public final class MeshBuffer {
             at += quads.size();
         }
 
-        return new CellMesh(key, occupancy, packed, starts, counts, colours.toIntArray());
+        return new CellMesh(key, occupancy, packed, starts, counts, colours.toLongArray());
     }
 
     public void reset() {
@@ -100,25 +111,31 @@ public final class MeshBuffer {
 
         colours.clear();
         colourIndices.clear();
-        addColour(WHITE);
+        addColour(entry(WHITE, QuadOffset.NONE));
 
         truncated = 0;
         unaddressable = 0;
         substituted = 0;
     }
 
-    private int addColour(int colour) {
+    private static long entry(int colour, int offset) {
+        return (long) offset << OFFSET_SHIFT | colour & COLOUR_BITS;
+    }
+
+    private int addColour(long entry) {
         int index = colours.size();
-        colours.add(colour);
-        colourIndices.put(colour, index);
+        colours.add(entry);
+        colourIndices.put(entry, index);
         return index;
     }
 
-    private int nearest(int colour) {
+    private int nearest(long entry) {
         int best = UNTINTED;
         int bestDistance = Integer.MAX_VALUE;
         for (int index = 0; index < colours.size(); index++) {
-            int distance = distance(colour, colours.getInt(index));
+            long candidate = colours.getLong(index);
+            int distance = distance(colourOf(entry), colourOf(candidate))
+                    + (offsetOf(entry) == offsetOf(candidate) ? 0 : OFFSET_MISMATCH);
             if (distance < bestDistance) {
                 best = index;
                 bestDistance = distance;

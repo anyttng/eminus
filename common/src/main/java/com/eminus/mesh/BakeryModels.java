@@ -41,4 +41,9 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
         BakedModel model = models.model(modelId);
         return model == null ? BiomeColours.NO_ROW : model.tintRow();
     }
+
+    @Override
+    public int offset(int stateId, int blockX, int blockY, int blockZ) {
+        return QuadOffset.of(index.state(stateId), blockX, blockY, blockZ);
+    }
 }

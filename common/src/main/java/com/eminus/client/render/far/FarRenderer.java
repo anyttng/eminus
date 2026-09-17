@@ -139,7 +139,7 @@ public final class FarRenderer implements AutoCloseable {
                 IndirectCommands.create(START_COMMANDS),
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
 
-        renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(),
+        renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(), runtime.frame(),
                 new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
                 new BakeryTints(baking.colours(), runtime.biomes()), client.options.biomeBlendRadius().get(),
                 baking.opacity(runtime.states()), renderer.tree);

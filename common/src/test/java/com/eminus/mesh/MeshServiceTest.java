@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.eminus.VanillaBootstrap;
 import com.eminus.cell.Cell;
+import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.DetailLevel;
@@ -41,6 +42,8 @@ class MeshServiceTest {
     private static final long AWAIT_MILLIS = 10_000L;
     private static final int CUBE_AT = 8;
     private static final String MESH_SERVICE = "mesh";
+    private static final int MIN_BLOCK_Y = -64;
+    private static final CellFrame FRAME = new CellFrame(MIN_BLOCK_Y);
     private static final String QUEUED_SERVICE = "queued";
     private static final int OPENED_CELLS = QuadGroups.DIRECTIONAL_COUNT + 1;
     private static final int FIRST_VOXEL = 0;
@@ -65,7 +68,7 @@ class MeshServiceTest {
     private final StateOpacity opacity = stateId -> stateId == STONE ? StateTable.FULL_OPACITY : 0;
 
     private final MeshService service = new MeshService(
-            harness.register(MESH_SERVICE, MeshScratch::new), cache, ColumnCoverage.everything(), models,
+            harness.register(MESH_SERVICE, MeshScratch::new), cache, ColumnCoverage.everything(), FRAME, models,
             new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh));
 
     @BeforeAll
@@ -161,7 +164,7 @@ class MeshServiceTest {
 
         WorkerPool idle = WorkerPool.start(NO_WORKERS);
         WorkService<MeshScratch> queued = idle.register(QUEUED_SERVICE, 1, WorkService.UNLIMITED, MeshScratch::new);
-        MeshService waiting = new MeshService(queued, cache, ColumnCoverage.everything(), models,
+        MeshService waiting = new MeshService(queued, cache, ColumnCoverage.everything(), FRAME, models,
                 new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh));
 
         try {

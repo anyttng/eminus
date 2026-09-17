@@ -2,6 +2,7 @@ package com.eminus.mesh;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.cache.CellAccess;
@@ -19,6 +20,7 @@ public final class MeshService {
     private final WorkService<MeshScratch> work;
     private final CellAccess cells;
     private final ColumnCoverage coverage;
+    private final CellFrame frame;
     private final MeshModels models;
     private final BiomeTints tints;
     private final int blendRadius;
@@ -26,11 +28,12 @@ public final class MeshService {
     private final MeshListener listener;
     private final MeshQueue queue = new MeshQueue();
 
-    public MeshService(WorkService<MeshScratch> work, CellAccess cells, ColumnCoverage coverage, MeshModels models,
-            BiomeTints tints, int blendRadius, MeshOpacity opacity, MeshListener listener) {
+    public MeshService(WorkService<MeshScratch> work, CellAccess cells, ColumnCoverage coverage, CellFrame frame,
+            MeshModels models, BiomeTints tints, int blendRadius, MeshOpacity opacity, MeshListener listener) {
         this.work = work;
         this.cells = cells;
         this.coverage = coverage;
+        this.frame = frame;
         this.models = models;
         this.tints = tints;
         this.blendRadius = blendRadius;
@@ -118,7 +121,7 @@ public final class MeshService {
             scratch.blend().begin(scratch.voxels(), tints, task.key(), blendRadius);
 
             AtomicBoolean retried = new AtomicBoolean();
-            CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy,
+            CellMesh mesh = new CellMesher(scratch, models, frame).mesh(task.key(), occupancy,
                     opacity.at(CellKey.level(task.key())), () -> {
                 if (retried.compareAndSet(false, true)) {
                     submit(task.retry());

@@ -17,6 +17,7 @@ public final class FacePasses {
     private static final int SIDE = DetailLevel.VOXELS_PER_SIDE;
     private static final int NO_METADATA = 0;
     private static final int AIR_MODEL = -3;
+    private static final int NO_OFFSET_STATE = VoxelEntry.AIR_STATE_ID;
     private static final Direction[] TOWARDS_LOW = new Direction[Direction.Axis.values().length];
     private static final Direction[] TOWARDS_HIGH = new Direction[Direction.Axis.values().length];
 
@@ -108,7 +109,7 @@ public final class FacePasses {
                 long low = RowMasks.entryAt(voxels, axis, u, v, plane - 1);
                 long high = RowMasks.entryAt(voxels, axis, u, v, plane + 1);
 
-                if (!blockFaces(u, v, plane, row, low, high, modelId)) {
+                if (!blockFaces(u, v, plane, row, low, high, VoxelEntry.state(owner), modelId)) {
                     return false;
                 }
 
@@ -121,7 +122,7 @@ public final class FacePasses {
         return true;
     }
 
-    private boolean blockFaces(int u, int v, int plane, int row, long low, long high, int modelId) {
+    private boolean blockFaces(int u, int v, int plane, int row, long low, long high, int stateId, int modelId) {
         if (!Quad.fitsModelId(modelId)) {
             scratch.buffer().dropUnaddressable();
             return true;
@@ -142,11 +143,11 @@ public final class FacePasses {
 
         if (masks.opaque(row, plane)) {
             if (masks.facesNegative(row, plane)) {
-                scratch.negativePlane().set(u, v, data(u, v, plane, low, metadata, drawn));
+                scratch.negativePlane().set(u, v, data(u, v, plane, low, metadata, drawn, stateId));
             }
 
             if (masks.facesPositive(row, plane)) {
-                scratch.positivePlane().set(u, v, data(u, v, plane, high, metadata, drawn));
+                scratch.positivePlane().set(u, v, data(u, v, plane, high, metadata, drawn, stateId));
             }
 
             return true;
@@ -160,12 +161,12 @@ public final class FacePasses {
 
         if (!facingHoldsSameTranslucent(metadata, modelId, lowModel, low)
                 && visible(metadata, metadataOf(lowModel), towardsLow)) {
-            scratch.negativePlane().set(u, v, data(u, v, plane, low, metadata, drawn));
+            scratch.negativePlane().set(u, v, data(u, v, plane, low, metadata, drawn, stateId));
         }
 
         if (!facingHoldsSameTranslucent(metadata, modelId, highModel, high)
                 && visible(metadata, metadataOf(highModel), towardsHigh)) {
-            scratch.positivePlane().set(u, v, data(u, v, plane, high, metadata, drawn));
+            scratch.positivePlane().set(u, v, data(u, v, plane, high, metadata, drawn, stateId));
         }
 
         return true;
@@ -206,12 +207,12 @@ public final class FacePasses {
 
         if (!facingHoldsSameTranslucent(metadata, fluidModel, lowModel, low)
                 && visible(metadata, metadataOf(lowModel), towardsLow)) {
-            scratch.negativeFluidPlane().set(u, v, data(u, v, plane, low, metadata, drawn));
+            scratch.negativeFluidPlane().set(u, v, data(u, v, plane, low, metadata, drawn, NO_OFFSET_STATE));
         }
 
         if (!facingHoldsSameTranslucent(metadata, fluidModel, highModel, high)
                 && visible(metadata, metadataOf(highModel), towardsHigh)) {
-            scratch.positiveFluidPlane().set(u, v, data(u, v, plane, high, metadata, drawn));
+            scratch.positiveFluidPlane().set(u, v, data(u, v, plane, high, metadata, drawn, NO_OFFSET_STATE));
         }
 
         return true;
@@ -260,11 +261,11 @@ public final class FacePasses {
         return modelId == facingModel || modelId == facingFluidModel(facing);
     }
 
-    private long data(int u, int v, int plane, long facing, int metadata, int modelId) {
+    private long data(int u, int v, int plane, long facing, int metadata, int modelId, int stateId) {
         int colourIndex = switch (axis) {
-            case X -> QuadTint.of(scratch, models, modelId, plane, v, u);
-            case Y -> QuadTint.of(scratch, models, modelId, u, plane, v);
-            case Z -> QuadTint.of(scratch, models, modelId, u, v, plane);
+            case X -> QuadTint.of(scratch, models, stateId, modelId, plane, v, u);
+            case Y -> QuadTint.of(scratch, models, stateId, modelId, u, plane, v);
+            case Z -> QuadTint.of(scratch, models, stateId, modelId, u, v, plane);
         };
 
         return Quad.data(QuadLight.of(facing, metadata), modelId, colourIndex);

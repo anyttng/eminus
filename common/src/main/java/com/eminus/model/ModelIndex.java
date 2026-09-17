@@ -42,6 +42,10 @@ public final class ModelIndex {
         return bakery.submergedModelId(modelId);
     }
 
+    public BlockState state(int stateId) {
+        return states.state(stateId);
+    }
+
     private boolean resolve(int stateId, Runnable whenBaked) {
         BlockState state = states.state(stateId);
         int modelId = bakery.request(state, whenBaked);
