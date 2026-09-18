@@ -83,7 +83,7 @@ public final class OcclusionPass implements AutoCloseable {
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(far))) {
             pass.setPipeline(pipeline);
             pass.setUniform("Occlusion", uniform);
-            pass.bindTexture("FarDepth", far.depthStencilView(),
+            pass.bindTexture("FarDepth", far.depthView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
             pass.bindTexture("GameDepth", game.getDepthTextureView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));

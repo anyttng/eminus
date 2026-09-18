@@ -79,7 +79,7 @@ public final class CompositePass implements AutoCloseable {
             pass.setUniform("Composite", uniform);
             pass.bindTexture("FarColour", far.colourView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.bindTexture("FarDepth", far.depthStencilView(),
+            pass.bindTexture("FarDepth", far.depthView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
             pass.draw(VERTICES, INSTANCES, 0, 0);
         }

@@ -56,7 +56,7 @@ public final class OpaquePass {
     private static RenderPassDescriptor descriptor(FarTarget target) {
         return RenderPassDescriptor.create(() -> PASS_LABEL)
                 .withColorAttachment(target.colourView(), Optional.of(CLEAR_COLOUR))
-                .withDepthAttachment(target.depthStencilView(), OptionalDouble.of(DepthConvention.REVERSED_FARTHEST))
+                .withDepthAttachment(target.depthView(), OptionalDouble.of(DepthConvention.REVERSED_FARTHEST))
                 .withRenderArea(new RenderPass.RenderArea(0, 0, target.width(), target.height()));
     }
 

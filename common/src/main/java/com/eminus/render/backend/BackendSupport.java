@@ -6,13 +6,13 @@ import org.jspecify.annotations.Nullable;
 
 public record BackendSupport(
         @Nullable BackendLimitation limitation,
-        @Nullable GpuFormat depthStencilFormat,
+        @Nullable GpuFormat depthFormat,
         DepthConvention depth) {
 
     public static final String ACCEPTED = "accepted";
 
-    public static BackendSupport accepted(GpuFormat depthStencilFormat, DepthConvention depth) {
-        return new BackendSupport(null, depthStencilFormat, depth);
+    public static BackendSupport accepted(GpuFormat depthFormat, DepthConvention depth) {
+        return new BackendSupport(null, depthFormat, depth);
     }
 
     public static BackendSupport refused(BackendLimitation limitation, DepthConvention depth) {
