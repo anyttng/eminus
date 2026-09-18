@@ -133,7 +133,7 @@ public final class FarRenderer implements AutoCloseable {
         ClientBakery baking = ClientBakery.start(client);
         FarRenderer renderer = new FarRenderer(runtime, baking,
                 ModelPublisher.start(baking.bakery()), arena,
-                FarTarget.create(support.depthStencilFormat(), main.width, main.height), FarFrame.create(),
+                FarTarget.create(support.depthFormat(), main.width, main.height), FarFrame.create(),
                 NearMaskPass.create(FarTarget.COLOUR_FORMAT), NearSectionTable.create(),
                 OpaquePass.create(support.depth()), OcclusionPass.create(support.depth()),
                 TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),

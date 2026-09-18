@@ -1,6 +1,5 @@
 package com.eminus.client.render.backend;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 
@@ -28,8 +27,7 @@ import org.joml.Vector4f;
 import org.joml.Vector4fc;
 
 public final class BackendCheck {
-    public static final List<GpuFormat> DEPTH_STENCIL_FORMATS =
-            List.of(GpuFormat.D32_FLOAT_S8_UINT, GpuFormat.D24_UNORM_S8_UINT);
+    public static final GpuFormat DEPTH_FORMAT = GpuFormat.D32_FLOAT;
 
     private static final Identifier PROBE_PIPELINE = Identifier.fromNamespaceAndPath(Eminus.MODID, "depth_probe");
     private static final Identifier PROBE_SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/depth_probe");
@@ -67,14 +65,12 @@ public final class BackendCheck {
             return refuse(BackendLimitation.FRAGMENT_DEPTH, depth);
         }
 
-        for (GpuFormat format : DEPTH_STENCIL_FORMATS) {
-            if (draws(device, probe, format)) {
-                Eminus.LOGGER.info("Backend accepted: depth-stencil format {}, depth range {}", format, depth.range());
-                return BackendSupport.accepted(format, depth);
-            }
+        if (!draws(device, probe, DEPTH_FORMAT)) {
+            return refuse(BackendLimitation.DEPTH_TARGET, depth);
         }
 
-        return refuse(BackendLimitation.DEPTH_STENCIL_TARGET, depth);
+        Eminus.LOGGER.info("Backend accepted: depth format {}, depth range {}", DEPTH_FORMAT, depth.range());
+        return BackendSupport.accepted(DEPTH_FORMAT, depth);
     }
 
     private static BackendSupport refuse(BackendLimitation limitation, DepthConvention depth) {
@@ -85,24 +81,24 @@ public final class BackendCheck {
     private static boolean draws(GpuDevice device, RenderPipeline probe, GpuFormat format) {
         try (GpuTexture colour =
                         device.createTexture(COLOUR_LABEL, TARGET_USAGE, COLOUR_FORMAT, PROBE_SIDE, PROBE_SIDE, PROBE_LAYERS, PROBE_MIPS);
-                GpuTexture depthStencil =
+                GpuTexture depth =
                         device.createTexture(DEPTH_LABEL, TARGET_USAGE, format, PROBE_SIDE, PROBE_SIDE, PROBE_LAYERS, PROBE_MIPS);
                 GpuTextureView colourView = device.createTextureView(colour);
-                GpuTextureView depthStencilView = device.createTextureView(depthStencil);
-                RenderPass pass = device.createCommandEncoder().createRenderPass(descriptor(colourView, depthStencilView))) {
+                GpuTextureView depthView = device.createTextureView(depth);
+                RenderPass pass = device.createCommandEncoder().createRenderPass(descriptor(colourView, depthView))) {
             pass.setPipeline(RenderSystem.getCompiledPipeline(probe));
             pass.draw(PROBE_VERTICES, PROBE_INSTANCES, 0, 0);
             return true;
         } catch (RuntimeException refused) {
-            Eminus.LOGGER.info("Depth-stencil format {} refused: {}", format, refused.getMessage());
+            Eminus.LOGGER.info("Depth format {} refused: {}", format, refused.getMessage());
             return false;
         }
     }
 
-    private static RenderPassDescriptor descriptor(GpuTextureView colour, GpuTextureView depthStencil) {
+    private static RenderPassDescriptor descriptor(GpuTextureView colour, GpuTextureView depth) {
         return RenderPassDescriptor.builder(() -> PASS_LABEL)
                 .withColorAttachment(colour, Optional.of(CLEAR_COLOUR))
-                .withDepthAttachment(depthStencil, OptionalDouble.of(DepthConvention.REVERSED_FARTHEST))
+                .withDepthAttachment(depth, OptionalDouble.of(DepthConvention.REVERSED_FARTHEST))
                 .withRenderArea(new RenderPass.RenderArea(0, 0, PROBE_SIDE, PROBE_SIDE))
                 .build();
     }

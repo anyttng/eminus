@@ -54,7 +54,7 @@ public final class TranslucentPass {
     private static RenderPassDescriptor descriptor(FarTarget target) {
         return RenderPassDescriptor.builder(() -> PASS_LABEL)
                 .withColorAttachment(target.colourView(), Optional.empty())
-                .withDepthAttachment(target.depthStencilView(), OptionalDouble.empty())
+                .withDepthAttachment(target.depthView(), OptionalDouble.empty())
                 .withRenderArea(new RenderPass.RenderArea(0, 0, target.width(), target.height()))
                 .build();
     }
