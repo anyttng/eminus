@@ -56,8 +56,13 @@ void main() {
     tintColour = vertex.tint;
 
     vec4 colour = sample_lightmap(Lightmap, ivec2(vertex.blockLight * LIGHT_STEP, vertex.skyLight * LIGHT_STEP));
-    float faceShade[8] = float[8](ShadeDown, ShadeUp, ShadeNorth, ShadeSouth, ShadeWest, ShadeEast,
-        SHADE_BLADE, SHADE_BLADE);
-    colour.rgb *= faceShade[vertex.face];
+    float faceShade = vertex.face == 0 ? ShadeDown
+        : vertex.face == 1 ? ShadeUp
+        : vertex.face == 2 ? ShadeNorth
+        : vertex.face == 3 ? ShadeSouth
+        : vertex.face == 4 ? ShadeWest
+        : vertex.face == 5 ? ShadeEast
+        : SHADE_BLADE;
+    colour.rgb *= faceShade;
     vertexColor = colour;
 }

@@ -19,7 +19,6 @@ struct FarVertex {
 };
 
 const int FAR_CORNERS_PER_QUAD = 6;
-const int FAR_CORNER_OF[6] = int[6](0, 1, 2, 0, 2, 3);
 const int FAR_MODEL_TEXELS = 4;
 const uint FAR_OFFSET_MASK = 1023u;
 const int FAR_OFFSET_SIGN = 512;
@@ -35,11 +34,53 @@ float far_offset_axis(uint bits, uint shift) {
     return float(steps >= FAR_OFFSET_SIGN ? steps - 2 * FAR_OFFSET_SIGN : steps) / FAR_OFFSET_STEPS;
 }
 
+// The corner arithmetic below reads and writes every axis by comparison, never by a varying index: a translated shader
+// must not depend on how the translator lowers a dynamic index into a vector or a local array.
+int far_corner_of(int slot) {
+    return slot == 0 || slot == 3 ? 0 : (slot == 1 ? 1 : (slot == 5 ? 3 : 2));
+}
+
+float far_axis(vec3 value, int axis) {
+    return axis == 0 ? value.x : (axis == 1 ? value.y : value.z);
+}
+
+int far_axis_int(ivec3 value, int axis) {
+    return axis == 0 ? value.x : (axis == 1 ? value.y : value.z);
+}
+
+vec3 far_axis_add(vec3 value, int axis, float amount) {
+    return value + vec3(axis == 0 ? amount : 0.0, axis == 1 ? amount : 0.0, axis == 2 ? amount : 0.0);
+}
+
+vec3 far_axis_set(vec3 value, int axis, float amount) {
+    return vec3(axis == 0 ? amount : value.x, axis == 1 ? amount : value.y, axis == 2 ? amount : value.z);
+}
+
+float far_inset(vec4 first, vec4 second, int face) {
+    if (face == 0) {
+        return first.x;
+    }
+    if (face == 1) {
+        return first.y;
+    }
+    if (face == 2) {
+        return first.z;
+    }
+    if (face == 3) {
+        return first.w;
+    }
+    if (face == 4) {
+        return second.x;
+    }
+
+    return second.y;
+}
+
 FarVertex far_vertex(int vertexId) {
     FarVertex vertex;
 
     int quadIndex = vertexId / FAR_CORNERS_PER_QUAD;
-    int corner = FAR_CORNER_OF[vertexId % FAR_CORNERS_PER_QUAD];
+    int corner = far_corner_of(vertexId % FAR_CORNERS_PER_QUAD);
     vec2 unit = vec2(corner == 1 || corner == 2 ? 1.0 : 0.0, corner >= 2 ? 1.0 : 0.0);
 
     uvec4 mesh = texelFetch(MeshRecords, quadIndex / QUADS_PER_BLOCK);
@@ -61,7 +102,6 @@ FarVertex far_vertex(int vertexId) {
     vec4 second = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 1);
     vec4 third = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 2);
     vec4 fourth = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 3);
-    float insets[6] = float[6](first.x, first.y, first.z, first.w, second.x, second.y);
     vec3 boundsMin = vec3(second.z, second.w, third.x);
     vec3 boundsMax = vec3(third.y, third.z, third.w);
 
@@ -90,12 +130,15 @@ FarVertex far_vertex(int vertexId) {
         int normalAxis = face < 2 ? 1 : (face < 4 ? 2 : 0);
         int widthAxis = face < 4 ? 0 : 2;
         int heightAxis = face < 2 ? 2 : 1;
+        float inset = far_inset(first, second, face);
 
-        local[normalAxis] += (face & 1) == 1 ? 1.0 - insets[face] : insets[face];
-        extent = vec2(unit.x * float(width - 1) + mix(boundsMin[widthAxis], boundsMax[widthAxis], unit.x),
-                      unit.y * float(height - 1) + mix(boundsMin[heightAxis], boundsMax[heightAxis], unit.y));
-        local[widthAxis] += extent.x;
-        local[heightAxis] += extent.y;
+        local = far_axis_add(local, normalAxis, (face & 1) == 1 ? 1.0 - inset : inset);
+        extent = vec2(unit.x * float(width - 1)
+                          + mix(far_axis(boundsMin, widthAxis), far_axis(boundsMax, widthAxis), unit.x),
+                      unit.y * float(height - 1)
+                          + mix(far_axis(boundsMin, heightAxis), far_axis(boundsMax, heightAxis), unit.y));
+        local = far_axis_add(local, widthAxis, extent.x);
+        local = far_axis_add(local, heightAxis, extent.y);
     }
 
     int cellBlocks = VOXELS_PER_SIDE << level;
@@ -105,7 +148,8 @@ FarVertex far_vertex(int vertexId) {
     vec3 faceLocal = local;
     if (face < FIRST_BLADE_FACE) {
         int faceAxis = face < 2 ? 1 : (face < 4 ? 2 : 0);
-        faceLocal[faceAxis] = float(voxel[faceAxis]) + FAR_HALF_VOXEL + offset[faceAxis];
+        faceLocal = far_axis_set(faceLocal, faceAxis,
+                float(far_axis_int(voxel, faceAxis)) + FAR_HALF_VOXEL + far_axis(offset, faceAxis));
     }
     vertex.facePoint = vec3(origin - CameraBlockPos) + faceLocal * float(1 << level);
     vertex.voxelPoint = faceLocal - offset;
