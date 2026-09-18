@@ -15,6 +15,7 @@
   "gui.eminus.settings.worker_threads.hint": "Threads em segundo plano que constroem o terreno distante. Mais threads alcançam o atraso mais rápido e competem mais com os construtores de chunks do próprio jogo; menos, o contrário.",
   "gui.eminus.settings.detail_distance": "Distância de detalhe",
   "gui.eminus.settings.detail_distance.hint": "Até onde vai o detalhe fino do terreno distante. Cada passo acima dobra essa distância e custa mais memória de vídeo. Com uma resolução de tela maior, o mesmo passo vai mais longe.",
+  "gui.eminus.settings.detail_distance.limited": "No momento não é alcançada: a reserva de geometria está cheia, então o terreno distante é desenhado mais grosseiro do que esta configuração pede.",
   "gui.eminus.settings.detail_distance.ultra": "Ultra",
   "gui.eminus.settings.detail_distance.high": "Alta",
   "gui.eminus.settings.detail_distance.medium": "Média",

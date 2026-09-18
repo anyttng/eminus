@@ -15,6 +15,7 @@
   "gui.eminus.settings.worker_threads.hint": "원거리 지형을 만드는 백그라운드 스레드. 많을수록 빨리 따라잡고 게임 자체의 청크 빌더와 더 많이 경쟁하며, 적을수록 그 반대입니다.",
   "gui.eminus.settings.detail_distance": "세부 거리",
   "gui.eminus.settings.detail_distance.hint": "원거리 지형의 세밀한 디테일이 어디까지 닿는지. 한 단계 올릴 때마다 그 거리가 두 배가 되고 비디오 메모리를 더 씁니다. 화면 해상도가 높을수록 같은 단계에서도 더 멀리 닿습니다.",
+  "gui.eminus.settings.detail_distance.limited": "지금은 도달하지 못합니다: 지오밎트리 영역이 가득 차 원거리 지형이 이 설정보다 거칠게 그려집니다.",
   "gui.eminus.settings.detail_distance.ultra": "울트라",
   "gui.eminus.settings.detail_distance.high": "높음",
   "gui.eminus.settings.detail_distance.medium": "중간",

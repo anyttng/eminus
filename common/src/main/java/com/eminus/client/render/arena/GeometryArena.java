@@ -26,6 +26,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     private static final int USAGE =
             GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER | GpuBuffer.USAGE_COPY_DST;
     private static final long WARNING_PERIOD_NANOS = 1_000_000_000L;
+    private static final int MIB_SHIFT = 20;
 
     private final GpuBuffer quads;
     private final long bytes;
@@ -40,6 +41,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     private int refusedSinceWarning;
     private int refusedQuadsMax;
     private long lastWarning = System.nanoTime() - WARNING_PERIOD_NANOS;
+    private boolean announcedPressure;
 
     private GeometryArena(GpuBuffer quads, long bytes, ArenaAllocator allocator, MeshRecords records,
             ArenaUploader uploader) {
@@ -60,7 +62,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         int blocks = ArenaSizing.blocks(bytes);
         GpuBuffer quads = RenderSystem.getDevice().createBuffer(() -> LABEL, USAGE, bytes);
         Eminus.LOGGER.info("Geometry arena of {} MiB: {} blocks of {} quads",
-                bytes >> 20, blocks, ArenaAllocator.QUADS_PER_BLOCK);
+                bytes >> MIB_SHIFT, blocks, ArenaAllocator.QUADS_PER_BLOCK);
 
         return new GeometryArena(quads, bytes, new ArenaAllocator(blocks), MeshRecords.create(blocks),
                 ArenaUploader.create());
@@ -131,7 +133,12 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
             warnAboutRefusals();
         }
 
-        pressure.update(allocator.usedBlocks(), allocator.blocks(), refused > 0);
+        if (pressure.update(allocator.usedBlocks(), allocator.blocks(), refused > 0) && !announcedPressure) {
+            announcedPressure = true;
+            Eminus.LOGGER.info("Geometry arena of {} MiB is full: the far layer stops refining and is drawn coarser"
+                    + " than the detail distance asks", bytes >> MIB_SHIFT);
+        }
+
         return index;
     }
 

@@ -50,4 +50,21 @@ class ArenaPressureTest {
 
         assertFalse(pressure.holding());
     }
+
+    @Test
+    void onlyTheUpdateThatStartsTheHoldReportsIt() {
+        assertFalse(pressure.update(HIGH - 1, BLOCKS, false));
+
+        assertTrue(pressure.update(HIGH, BLOCKS, false));
+        assertFalse(pressure.update(HIGH, BLOCKS, false));
+        assertFalse(pressure.update(BETWEEN, BLOCKS, false));
+    }
+
+    @Test
+    void aHoldStartedAgainAfterTheArenaFreedUpReportsItAgain() {
+        pressure.update(HIGH, BLOCKS, false);
+        pressure.update(BELOW_LOW, BLOCKS, false);
+
+        assertTrue(pressure.update(HIGH, BLOCKS, false));
+    }
 }
