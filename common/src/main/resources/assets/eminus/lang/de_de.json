@@ -15,6 +15,7 @@
   "gui.eminus.settings.worker_threads.hint": "Hintergrundthreads, die das ferne Gelände bauen. Mehr holt schneller auf und konkurriert stärker mit den Chunk-Buildern des Spiels; weniger umgekehrt.",
   "gui.eminus.settings.detail_distance": "Detailreichweite",
   "gui.eminus.settings.detail_distance.hint": "Wie weit die feineren Details des fernen Geländes reichen. Jede Stufe höher verdoppelt diese Entfernung und kostet mehr Grafikspeicher. Bei höherer Bildschirmauflösung reicht dieselbe Stufe weiter.",
+  "gui.eminus.settings.detail_distance.limited": "Derzeit nicht erreicht: Der Geometriespeicher ist voll, daher wird fernes Gelände gröber gezeichnet, als diese Einstellung verlangt.",
   "gui.eminus.settings.detail_distance.ultra": "Ultra",
   "gui.eminus.settings.detail_distance.high": "Hoch",
   "gui.eminus.settings.detail_distance.medium": "Mittel",

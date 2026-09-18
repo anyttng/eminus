@@ -15,6 +15,7 @@
   "gui.eminus.settings.worker_threads.hint": "在后台构建远景地形的线程。线程越多，追赶得越快，与游戏自身的区块构建争抢也越厉害；越少则相反。",
   "gui.eminus.settings.detail_distance": "细节距离",
   "gui.eminus.settings.detail_distance.hint": "远景地形的精细细节能延伸多远。每提高一档，这个距离翻倍，并占用更多显存。屏幕分辨率越高，同一档位延伸得越远。",
+  "gui.eminus.settings.detail_distance.limited": "当前未能达到：几何缓冲区已满，远景地形的绘制比此设置所要求的更粗糙。",
   "gui.eminus.settings.detail_distance.ultra": "极高",
   "gui.eminus.settings.detail_distance.high": "高",
   "gui.eminus.settings.detail_distance.medium": "中",
