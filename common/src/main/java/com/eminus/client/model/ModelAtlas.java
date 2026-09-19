@@ -25,6 +25,7 @@ public final class ModelAtlas implements AutoCloseable {
     private static final int USAGE = GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING;
     private static final int LAYERS = 1;
     private static final int BYTES_PER_TEXEL = 4;
+    private static final int STAGING_ALIGNMENT = BYTES_PER_TEXEL;
     private static final int GROWTH = 2;
     private static final int ALPHA_MASK = 0xFF00_0000;
     private static final int RGB_MASK = 0x00FF_FFFF;
@@ -216,6 +217,11 @@ public final class ModelAtlas implements AutoCloseable {
         tintScratch.clear();
         for (int argb : texels) {
             tintScratch.put((byte) (argb >>> 16));
+        }
+
+        // Vulkan stages each write in one buffer aligned to a byte: an odd tail leaves the next RGBA8 copy misaligned.
+        while (tintScratch.position() % STAGING_ALIGNMENT != 0) {
+            tintScratch.put((byte) 0);
         }
 
         tintScratch.flip();
