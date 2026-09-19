@@ -27,6 +27,7 @@ import net.minecraft.resources.Identifier;
 
 final class FarQuads {
     static final float SHADE_BLADE = 1.0F;
+    static final int MAX_SAMPLES = 8;
 
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/far_quads");
 
@@ -60,6 +61,7 @@ final class FarQuads {
                 .withShaderDefine("MAX_VARIANT_REJECTIONS", BakedModel.MAX_VARIANT_REJECTIONS)
                 .withShaderDefine("ALPHA_CUTOUT", alphaCutout)
                 .withShaderDefine("SHADE_BLADE", SHADE_BLADE)
+                .withShaderDefine("MAX_SAMPLES", MAX_SAMPLES)
                 .withShaderDefine("NEAR_SECTION_BLOCKS", NearSections.SECTION_BLOCKS)
                 .withShaderDefine("NEAR_TEXEL_BITS", NearSections.BITS_PER_TEXEL)
                 .withShaderDefine("NEAR_TEXEL_SHIFT", NearSections.TEXEL_SHIFT)
