@@ -17,7 +17,9 @@ import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.pipeline.UniformType;
 import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.renderpearl.api.textures.AddressMode;
 import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.GpuSampler;
 import com.mojang.renderpearl.api.textures.GpuTextureView;
 
 import net.minecraft.client.renderer.BindGroupLayouts;
@@ -74,10 +76,15 @@ final class FarQuads {
         pass.setUniform("ModelRecords", models.records().buffer());
         pass.setUniform("ModelVariants", models.variants().buffer());
         pass.setUniform("NearSections", nearSections);
-        pass.setUniform("Atlas", models.atlas().colourView(), models.atlas().sampler());
-        pass.setUniform("TintMask", models.atlas().tintMaskView(), models.atlas().sampler());
+        pass.setUniform("Atlas", models.atlas().colourView(), atlasSampler());
+        pass.setUniform("TintMask", models.atlas().tintMaskView(), atlasSampler());
         pass.setUniform("Lightmap", lightmap, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
         pass.setUniform("NearMask", mask, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
+    }
+
+    private static GpuSampler atlasSampler() {
+        return RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE,
+                FilterMode.NEAREST, FilterMode.NEAREST, true);
     }
 
     private FarQuads() {

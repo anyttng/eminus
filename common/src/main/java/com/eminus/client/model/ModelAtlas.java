@@ -2,7 +2,6 @@ package com.eminus.client.model;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
 import com.eminus.model.BakedModel;
@@ -12,10 +11,6 @@ import com.eminus.model.Solidify;
 
 import com.mojang.renderpearl.api.GpuFormat;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.device.DeviceInfo;
-import com.mojang.renderpearl.api.textures.AddressMode;
-import com.mojang.renderpearl.api.textures.FilterMode;
-import com.mojang.renderpearl.api.textures.GpuSampler;
 import com.mojang.renderpearl.api.textures.GpuTexture;
 import com.mojang.renderpearl.api.textures.GpuTextureView;
 
@@ -29,8 +24,6 @@ public final class ModelAtlas implements AutoCloseable {
     private static final int GROWTH = 2;
     private static final int ALPHA_MASK = 0xFF00_0000;
     private static final int RGB_MASK = 0x00FF_FFFF;
-    private static final int MAX_ANISOTROPY = 16;
-    private static final int NO_ANISOTROPY = 1;
 
     private final int[] faceColour = new int[BakedModel.FACE_TEXELS];
     private final int[] faceTint = new int[BakedModel.FACE_TEXELS];
@@ -39,30 +32,22 @@ public final class ModelAtlas implements AutoCloseable {
     private final ByteBuffer tintScratch =
             ByteBuffer.allocateDirect(BakedModel.FACE_TEXELS).order(ByteOrder.nativeOrder());
 
-    private final GpuSampler sampler;
-
     private GpuTexture colour;
     private GpuTexture tintMask;
     private GpuTextureView colourView;
     private GpuTextureView tintMaskView;
     private int cellsPerSide;
 
-    private ModelAtlas(GpuTexture colour, GpuTexture tintMask, GpuSampler sampler, int cellsPerSide) {
+    private ModelAtlas(GpuTexture colour, GpuTexture tintMask, int cellsPerSide) {
         this.colour = colour;
         this.tintMask = tintMask;
-        this.sampler = sampler;
         this.cellsPerSide = cellsPerSide;
     }
 
     public static ModelAtlas create(int cellsPerSide) {
         RenderSystem.assertOnRenderThread();
         return new ModelAtlas(allocate(COLOUR_LABEL, GpuFormat.RGBA8_UNORM, cellsPerSide),
-                allocate(TINT_MASK_LABEL, GpuFormat.R8_UNORM, cellsPerSide), createSampler(), cellsPerSide);
-    }
-
-    // Anisotropy is why this sampler is ours: the game's cache pins every one of its own at 1.
-    public GpuSampler sampler() {
-        return sampler;
+                allocate(TINT_MASK_LABEL, GpuFormat.R8_UNORM, cellsPerSide), cellsPerSide);
     }
 
     public GpuTextureView colourView() {
@@ -133,19 +118,6 @@ public final class ModelAtlas implements AutoCloseable {
     @Override
     public void close() {
         release();
-        sampler.close();
-    }
-
-    private static GpuSampler createSampler() {
-        return RenderSystem.getDevice().createSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE,
-                FilterMode.NEAREST, FilterMode.NEAREST, anisotropy(), OptionalDouble.empty());
-    }
-
-    private static int anisotropy() {
-        DeviceInfo device = RenderSystem.getDevice().getDeviceInfo();
-        return device.hintsAndWorkarounds().anisotropyHasKnownIssues()
-                ? NO_ANISOTROPY
-                : Math.min(MAX_ANISOTROPY, device.limits().maxAnisotropy());
     }
 
     private static GpuTexture allocate(String label, GpuFormat format, int cellsPerSide) {
