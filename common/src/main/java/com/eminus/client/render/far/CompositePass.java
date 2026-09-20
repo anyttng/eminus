@@ -79,7 +79,7 @@ public final class CompositePass implements AutoCloseable {
             pass.setUniform("Composite", uniform);
             pass.setUniform("FarColour", far.colourView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.setUniform("FarDepth", far.depthStencilView(),
+            pass.setUniform("FarDepth", far.depthView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
             pass.draw(VERTICES, INSTANCES, 0, 0);
         }
@@ -127,6 +127,7 @@ public final class CompositePass implements AutoCloseable {
                 .withFragmentShader(SHADER)
                 .withBindGroupLayout(LAYOUT)
                 .withShaderDefine("FARTHEST", (float) DepthConvention.REVERSED_FARTHEST)
+                .withShaderDefine("NEAREST", (float) DepthConvention.REVERSED_NEAREST)
                 .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
                 .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA))
                 .withDepthStencilState(new DepthStencilState(depth.compare(), true))

@@ -7,20 +7,24 @@ import org.junit.jupiter.api.Test;
 
 class FluidBakerTest {
     private static final float EIGHT_NINTHS = 8.0F / 9.0F;
+    private static final float ONE_NINTH = 1.0F / 9.0F;
     private static final float TOLERANCE = 1.0E-6F;
     private static final int METADATA = 0x1234;
     private static final int TINT_ROW = 3;
 
     @Test
-    void theSurfaceSitsAtEightNinthsOfTheBlockLikeTheGamesFluidRenderer() {
+    void theSurfaceSitsAtTheHeightTheStateDrawsAtInTheGame() {
         assertArrayEquals(new float[] {0.0F, 1.0F - EIGHT_NINTHS, 0.0F, 0.0F, 0.0F, 0.0F},
-                FluidBaker.surfaceInsets(), TOLERANCE);
+                FluidBaker.surfaceInsets(EIGHT_NINTHS), TOLERANCE);
+        assertArrayEquals(new float[] {0.0F, 1.0F - ONE_NINTH, 0.0F, 0.0F, 0.0F, 0.0F},
+                FluidBaker.surfaceInsets(ONE_NINTH), TOLERANCE);
     }
 
     @Test
     void theSubmergedTwinReachesTheTopOfTheBlockAndKeepsEverythingElse() {
         BakedModel surface = new BakedModel(new int[BakedModel.FACE_COUNT * BakedModel.FACE_TEXELS],
-                BakedModel.tintedMask(), FluidBaker.surfaceInsets(), FluidBaker.surfaceBounds(), METADATA, TINT_ROW);
+                BakedModel.tintedMask(), FluidBaker.surfaceInsets(ONE_NINTH), FluidBaker.surfaceBounds(ONE_NINTH),
+                METADATA, TINT_ROW);
 
         BakedModel submerged = FluidBaker.submerged(surface);
 
@@ -34,6 +38,8 @@ class FluidBakerTest {
     @Test
     void theSidesStopAtTheSurface() {
         assertArrayEquals(new float[] {0.0F, 0.0F, 0.0F, 1.0F, EIGHT_NINTHS, 1.0F},
-                FluidBaker.surfaceBounds(), TOLERANCE);
+                FluidBaker.surfaceBounds(EIGHT_NINTHS), TOLERANCE);
+        assertArrayEquals(new float[] {0.0F, 0.0F, 0.0F, 1.0F, ONE_NINTH, 1.0F},
+                FluidBaker.surfaceBounds(ONE_NINTH), TOLERANCE);
     }
 }

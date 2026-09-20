@@ -15,6 +15,7 @@
   "gui.eminus.settings.worker_threads.hint": "Fils en arrière-plan qui construisent le terrain lointain. Plus nombreux, ils rattrapent plus vite et concurrencent davantage les constructeurs de tronçons du jeu ; moins nombreux, l'inverse.",
   "gui.eminus.settings.detail_distance": "Distance de détail",
   "gui.eminus.settings.detail_distance.hint": "Jusqu'où va le détail fin du terrain lointain. Chaque cran vers le haut double cette distance et coûte plus de mémoire vidéo. Avec une résolution d'écran plus élevée, le même cran va plus loin.",
+  "gui.eminus.settings.detail_distance.limited": "Pas atteinte pour l'instant : la réserve de géométrie est pleine, le terrain lointain est donc dessiné plus grossier que ce réglage ne le demande.",
   "gui.eminus.settings.detail_distance.ultra": "Ultra",
   "gui.eminus.settings.detail_distance.high": "Élevée",
   "gui.eminus.settings.detail_distance.medium": "Moyenne",

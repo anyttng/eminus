@@ -15,6 +15,7 @@
   "gui.eminus.settings.worker_threads.hint": "Background threads that build far terrain. Higher catches up faster and competes harder with the game's own chunk builders; lower is the other way round.",
   "gui.eminus.settings.detail_distance": "Detail distance",
   "gui.eminus.settings.detail_distance.hint": "How far out the finer detail of far terrain reaches. Each step up doubles that distance and costs more video memory. A higher screen resolution reaches further at the same step.",
+  "gui.eminus.settings.detail_distance.limited": "Not reached right now: the geometry arena is full, so far terrain is drawn coarser than this setting asks.",
   "gui.eminus.settings.detail_distance.ultra": "Ultra",
   "gui.eminus.settings.detail_distance.high": "High",
   "gui.eminus.settings.detail_distance.medium": "Medium",

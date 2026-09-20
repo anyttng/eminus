@@ -15,6 +15,7 @@
   "gui.eminus.settings.worker_threads.hint": "遠景を構築するバックグラウンドスレッド。多いほど追いつくのが速くなり、ゲーム自身のチャンク構築と強く競合します。少ないほどその逆です。",
   "gui.eminus.settings.detail_distance": "詳細距離",
   "gui.eminus.settings.detail_distance.hint": "遠景の地形の細かい詳細がどこまで届くか。1 段階上げるごとにその距離が 2 倍になり、ビデオメモリをより多く使います。画面の解像度が高いほど、同じ段階でもより遠くまで届きます。",
+  "gui.eminus.settings.detail_distance.limited": "現在は届いていません：ジオメトリ領域がいっぱいのため、遠景地形はこの設定より粗く描画されます。",
   "gui.eminus.settings.detail_distance.ultra": "ウルトラ",
   "gui.eminus.settings.detail_distance.high": "高",
   "gui.eminus.settings.detail_distance.medium": "中",

@@ -29,7 +29,7 @@ import com.eminus.render.backend.BackendSupport;
 import com.eminus.client.render.backend.BackendCheck;
 import com.eminus.render.far.CompositeFog;
 import com.eminus.render.far.DrawCommands;
-import com.eminus.render.far.TranslucentOrder;
+import com.eminus.render.far.MeshOrder;
 import com.eminus.render.tree.CameraFrame;
 import com.eminus.render.tree.NodeRow;
 import com.eminus.render.tree.RenderList;
@@ -78,7 +78,7 @@ public final class FarRenderer implements AutoCloseable {
     private final TranslucentPass translucent;
     private final CompositePass composite;
     private final DrawCommands commands = new DrawCommands(START_COMMANDS);
-    private final TranslucentOrder order = new TranslucentOrder();
+    private final MeshOrder order = new MeshOrder();
     private final FarProjection projection = new FarProjection();
     private final LevelProjection levelProjection = new LevelProjection();
     private final Matrix4f farViewProjection = new Matrix4f();
@@ -133,7 +133,7 @@ public final class FarRenderer implements AutoCloseable {
         ClientBakery baking = ClientBakery.start(client);
         FarRenderer renderer = new FarRenderer(runtime, baking,
                 ModelPublisher.start(baking.bakery()), arena,
-                FarTarget.create(support.depthStencilFormat(), main.width, main.height), FarFrame.create(),
+                FarTarget.create(support.depthFormat(), main.width, main.height), FarFrame.create(),
                 NearMaskPass.create(FarTarget.COLOUR_FORMAT), NearSectionTable.create(),
                 OpaquePass.create(support.depth()), OcclusionPass.create(support.depth()),
                 TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),
@@ -168,6 +168,10 @@ public final class FarRenderer implements AutoCloseable {
 
     public void captureLevelProjection(Matrix4fc levelProjection, Matrix4fc cameraProjection) {
         this.levelProjection.capture(levelProjection, cameraProjection);
+    }
+
+    public boolean underPressure() {
+        return !stopped && arena.pressure();
     }
 
     public boolean covers(FogData gameFog, int renderDistanceChunks) {
@@ -219,7 +223,7 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         order.update(renderList, runtime.frame(), eye.x, eye.y, eye.z);
-        commands.write(renderList, order.meshes(), arena, runtime.frame(), eye.x, eye.y, eye.z);
+        commands.write(order.meshes(), order.translucent(), arena, runtime.frame(), eye.x, eye.y, eye.z);
 
         if (commands.count() > 0) {
             if (indirect.capacity() < commands.capacity()) {
@@ -234,7 +238,7 @@ public final class FarRenderer implements AutoCloseable {
 
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
                     nearSections.sections(), level.cardinalLighting());
-            mask.draw(target.maskView(), target.colourView(), target.width(), target.height(),
+            mask.draw(target.depthView(), target.colourView(), target.width(), target.height(),
                     main.getDepthTextureView());
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(),
                     indirect.range(0, commands.opaqueCount()), commands.opaqueCount(), frame.buffer(),
@@ -328,7 +332,7 @@ public final class FarRenderer implements AutoCloseable {
         ClientLevel level = client.level;
         nearSections.fill(client.levelRenderer,
                 Util.toMillis(client.gameRenderer.gameRenderState().optionsRenderState.chunkSectionFadeInTime),
-                order.meshes(), runtime.frame(),
+                order.translucent(), runtime.frame(),
                 NearSections.section(Mth.floor(eye.x)), NearSections.section(Mth.floor(eye.y)),
                 NearSections.section(Mth.floor(eye.z)), renderDistance,
                 renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSectionY(), level.getSectionsCount());

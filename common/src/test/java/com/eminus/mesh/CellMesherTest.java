@@ -49,6 +49,7 @@ class CellMesherTest {
     private static final int CUTOUT_LEAVES = 20;
     private static final int GRASS_BLOCK = 23;
     private static final int VARIED = 26;
+    private static final int FLOWING_WATER = 28;
 
     private static final int STONE_MODEL = 10;
     private static final int GLASS_MODEL = 11;
@@ -64,6 +65,7 @@ class CellMesherTest {
     private static final int GRASS_BLOCK_MODEL = 24;
     private static final int SUBMERGED_WATER_MODEL = 25;
     private static final int VARIED_MODEL = 27;
+    private static final int FLOWING_WATER_MODEL = 29;
     private static final int VARIED_ROW = 4;
     private static final int GRASS_ROW = 0;
     private static final int PLAINS = 5;
@@ -410,6 +412,21 @@ class CellMesherTest {
     }
 
     @Test
+    void twoLevelsOfOneFluidMeetWithoutAFaceAndTheLowerOneTakesItsSubmergedModel() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 9, 4, block(FLOWING_WATER));
+        cell.set(4, 10, 4, block(WATER));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(has(mesh, Direction.EAST, 4, 9, 4, SUBMERGED_WATER_MODEL));
+        assertFalse(has(mesh, Direction.EAST, 4, 9, 4, FLOWING_WATER_MODEL));
+        assertTrue(absent(mesh, Direction.UP, 4, 9, 4));
+        assertTrue(has(mesh, Direction.EAST, 4, 10, 4, WATER_MODEL));
+    }
+
+    @Test
     void aBladedVoxelLeavesItsSolidNeighbourItsOwnFaces() {
         defineBlocks();
         Cell cell = blank();
@@ -631,6 +648,7 @@ class CellMesherTest {
         models.define(TINT_A, TINT_A_MODEL, translucent);
         models.define(TINT_B, TINT_B_MODEL, translucent);
         models.define(WATER, WATER_MODEL, translucent);
+        models.define(FLOWING_WATER, FLOWING_WATER_MODEL, translucent);
         models.define(WATERLOGGED, WATERLOGGED_MODEL, clear);
         models.define(WET_LEAVES, WET_LEAVES_MODEL, solid);
         models.define(GRASS, GRASS_MODEL, ModelMetadata.pack(
@@ -642,6 +660,7 @@ class CellMesherTest {
         models.defineFluid(WATERLOGGED, WATER_MODEL, translucent);
         models.defineFluid(WET_LEAVES, WATER_MODEL, translucent);
         models.submerge(WATER_MODEL, SUBMERGED_WATER_MODEL);
+        models.submerge(FLOWING_WATER_MODEL, SUBMERGED_WATER_MODEL);
 
         opacities.put(STONE, StateTable.FULL_OPACITY);
         opacities.put(LAVA, StateTable.FULL_OPACITY);

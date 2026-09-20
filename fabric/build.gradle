@@ -24,10 +24,11 @@ base {
 // Mojang ships Java 25 to end users, so mods should target Java 25.
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
-// Common's sources compile HERE, not as a project dependency, so the fabric jar carries every class and Loom sees the
-// mixin sources. 26.x Minecraft ships unobfuscated — no mappings line, no remapping, no refmap.
-sourceSets.main.java.srcDir '../common/src/main/java'
-sourceSets.main.resources.srcDir '../common/src/main/resources'
+// Common is compiled once, in its own module, and this one takes that output: the classes the Fabric suite runs are
+// then the very classes the shipped jar carries. 26.x Minecraft ships unobfuscated — no mappings line, no remapping,
+// no refmap — so nothing in common's output has to pass through Loom.
+evaluationDependsOn(':common')
+def commonMain = project(':common').sourceSets.main
 
 repositories {
     // ModMenu, for the config-screen entrypoint.
@@ -49,6 +50,7 @@ repositories {
 }
 
 dependencies {
+    implementation commonMain.output
     minecraft "com.mojang:minecraft:${minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
@@ -61,16 +63,18 @@ dependencies {
         transitive = false
     }
 
-    // Bundled into the jar for production; no annotation processor — with no remapping there is no refmap to generate.
-    include(implementation("io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"))
+    // Not bundled: Fabric Loader carries MixinExtras itself and keeps the higher version, so a copy here is dropped
+    // at load and only weighs. No annotation processor — with no remapping there is no refmap to generate.
+    compileOnly "io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"
 
-    // The cell store's fixed stack, bundled the same way; Loom wraps a plain library jar as a nested mod itself.
+    // The cell store's fixed stack, bundled into the jar; Loom wraps a plain library jar as a nested mod itself.
     include(implementation("org.xerial:sqlite-jdbc:${sqlite_jdbc_version}"))
     include(implementation("io.airlift:aircompressor:${aircompressor_version}"))
 }
 
 tasks.named('jar', Jar) {
     archiveFileName = "${mod_id}-fabric-${jarVersion}.jar"
+    from(commonMain.output)
 }
 
 tasks.named('assemble') {

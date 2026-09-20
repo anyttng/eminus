@@ -10,12 +10,13 @@ import com.eminus.cell.DetailLevel;
 import com.eminus.mesh.MeshSummary;
 import com.eminus.render.tree.RenderList;
 
-public final class TranslucentOrder {
+public final class MeshOrder {
     private static final int INDEX_BITS = 32;
     private static final long INDEX_MASK = 0xFFFF_FFFFL;
     private static final float HALF = 0.5F;
 
-    private final List<MeshSummary> ordered = new ArrayList<>();
+    private final List<MeshSummary> nearest = new ArrayList<>();
+    private final List<MeshSummary> translucent = new ArrayList<>();
 
     private List<MeshSummary> seen = List.of();
     private long[] distances = new long[0];
@@ -23,7 +24,11 @@ public final class TranslucentOrder {
     private int sorts;
 
     public List<MeshSummary> meshes() {
-        return ordered;
+        return nearest;
+    }
+
+    public List<MeshSummary> translucent() {
+        return translucent;
     }
 
     public int takeSorts() {
@@ -64,23 +69,29 @@ public final class TranslucentOrder {
     }
 
     private void sort(List<MeshSummary> meshes, CellFrame frame, double cameraX, double cameraY, double cameraZ) {
-        if (distances.length < meshes.size()) {
-            distances = new long[meshes.size()];
+        int count = meshes.size();
+        if (distances.length < count) {
+            distances = new long[count];
         }
 
-        int count = 0;
-        for (int index = 0; index < meshes.size(); index++) {
-            MeshSummary mesh = meshes.get(index);
-            if (mesh.translucentQuads() > 0) {
-                float squared = distanceSquared(mesh.key(), frame, cameraX, cameraY, cameraZ);
-                distances[count++] = (long) Float.floatToRawIntBits(squared) << INDEX_BITS | index;
-            }
+        for (int index = 0; index < count; index++) {
+            float squared = distanceSquared(meshes.get(index).key(), frame, cameraX, cameraY, cameraZ);
+            distances[index] = (long) Float.floatToRawIntBits(squared) << INDEX_BITS | index;
         }
 
         Arrays.sort(distances, 0, count);
-        ordered.clear();
+
+        nearest.clear();
+        translucent.clear();
+        for (int at = 0; at < count; at++) {
+            nearest.add(meshes.get((int) (distances[at] & INDEX_MASK)));
+        }
+
         for (int at = count - 1; at >= 0; at--) {
-            ordered.add(meshes.get((int) (distances[at] & INDEX_MASK)));
+            MeshSummary mesh = nearest.get(at);
+            if (mesh.translucentQuads() > 0) {
+                translucent.add(mesh);
+            }
         }
     }
 

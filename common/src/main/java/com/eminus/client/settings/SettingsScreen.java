@@ -19,6 +19,7 @@ import com.mojang.serialization.Codec;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.network.chat.Component;
@@ -58,8 +59,9 @@ public class SettingsScreen extends OptionsSubScreen {
                 new OptionInstance.IntRange(Settings.MIN_WORKER_THREADS, Settings.MAX_WORKER_THREADS,
                         APPLY_ON_RELEASE),
                 settings.workerThreads(), value -> this.apply());
-        this.detailDistance = new OptionInstance<>(DETAIL_DISTANCE_KEY, hint(DETAIL_DISTANCE_KEY),
-                (caption, value) -> Options.genericValueLabel(caption, SettingsText.detailDistance(value)),
+        this.detailDistance = new OptionInstance<>(DETAIL_DISTANCE_KEY,
+                value -> Tooltip.create(SettingsText.detailDistanceHint()),
+                (caption, value) -> SettingsText.detailDistance(value),
                 new OptionInstance.Enum<>(List.of(DetailDistance.values()), DETAIL_DISTANCE_CODEC),
                 settings.detailDistance(), value -> this.apply());
         this.fog = OptionInstance.createBoolean(FOG_KEY, hint(FOG_KEY), settings.fog(), value -> this.apply());

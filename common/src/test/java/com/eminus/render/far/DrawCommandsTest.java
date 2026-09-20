@@ -13,7 +13,6 @@ import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.MeshSlot;
 import com.eminus.render.arena.MeshSlots;
-import com.eminus.render.tree.RenderList;
 
 import net.minecraft.core.Direction;
 
@@ -29,6 +28,14 @@ class DrawCommandsTest {
     private static final int DOWN_QUADS = 7;
     private static final int WATER_QUADS = 2;
     private static final int WATER_START = 12;
+    private static final int INDICES_PER_QUAD = 6;
+    private static final int CORNERS_PER_QUAD = 4;
+    private static final int INDEX_COUNT = 0;
+    private static final int INSTANCE_COUNT = 1;
+    private static final int FIRST_INDEX = 2;
+    private static final int VERTEX_OFFSET = 3;
+    private static final int FIRST_INSTANCE = 4;
+    private static final int COMMAND_INTS = 5;
     private static final double FAR_ABOVE = 4096.0;
     private static final double FAR_BELOW = -4096.0;
     private static final double INSIDE = 16.0;
@@ -46,11 +53,13 @@ class DrawCommandsTest {
         assertEquals(UP_QUADS, commands.quads());
 
         IntBuffer written = commands.buffer().asIntBuffer();
-        assertEquals(UP_QUADS * DrawCommands.VERTICES_PER_QUAD, written.get(0));
-        assertEquals(1, written.get(1));
-        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + DOWN_QUADS) * DrawCommands.VERTICES_PER_QUAD,
-                written.get(2));
-        assertEquals(0, written.get(3));
+        assertEquals(COMMAND_INTS, written.remaining());
+        assertEquals(UP_QUADS * INDICES_PER_QUAD, written.get(INDEX_COUNT));
+        assertEquals(1, written.get(INSTANCE_COUNT));
+        assertEquals(0, written.get(FIRST_INDEX));
+        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + DOWN_QUADS) * CORNERS_PER_QUAD,
+                written.get(VERTEX_OFFSET));
+        assertEquals(0, written.get(FIRST_INSTANCE));
     }
 
     @Test
@@ -93,9 +102,26 @@ class DrawCommandsTest {
         assertEquals(WATER_QUADS, commands.quads());
 
         IntBuffer written = commands.buffer().asIntBuffer();
-        assertEquals(WATER_QUADS * DrawCommands.VERTICES_PER_QUAD, written.get(0));
-        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * DrawCommands.VERTICES_PER_QUAD,
-                written.get(2));
+        assertEquals(WATER_QUADS * INDICES_PER_QUAD, written.get(INDEX_COUNT));
+        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * CORNERS_PER_QUAD,
+                written.get(VERTEX_OFFSET));
+    }
+
+    @Test
+    void theOpaqueCommandsKeepTheOrderTheyAreGivenIn() {
+        MeshSlot near = slot(key, BLOCK);
+        MeshSlot far = slot(farKey, FAR_BLOCK);
+
+        commands.write(List.of(mesh(key), mesh(farKey)), List.of(),
+                wanted -> wanted == key ? near : wanted == farKey ? far : null, frame, INSIDE, FAR_ABOVE, INSIDE);
+
+        assertEquals(2, commands.opaqueCount());
+
+        IntBuffer written = commands.buffer().asIntBuffer();
+        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + DOWN_QUADS) * CORNERS_PER_QUAD,
+                written.get(VERTEX_OFFSET));
+        assertEquals((FAR_BLOCK * ArenaAllocator.QUADS_PER_BLOCK + DOWN_QUADS) * CORNERS_PER_QUAD,
+                written.get(COMMAND_INTS + VERTEX_OFFSET));
     }
 
     @Test
@@ -108,24 +134,23 @@ class DrawCommandsTest {
         assertEquals(2, commands.translucentCount());
 
         IntBuffer written = commands.buffer().asIntBuffer();
-        assertEquals((FAR_BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * DrawCommands.VERTICES_PER_QUAD,
-                written.get(2));
-        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * DrawCommands.VERTICES_PER_QUAD,
-                written.get(DrawCommands.COMMAND_INTS + 2));
+        assertEquals((FAR_BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * CORNERS_PER_QUAD,
+                written.get(VERTEX_OFFSET));
+        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * CORNERS_PER_QUAD,
+                written.get(COMMAND_INTS + VERTEX_OFFSET));
     }
 
     @Test
     void theTranslucentCommandsSitAfterTheOpaqueOnes() {
         MeshSlot held = both(key, BLOCK);
 
-        commands.write(new RenderList(List.of(mesh(key))), List.of(mesh(key)), slots(held), frame,
-                INSIDE, INSIDE, INSIDE);
+        commands.write(List.of(mesh(key)), List.of(mesh(key)), slots(held), frame, INSIDE, INSIDE, INSIDE);
 
         assertEquals(2, commands.opaqueCount());
         assertEquals(1, commands.translucentCount());
 
         IntBuffer written = commands.buffer().asIntBuffer();
-        assertEquals(WATER_QUADS * DrawCommands.VERTICES_PER_QUAD, written.get(2 * DrawCommands.COMMAND_INTS));
+        assertEquals(WATER_QUADS * INDICES_PER_QUAD, written.get(2 * COMMAND_INTS + INDEX_COUNT));
     }
 
     @Test
@@ -158,17 +183,17 @@ class DrawCommandsTest {
 
         IntBuffer written = commands.buffer().asIntBuffer();
         for (int group = 0; group < QuadGroups.DIRECTIONAL_COUNT; group++) {
-            assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + group * UP_QUADS) * DrawCommands.VERTICES_PER_QUAD,
-                    written.get(group * DrawCommands.COMMAND_INTS + 2));
+            assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + group * UP_QUADS) * CORNERS_PER_QUAD,
+                    written.get(group * COMMAND_INTS + VERTEX_OFFSET));
         }
     }
 
     private void write(MeshSlots slots, double cameraY) {
-        commands.write(new RenderList(List.of(mesh(key))), List.of(), slots, frame, INSIDE, cameraY, INSIDE);
+        commands.write(List.of(mesh(key)), List.of(), slots, frame, INSIDE, cameraY, INSIDE);
     }
 
     private void translucent(MeshSlots slots, MeshSummary... ordered) {
-        commands.write(RenderList.EMPTY, List.of(ordered), slots, frame, INSIDE, INSIDE, INSIDE);
+        commands.write(List.of(), List.of(ordered), slots, frame, INSIDE, INSIDE, INSIDE);
     }
 
     private static MeshSlots slots(MeshSlot held) {

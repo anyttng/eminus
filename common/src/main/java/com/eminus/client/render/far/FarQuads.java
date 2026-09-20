@@ -4,9 +4,11 @@ import com.eminus.Eminus;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.handoff.NearSections;
+import com.eminus.mesh.MeshBuffer;
 import com.eminus.mesh.Quad;
 import com.eminus.model.BakedModel;
 import com.eminus.render.arena.ArenaAllocator;
+import com.eminus.render.far.DrawCommands;
 import com.eminus.client.render.arena.GeometryArena;
 
 import com.mojang.renderpearl.api.GpuFormat;
@@ -27,7 +29,9 @@ import net.minecraft.resources.Identifier;
 
 final class FarQuads {
     static final float SHADE_BLADE = 1.0F;
+    static final int MAX_SAMPLES = 8;
 
+    private static final int MAX_GROUP_INDICES = MeshBuffer.MAX_QUADS_PER_GROUP * DrawCommands.INDICES_PER_QUAD;
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/far_quads");
 
     private static final BindGroupLayout LAYOUT = BindGroupLayout.builder()
@@ -40,7 +44,6 @@ final class FarQuads {
             .withUniform("Atlas", UniformType.COMBINED_IMAGE_SAMPLER)
             .withUniform("TintMask", UniformType.COMBINED_IMAGE_SAMPLER)
             .withUniform("Lightmap", UniformType.COMBINED_IMAGE_SAMPLER)
-            .withUniform("NearMask", UniformType.COMBINED_IMAGE_SAMPLER)
             .build();
 
     static RenderPipeline.Builder pipeline(Identifier location, float alphaCutout) {
@@ -60,6 +63,7 @@ final class FarQuads {
                 .withShaderDefine("MAX_VARIANT_REJECTIONS", BakedModel.MAX_VARIANT_REJECTIONS)
                 .withShaderDefine("ALPHA_CUTOUT", alphaCutout)
                 .withShaderDefine("SHADE_BLADE", SHADE_BLADE)
+                .withShaderDefine("MAX_SAMPLES", MAX_SAMPLES)
                 .withShaderDefine("NEAR_SECTION_BLOCKS", NearSections.SECTION_BLOCKS)
                 .withShaderDefine("NEAR_TEXEL_BITS", NearSections.BITS_PER_TEXEL)
                 .withShaderDefine("NEAR_TEXEL_SHIFT", NearSections.TEXEL_SHIFT)
@@ -68,7 +72,7 @@ final class FarQuads {
     }
 
     static void bind(RenderPass pass, GeometryArena arena, ModelPublisher models, GpuTextureView lightmap,
-            GpuTextureView mask, GpuBuffer frame, GpuBuffer nearSections) {
+            GpuBuffer frame, GpuBuffer nearSections) {
         pass.setUniform("Globals", RenderSystem.getGlobalSettingsUniform());
         pass.setUniform("FarFrame", frame);
         pass.setUniform("Quads", arena.quads());
@@ -79,7 +83,10 @@ final class FarQuads {
         pass.setUniform("Atlas", models.atlas().colourView(), atlasSampler());
         pass.setUniform("TintMask", models.atlas().tintMaskView(), atlasSampler());
         pass.setUniform("Lightmap", lightmap, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
-        pass.setUniform("NearMask", mask, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
+
+        RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
+        GpuBuffer indexBuffer = indices.getBuffer(MAX_GROUP_INDICES);
+        pass.setIndexBuffer(indexBuffer, indices.type());
     }
 
     private static GpuSampler atlasSampler() {

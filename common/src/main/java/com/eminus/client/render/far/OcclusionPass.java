@@ -83,7 +83,7 @@ public final class OcclusionPass implements AutoCloseable {
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(far))) {
             pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
             pass.setUniform("Occlusion", uniform);
-            pass.setUniform("FarDepth", far.depthStencilView(),
+            pass.setUniform("FarDepth", far.depthView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
             pass.setUniform("GameDepth", game.getDepthTextureView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
@@ -133,6 +133,7 @@ public final class OcclusionPass implements AutoCloseable {
                 .withFragmentShader(FRAGMENT_SHADER)
                 .withBindGroupLayout(LAYOUT)
                 .withShaderDefine("FARTHEST", (float) DepthConvention.REVERSED_FARTHEST)
+                .withShaderDefine("NEAREST", (float) DepthConvention.REVERSED_NEAREST)
                 .withShaderDefine("GAME_DEPTH_CLEARED", NearMaskPass.GAME_DEPTH_CLEARED)
                 .withShaderDefine("SAMPLES", SAMPLES)
                 .withShaderDefine("RADIUS", RADIUS)

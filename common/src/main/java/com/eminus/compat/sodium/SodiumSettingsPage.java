@@ -70,7 +70,7 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                                 () -> current().workerThreads()))
                 .addOption(builder.createEnumOption(id(DETAIL_DISTANCE_ID), DetailDistance.class)
                         .setName(Component.translatable(SettingsText.DETAIL_DISTANCE_KEY))
-                        .setTooltip(SettingsText.hint(SettingsText.DETAIL_DISTANCE_KEY))
+                        .setTooltip(value -> SettingsText.detailDistanceHint())
                         .setStorageHandler(this::save)
                         .setElementNameProvider(SettingsText::detailDistance)
                         .setDefaultValue(defaults.detailDistance())

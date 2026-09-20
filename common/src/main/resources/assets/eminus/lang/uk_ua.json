@@ -15,6 +15,7 @@
   "gui.eminus.settings.worker_threads.hint": "Фонові потоки, що будують далекий рельєф. Більше — наздоганяє швидше й сильніше конкурує з власними будівниками чанків гри; менше — навпаки.",
   "gui.eminus.settings.detail_distance": "Дальність деталізації",
   "gui.eminus.settings.detail_distance.hint": "Як далеко сягають дрібні деталі далекого рельєфу. Кожен крок угору подвоює цю відстань і коштує більше відеопам'яті. На вищій роздільності екрана той самий крок сягає далі.",
+  "gui.eminus.settings.detail_distance.limited": "Зараз не досягається: буфер геометрії заповнений, тому далекий терен малюється грубішим, ніж просить це налаштування.",
   "gui.eminus.settings.detail_distance.ultra": "Ультра",
   "gui.eminus.settings.detail_distance.high": "Висока",
   "gui.eminus.settings.detail_distance.medium": "Середня",

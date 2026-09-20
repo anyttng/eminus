@@ -15,6 +15,7 @@
   "gui.eminus.settings.worker_threads.hint": "Wątki w tle budujące daleki teren. Więcej nadrabia szybciej i mocniej konkuruje z własnymi budowniczymi chunków gry; mniej — odwrotnie.",
   "gui.eminus.settings.detail_distance": "Zasięg szczegółów",
   "gui.eminus.settings.detail_distance.hint": "Jak daleko sięgają drobne szczegóły dalekiego terenu. Każdy stopień w górę podwaja tę odległość i kosztuje więcej pamięci wideo. Przy wyższej rozdzielczości ekranu ten sam stopień sięga dalej.",
+  "gui.eminus.settings.detail_distance.limited": "Obecnie nieosiągnięte: bufor geometrii jest pełny, więc odległy teren jest rysowany zgrubniej, niż żąda to ustawienie.",
   "gui.eminus.settings.detail_distance.ultra": "Ultra",
   "gui.eminus.settings.detail_distance.high": "Wysoki",
   "gui.eminus.settings.detail_distance.medium": "Średni",

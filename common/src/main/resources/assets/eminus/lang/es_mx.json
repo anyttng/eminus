@@ -15,6 +15,7 @@
   "gui.eminus.settings.worker_threads.hint": "Hilos en segundo plano que construyen el terreno lejano. Más hilos se ponen al día antes y compiten más con los constructores de chunks del propio juego; menos, al revés.",
   "gui.eminus.settings.detail_distance": "Distancia de detalle",
   "gui.eminus.settings.detail_distance.hint": "Hasta dónde llega el detalle fino del terreno lejano. Cada paso hacia arriba duplica esa distancia y cuesta más memoria de vídeo. Con una resolución de pantalla mayor, el mismo paso llega más lejos.",
+  "gui.eminus.settings.detail_distance.limited": "Por ahora no se alcanza: la reserva de geometría está llena, así que el terreno lejano se dibuja más tosco de lo que pide esta opción.",
   "gui.eminus.settings.detail_distance.ultra": "Ultra",
   "gui.eminus.settings.detail_distance.high": "Alta",
   "gui.eminus.settings.detail_distance.medium": "Media",

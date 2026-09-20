@@ -10,14 +10,15 @@ import com.eminus.mesh.MeshSummary;
 import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.MeshSlot;
 import com.eminus.render.arena.MeshSlots;
-import com.eminus.render.tree.RenderList;
 
 public final class DrawCommands {
-    public static final int VERTICES_PER_QUAD = 6;
-    public static final int COMMAND_INTS = 4;
+    public static final int VERTICES_PER_QUAD = 4;
+    public static final int INDICES_PER_QUAD = 6;
+    public static final int COMMAND_INTS = 5;
     public static final int COMMAND_BYTES = COMMAND_INTS * Integer.BYTES;
 
     private static final int ONE_INSTANCE = 1;
+    private static final int FIRST_INDEX = 0;
     private static final int FIRST_INSTANCE = 0;
     private static final int GROWTH = 2;
 
@@ -62,14 +63,14 @@ public final class DrawCommands {
         return bytes.clear().limit(count() * COMMAND_BYTES);
     }
 
-    public void write(RenderList list, List<MeshSummary> translucent, MeshSlots slots, CellFrame frame,
+    public void write(List<MeshSummary> opaque, List<MeshSummary> translucent, MeshSlots slots, CellFrame frame,
             double cameraX, double cameraY, double cameraZ) {
         commands.clear();
         opaqueCount = 0;
         translucentCount = 0;
         quads = 0;
 
-        for (MeshSummary mesh : list.meshes()) {
+        for (MeshSummary mesh : opaque) {
             MeshSlot slot = slots.slot(mesh.key());
             if (slot != null) {
                 writeGroups(slot, frame, cameraX, cameraY, cameraZ);
@@ -108,8 +109,9 @@ public final class DrawCommands {
             grow();
         }
 
-        commands.put(groupQuads * VERTICES_PER_QUAD)
+        commands.put(groupQuads * INDICES_PER_QUAD)
                 .put(ONE_INSTANCE)
+                .put(FIRST_INDEX)
                 .put((slot.baseQuad() + slot.groupStart(group)) * VERTICES_PER_QUAD)
                 .put(FIRST_INSTANCE);
         quads += groupQuads;

@@ -1,5 +1,7 @@
 package com.eminus.client.settings;
 
+import com.eminus.client.render.far.FarRenderer;
+import com.eminus.client.session.ClientSession;
 import com.eminus.settings.DetailDistance;
 import com.eminus.settings.FarDistance;
 
@@ -16,10 +18,23 @@ public final class SettingsText {
     public static final String FADE_KEY = "gui.eminus.settings.fade";
 
     private static final String HINT_SUFFIX = ".hint";
+    private static final String LIMITED_SUFFIX = ".limited";
+    private static final String PARAGRAPH = "\n\n";
     private static final String VANILLA_CHUNKS_KEY = "options.chunks";
 
     public static Component hint(String captionKey) {
         return Component.translatable(captionKey + HINT_SUFFIX);
+    }
+
+    public static Component detailDistanceHint() {
+        Component hint = hint(DETAIL_DISTANCE_KEY);
+        FarRenderer renderer = ClientSession.renderer();
+        if (renderer == null || !renderer.underPressure()) {
+            return hint;
+        }
+
+        return Component.empty().append(hint).append(PARAGRAPH)
+                .append(Component.translatable(DETAIL_DISTANCE_KEY + LIMITED_SUFFIX));
     }
 
     public static Component lowestStoredLevel(int level) {
