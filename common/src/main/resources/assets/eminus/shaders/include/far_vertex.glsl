@@ -18,7 +18,7 @@ struct FarVertex {
     int variantCount;
 };
 
-const int FAR_CORNERS_PER_QUAD = 6;
+const int FAR_CORNERS_PER_QUAD = 4;
 const int FAR_MODEL_TEXELS = 4;
 const uint FAR_OFFSET_MASK = 1023u;
 const int FAR_OFFSET_SIGN = 512;
@@ -36,10 +36,6 @@ float far_offset_axis(uint bits, uint shift) {
 
 // The corner arithmetic below reads and writes every axis by comparison, never by a varying index: a translated shader
 // must not depend on how the translator lowers a dynamic index into a vector or a local array.
-int far_corner_of(int slot) {
-    return slot == 0 || slot == 3 ? 0 : (slot == 1 ? 1 : (slot == 5 ? 3 : 2));
-}
-
 float far_axis(vec3 value, int axis) {
     return axis == 0 ? value.x : (axis == 1 ? value.y : value.z);
 }
@@ -80,7 +76,7 @@ FarVertex far_vertex(int vertexId) {
     FarVertex vertex;
 
     int quadIndex = vertexId / FAR_CORNERS_PER_QUAD;
-    int corner = far_corner_of(vertexId % FAR_CORNERS_PER_QUAD);
+    int corner = vertexId % FAR_CORNERS_PER_QUAD;
     vec2 unit = vec2(corner == 1 || corner == 2 ? 1.0 : 0.0, corner >= 2 ? 1.0 : 0.0);
 
     uvec4 mesh = texelFetch(MeshRecords, quadIndex / QUADS_PER_BLOCK);

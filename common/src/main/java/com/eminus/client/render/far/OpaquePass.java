@@ -49,7 +49,7 @@ public final class OpaquePass {
             FarQuads.bind(pass, arena, models, lightmap, frame, nearSections);
 
             if (drawCount > 0) {
-                pass.drawIndirect(commands, drawCount);
+                pass.drawIndexedIndirect(commands, drawCount);
             }
         }
     }
