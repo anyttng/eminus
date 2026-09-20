@@ -33,9 +33,11 @@ tasks.named('jar', Jar) {
 }
 
 // 'common' builds this mod's jar and its API artifact — a loader build reads common's classes directly and would never
-// produce the jar the harness compiles against.
+// produce the jar the harness compiles against. The root's jar for both loaders, the one file that ships, rides the
+// same hook.
 tasks.named('assemble') {
     dependsOn ':common:jar', ':common:apiJar'
+    dependsOn ':modJar'
 }
 
 // Mojang ships Java 25 to end users, so mods should target Java 25.
