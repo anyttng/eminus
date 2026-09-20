@@ -12,4 +12,4 @@ A NeoForge and Fabric client mod that draws terrain far beyond the game's render
 
 ## Status
 
-In development. Runs on the game's OpenGL backend; Vulkan is in development, and shader-pack support is planned. Sodium is supported on both loaders. Nothing is uploaded to Modrinth or CurseForge yet.
+In development. Runs on both of the game's backends, OpenGL and Vulkan; shader-pack support is planned. Sodium is supported on both loaders. Nothing is uploaded to Modrinth or CurseForge yet.
