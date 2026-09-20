@@ -132,6 +132,7 @@ public final class OcclusionPass implements AutoCloseable {
                 .withFragmentShader(FRAGMENT_SHADER)
                 .withBindGroupLayout(LAYOUT)
                 .withShaderDefine("FARTHEST", (float) DepthConvention.REVERSED_FARTHEST)
+                .withShaderDefine("NEAREST", (float) DepthConvention.REVERSED_NEAREST)
                 .withShaderDefine("GAME_DEPTH_CLEARED", NearMaskPass.GAME_DEPTH_CLEARED)
                 .withShaderDefine("SAMPLES", SAMPLES)
                 .withShaderDefine("RADIUS", RADIUS)

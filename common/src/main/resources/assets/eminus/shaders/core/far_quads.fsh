@@ -19,7 +19,6 @@ layout(std140) uniform FarFrame {
 
 uniform sampler2D Atlas;
 uniform sampler2D TintMask;
-uniform sampler2D NearMask;
 uniform usamplerBuffer ModelVariants;
 
 #moj_import <eminus:far_surface.glsl>
@@ -41,10 +40,6 @@ in vec3 nearPoint;
 out vec4 fragColor;
 
 void main() {
-    if (gl_FragCoord.z > texelFetch(NearMask, ivec2(gl_FragCoord.xy), 0).r) {
-        discard;
-    }
-
 #ifdef NEAR_SECTIONS
     ivec3 section = CameraBlockPos + ivec3(floor(nearPoint)) - NearOrigin;
     if (all(greaterThanEqual(section, ivec3(0)))) {

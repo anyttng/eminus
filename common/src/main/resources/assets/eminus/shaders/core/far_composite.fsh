@@ -34,7 +34,7 @@ float linear_fog_value(float vertexDistance, float start, float end) {
 
 void main() {
     float depth = texture(FarDepth, screenUV).r;
-    if (depth <= FARTHEST) {
+    if (depth <= FARTHEST || depth >= NEAREST) {
         discard;
     }
 

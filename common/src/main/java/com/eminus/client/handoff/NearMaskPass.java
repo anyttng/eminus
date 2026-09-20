@@ -45,11 +45,12 @@ public final class NearMaskPass {
         return new NearMaskPass(pipeline(colourFormat));
     }
 
-    public void draw(GpuTextureView mask, GpuTextureView colour, int width, int height, GpuTextureView gameDepth) {
+    public void draw(GpuTextureView farDepth, GpuTextureView colour, int width, int height,
+            GpuTextureView gameDepth) {
         RenderSystem.assertOnRenderThread();
 
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
-                .createRenderPass(descriptor(mask, colour, width, height))) {
+                .createRenderPass(descriptor(farDepth, colour, width, height))) {
             pass.setPipeline(pipeline);
             pass.bindTexture("GameDepth", gameDepth,
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
@@ -58,10 +59,11 @@ public final class NearMaskPass {
     }
 
     // A GL render pass sizes its viewport from a colour attachment alone, so the far colour rides along unwritten.
-    private static RenderPassDescriptor descriptor(GpuTextureView mask, GpuTextureView colour, int width, int height) {
+    private static RenderPassDescriptor descriptor(GpuTextureView farDepth, GpuTextureView colour, int width,
+            int height) {
         return RenderPassDescriptor.create(() -> PASS_LABEL)
                 .withColorAttachment(colour, Optional.empty())
-                .withDepthAttachment(mask, OptionalDouble.of(DepthConvention.REVERSED_NEAREST))
+                .withDepthAttachment(farDepth, OptionalDouble.of(DepthConvention.REVERSED_FARTHEST))
                 .withRenderArea(new RenderPass.RenderArea(0, 0, width, height));
     }
 
@@ -72,10 +74,10 @@ public final class NearMaskPass {
                 .withFragmentShader(SHADER)
                 .withBindGroupLayout(LAYOUT)
                 .withShaderDefine("GAME_DEPTH_CLEARED", GAME_DEPTH_CLEARED)
-                .withShaderDefine("MASKED", (float) DepthConvention.REVERSED_FARTHEST)
+                .withShaderDefine("MASKED", (float) DepthConvention.REVERSED_NEAREST)
                 .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
                 .withColorTargetState(new ColorTargetState(Optional.empty(), colourFormat, ColorTargetState.WRITE_NONE))
-                .withDepthStencilState(new DepthStencilState(DepthConvention.REVERSED_FARTHER_WINS, true))
+                .withDepthStencilState(new DepthStencilState(DepthConvention.REVERSED_COMPARE, true))
                 .withCull(false)
                 .build();
     }
