@@ -7,7 +7,7 @@
 - Far terrain never draws over near terrain.
 - Block changes in the chunks around you reach the far terrain too.
 - Far terrain shows water and plants, carries sky and block light, and blends grass, leaf and water colours across biomes the way your Biome Blend is set.
-- Runs on the game's OpenGL graphics API.
+- Runs on both of the game's graphics APIs, OpenGL and Vulkan.
 - Client-only: works on any server, with nothing installed there.
 
 ## Settings
@@ -31,7 +31,6 @@ Runs on **NeoForge** and **Fabric**, Minecraft 26.3. Mod Menu is optional on Fab
 ## Before you download
 
 - Far terrain appears only where you have already been — there is no import of existing worlds and no pregeneration.
-- Vulkan is in development — keep the game on its OpenGL graphics API.
 - Shader packs are not supported yet; support is planned.
 
 ## Bug reports
