@@ -9,7 +9,6 @@ import com.mojang.renderpearl.api.textures.GpuTextureView;
 public final class FarTarget implements AutoCloseable {
     private static final String COLOUR_LABEL = "eminus-far-colour";
     private static final String DEPTH_LABEL = "eminus-far-depth";
-    private static final String MASK_LABEL = "eminus-near-mask";
     public static final GpuFormat COLOUR_FORMAT = GpuFormat.RGBA8_UNORM;
     private static final int USAGE = GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_TEXTURE_BINDING;
     private static final int LAYERS = 1;
@@ -19,10 +18,8 @@ public final class FarTarget implements AutoCloseable {
 
     private GpuTexture colour;
     private GpuTexture depth;
-    private GpuTexture mask;
     private GpuTextureView colourView;
     private GpuTextureView depthView;
-    private GpuTextureView maskView;
     private int width;
     private int height;
 
@@ -52,10 +49,6 @@ public final class FarTarget implements AutoCloseable {
         return depthView;
     }
 
-    public GpuTextureView maskView() {
-        return maskView;
-    }
-
     public void resize(int width, int height) {
         RenderSystem.assertOnRenderThread();
         if (width == this.width && height == this.height) {
@@ -77,18 +70,14 @@ public final class FarTarget implements AutoCloseable {
         this.height = height;
         colour = device.createTexture(COLOUR_LABEL, USAGE, COLOUR_FORMAT, width, height, LAYERS, MIPS);
         depth = device.createTexture(DEPTH_LABEL, USAGE, depthFormat, width, height, LAYERS, MIPS);
-        mask = device.createTexture(MASK_LABEL, USAGE, depthFormat, width, height, LAYERS, MIPS);
         colourView = device.createTextureView(colour);
         depthView = device.createTextureView(depth);
-        maskView = device.createTextureView(mask);
     }
 
     private void free() {
         colourView.close();
         depthView.close();
-        maskView.close();
         colour.close();
         depth.close();
-        mask.close();
     }
 }

@@ -238,7 +238,7 @@ public final class FarRenderer implements AutoCloseable {
 
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
                     nearSections.sections(), level.cardinalLighting());
-            mask.draw(target.maskView(), target.colourView(), target.width(), target.height(),
+            mask.draw(target.depthView(), target.colourView(), target.width(), target.height(),
                     main.getDepthTextureView());
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(),
                     indirect.range(0, commands.opaqueCount()), commands.opaqueCount(), frame.buffer(),

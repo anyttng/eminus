@@ -46,7 +46,7 @@ public final class OpaquePass {
 
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(target))) {
             pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
-            FarQuads.bind(pass, arena, models, lightmap, target.maskView(), frame, nearSections);
+            FarQuads.bind(pass, arena, models, lightmap, frame, nearSections);
 
             if (drawCount > 0) {
                 pass.drawIndirect(commands, drawCount);
@@ -57,7 +57,7 @@ public final class OpaquePass {
     private static RenderPassDescriptor descriptor(FarTarget target) {
         return RenderPassDescriptor.builder(() -> PASS_LABEL)
                 .withColorAttachment(target.colourView(), Optional.of(CLEAR_COLOUR))
-                .withDepthAttachment(target.depthView(), OptionalDouble.of(DepthConvention.REVERSED_FARTHEST))
+                .withDepthAttachment(target.depthView(), OptionalDouble.empty())
                 .withRenderArea(new RenderPass.RenderArea(0, 0, target.width(), target.height()))
                 .build();
     }

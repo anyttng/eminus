@@ -46,7 +46,7 @@ public final class TranslucentPass {
 
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(target))) {
             pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
-            FarQuads.bind(pass, arena, models, lightmap, target.maskView(), frame, nearSections);
+            FarQuads.bind(pass, arena, models, lightmap, frame, nearSections);
             pass.drawIndirect(commands, drawCount);
         }
     }

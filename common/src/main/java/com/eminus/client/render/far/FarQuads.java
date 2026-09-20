@@ -41,7 +41,6 @@ final class FarQuads {
             .withUniform("Atlas", UniformType.COMBINED_IMAGE_SAMPLER)
             .withUniform("TintMask", UniformType.COMBINED_IMAGE_SAMPLER)
             .withUniform("Lightmap", UniformType.COMBINED_IMAGE_SAMPLER)
-            .withUniform("NearMask", UniformType.COMBINED_IMAGE_SAMPLER)
             .build();
 
     static RenderPipeline.Builder pipeline(Identifier location, float alphaCutout) {
@@ -70,7 +69,7 @@ final class FarQuads {
     }
 
     static void bind(RenderPass pass, GeometryArena arena, ModelPublisher models, GpuTextureView lightmap,
-            GpuTextureView mask, GpuBuffer frame, GpuBuffer nearSections) {
+            GpuBuffer frame, GpuBuffer nearSections) {
         pass.setUniform("Globals", RenderSystem.getGlobalSettingsUniform());
         pass.setUniform("FarFrame", frame);
         pass.setUniform("Quads", arena.quads());
@@ -81,7 +80,6 @@ final class FarQuads {
         pass.setUniform("Atlas", models.atlas().colourView(), atlasSampler());
         pass.setUniform("TintMask", models.atlas().tintMaskView(), atlasSampler());
         pass.setUniform("Lightmap", lightmap, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
-        pass.setUniform("NearMask", mask, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
     }
 
     private static GpuSampler atlasSampler() {

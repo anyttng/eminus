@@ -42,7 +42,7 @@ bool scene_position(ivec2 texel, ivec2 size, out vec3 position) {
 
     vec2 uv = (vec2(texel) + 0.5) / vec2(size);
     float far = texelFetch(FarDepth, texel, 0).r;
-    if (far > FARTHEST) {
+    if (far > FARTHEST && far < NEAREST) {
         position = unproject(FarInverse, uv, far);
         return true;
     }
@@ -77,7 +77,7 @@ void main() {
     ivec2 size = textureSize(FarDepth, 0);
     ivec2 texel = ivec2(gl_FragCoord.xy);
     float far = texelFetch(FarDepth, texel, 0).r;
-    if (far <= FARTHEST) {
+    if (far <= FARTHEST || far >= NEAREST) {
         discard;
     }
 
