@@ -29,7 +29,7 @@ import com.eminus.render.backend.BackendSupport;
 import com.eminus.client.render.backend.BackendCheck;
 import com.eminus.render.far.CompositeFog;
 import com.eminus.render.far.DrawCommands;
-import com.eminus.render.far.TranslucentOrder;
+import com.eminus.render.far.MeshOrder;
 import com.eminus.render.tree.CameraFrame;
 import com.eminus.render.tree.NodeRow;
 import com.eminus.render.tree.RenderList;
@@ -77,7 +77,7 @@ public final class FarRenderer implements AutoCloseable {
     private final TranslucentPass translucent;
     private final CompositePass composite;
     private final DrawCommands commands = new DrawCommands(START_COMMANDS);
-    private final TranslucentOrder order = new TranslucentOrder();
+    private final MeshOrder order = new MeshOrder();
     private final FarProjection projection = new FarProjection();
     private final LevelProjection levelProjection = new LevelProjection();
     private final Matrix4f farViewProjection = new Matrix4f();
@@ -222,7 +222,7 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         order.update(renderList, runtime.frame(), eye.x, eye.y, eye.z);
-        commands.write(renderList, order.meshes(), arena, runtime.frame(), eye.x, eye.y, eye.z);
+        commands.write(order.meshes(), order.translucent(), arena, runtime.frame(), eye.x, eye.y, eye.z);
 
         if (commands.count() > 0) {
             if (indirect.capacity() < commands.capacity()) {
@@ -329,7 +329,7 @@ public final class FarRenderer implements AutoCloseable {
 
     private void fillNearSections(Minecraft client, int renderDistance, Vec3 eye) {
         ClientLevel level = client.level;
-        nearSections.fill(client.levelRenderer, order.meshes(), runtime.frame(),
+        nearSections.fill(client.levelRenderer, order.translucent(), runtime.frame(),
                 NearSections.section(Mth.floor(eye.x)), NearSections.section(Mth.floor(eye.y)),
                 NearSections.section(Mth.floor(eye.z)), renderDistance,
                 renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSectionY(), level.getSectionsCount());

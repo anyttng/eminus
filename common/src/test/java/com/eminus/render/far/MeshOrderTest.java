@@ -11,7 +11,7 @@ import com.eminus.render.tree.RenderList;
 
 import org.junit.jupiter.api.Test;
 
-class TranslucentOrderTest {
+class MeshOrderTest {
     private static final int LEVEL = 0;
     private static final int ONE_QUAD = 1;
     private static final int NO_QUADS = 0;
@@ -22,27 +22,35 @@ class TranslucentOrderTest {
     private static final double NEXT_CELL_X = 48.0;
 
     private final CellFrame frame = new CellFrame(0);
-    private final TranslucentOrder order = new TranslucentOrder();
+    private final MeshOrder order = new MeshOrder();
     private final MeshSummary near = translucent(CellKey.pack(LEVEL, 0, 0, 0));
     private final MeshSummary middle = translucent(CellKey.pack(LEVEL, 2, 0, 0));
     private final MeshSummary far = translucent(CellKey.pack(LEVEL, 5, 0, 0));
 
     @Test
-    void farCellsAreOrderedBeforeNearOnes() {
-        update(list(near, far, middle));
+    void nearCellsAreOrderedBeforeFarOnes() {
+        update(list(middle, far, near));
 
-        assertEquals(List.of(far, middle, near), order.meshes());
+        assertEquals(List.of(near, middle, far), order.meshes());
         assertEquals(1, order.takeSorts());
     }
 
     @Test
-    void aCellWithoutTranslucentQuadsIsLeftOut() {
+    void aCellWithoutTranslucentQuadsKeepsItsPlaceAmongTheMeshes() {
+        MeshSummary opaque = opaque(CellKey.pack(LEVEL, 1, 0, 0));
+
+        update(list(far, opaque, near));
+
+        assertEquals(List.of(near, opaque, far), order.meshes());
+    }
+
+    @Test
+    void theTranslucentSubsetRunsFarthestFirstAndLeavesTheOpaqueCellsOut() {
         MeshSummary opaque = opaque(CellKey.pack(LEVEL, 1, 0, 0));
 
         update(list(near, opaque, far));
 
-        assertEquals(List.of(far, near), order.meshes());
-        assertEquals(2, order.meshes().size());
+        assertEquals(List.of(far, near), order.translucent());
     }
 
     @Test
@@ -51,7 +59,7 @@ class TranslucentOrderTest {
 
         update(list(coarse, far));
 
-        assertEquals(List.of(coarse, far), order.meshes());
+        assertEquals(List.of(far, coarse), order.meshes());
     }
 
     @Test
@@ -97,7 +105,7 @@ class TranslucentOrderTest {
         update(list(near, far, middle));
 
         assertEquals(1, order.takeSorts());
-        assertEquals(List.of(far, middle, near), order.meshes());
+        assertEquals(List.of(near, middle, far), order.meshes());
     }
 
     @Test
@@ -108,6 +116,18 @@ class TranslucentOrderTest {
         update(list(near, far));
 
         assertEquals(0, order.takeSorts());
+    }
+
+    @Test
+    void aRenderListEmptiedOfItsMembersOrdersNothing() {
+        update(list(near, far));
+        order.takeSorts();
+
+        update(list());
+
+        assertEquals(1, order.takeSorts());
+        assertEquals(List.of(), order.meshes());
+        assertEquals(List.of(), order.translucent());
     }
 
     private void update(RenderList walked) {

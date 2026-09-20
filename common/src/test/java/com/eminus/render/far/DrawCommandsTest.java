@@ -13,7 +13,6 @@ import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.MeshSlot;
 import com.eminus.render.arena.MeshSlots;
-import com.eminus.render.tree.RenderList;
 
 import net.minecraft.core.Direction;
 
@@ -109,6 +108,23 @@ class DrawCommandsTest {
     }
 
     @Test
+    void theOpaqueCommandsKeepTheOrderTheyAreGivenIn() {
+        MeshSlot near = slot(key, BLOCK);
+        MeshSlot far = slot(farKey, FAR_BLOCK);
+
+        commands.write(List.of(mesh(key), mesh(farKey)), List.of(),
+                wanted -> wanted == key ? near : wanted == farKey ? far : null, frame, INSIDE, FAR_ABOVE, INSIDE);
+
+        assertEquals(2, commands.opaqueCount());
+
+        IntBuffer written = commands.buffer().asIntBuffer();
+        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + DOWN_QUADS) * CORNERS_PER_QUAD,
+                written.get(VERTEX_OFFSET));
+        assertEquals((FAR_BLOCK * ArenaAllocator.QUADS_PER_BLOCK + DOWN_QUADS) * CORNERS_PER_QUAD,
+                written.get(COMMAND_INTS + VERTEX_OFFSET));
+    }
+
+    @Test
     void theTranslucentCommandsKeepTheOrderTheyAreGivenIn() {
         MeshSlot near = water(key, BLOCK);
         MeshSlot far = water(farKey, FAR_BLOCK);
@@ -128,8 +144,7 @@ class DrawCommandsTest {
     void theTranslucentCommandsSitAfterTheOpaqueOnes() {
         MeshSlot held = both(key, BLOCK);
 
-        commands.write(new RenderList(List.of(mesh(key))), List.of(mesh(key)), slots(held), frame,
-                INSIDE, INSIDE, INSIDE);
+        commands.write(List.of(mesh(key)), List.of(mesh(key)), slots(held), frame, INSIDE, INSIDE, INSIDE);
 
         assertEquals(2, commands.opaqueCount());
         assertEquals(1, commands.translucentCount());
@@ -174,11 +189,11 @@ class DrawCommandsTest {
     }
 
     private void write(MeshSlots slots, double cameraY) {
-        commands.write(new RenderList(List.of(mesh(key))), List.of(), slots, frame, INSIDE, cameraY, INSIDE);
+        commands.write(List.of(mesh(key)), List.of(), slots, frame, INSIDE, cameraY, INSIDE);
     }
 
     private void translucent(MeshSlots slots, MeshSummary... ordered) {
-        commands.write(RenderList.EMPTY, List.of(ordered), slots, frame, INSIDE, INSIDE, INSIDE);
+        commands.write(List.of(), List.of(ordered), slots, frame, INSIDE, INSIDE, INSIDE);
     }
 
     private static MeshSlots slots(MeshSlot held) {
