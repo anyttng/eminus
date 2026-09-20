@@ -232,7 +232,7 @@ public final class FacePasses {
             return MeshModels.MISSING;
         }
 
-        return aboveModel == surfaceModel ? submergedModel : surfaceModel;
+        return models.submergedModelId(aboveModel) == submergedModel ? submergedModel : surfaceModel;
     }
 
     private int modelAt(int stateId, int u, int v, int plane) {
@@ -267,7 +267,9 @@ public final class FacePasses {
             return false;
         }
 
-        return modelId == facingModel || modelId == facingFluidModel(facing, u, v, plane);
+        int fluid = models.submergedModelId(modelId);
+        return fluid == models.submergedModelId(facingModel)
+                || fluid == models.submergedModelId(facingFluidModel(facing, u, v, plane));
     }
 
     private long data(int u, int v, int plane, long facing, int metadata, int modelId, int stateId) {

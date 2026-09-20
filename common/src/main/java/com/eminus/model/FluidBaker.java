@@ -13,8 +13,6 @@ import org.jspecify.annotations.Nullable;
 
 public final class FluidBaker {
     private static final int ALPHA_MASK = 0xFF00_0000;
-    // FluidRenderer.MAX_FLUID_HEIGHT: a source with no fluid above draws its surface at 8/9 of the block.
-    static final float SURFACE_HEIGHT = 0.8888889F;
     private static final int UP = Direction.UP.ordinal();
 
     private final FluidStateModelSet models;
@@ -51,7 +49,8 @@ public final class FluidBaker {
         int occluding = !translucent && opaque(side) ? FaceMask.ALL & ~FaceMask.UP : FaceMask.NONE;
         int metadata = ModelMetadata.pack(FaceMask.ALL, occluding, FaceMask.ALL & ~FaceMask.UP, 0, flags);
 
-        return new BakedModel(faces, tintMask, surfaceInsets(), surfaceBounds(), metadata, tintRow);
+        float height = fluid.getOwnHeight();
+        return new BakedModel(faces, tintMask, surfaceInsets(height), surfaceBounds(height), metadata, tintRow);
     }
 
     public static BakedModel submerged(BakedModel surface) {
@@ -59,15 +58,15 @@ public final class FluidBaker {
                 BakedModel.fullBounds(), surface.metadata(), surface.tintRow());
     }
 
-    static float[] surfaceInsets() {
+    static float[] surfaceInsets(float height) {
         float[] insets = new float[BakedModel.FACE_COUNT];
-        insets[UP] = 1.0F - SURFACE_HEIGHT;
+        insets[UP] = 1.0F - height;
         return insets;
     }
 
-    static float[] surfaceBounds() {
+    static float[] surfaceBounds(float height) {
         float[] bounds = BakedModel.fullBounds();
-        bounds[BakedModel.MAX_Y] = SURFACE_HEIGHT;
+        bounds[BakedModel.MAX_Y] = height;
         return bounds;
     }
 
