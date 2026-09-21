@@ -237,6 +237,8 @@ public final class FarRenderer implements AutoCloseable {
 
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
                     nearSections.sections(), level.cardinalLighting());
+            // On 26.2's Vulkan backend a shared index buffer grown inside a pass uploads nothing, and the GUI draws blank.
+            FarQuads.reserveIndices();
             mask.draw(target.depthView(), target.colourView(), target.width(), target.height(),
                     main.getDepthTextureView());
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(),

@@ -89,6 +89,10 @@ final class FarQuads {
         pass.setIndexBuffer(indexBuffer, indices.type());
     }
 
+    static void reserveIndices() {
+        RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS).getBuffer(MAX_GROUP_INDICES);
+    }
+
     private static GpuSampler atlasSampler() {
         return RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE,
                 FilterMode.NEAREST, FilterMode.NEAREST, true);
