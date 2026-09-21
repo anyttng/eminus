@@ -15,9 +15,12 @@ import org.joml.Matrix4fc;
 import org.lwjgl.system.MemoryStack;
 
 public final class FarFrame implements AutoCloseable {
+    static final int IVEC3_ALIGNMENT = 16;
+
     public static final int SIZE = new Std140SizeCalculator()
             .putMat4f().putInt().putInt()
-            .putInt().putInt().putIVec3()
+            .putInt().putInt()
+            .align(IVEC3_ALIGNMENT).putInt().putInt().putInt()
             .putFloat().putFloat().putFloat().putFloat().putFloat().putFloat()
             .get();
 
@@ -44,22 +47,31 @@ public final class FarFrame implements AutoCloseable {
         RenderSystem.assertOnRenderThread();
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            ByteBuffer written = Std140Builder.onStack(stack, SIZE)
-                    .putMat4f(viewProjection)
-                    .putInt(minBlockY)
-                    .putInt(atlasCells)
-                    .putInt(near.side())
-                    .putInt(near.height())
-                    .putIVec3(near.originBlockX(), near.originBlockY(), near.originBlockZ())
-                    .putFloat(shade.down())
-                    .putFloat(shade.up())
-                    .putFloat(shade.north())
-                    .putFloat(shade.south())
-                    .putFloat(shade.west())
-                    .putFloat(shade.east())
-                    .get();
+            ByteBuffer written = layout(Std140Builder.onStack(stack, SIZE), viewProjection, minBlockY, atlasCells,
+                    near, shade);
             RenderSystem.getDevice().createCommandEncoder().writeToBuffer(buffer.slice(), written);
         }
+    }
+
+    static ByteBuffer layout(Std140Builder builder, Matrix4fc viewProjection, int minBlockY, int atlasCells,
+            NearSections near, CardinalLighting shade) {
+        return builder
+                .putMat4f(viewProjection)
+                .putInt(minBlockY)
+                .putInt(atlasCells)
+                .putInt(near.side())
+                .putInt(near.height())
+                .align(IVEC3_ALIGNMENT)
+                .putInt(near.originBlockX())
+                .putInt(near.originBlockY())
+                .putInt(near.originBlockZ())
+                .putFloat(shade.down())
+                .putFloat(shade.up())
+                .putFloat(shade.north())
+                .putFloat(shade.south())
+                .putFloat(shade.west())
+                .putFloat(shade.east())
+                .get();
     }
 
     @Override
