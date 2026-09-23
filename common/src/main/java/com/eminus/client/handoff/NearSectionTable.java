@@ -55,7 +55,7 @@ public final class NearSectionTable implements AutoCloseable {
         return buffer;
     }
 
-    public void fill(LevelRenderer renderer, long sectionFadeMillis, List<MeshSummary> translucent, CellFrame frame,
+    public void fill(LevelRenderer renderer, long sectionFadeMillis, List<MeshSummary> meshes, CellFrame frame,
             int cameraSectionX, int cameraSectionY, int cameraSectionZ, int viewDistance, int radius, int minSectionY,
             int sectionCount) {
         RenderSystem.assertOnRenderThread();
@@ -67,7 +67,7 @@ public final class NearSectionTable implements AutoCloseable {
         this.viewDistance = viewDistance;
         sections.reset(cameraSectionX, cameraSectionZ, radius, minSectionY, sectionCount);
 
-        for (MeshSummary mesh : translucent) {
+        for (MeshSummary mesh : meshes) {
             long key = mesh.key();
             int level = CellKey.level(key);
             int side = DetailLevel.blocksPerCell(level);

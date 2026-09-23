@@ -232,9 +232,7 @@ public final class FarRenderer implements AutoCloseable {
             }
 
             indirect.write(commands);
-            if (commands.translucentCount() > 0) {
-                fillNearSections(client, renderDistance, eye);
-            }
+            fillNearSections(client, renderDistance, eye);
 
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
                     nearSections.sections(), level.cardinalLighting());
@@ -332,7 +330,7 @@ public final class FarRenderer implements AutoCloseable {
         ClientLevel level = client.level;
         nearSections.fill(client.levelRenderer,
                 Util.toMillis(client.gameRenderer.gameRenderState().optionsRenderState.chunkSectionFadeInTime),
-                order.translucent(), runtime.frame(),
+                order.meshes(), runtime.frame(),
                 NearSections.section(Mth.floor(eye.x)), NearSections.section(Mth.floor(eye.y)),
                 NearSections.section(Mth.floor(eye.z)), renderDistance,
                 renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSectionY(), level.getSectionsCount());
