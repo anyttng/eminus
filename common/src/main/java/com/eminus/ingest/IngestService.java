@@ -174,7 +174,9 @@ public final class IngestService {
             return;
         }
 
-        if (!skyPublished(level.getLightEngine(), SectionPos.of(sectionX, sectionY, sectionZ))) {
+        // The light engine drops the layers of an air-only section whose 26 neighbours are air-only too, for good.
+        if (!chunk.getSections()[index].hasOnlyAir()
+                && !skyPublished(level.getLightEngine(), SectionPos.of(sectionX, sectionY, sectionZ))) {
             return;
         }
 
