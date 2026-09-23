@@ -45,7 +45,8 @@ public final class FluidBaker {
             tintRow = tint.row();
         }
 
-        int flags = (translucent ? ModelMetadata.TRANSLUCENT : 0)
+        int flags = ModelMetadata.FLUID
+                | (translucent ? ModelMetadata.TRANSLUCENT : 0)
                 | (tintRow == BiomeColours.NO_ROW ? 0 : ModelMetadata.TINTED);
         float height = fluid.getOwnHeight();
         float[] bounds = surfaceBounds(height);

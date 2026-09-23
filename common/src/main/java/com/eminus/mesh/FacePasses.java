@@ -8,6 +8,8 @@ import com.eminus.model.ModelMetadata;
 
 import net.minecraft.core.Direction;
 
+import org.jspecify.annotations.Nullable;
+
 public final class FacePasses {
     @FunctionalInterface
     public interface Sink {
@@ -19,7 +21,6 @@ public final class FacePasses {
     private static final int LAYER_ABOVE = SIDE;
     private static final int NO_METADATA = 0;
     private static final int AIR_MODEL = -3;
-    private static final int NO_OFFSET_STATE = VoxelEntry.AIR_STATE_ID;
     private static final Direction[] TOWARDS_LOW = new Direction[Direction.Axis.values().length];
     private static final Direction[] TOWARDS_HIGH = new Direction[Direction.Axis.values().length];
 
@@ -37,17 +38,20 @@ public final class FacePasses {
     private final MeshModels models;
     private final Runnable whenBaked;
     private final Sink sink;
+    private final @Nullable FluidCorners corners;
 
     private Direction.Axis axis;
     private Direction towardsLow;
     private Direction towardsHigh;
 
-    public FacePasses(MeshScratch scratch, StateOpacity opacity, MeshModels models, Runnable whenBaked, Sink sink) {
+    public FacePasses(MeshScratch scratch, StateOpacity opacity, MeshModels models, int level, Runnable whenBaked,
+            Sink sink) {
         this.scratch = scratch;
         this.opacity = opacity;
         this.models = models;
         this.whenBaked = whenBaked;
         this.sink = sink;
+        corners = level == FluidCorners.LEVEL ? new FluidCorners(scratch.voxels(), models) : null;
     }
 
     public boolean run() {
@@ -143,13 +147,22 @@ public final class FacePasses {
         }
 
         int metadata = models.metadata(drawn);
+        boolean fluid = ModelMetadata.has(metadata, ModelMetadata.FLUID);
 
         if (masks.opaque(row, plane)) {
-            if (masks.facesNegative(row, plane)) {
+            boolean lowFace = masks.facesNegative(row, plane);
+            boolean highFace = masks.facesPositive(row, plane);
+            if (fluid) {
+                placeFluid(scratch.negativePlane(), scratch.positivePlane(), lowFace, highFace, stateId,
+                        drawn == modelId, AIR_MODEL, metadata, drawn, u, v, plane, low, high);
+                return true;
+            }
+
+            if (lowFace) {
                 scratch.negativePlane().set(u, v, data(u, v, plane, low, metadata, drawn, stateId));
             }
 
-            if (masks.facesPositive(row, plane)) {
+            if (highFace) {
                 scratch.positivePlane().set(u, v, data(u, v, plane, high, metadata, drawn, stateId));
             }
 
@@ -168,15 +181,26 @@ public final class FacePasses {
             return false;
         }
 
-        if (!facingHoldsSameTranslucent(metadata, modelId, lowModel, low, u, v, plane - 1)
+        boolean lowFace = !facingHoldsSameTranslucent(metadata, modelId, lowModel, low, u, v, plane - 1)
                 && !facingDrawsSameFluid(modelId, drawn, lowDrawn)
-                && visible(metadata, metadataOf(lowDrawn), towardsLow)) {
+                && !(fluid && slopesInto(stateId, low))
+                && visible(metadata, metadataOf(lowDrawn), towardsLow);
+        boolean highFace = !facingHoldsSameTranslucent(metadata, modelId, highModel, high, u, v, plane + 1)
+                && !facingDrawsSameFluid(modelId, drawn, highDrawn)
+                && !(fluid && slopesInto(stateId, high))
+                && visible(metadata, metadataOf(highDrawn), towardsHigh);
+
+        if (fluid) {
+            placeFluid(scratch.negativePlane(), scratch.positivePlane(), lowFace, highFace, stateId,
+                    drawn == modelId, highDrawn, metadata, drawn, u, v, plane, low, high);
+            return true;
+        }
+
+        if (lowFace) {
             scratch.negativePlane().set(u, v, data(u, v, plane, low, metadata, drawn, stateId));
         }
 
-        if (!facingHoldsSameTranslucent(metadata, modelId, highModel, high, u, v, plane + 1)
-                && !facingDrawsSameFluid(modelId, drawn, highDrawn)
-                && visible(metadata, metadataOf(highDrawn), towardsHigh)) {
+        if (highFace) {
             scratch.positivePlane().set(u, v, data(u, v, plane, high, metadata, drawn, stateId));
         }
 
@@ -221,20 +245,51 @@ public final class FacePasses {
         }
 
         int metadata = models.metadata(drawn);
+        int stateId = VoxelEntry.state(owner);
 
-        if (!facingHoldsSameTranslucent(metadata, fluidModel, lowModel, low, u, v, plane - 1)
+        boolean lowFace = !facingHoldsSameTranslucent(metadata, fluidModel, lowModel, low, u, v, plane - 1)
                 && !facingDrawsSameFluid(fluidModel, drawn, lowDrawn)
-                && visible(metadata, metadataOf(lowDrawn), towardsLow)) {
-            scratch.negativeFluidPlane().set(u, v, data(u, v, plane, low, metadata, drawn, NO_OFFSET_STATE));
-        }
-
-        if (!facingHoldsSameTranslucent(metadata, fluidModel, highModel, high, u, v, plane + 1)
+                && !slopesInto(stateId, low)
+                && visible(metadata, metadataOf(lowDrawn), towardsLow);
+        boolean highFace = !facingHoldsSameTranslucent(metadata, fluidModel, highModel, high, u, v, plane + 1)
                 && !facingDrawsSameFluid(fluidModel, drawn, highDrawn)
-                && visible(metadata, metadataOf(highDrawn), towardsHigh)) {
-            scratch.positiveFluidPlane().set(u, v, data(u, v, plane, high, metadata, drawn, NO_OFFSET_STATE));
+                && !slopesInto(stateId, high)
+                && visible(metadata, metadataOf(highDrawn), towardsHigh);
+        placeFluid(scratch.negativeFluidPlane(), scratch.positiveFluidPlane(), lowFace, highFace, stateId,
+                drawn == fluidModel, highDrawn, metadata, drawn, u, v, plane, low, high);
+        return true;
+    }
+
+    private void placeFluid(FacePlane negative, FacePlane positive, boolean lowFace, boolean highFace, int stateId,
+            boolean surface, int highDrawn, int metadata, int drawn, int u, int v, int plane, long low, long high) {
+        if (!lowFace && !highFace) {
+            return;
         }
 
-        return true;
+        FluidCorners sloping = corners;
+        int shape = sloping != null && surface ? cornersAt(sloping, stateId, u, v, plane) : FluidCorners.FLAT;
+        boolean topShown = highFace && !(axis == Direction.Axis.Y && FluidCorners.full(shape)
+                && (ModelMetadata.occluding(metadataOf(highDrawn)) & FaceMask.DOWN) != 0);
+
+        if (lowFace) {
+            negative.set(u, v, fluidData(u, v, plane, low, metadata, drawn, shape));
+        }
+
+        if (topShown) {
+            positive.set(u, v, fluidData(u, v, plane, high, metadata, drawn, shape));
+        }
+    }
+
+    private boolean slopesInto(int stateId, long facing) {
+        return corners != null && !VoxelEntry.isAir(facing) && models.sameFluid(stateId, VoxelEntry.state(facing));
+    }
+
+    private int cornersAt(FluidCorners sloping, int stateId, int u, int v, int plane) {
+        return switch (axis) {
+            case X -> sloping.of(stateId, plane, v, u);
+            case Y -> sloping.of(stateId, u, plane, v);
+            case Z -> sloping.of(stateId, u, v, plane);
+        };
     }
 
     private int drawnModel(int surfaceModel, int u, int v, int plane) {
@@ -304,6 +359,16 @@ public final class FacePasses {
             case X -> QuadTint.of(scratch, models, stateId, modelId, plane, v, u);
             case Y -> QuadTint.of(scratch, models, stateId, modelId, u, plane, v);
             case Z -> QuadTint.of(scratch, models, stateId, modelId, u, v, plane);
+        };
+
+        return Quad.data(QuadLight.of(facing, metadata), modelId, colourIndex);
+    }
+
+    private long fluidData(int u, int v, int plane, long facing, int metadata, int modelId, int surface) {
+        int colourIndex = switch (axis) {
+            case X -> QuadTint.ofFluid(scratch, models, modelId, surface, plane, v, u);
+            case Y -> QuadTint.ofFluid(scratch, models, modelId, surface, u, plane, v);
+            case Z -> QuadTint.ofFluid(scratch, models, modelId, surface, u, v, plane);
         };
 
         return Quad.data(QuadLight.of(facing, metadata), modelId, colourIndex);

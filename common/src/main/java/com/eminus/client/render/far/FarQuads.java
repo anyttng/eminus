@@ -4,9 +4,11 @@ import com.eminus.Eminus;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.handoff.NearSections;
+import com.eminus.mesh.FluidCorners;
 import com.eminus.mesh.MeshBuffer;
 import com.eminus.mesh.Quad;
 import com.eminus.model.BakedModel;
+import com.eminus.model.ModelMetadata;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.far.DrawCommands;
 import com.eminus.client.render.arena.GeometryArena;
@@ -59,6 +61,8 @@ final class FarQuads {
                 .withShaderDefine("MIN_VERTICAL", CellKey.MIN_VERTICAL)
                 .withShaderDefine("MODEL_FACES", BakedModel.FACE_COUNT)
                 .withShaderDefine("FIRST_BLADE_FACE", Quad.FIRST_BLADE_FACE)
+                .withShaderDefine("FLUID_FLAG", ModelMetadata.FLUID)
+                .withShaderDefine("CORNER_STEPS", FluidCorners.STEPS)
                 .withShaderDefine("FACE_SIDE", BakedModel.FACE_SIDE)
                 .withShaderDefine("MAX_VARIANT_REJECTIONS", BakedModel.MAX_VARIANT_REJECTIONS)
                 .withShaderDefine("ALPHA_CUTOUT", alphaCutout)

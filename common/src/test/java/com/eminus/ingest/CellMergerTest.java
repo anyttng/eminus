@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.DetailLevel;
+import com.eminus.cell.EdgeMask;
 import com.eminus.cell.FaceMask;
 import com.eminus.cell.StateOpacity;
 import com.eminus.cell.VoxelEntry;
@@ -88,6 +89,18 @@ class CellMergerTest {
     }
 
     @Test
+    void aChangeOnTheCellCornerReachesTheCellsAcrossItsEdges() {
+        buildFrom(VoxelEntry.AIR);
+        set(0, 0, 0, entry(STONE));
+        PyramidDownsampler.build(pyramid, OPACITIES);
+
+        harness.run(() -> merger.merge(pyramid, 0, 0, 0));
+
+        assertEquals(EdgeMask.bit(-1, 0, -1) | EdgeMask.bit(-1, -1, 0) | EdgeMask.bit(0, -1, -1)
+                | EdgeMask.bit(-1, -1, -1), changes.get(0).edgeMask());
+    }
+
+    @Test
     void anInteriorChangeSetsNoFace() {
         buildFrom(VoxelEntry.AIR);
         set(INTERIOR, INTERIOR, INTERIOR, entry(STONE));
@@ -96,6 +109,7 @@ class CellMergerTest {
         harness.run(() -> merger.merge(pyramid, 0, 0, 0));
 
         assertEquals(FaceMask.NONE, changes.get(0).faceMask());
+        assertEquals(EdgeMask.NONE, changes.get(0).edgeMask());
     }
 
     @Test
@@ -139,8 +153,8 @@ class CellMergerTest {
         }
     }
 
-    private void record(CellHandle handle, int faceMask) {
-        changes.add(new Change(faceMask, handle.dirty(), handle.withCell(cell -> cell.isEmpty())));
+    private void record(CellHandle handle, int faceMask, int edgeMask) {
+        changes.add(new Change(faceMask, edgeMask, handle.dirty(), handle.withCell(cell -> cell.isEmpty())));
         cells.release(handle);
     }
 
@@ -157,7 +171,7 @@ class CellMergerTest {
         return VoxelEntry.pack(state, 0, VoxelEntry.light(VoxelEntry.MAX_LIGHT, 0));
     }
 
-    private record Change(int faceMask, boolean dirty, boolean empty) {
+    private record Change(int faceMask, int edgeMask, boolean dirty, boolean empty) {
     }
 
     private static final class CountingCells implements CellAccess {

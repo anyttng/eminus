@@ -22,6 +22,7 @@ import com.eminus.api.v1.TreeState;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
+import com.eminus.cell.EdgeMask;
 import com.eminus.cell.FaceMask;
 import com.eminus.cell.OccupancyMask;
 import com.eminus.cell.cache.CellCache;
@@ -85,15 +86,15 @@ class TreeManagerTest {
         settleRing();
 
         CellHandle handle = open(KEY);
-        manager.changed(handle, FaceMask.NONE);
+        manager.changed(handle, FaceMask.NONE, EdgeMask.NONE);
 
         FakeBuilds.Call first = builds.take();
         assertEquals(KEY, first.key());
         assertSame(handle, first.handle());
         assertEquals(1, first.references());
 
-        manager.changed(open(KEY), FaceMask.NONE);
-        manager.changed(open(KEY), FaceMask.NONE);
+        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.NONE);
+        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.NONE);
         manager.meshed(CellMesh.empty(KEY), first.request());
 
         FakeBuilds.Call rebuilt = builds.take();
@@ -107,9 +108,9 @@ class TreeManagerTest {
     void aMeshOfAnOlderRequestNeverReplacesTheNewerOne() {
         settleRing();
 
-        manager.changed(open(KEY), FaceMask.NONE);
+        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.NONE);
         FakeBuilds.Call first = builds.take();
-        manager.changed(open(KEY), FaceMask.NONE);
+        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.NONE);
         manager.meshed(CellMesh.empty(KEY), first.request());
         FakeBuilds.Call rebuilt = builds.take();
 
@@ -197,7 +198,7 @@ class TreeManagerTest {
         settleRing();
 
         CellHandle handle = open(KEY);
-        manager.changed(handle, FaceMask.WEST | FaceMask.UP);
+        manager.changed(handle, FaceMask.WEST | FaceMask.UP, EdgeMask.NONE);
 
         FakeBuilds.Call own = builds.take();
         assertEquals(KEY, own.key());
@@ -211,11 +212,23 @@ class TreeManagerTest {
     }
 
     @Test
+    void anEdgeChangeAboveTheSlopingLevelRebuildsNoCellAcrossTheEdge() {
+        settleRing();
+
+        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.bit(-1, 0, 0) | EdgeMask.bit(-1, 0, -1));
+        manager.changed(open(WEST), FaceMask.NONE, EdgeMask.NONE);
+
+        assertEquals(KEY, builds.take().key());
+        assertEquals(WEST, builds.take().key());
+        assertTrue(builds.idle());
+    }
+
+    @Test
     void aBoundaryChangeOnACellWithoutANodeStillRebuildsTheNeighbourNode() {
         settleRing();
 
         CellHandle handle = open(ABOVE);
-        manager.changed(handle, FaceMask.DOWN);
+        manager.changed(handle, FaceMask.DOWN, EdgeMask.NONE);
 
         FakeBuilds.Release released = builds.takeRelease();
         assertSame(handle, released.handle());
@@ -240,7 +253,7 @@ class TreeManagerTest {
     @Test
     void aChangeOnACellWithoutANodeReleasesItsHandle() {
         CellHandle handle = open(OUTSIDE);
-        manager.changed(handle, FaceMask.NONE);
+        manager.changed(handle, FaceMask.NONE, EdgeMask.NONE);
 
         FakeBuilds.Release released = builds.takeRelease();
         assertSame(handle, released.handle());
@@ -254,7 +267,7 @@ class TreeManagerTest {
         awaitWalks(1);
 
         manager.frame(frame(EYE_X, EYE_Z));
-        manager.changed(open(OUTSIDE), FaceMask.NONE);
+        manager.changed(open(OUTSIDE), FaceMask.NONE, EdgeMask.NONE);
         builds.takeRelease();
         assertEquals(1, manager.walks());
 
@@ -353,7 +366,7 @@ class TreeManagerTest {
         startRing();
         manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
         manager.meshed(CellMesh.empty(WEST), rootRequests.get(WEST));
-        manager.changed(open(OUTSIDE), FaceMask.NONE);
+        manager.changed(open(OUTSIDE), FaceMask.NONE, EdgeMask.NONE);
         builds.takeRelease();
     }
 

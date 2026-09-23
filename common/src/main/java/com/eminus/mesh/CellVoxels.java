@@ -14,6 +14,7 @@ public final class CellVoxels {
     private static final int LAST = SIDE - 1;
     private static final int LAYER_SIZE = SIDE * SIDE;
     private static final int SIDES = Direction.values().length;
+    private static final int DIAGONALS = 4;
     private static final int BIOME_MARGIN = TintBlend.MAX_RADIUS;
     private static final int BIOME_WINDOW = SIDE + 2 * BIOME_MARGIN;
 
@@ -26,6 +27,9 @@ public final class CellVoxels {
 
     private final long[] voxels = new long[DetailLevel.VOXELS_PER_CELL];
     private final long[][] layers = new long[SIDES][LAYER_SIZE];
+    private final long[][] edges = new long[DIAGONALS][SIDE];
+    private final long[][] aboveSides = new long[SIDES][SIDE];
+    private final long[] aboveCorners = new long[DIAGONALS];
     private final boolean[] covered = new boolean[ColumnCoverage.GRID_SIDE * ColumnCoverage.GRID_SIDE];
     private final int[] biomes = new int[BIOME_WINDOW * BIOME_WINDOW * SIDE];
 
@@ -36,6 +40,15 @@ public final class CellVoxels {
     public void load(Cell cell) {
         cell.expand(voxels);
         Arrays.fill(biomes, VoxelEntry.UNKNOWN_BIOME);
+        for (long[] edge : edges) {
+            Arrays.fill(edge, VoxelEntry.AIR);
+        }
+
+        for (long[] side : aboveSides) {
+            Arrays.fill(side, VoxelEntry.AIR);
+        }
+
+        Arrays.fill(aboveCorners, VoxelEntry.AIR);
 
         for (int y = 0; y < SIDE; y++) {
             for (int z = 0; z < SIDE; z++) {
@@ -104,6 +117,45 @@ public final class CellVoxels {
         }
     }
 
+    public void loadDiagonal(int cellX, int cellZ, Cell neighbour) {
+        long[] edge = edges[diagonal(cellX, cellZ)];
+        int x = facing(cellX);
+        int z = facing(cellZ);
+
+        for (int y = 0; y < SIDE; y++) {
+            edge[y] = neighbour.get(x, y, z);
+        }
+    }
+
+    public void loadAboveSide(Direction side, Cell neighbour) {
+        long[] row = aboveSides[side.ordinal()];
+
+        for (int along = 0; along < SIDE; along++) {
+            row[along] = side.getAxis() == Direction.Axis.X
+                    ? neighbour.get(facing(side.getStepX()), 0, along)
+                    : neighbour.get(along, 0, facing(side.getStepZ()));
+        }
+    }
+
+    public void loadAboveCorner(int cellX, int cellZ, Cell neighbour) {
+        aboveCorners[diagonal(cellX, cellZ)] = neighbour.get(facing(cellX), 0, facing(cellZ));
+    }
+
+    public long around(int x, int y, int z) {
+        boolean outX = x < 0 || x > LAST;
+        boolean outZ = z < 0 || z > LAST;
+
+        if (y > LAST && (outX || outZ)) {
+            if (outX && outZ) {
+                return aboveCorners[diagonal(x, z)];
+            }
+
+            return outX ? aboveSides[x < 0 ? WEST : EAST][z] : aboveSides[z < 0 ? NORTH : SOUTH][x];
+        }
+
+        return outX && outZ ? edges[diagonal(x, z)][y] : entry(x, y, z);
+    }
+
     public long inside(int x, int y, int z) {
         return voxels[DetailLevel.voxelIndex(x, y, z)];
     }
@@ -135,6 +187,14 @@ public final class CellVoxels {
         }
 
         return voxels[DetailLevel.voxelIndex(x, y, z)];
+    }
+
+    private static int diagonal(int x, int z) {
+        return (x > 0 ? 1 : 0) + (z > 0 ? 2 : 0);
+    }
+
+    private static int facing(int step) {
+        return step > 0 ? 0 : LAST;
     }
 
     private static int biomeIndex(int x, int y, int z) {

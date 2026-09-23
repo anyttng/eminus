@@ -5,6 +5,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.ColumnCoverage;
+import com.eminus.cell.DetailLevel;
+import com.eminus.cell.VoxelEntry;
 import com.eminus.cell.cache.CellAccess;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.work.WorkService;
@@ -16,6 +18,8 @@ import org.jspecify.annotations.Nullable;
 public final class MeshService {
     private static final Direction[] FACES = Direction.values();
     private static final int[][] DIAGONALS = {{-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
+    private static final Direction[] HORIZONTALS = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
+    private static final int LAST = DetailLevel.VOXELS_PER_SIDE - 1;
 
     private final WorkService<MeshScratch> work;
     private final CellAccess cells;
@@ -78,9 +82,14 @@ public final class MeshService {
     }
 
     void build(MeshTask task, MeshScratch scratch) {
-        CellHandle[] handles = new CellHandle[FACES.length + DIAGONALS.length + 1];
+        CellHandle[] handles = new CellHandle[1 + FACES.length + DIAGONALS.length + HORIZONTALS.length
+                + DIAGONALS.length];
         CellHandle held = task.held();
         int radius = TintBlend.columns(blendRadius, task.level());
+        boolean corners = task.level() == FluidCorners.LEVEL;
+        int x = CellKey.x(task.key());
+        int y = CellKey.y(task.key());
+        int z = CellKey.z(task.key());
 
         try {
             handles[0] = held == null ? cells.open(task.key()) : held;
@@ -104,17 +113,48 @@ public final class MeshService {
                 });
             }
 
-            if (radius > 0) {
-                for (int diagonal = 0; diagonal < DIAGONALS.length; diagonal++) {
-                    int cellX = DIAGONALS[diagonal][0];
-                    int cellZ = DIAGONALS[diagonal][1];
-                    CellHandle handle = cells.open(CellKey.pack(task.level(), CellKey.x(task.key()) + cellX,
-                            CellKey.y(task.key()), CellKey.z(task.key()) + cellZ));
-                    handles[FACES.length + 1 + diagonal] = handle;
+            int slot = FACES.length + 1;
+            if (radius > 0 || corners) {
+                for (int[] diagonal : DIAGONALS) {
+                    int cellX = diagonal[0];
+                    int cellZ = diagonal[1];
+                    CellHandle handle = cells.open(CellKey.pack(task.level(), x + cellX, y, z + cellZ));
+                    handles[slot++] = handle;
                     handle.withCell(cell -> {
-                        scratch.voxels().loadBiomes(cell, cellX, cellZ, radius);
+                        if (radius > 0) {
+                            scratch.voxels().loadBiomes(cell, cellX, cellZ, radius);
+                        }
+
+                        scratch.voxels().loadDiagonal(cellX, cellZ, cell);
                         return null;
                     });
+                }
+            }
+
+            if (corners) {
+                for (Direction side : HORIZONTALS) {
+                    if (topEdgeHoldsFluid(scratch.voxels(), side.getStepX(), side.getStepZ())) {
+                        CellHandle handle = cells.open(
+                                CellKey.pack(task.level(), x + side.getStepX(), y + 1, z + side.getStepZ()));
+                        handles[slot++] = handle;
+                        handle.withCell(cell -> {
+                            scratch.voxels().loadAboveSide(side, cell);
+                            return null;
+                        });
+                    }
+                }
+
+                for (int[] diagonal : DIAGONALS) {
+                    int cellX = diagonal[0];
+                    int cellZ = diagonal[1];
+                    if (topEdgeHoldsFluid(scratch.voxels(), cellX, cellZ)) {
+                        CellHandle handle = cells.open(CellKey.pack(task.level(), x + cellX, y + 1, z + cellZ));
+                        handles[slot++] = handle;
+                        handle.withCell(cell -> {
+                            scratch.voxels().loadAboveCorner(cellX, cellZ, cell);
+                            return null;
+                        });
+                    }
                 }
             }
 
@@ -134,6 +174,24 @@ public final class MeshService {
             release(handles);
             releaseCarried(held, task.references());
         }
+    }
+
+    private boolean topEdgeHoldsFluid(CellVoxels voxels, int stepX, int stepZ) {
+        int fromX = stepX > 0 ? LAST : 0;
+        int toX = stepX < 0 ? 0 : LAST;
+        int fromZ = stepZ > 0 ? LAST : 0;
+        int toZ = stepZ < 0 ? 0 : LAST;
+
+        for (int z = fromZ; z <= toZ; z++) {
+            for (int x = fromX; x <= toX; x++) {
+                long entry = voxels.inside(x, LAST, z);
+                if (!VoxelEntry.isAir(entry) && models.holdsFluid(VoxelEntry.state(entry))) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private void releaseCarried(@Nullable CellHandle held, int references) {
