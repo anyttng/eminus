@@ -95,7 +95,7 @@ class ShapeDivergenceTest {
     }
 
     @Test
-    void aCrossBladeSqueezesItsSpriteIntoTheColumnsItSpans() {
+    void aCrossBladeKeepsOneImageTexelPerSpriteColumn() {
         List<BakedQuad> cross = List.of(
                 quad(new float[] {BLADE_TO, 0, BLADE_TO, BLADE_FROM, 0, BLADE_FROM, BLADE_FROM, 1, BLADE_FROM,
                         BLADE_TO, 1, BLADE_TO}),
@@ -106,7 +106,7 @@ class ShapeDivergenceTest {
 
         assertTrue(divergence.bladed());
         assertEquals(2, divergence.blades());
-        assertEquals(BLADE_TO - BLADE_FROM, divergence.bladeScale(), EPSILON);
+        assertEquals(ShapeDivergence.NO_BLADES, divergence.bladeScale(), EPSILON);
     }
 
     @Test

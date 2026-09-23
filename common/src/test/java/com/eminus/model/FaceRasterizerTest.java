@@ -34,6 +34,13 @@ class FaceRasterizerTest {
     private static final float HEAD_NEAR = 1.0F / 16.0F;
     private static final float HEAD_FAR = 15.0F / 16.0F;
     private static final double HEAD_TILT = Math.toRadians(22.5);
+    private static final float CROSS_FROM = 0.8F / 16.0F;
+    private static final float CROSS_TO = 15.2F / 16.0F;
+    private static final float STEM_FROM = 5.0F / 16.0F;
+    private static final float STEM_TO = 11.0F / 16.0F;
+    private static final float STEM_SHIFT = 4.0F / 16.0F;
+    private static final float PITCHER_BOTTOM = -5.0F / 16.0F;
+    private static final float PITCHER_TOP = 11.0F / 16.0F;
     private static final float FLOOR = 0.25F;
     private static final float RAIL_LOW = 1.0F / 16.0F;
     private static final float RAIL_HIGH = 17.0F / 16.0F;
@@ -195,6 +202,21 @@ class FaceRasterizerTest {
     }
 
     @Test
+    void aCrossBladeHoldsEachSpriteColumnInOneImageColumn() {
+        assertSpriteFillsBladeImage(List.of(blade(CROSS_FROM, CROSS_TO, 0.0F, 0.0F, 1.0F)));
+    }
+
+    @Test
+    void aBladeOffTheVoxelCentreStartsItsSpriteAtItsBoundsEdge() {
+        assertSpriteFillsBladeImage(List.of(blade(STEM_FROM, STEM_TO, STEM_SHIFT, 0.0F, 1.0F)));
+    }
+
+    @Test
+    void aBladeReachingBelowTheBlockPutsItsSpritesBottomRowIntoTheImagesFirst() {
+        assertSpriteFillsBladeImage(List.of(blade(0.0F, 1.0F, 0.0F, PITCHER_BOTTOM, PITCHER_TOP)));
+    }
+
+    @Test
     void aCrossWithATiltedHeadKeepsItsBladesAndPaintsTheHeadOntoTheSidesItFaces() {
         BakedModel model = rasterizer.rasterize(sunflowerTop(), HEAD_FRONT_YELLOW_BACK_GREEN, NO_TINTS);
 
@@ -350,6 +372,25 @@ class FaceRasterizerTest {
                 quad(Direction.SOUTH, new float[] {0, 0, 0, 1, 0, 1, 1, top, 1, 0, top, 0}, FACE_UV),
                 quad(Direction.SOUTH, new float[] {0, 0, 1, 1, 0, 0, 1, top, 0, 0, top, 1}, FACE_UV),
                 quad(Direction.NORTH, new float[] {1, 0, 0, 0, 0, 1, 0, top, 1, 1, top, 0}, FACE_UV));
+    }
+
+    private static BakedQuad blade(float from, float to, float shift, float bottom, float top) {
+        return quad(Direction.NORTH, new float[] {
+            to, bottom, to + shift, from, bottom, from + shift, from, top, from + shift, to, top, to + shift},
+                FACE_UV);
+    }
+
+    private void assertSpriteFillsBladeImage(List<BakedQuad> quads) {
+        BakedModel model = rasterizer.rasterize(quads, COORDINATES, NO_TINTS);
+
+        assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.BLADED));
+        for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
+            for (int column = 0; column < BakedModel.FACE_SIDE; column++) {
+                int spriteColumn = BakedModel.FACE_SIDE - 1 - column;
+                assertEquals(0xFF00_0000 | spriteColumn << 8 | row,
+                        model.argb(0, row * BakedModel.FACE_SIDE + column), "column " + column + " row " + row);
+            }
+        }
     }
 
     private static List<BakedQuad> sunflowerTop() {
