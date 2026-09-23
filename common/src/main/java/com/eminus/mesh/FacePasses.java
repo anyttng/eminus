@@ -15,6 +15,8 @@ public final class FacePasses {
     }
 
     private static final int SIDE = DetailLevel.VOXELS_PER_SIDE;
+    private static final int LAYER_BELOW = -1;
+    private static final int LAYER_ABOVE = SIDE;
     private static final int NO_METADATA = 0;
     private static final int AIR_MODEL = -3;
     private static final int NO_OFFSET_STATE = VoxelEntry.AIR_STATE_ID;
@@ -129,7 +131,6 @@ public final class FacePasses {
         }
 
         RowMasks masks = scratch.masks();
-        int metadata = models.metadata(modelId);
 
         int drawn = drawnModel(modelId, u, v, plane);
         if (drawn == MeshModels.MISSING) {
@@ -140,6 +141,8 @@ public final class FacePasses {
             scratch.buffer().dropUnaddressable();
             return true;
         }
+
+        int metadata = models.metadata(drawn);
 
         if (masks.opaque(row, plane)) {
             if (masks.facesNegative(row, plane)) {
@@ -159,13 +162,21 @@ public final class FacePasses {
             return false;
         }
 
+        int lowDrawn = drawnModel(lowModel, u, v, plane - 1);
+        int highDrawn = drawnModel(highModel, u, v, plane + 1);
+        if (lowDrawn == MeshModels.MISSING || highDrawn == MeshModels.MISSING) {
+            return false;
+        }
+
         if (!facingHoldsSameTranslucent(metadata, modelId, lowModel, low, u, v, plane - 1)
-                && visible(metadata, metadataOf(lowModel), towardsLow)) {
+                && !facingDrawsSameFluid(modelId, drawn, lowDrawn)
+                && visible(metadata, metadataOf(lowDrawn), towardsLow)) {
             scratch.negativePlane().set(u, v, data(u, v, plane, low, metadata, drawn, stateId));
         }
 
         if (!facingHoldsSameTranslucent(metadata, modelId, highModel, high, u, v, plane + 1)
-                && visible(metadata, metadataOf(highModel), towardsHigh)) {
+                && !facingDrawsSameFluid(modelId, drawn, highDrawn)
+                && visible(metadata, metadataOf(highDrawn), towardsHigh)) {
             scratch.positivePlane().set(u, v, data(u, v, plane, high, metadata, drawn, stateId));
         }
 
@@ -203,15 +214,23 @@ public final class FacePasses {
             return true;
         }
 
-        int metadata = models.metadata(fluidModel);
+        int lowDrawn = drawnModel(lowModel, u, v, plane - 1);
+        int highDrawn = drawnModel(highModel, u, v, plane + 1);
+        if (lowDrawn == MeshModels.MISSING || highDrawn == MeshModels.MISSING) {
+            return false;
+        }
+
+        int metadata = models.metadata(drawn);
 
         if (!facingHoldsSameTranslucent(metadata, fluidModel, lowModel, low, u, v, plane - 1)
-                && visible(metadata, metadataOf(lowModel), towardsLow)) {
+                && !facingDrawsSameFluid(fluidModel, drawn, lowDrawn)
+                && visible(metadata, metadataOf(lowDrawn), towardsLow)) {
             scratch.negativeFluidPlane().set(u, v, data(u, v, plane, low, metadata, drawn, NO_OFFSET_STATE));
         }
 
         if (!facingHoldsSameTranslucent(metadata, fluidModel, highModel, high, u, v, plane + 1)
-                && visible(metadata, metadataOf(highModel), towardsHigh)) {
+                && !facingDrawsSameFluid(fluidModel, drawn, highDrawn)
+                && visible(metadata, metadataOf(highDrawn), towardsHigh)) {
             scratch.positiveFluidPlane().set(u, v, data(u, v, plane, high, metadata, drawn, NO_OFFSET_STATE));
         }
 
@@ -226,6 +245,10 @@ public final class FacePasses {
 
         int aboveV = axis == Direction.Axis.Y ? v : v + 1;
         int abovePlane = axis == Direction.Axis.Y ? plane + 1 : plane;
+        if (!held(aboveV, abovePlane)) {
+            return surfaceModel;
+        }
+
         long above = RowMasks.entryAt(scratch.voxels(), axis, u, aboveV, abovePlane);
         int aboveModel = facingFluidModel(above, u, aboveV, abovePlane);
         if (aboveModel == MeshModels.MISSING) {
@@ -272,6 +295,10 @@ public final class FacePasses {
                 || fluid == models.submergedModelId(facingFluidModel(facing, u, v, plane));
     }
 
+    private boolean facingDrawsSameFluid(int modelId, int drawn, int facingDrawn) {
+        return drawn == facingDrawn && models.submergedModelId(modelId) != modelId;
+    }
+
     private long data(int u, int v, int plane, long facing, int metadata, int modelId, int stateId) {
         int colourIndex = switch (axis) {
             case X -> QuadTint.of(scratch, models, stateId, modelId, plane, v, u);
@@ -280,6 +307,13 @@ public final class FacePasses {
         };
 
         return Quad.data(QuadLight.of(facing, metadata), modelId, colourIndex);
+    }
+
+    private static boolean held(int v, int plane) {
+        boolean vInside = v >= 0 && v < SIDE;
+        boolean planeInside = plane >= 0 && plane < SIDE;
+        return v >= LAYER_BELOW && v <= LAYER_ABOVE && plane >= LAYER_BELOW && plane <= LAYER_ABOVE
+                && (vInside || planeInside);
     }
 
     private static boolean visible(int metadata, int facingMetadata, Direction face) {
