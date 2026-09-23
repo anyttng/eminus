@@ -1,5 +1,7 @@
 package com.eminus.ingest;
 
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.eminus.Eminus;
@@ -42,6 +44,7 @@ public final class IngestService {
     private final LongOpenHashSet deferred = new LongOpenHashSet();
     private final LongOpenHashSet lightOnly = new LongOpenHashSet();
     private final LightDigests digests = new LightDigests();
+    private final Queue<Long> stale = new ConcurrentLinkedQueue<>();
 
     private volatile boolean running = true;
 
@@ -113,6 +116,14 @@ public final class IngestService {
             }
         }
 
+        if (trigger != IngestTrigger.UNLOAD && coverage.covers(chunkX, chunkZ)) {
+            for (int index = 0; index < sections.length; index++) {
+                if (!submitted[index] && sections[index].hasOnlyAir()) {
+                    probeSkipped(chunkX, chunk.getSectionYFromSectionIndex(index), chunkZ);
+                }
+            }
+        }
+
         if (count == 0) {
             service.enqueue(pyramid -> cover(chunkX, chunkZ));
             return;
@@ -126,8 +137,19 @@ public final class IngestService {
         }
     }
 
+    private void probeSkipped(int sectionX, int sectionY, int sectionZ) {
+        service.enqueue(pyramid -> {
+            if (running && merger.storesBeyondOpenSky(sectionX, sectionY, sectionZ)) {
+                stale.add(SectionPos.asLong(sectionX, sectionY, sectionZ));
+            }
+        });
+    }
+
     public void markBlockChange(BlockPos pos, long now) {
-        long sectionNode = SectionPos.asLong(pos);
+        markChanged(SectionPos.asLong(pos), now);
+    }
+
+    private void markChanged(long sectionNode, long now) {
         lightOnly.remove(sectionNode);
         debounce.mark(sectionNode, now);
     }
@@ -146,6 +168,10 @@ public final class IngestService {
     }
 
     public void pollDebounce(ClientLevel level, long now) {
+        for (Long sectionNode = stale.poll(); sectionNode != null; sectionNode = stale.poll()) {
+            markChanged(sectionNode, now);
+        }
+
         debounce.drain(now, sectionNode -> submitMarked(level, sectionNode));
         deferred.removeIf(
                 column -> level.getChunkSource().getChunkNow(SectionPos.x(column), SectionPos.z(column)) == null);
@@ -154,6 +180,7 @@ public final class IngestService {
     public void stop() {
         running = false;
         digests.clear();
+        stale.clear();
     }
 
     private void submitMarked(ClientLevel level, long sectionNode) {

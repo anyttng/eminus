@@ -36,6 +36,37 @@ public final class CellMerger {
         }
     }
 
+    public boolean storesBeyondOpenSky(int sectionX, int sectionY, int sectionZ) {
+        int blockX = sectionX * SectionPyramid.SECTION_SIDE;
+        int blockY = sectionY * SectionPyramid.SECTION_SIDE;
+        int blockZ = sectionZ * SectionPyramid.SECTION_SIDE;
+        int side = SectionPyramid.sideOf(lowestStoredLevel);
+        int originX = frame.voxelX(blockX, lowestStoredLevel);
+        int originY = frame.voxelY(blockY, lowestStoredLevel);
+        int originZ = frame.voxelZ(blockZ, lowestStoredLevel);
+        CellHandle handle = cells.open(frame.keyAt(lowestStoredLevel, blockX, blockY, blockZ));
+
+        try {
+            return handle.withCell(cell -> holdsBeyondOpenSky(cell, side, originX, originY, originZ));
+        } finally {
+            cells.release(handle);
+        }
+    }
+
+    private static boolean holdsBeyondOpenSky(Cell cell, int side, int originX, int originY, int originZ) {
+        for (int y = 0; y < side; y++) {
+            for (int z = 0; z < side; z++) {
+                for (int x = 0; x < side; x++) {
+                    if (!VoxelEntry.isOpenSky(cell.get(originX + x, originY + y, originZ + z))) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     private boolean mergeLevel(SectionPyramid pyramid, int level, int blockX, int blockY, int blockZ) {
         CellHandle handle = cells.open(frame.keyAt(level, blockX, blockY, blockZ));
         long[] source = pyramid.level(level);
