@@ -66,6 +66,11 @@ class CellMesherTest {
     private static final int SUBMERGED_WATER_MODEL = 25;
     private static final int VARIED_MODEL = 27;
     private static final int FLOWING_WATER_MODEL = 29;
+    private static final int SOURCE_LAVA = 30;
+    private static final int FLOWING_LAVA = 31;
+    private static final int SOURCE_LAVA_MODEL = 32;
+    private static final int FLOWING_LAVA_MODEL = 33;
+    private static final int SUBMERGED_LAVA_MODEL = 34;
     private static final int VARIED_ROW = 4;
     private static final int GRASS_ROW = 0;
     private static final int PLAINS = 5;
@@ -427,6 +432,56 @@ class CellMesherTest {
     }
 
     @Test
+    void glassBesideALavaSurfaceKeepsTheFaceTheyShare() {
+        defineLava();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(GLASS));
+        cell.set(5, 4, 4, block(SOURCE_LAVA));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(has(mesh, Direction.EAST, 4, 4, 4, GLASS_MODEL));
+    }
+
+    @Test
+    void glassBesideSubmergedLavaLosesTheFaceTheyShare() {
+        defineLava();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(GLASS));
+        cell.set(5, 4, 4, block(SOURCE_LAVA));
+        cell.set(5, 5, 4, block(SOURCE_LAVA));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
+    }
+
+    @Test
+    void twoLavaSurfacesOfOneLevelShareNoFace() {
+        defineLava();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(SOURCE_LAVA));
+        cell.set(5, 4, 4, block(SOURCE_LAVA));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
+        assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+    }
+
+    @Test
+    void aLavaSourceKeepsItsSideAboveALowerFlowingLevel() {
+        defineLava();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(SOURCE_LAVA));
+        cell.set(5, 4, 4, block(FLOWING_LAVA));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(has(mesh, Direction.EAST, 4, 4, 4, SOURCE_LAVA_MODEL));
+    }
+
+    @Test
     void aBladedVoxelLeavesItsSolidNeighbourItsOwnFaces() {
         defineBlocks();
         Cell cell = blank();
@@ -668,6 +723,22 @@ class CellMesherTest {
         opacities.put(OPAQUE_LEAVES, StateTable.FULL_OPACITY);
         opacities.put(CUTOUT_LEAVES, StateTable.FULL_OPACITY);
         opacities.put(GRASS_BLOCK, StateTable.FULL_OPACITY);
+    }
+
+    private void defineLava() {
+        defineBlocks();
+        int surface = ModelMetadata.pack(
+                FaceMask.ALL, FaceMask.DOWN, FaceMask.ALL & ~FaceMask.UP, ModelMetadata.MAX_EMISSION, 0);
+        int submerged = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, ModelMetadata.MAX_EMISSION, 0);
+
+        models.define(SOURCE_LAVA, SOURCE_LAVA_MODEL, surface);
+        models.define(FLOWING_LAVA, FLOWING_LAVA_MODEL, surface);
+        models.submerge(SOURCE_LAVA_MODEL, SUBMERGED_LAVA_MODEL);
+        models.submerge(FLOWING_LAVA_MODEL, SUBMERGED_LAVA_MODEL);
+        models.describe(SUBMERGED_LAVA_MODEL, submerged);
+
+        opacities.put(SOURCE_LAVA, SEE_THROUGH_DAMPENING);
+        opacities.put(FLOWING_LAVA, SEE_THROUGH_DAMPENING);
     }
 
     private CellMesh mesh(Cell centre, Map<Direction, Cell> around, ColumnCoverage coverage) {
