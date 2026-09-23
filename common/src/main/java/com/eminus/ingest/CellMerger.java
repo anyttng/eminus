@@ -4,6 +4,7 @@ import com.eminus.cell.Cell;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.FaceMask;
+import com.eminus.cell.VoxelEntry;
 import com.eminus.cell.cache.CellAccess;
 import com.eminus.cell.cache.CellHandle;
 
@@ -64,8 +65,12 @@ public final class CellMerger {
                     int voxelX = originX + x;
                     int voxelY = originY + y;
                     int voxelZ = originZ + z;
+                    long entry = source[SectionPyramid.indexAt(side, x, y, z)];
+                    if (VoxelEntry.biome(entry) == VoxelEntry.KEPT_BIOME) {
+                        entry = VoxelEntry.withBiome(entry, VoxelEntry.biome(cell.get(voxelX, voxelY, voxelZ)));
+                    }
 
-                    if (cell.set(voxelX, voxelY, voxelZ, source[SectionPyramid.indexAt(side, x, y, z)])) {
+                    if (cell.set(voxelX, voxelY, voxelZ, entry)) {
                         changed = true;
                         faceMask |= FaceMask.of(voxelX, voxelY, voxelZ);
                     }
