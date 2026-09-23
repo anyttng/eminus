@@ -59,6 +59,10 @@ public final class VoxelEntry {
         return state(entry) == AIR_STATE_ID;
     }
 
+    public static boolean isOpenSky(long entry) {
+        return isAir(entry) && light(entry) == light(AIR);
+    }
+
     private VoxelEntry() {
     }
 }

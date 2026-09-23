@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -35,6 +36,8 @@ class CellMergerTest {
     private static final int STONE = 1;
     private static final int INTERIOR = 5;
     private static final int STORED_BIOME = 7;
+    private static final int SHADE = 7;
+    private static final int COARSE_LOWEST_STORED_LEVEL = 1;
 
     private static final int[] OPACITY = {0, 15};
     private static final StateOpacity OPACITIES = state -> OPACITY[state];
@@ -151,6 +154,61 @@ class CellMergerTest {
         for (int biome : biomes) {
             assertEquals(STORED_BIOME, biome);
         }
+    }
+
+    @Test
+    void aNeverWrittenSectionHoldsOnlyOpenSky() {
+        assertFalse(probe(merger, 0, 0, 0));
+    }
+
+    @Test
+    void aStoredBlockIsBeyondOpenSky() {
+        buildFrom(VoxelEntry.AIR);
+        set(INTERIOR, INTERIOR, INTERIOR, entry(STONE));
+        PyramidDownsampler.build(pyramid, OPACITIES);
+        harness.run(() -> merger.merge(pyramid, 0, 0, 0));
+
+        assertTrue(probe(merger, 0, 0, 0));
+    }
+
+    @Test
+    void storedShadeIsBeyondOpenSky() {
+        buildFrom(VoxelEntry.pack(VoxelEntry.AIR_STATE_ID, STORED_BIOME, VoxelEntry.light(SHADE, 0)));
+        harness.run(() -> merger.merge(pyramid, 0, 0, 0));
+
+        assertTrue(probe(merger, 0, 0, 0));
+    }
+
+    @Test
+    void aStoredBiomeUnderFullSkyIsStillOpenSky() {
+        buildFrom(VoxelEntry.pack(VoxelEntry.AIR_STATE_ID, STORED_BIOME, VoxelEntry.light(VoxelEntry.MAX_LIGHT, 0)));
+        harness.run(() -> merger.merge(pyramid, 0, 0, 0));
+
+        assertFalse(probe(merger, 0, 0, 0));
+    }
+
+    @Test
+    void aBlockInAnotherSectionOfTheSameCellLeavesThisOneOpenSky() {
+        buildFrom(entry(STONE));
+        harness.run(() -> merger.merge(pyramid, 0, 0, 0));
+
+        assertFalse(probe(merger, 1, 0, 0));
+    }
+
+    @Test
+    void aCoarserLowestStoredLevelReadsOnlyItsSectionsVoxels() {
+        CellMerger coarse = new CellMerger(cells, frame, COARSE_LOWEST_STORED_LEVEL, this::record);
+        buildFrom(entry(STONE));
+        harness.run(() -> coarse.merge(pyramid, 0, 0, 0));
+
+        assertTrue(probe(coarse, 0, 0, 0));
+        assertFalse(probe(coarse, 1, 0, 0));
+    }
+
+    private boolean probe(CellMerger with, int sectionX, int sectionY, int sectionZ) {
+        AtomicBoolean answer = new AtomicBoolean();
+        harness.run(() -> answer.set(with.storesBeyondOpenSky(sectionX, sectionY, sectionZ)));
+        return answer.get();
     }
 
     private void record(CellHandle handle, int faceMask, int edgeMask) {
