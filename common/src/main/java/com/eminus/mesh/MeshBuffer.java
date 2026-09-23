@@ -47,6 +47,10 @@ public final class MeshBuffer {
         return (int) (entry >>> OFFSET_SHIFT);
     }
 
+    public int offsetAt(int colourIndex) {
+        return offsetOf(colours.getLong(colourIndex));
+    }
+
     public int colourIndex(int colour, int offset) {
         long entry = entry(colour, offset);
         int index = colourIndices.get(entry);

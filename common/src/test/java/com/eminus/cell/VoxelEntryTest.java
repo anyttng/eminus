@@ -29,6 +29,33 @@ class VoxelEntryTest {
     }
 
     @Test
+    void gapsRoundTripWithoutTouchingTheOtherFields() {
+        long entry = VoxelEntry.pack(Integer.MAX_VALUE, VoxelEntry.MAX_BIOME_ID,
+                VoxelEntry.light(VoxelEntry.MAX_LIGHT, VoxelEntry.MAX_LIGHT));
+        long gapped = VoxelEntry.withGaps(entry, 15, 9);
+
+        assertEquals(15, VoxelEntry.lowGap(gapped));
+        assertEquals(9, VoxelEntry.highGap(gapped));
+        assertEquals(Integer.MAX_VALUE, VoxelEntry.state(gapped));
+        assertEquals(VoxelEntry.MAX_BIOME_ID, VoxelEntry.biome(gapped));
+        assertEquals(VoxelEntry.MAX_LIGHT, VoxelEntry.skyLight(gapped));
+        assertEquals(VoxelEntry.MAX_LIGHT, VoxelEntry.blockLight(gapped));
+        assertEquals(entry, VoxelEntry.withGaps(gapped, 0, 0));
+    }
+
+    @Test
+    void withLightReplacesTheLightAlone() {
+        long entry = VoxelEntry.withGaps(VoxelEntry.pack(77, 88, VoxelEntry.light(1, 2)), 3, 4);
+        long relit = VoxelEntry.withLight(entry, VoxelEntry.light(14, 9));
+
+        assertEquals(14, VoxelEntry.skyLight(relit));
+        assertEquals(9, VoxelEntry.blockLight(relit));
+        assertEquals(77, VoxelEntry.state(relit));
+        assertEquals(88, VoxelEntry.biome(relit));
+        assertEquals(VoxelEntry.gaps(entry), VoxelEntry.gaps(relit));
+    }
+
+    @Test
     void everyLightPairRoundTrips() {
         for (int sky = 0; sky <= VoxelEntry.MAX_LIGHT; sky++) {
             for (int block = 0; block <= VoxelEntry.MAX_LIGHT; block++) {

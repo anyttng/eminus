@@ -55,6 +55,12 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     }
 
     @Override
+    public boolean fillsHeight(int modelId) {
+        BakedModel model = models.model(modelId);
+        return model == null || model.fillsHeight();
+    }
+
+    @Override
     public int offset(int stateId, int blockX, int blockY, int blockZ) {
         return QuadOffset.of(index.state(stateId), blockX, blockY, blockZ);
     }

@@ -2,7 +2,9 @@ package com.eminus.mesh;
 
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
+import com.eminus.cell.DetailLevel;
 import com.eminus.cell.StateOpacity;
+import com.eminus.cell.VoxelEntry;
 import com.eminus.model.ModelMetadata;
 
 import net.minecraft.core.Direction;
@@ -16,6 +18,7 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
 
     private Direction face;
     private int plane;
+    private boolean coarse;
 
     public CellMesher(MeshScratch scratch, MeshModels models, CellFrame frame) {
         this.scratch = scratch;
@@ -25,6 +28,7 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
 
     public @Nullable CellMesh mesh(long key, int occupancy, StateOpacity opacity, Runnable whenBaked) {
         scratch.reset();
+        coarse = CellKey.level(key) > DetailLevel.MIN;
         scratch.offsets().begin(frame, key);
         scratch.voxelModels().begin(frame, key);
         FacePasses passes = new FacePasses(scratch, opacity, models, CellKey.level(key), whenBaked, this);
@@ -54,6 +58,13 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
     @Override
     public boolean merges(long data) {
         return !ModelMetadata.has(models.metadata(Quad.modelId(data)), ModelMetadata.SLOPED);
+    }
+
+    @Override
+    public boolean stacks(long data) {
+        return !coarse || face.getAxis() == Direction.Axis.Y
+                || scratch.buffer().offsetAt(Quad.colourIndex(data)) == VoxelEntry.NO_GAPS
+                        && models.fillsHeight(Quad.modelId(data));
     }
 
     private long placed(long data, int u, int v, int width, int height) {

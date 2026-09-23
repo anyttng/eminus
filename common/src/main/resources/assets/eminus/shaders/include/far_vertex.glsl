@@ -27,7 +27,17 @@ const uint FAR_OFFSET_X_SHIFT = 0u;
 const uint FAR_OFFSET_Y_SHIFT = 10u;
 const uint FAR_OFFSET_Z_SHIFT = 20u;
 const int FAR_NIBBLE = 15;
+const uint FAR_GAP_MASK = 15u;
+const uint FAR_HIGH_GAP_SHIFT = 4u;
 const float FAR_HALF_VOXEL = 0.5;
+
+float far_low(float model, float lowGap, float blocks) {
+    return (lowGap + model) / blocks;
+}
+
+float far_high(float model, float highGap, float blocks) {
+    return (blocks - 1.0 - highGap + model) / blocks;
+}
 
 float far_offset_axis(uint bits, uint shift) {
     int steps = int((bits >> shift) & FAR_OFFSET_MASK);
@@ -153,27 +163,38 @@ FarVertex far_vertex(int vertexId) {
     vec3 boundsMax = vec3(third.y, third.z, third.w);
 
     bool fluid = (floatBitsToInt(fourth.x) & FLUID_FLAG) != 0;
-    uint corners = 0u;
+    uint placement = 0u;
     vertex.tint = vec3(1.0);
-    vec3 offset = vec3(0.0);
     if (colourIndex != 0) {
         uvec2 entry = texelFetch(Quads, int(mesh.z + mesh.w) + colourIndex).rg;
         vertex.tint = vec3((entry.r >> 16u) & 255u, (entry.r >> 8u) & 255u, entry.r & 255u) / 255.0;
-        if (fluid) {
-            corners = entry.g;
-        } else {
-            offset = vec3(far_offset_axis(entry.g, FAR_OFFSET_X_SHIFT), far_offset_axis(entry.g, FAR_OFFSET_Y_SHIFT),
-                          far_offset_axis(entry.g, FAR_OFFSET_Z_SHIFT));
-        }
+        placement = entry.g;
     }
 
+    uint corners = 0u;
+    vec3 offset = vec3(0.0);
+    float lowGap = 0.0;
+    float highGap = 0.0;
+    if (level != 0) {
+        lowGap = float(placement & FAR_GAP_MASK);
+        highGap = float((placement >> FAR_HIGH_GAP_SHIFT) & FAR_GAP_MASK);
+    } else if (fluid) {
+        corners = placement;
+    } else {
+        offset = vec3(far_offset_axis(placement, FAR_OFFSET_X_SHIFT), far_offset_axis(placement, FAR_OFFSET_Y_SHIFT),
+                      far_offset_axis(placement, FAR_OFFSET_Z_SHIFT));
+    }
+
+    float blocks = float(1 << level);
+    float drawnBottom = far_low(boundsMin.y, lowGap, blocks);
+    float drawnTop = far_high(boundsMax.y, highGap, blocks);
     vec3 local = vec3(voxel) + offset;
     vec2 extent;
 
     if (face >= FIRST_BLADE_FACE) {
         float slide = mix(boundsMin.x, boundsMax.x, unit.x);
         float across = face == FIRST_BLADE_FACE ? slide : boundsMin.x + boundsMax.x - slide;
-        float up = unit.y * float(height - 1) + mix(boundsMin.y, boundsMax.y, unit.y);
+        float up = unit.y * float(height - 1) + mix(drawnBottom, drawnTop, unit.y);
 
         local.x += across;
         local.y += up;
@@ -183,23 +204,33 @@ FarVertex far_vertex(int vertexId) {
         int normalAxis = face < 2 ? 1 : (face < 4 ? 2 : 0);
         int widthAxis = face < 4 ? 0 : 2;
         int heightAxis = face < 2 ? 2 : 1;
+        bool vertical = heightAxis == 1;
         extent = vec2(unit.x * float(width - 1)
                           + mix(far_axis(boundsMin, widthAxis), far_axis(boundsMax, widthAxis), unit.x),
                       unit.y * float(height - 1)
                           + mix(far_axis(boundsMin, heightAxis), far_axis(boundsMax, heightAxis), unit.y));
         float inset = far_inset(first, second, face) + dot(far_slope(fifth, sixth, seventh, face), extent);
+        float placedHeight = vertical ? unit.y * float(height - 1) + mix(drawnBottom, drawnTop, unit.y) : extent.y;
         if (fluid && face != 0) {
-            float top = far_fluid_corner(far_fluid_corners(corners, boundsMax.y), face, unit);
+            float surface = far_fluid_corner(far_fluid_corners(corners, boundsMax.y), face, unit);
             if (face == 1) {
-                inset = 1.0 - top;
+                inset = 1.0 - surface;
             } else {
-                extent.y = unit.y * float(height - 1) + mix(boundsMin.y, top, unit.y);
+                extent.y = unit.y * float(height - 1) + mix(boundsMin.y, surface, unit.y);
+                placedHeight = unit.y * float(height - 1) + mix(drawnBottom, far_high(surface, highGap, blocks), unit.y);
             }
         }
 
-        local = far_axis_add(local, normalAxis, (face & 1) == 1 ? 1.0 - inset : inset);
+        float depth = (face & 1) == 1 ? 1.0 - inset : inset;
+        if (face == 0) {
+            depth = far_low(inset, lowGap, blocks);
+        } else if (face == 1) {
+            depth = far_high(1.0 - inset, highGap, blocks);
+        }
+
+        local = far_axis_add(local, normalAxis, depth);
         local = far_axis_add(local, widthAxis, extent.x);
-        local = far_axis_add(local, heightAxis, extent.y);
+        local = far_axis_add(local, heightAxis, placedHeight);
     }
 
     int cellBlocks = VOXELS_PER_SIDE << level;

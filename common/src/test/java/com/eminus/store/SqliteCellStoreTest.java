@@ -102,6 +102,26 @@ class SqliteCellStoreTest {
     }
 
     @Test
+    void aStoreWrittenBeforeGapsIsRebuiltEmptyUnderTheCurrentVersion() throws SQLException {
+        long key = CellKey.pack(1, 2, 3, 4);
+        try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
+            store.write(Cell.blank(key));
+            store.putDictionaryEntry(BLOCKS, 0, "minecraft:air");
+        }
+
+        execute("PRAGMA user_version = " + StoreFormat.BEFORE_GAPS);
+
+        List<String> blocks = new ArrayList<>();
+        try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
+            assertNull(store.read(key));
+            store.readDictionary(BLOCKS, (id, value) -> blocks.add(value));
+        }
+
+        assertTrue(blocks.isEmpty());
+        assertEquals(StoreFormat.VERSION, readInt("PRAGMA user_version"));
+    }
+
+    @Test
     void theStoreRunsInWalMode() throws SQLException {
         SqliteCellStore.open(folder, LOWEST_LEVEL).close();
 

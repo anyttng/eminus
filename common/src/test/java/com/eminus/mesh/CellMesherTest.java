@@ -73,6 +73,8 @@ class CellMesherTest {
     private static final int SUBMERGED_LAVA_MODEL = 34;
     private static final int HEADED = 35;
     private static final int HEADED_MODEL = 36;
+    private static final int SLAB = 37;
+    private static final int SLAB_MODEL = 38;
     private static final int HEAD_FACES = 2;
     private static final int HEADED_VOXELS = 3;
     private static final int VARIED_ROW = 4;
@@ -505,6 +507,89 @@ class CellMesherTest {
 
         assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
         assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+    }
+
+    @Test
+    void aShorterCoarseVoxelLeavesTheSideOfItsTallerNeighbourShown() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(STONE));
+        long shorter = VoxelEntry.withGaps(block(STONE), 0, 1);
+        cell.set(5, 4, 4, shorter);
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(has(mesh, Direction.EAST, 4, 4, 4, STONE_MODEL));
+        assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+        assertEquals(VoxelEntry.gaps(shorter), cornersOf(mesh, Direction.UP, 5, 4, 4));
+    }
+
+    @Test
+    void coarseVoxelsOfOneHeightHideTheSideTheyShare() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 4, 4, VoxelEntry.withGaps(block(STONE), 0, 1));
+        cell.set(5, 4, 4, VoxelEntry.withGaps(block(STONE), 0, 1));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
+        assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+    }
+
+    @Test
+    void aVoxelOverAShorterOneShowsItsBottomAndTheShorterItsTop() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 4, 4, VoxelEntry.withGaps(block(STONE), 0, 1));
+        cell.set(4, 5, 4, block(STONE));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(has(mesh, Direction.UP, 4, 4, 4, STONE_MODEL));
+        assertTrue(has(mesh, Direction.DOWN, 4, 5, 4, STONE_MODEL));
+    }
+
+    @Test
+    void gappedSideFacesNeverMergeUpwards() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 4, 4, VoxelEntry.withGaps(block(STONE), 0, 1));
+        cell.set(4, 5, 4, VoxelEntry.withGaps(block(STONE), 0, 1));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(has(mesh, Direction.WEST, 4, 4, 4, STONE_MODEL));
+        assertTrue(has(mesh, Direction.WEST, 4, 5, 4, STONE_MODEL));
+    }
+
+    @Test
+    void partialHeightSideFacesNeverMergeUpwardsOnACoarseLevel() {
+        defineBlocks();
+        models.define(SLAB, SLAB_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.DOWN, FaceMask.ALL & ~FaceMask.UP, 0, 0));
+        models.partialHeight(SLAB_MODEL);
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(SLAB));
+        cell.set(4, 5, 4, block(SLAB));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(has(mesh, Direction.WEST, 4, 4, 4, SLAB_MODEL));
+        assertTrue(has(mesh, Direction.WEST, 4, 5, 4, SLAB_MODEL));
+    }
+
+    @Test
+    void fullHeightSideFacesStillMergeUpwardsOnACoarseLevel() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(GLASS));
+        cell.set(4, 5, 4, block(GLASS));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(has(mesh, Direction.WEST, 4, 4, 4, GLASS_MODEL));
+        assertTrue(absent(mesh, Direction.WEST, 4, 5, 4));
     }
 
     @Test

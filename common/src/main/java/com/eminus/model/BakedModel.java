@@ -23,6 +23,8 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
     public static final int MAX_Z = 5;
 
     public static final float EMPTY_INSET = 1.0F;
+    public static final float BLOCK_BOTTOM = 0.0F;
+    public static final float BLOCK_TOP = 1.0F;
 
     public static final int FIRST_SIDE_FACE = Direction.NORTH.ordinal();
     public static final int SLOPES_PER_FACE = 2;
@@ -100,6 +102,10 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
 
     public static int slopeIndex(int face) {
         return face * SLOPES_PER_FACE;
+    }
+
+    public boolean fillsHeight() {
+        return bounds[MIN_Y] <= BLOCK_BOTTOM && bounds[MAX_Y] >= BLOCK_TOP;
     }
 
     public BakedModel withVariants(int[] table) {

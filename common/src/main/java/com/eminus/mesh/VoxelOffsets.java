@@ -2,6 +2,7 @@ package com.eminus.mesh;
 
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
+import com.eminus.cell.VoxelEntry;
 
 public final class VoxelOffsets {
     private static final int OFFSET_LEVEL = 0;
@@ -16,11 +17,12 @@ public final class VoxelOffsets {
         offsetting = CellKey.level(key) == OFFSET_LEVEL;
     }
 
-    public int at(MeshModels models, int stateId, int x, int y, int z) {
+    public int at(MeshModels models, long entry, int x, int y, int z) {
         if (!offsetting) {
-            return QuadOffset.NONE;
+            return VoxelEntry.gaps(entry);
         }
 
-        return models.offset(stateId, frame.blockXOf(key, x), frame.blockYOf(key, y), frame.blockZOf(key, z));
+        return models.offset(VoxelEntry.state(entry), frame.blockXOf(key, x), frame.blockYOf(key, y),
+                frame.blockZOf(key, z));
     }
 }
