@@ -231,9 +231,7 @@ public final class FarRenderer implements AutoCloseable {
             }
 
             indirect.write(commands);
-            if (commands.translucentCount() > 0) {
-                fillNearSections(client, renderDistance, eye);
-            }
+            fillNearSections(client, renderDistance, eye);
 
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
                     nearSections.sections(), level.cardinalLighting());
@@ -331,7 +329,7 @@ public final class FarRenderer implements AutoCloseable {
 
     private void fillNearSections(Minecraft client, int renderDistance, Vec3 eye) {
         ClientLevel level = client.level;
-        nearSections.fill(client.levelRenderer, order.translucent(), runtime.frame(),
+        nearSections.fill(client.levelRenderer, order.meshes(), runtime.frame(),
                 NearSections.section(Mth.floor(eye.x)), NearSections.section(Mth.floor(eye.y)),
                 NearSections.section(Mth.floor(eye.z)), renderDistance,
                 renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSectionY(), level.getSectionsCount());

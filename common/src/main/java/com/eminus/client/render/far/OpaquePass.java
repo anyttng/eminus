@@ -63,6 +63,7 @@ public final class OpaquePass {
     private static RenderPipeline pipeline(DepthConvention depth) {
         return FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT)
                 .withShaderDefine("FULL_COVERAGE")
+                .withShaderDefine("NEAR_SECTIONS")
                 .withDepthStencilState(new DepthStencilState(depth.compare(), true))
                 .build();
     }
