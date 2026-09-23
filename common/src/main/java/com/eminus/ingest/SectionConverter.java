@@ -24,6 +24,7 @@ public final class SectionConverter {
     private static final String UNREGISTERED_BIOME = Eminus.MODID + ":unregistered";
     private static final int FALLBACK_BIOME_ID = 0;
     private static final int NIBBLE_BITS = 4;
+    private static final int ROW_BYTES = DataLayer.SIZE / SectionPyramid.SECTION_SIDE;
 
     public static void convert(LevelChunkSection section, BiomeWindow window, DataLayer skyLight,
             DataLayer blockLight, StateTable states, Dictionary<String> biomes, SectionPyramid into) {
@@ -56,6 +57,20 @@ public final class SectionConverter {
 
     public static boolean lightDiffersFromBlank(@Nullable DataLayer skyLight, @Nullable DataLayer blockLight) {
         return !filledWith(skyLight, DEFAULT_SKY_LIGHT) || !filledWith(blockLight, DEFAULT_BLOCK_LIGHT);
+    }
+
+    public static DataLayer repeatBottomRow(DataLayer layer) {
+        if (layer.isDefinitelyHomogenous()) {
+            return layer.copy();
+        }
+
+        byte[] source = layer.getData();
+        byte[] repeated = new byte[DataLayer.SIZE];
+        for (int y = 0; y < SectionPyramid.SECTION_SIDE; y++) {
+            System.arraycopy(source, 0, repeated, y * ROW_BYTES, ROW_BYTES);
+        }
+
+        return new DataLayer(repeated);
     }
 
     private static boolean filledWith(@Nullable DataLayer layer, int value) {

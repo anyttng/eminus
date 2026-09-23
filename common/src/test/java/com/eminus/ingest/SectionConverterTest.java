@@ -115,6 +115,37 @@ class SectionConverterTest {
         assertFalse(SectionConverter.lightDiffersFromBlank(null, new DataLayer(new byte[DataLayer.SIZE])));
     }
 
+    @Test
+    void aSectionBelowALayerTakesItsBottomRowAtEveryHeight() {
+        DataLayer above = new DataLayer();
+        for (int y = 0; y < SIDE; y++) {
+            for (int z = 0; z < SIDE; z++) {
+                for (int x = 0; x < SIDE; x++) {
+                    above.set(x, y, z, y == 0 ? (x + z) % SIDE : LAST - y);
+                }
+            }
+        }
+
+        DataLayer below = SectionConverter.repeatBottomRow(above);
+
+        for (int y = 0; y < SIDE; y++) {
+            for (int z = 0; z < SIDE; z++) {
+                for (int x = 0; x < SIDE; x++) {
+                    assertEquals((x + z) % SIDE, below.get(x, y, z), "x " + x + " y " + y + " z " + z);
+                }
+            }
+        }
+    }
+
+    @Test
+    void aSectionBelowAFilledLayerTakesItsValue() {
+        DataLayer below = SectionConverter.repeatBottomRow(new DataLayer(SHADED_SKY));
+
+        for (int y = 0; y < SIDE; y++) {
+            assertEquals(SHADED_SKY, below.get(LAST, y, 0));
+        }
+    }
+
     private static LevelChunkSection airSection(Holder<Biome> biome) {
         CrudeIncrementalIntIdentityHashBiMap<Holder<Biome>> biomeIds = CrudeIncrementalIntIdentityHashBiMap.create(1);
         biomeIds.add(biome);
