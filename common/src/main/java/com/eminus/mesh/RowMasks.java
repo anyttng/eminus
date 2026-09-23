@@ -33,7 +33,8 @@ public final class RowMasks {
 
                 long bit = 1L << (at + FIRST_VOXEL_BIT);
                 solidBits |= bit;
-                if (opacity.opacity(VoxelEntry.state(entry)) >= StateTable.FULL_OPACITY) {
+                if (opacity.opacity(VoxelEntry.state(entry)) >= StateTable.FULL_OPACITY
+                        && VoxelEntry.gaps(entry) == VoxelEntry.NO_GAPS) {
                     opaqueBits |= bit;
                 }
             }

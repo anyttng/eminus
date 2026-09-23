@@ -91,6 +91,31 @@ class GreedyMergerTest {
                 merge(plane));
     }
 
+    @Test
+    void dataThatDoesNotStackStillMergesAlongTheRow() {
+        FacePlane plane = new FacePlane();
+        plane.clear();
+        for (int v = 0; v < 2; v++) {
+            plane.set(0, v, STONE);
+            plane.set(1, v, STONE);
+        }
+
+        List<Run> runs = new ArrayList<>();
+        new GreedyMerger().merge(plane, new GreedyMerger.Emitter() {
+            @Override
+            public void emit(int u, int v, int width, int height, long data) {
+                runs.add(new Run(u, v, width, height, data));
+            }
+
+            @Override
+            public boolean stacks(long data) {
+                return false;
+            }
+        });
+
+        assertEquals(List.of(new Run(0, 0, 2, 1, STONE), new Run(0, 1, 2, 1, STONE)), runs);
+    }
+
     private static FacePlane filled(long data) {
         FacePlane plane = new FacePlane();
         plane.clear();

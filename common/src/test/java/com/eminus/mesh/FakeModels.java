@@ -29,6 +29,7 @@ final class FakeModels implements MeshModels {
     private final Map<Integer, Integer> fluidKinds = new HashMap<>();
     private final Map<Integer, Float> fluidHeights = new HashMap<>();
     private final Set<Integer> solids = new HashSet<>();
+    private final Set<Integer> partialHeights = new HashSet<>();
     private final List<Runnable> waiters = new ArrayList<>();
 
     private int requests;
@@ -72,6 +73,10 @@ final class FakeModels implements MeshModels {
 
     void makeSolid(int stateId) {
         solids.add(stateId);
+    }
+
+    void partialHeight(int modelId) {
+        partialHeights.add(modelId);
     }
 
     void unbake(int stateId) {
@@ -150,6 +155,11 @@ final class FakeModels implements MeshModels {
     @Override
     public int tintRow(int modelId) {
         return tintRows.getOrDefault(modelId, BiomeColours.NO_ROW);
+    }
+
+    @Override
+    public boolean fillsHeight(int modelId) {
+        return !partialHeights.contains(modelId);
     }
 
     @Override

@@ -10,6 +10,10 @@ public final class GreedyMerger {
         default boolean merges(long data) {
             return true;
         }
+
+        default boolean stacks(long data) {
+            return true;
+        }
     }
 
     private static final int SIDE = DetailLevel.VOXELS_PER_SIDE;
@@ -89,7 +93,8 @@ public final class GreedyMerger {
 
             while (index < openCount && start(open[index]) <= start) {
                 if (start(open[index]) == start && width(open[index]) == width
-                        && openData[index] == data && height(open[index]) < MAX_RUN && emitter.merges(data)) {
+                        && openData[index] == data && height(open[index]) < MAX_RUN && emitter.merges(data)
+                        && emitter.stacks(data)) {
                     grown[grownCount] = taller(open[index]);
                     grownData[grownCount] = data;
                     grownCount++;
