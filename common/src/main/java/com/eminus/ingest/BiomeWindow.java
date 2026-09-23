@@ -6,6 +6,8 @@ import net.minecraft.core.QuartPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
 
+import org.jspecify.annotations.Nullable;
+
 public final class BiomeWindow implements BiomeManager.NoiseBiomeSource {
     public static final int QUARTS_PER_SECTION = QuartPos.fromSection(1);
     public static final int MARGIN = 1;
@@ -51,7 +53,7 @@ public final class BiomeWindow implements BiomeManager.NoiseBiomeSource {
         return uniform;
     }
 
-    public Holder<Biome> at(int x, int y, int z) {
+    public @Nullable Holder<Biome> at(int x, int y, int z) {
         if (uniform) {
             return quarts[0];
         }
@@ -60,7 +62,7 @@ public final class BiomeWindow implements BiomeManager.NoiseBiomeSource {
     }
 
     @Override
-    public Holder<Biome> getNoiseBiome(int quartX, int quartY, int quartZ) {
+    public @Nullable Holder<Biome> getNoiseBiome(int quartX, int quartY, int quartZ) {
         return quarts[index(quartX - originX, quartY - originY, quartZ - originZ)];
     }
 

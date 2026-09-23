@@ -16,7 +16,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.QuartPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
@@ -169,7 +168,7 @@ public final class IngestService {
             return;
         }
 
-        if (!coverage.covers(sectionX, sectionZ) || !neighboursLoaded(level, sectionX, sectionZ)) {
+        if (!coverage.covers(sectionX, sectionZ)) {
             submitChunk(chunk, trigger);
             return;
         }
@@ -238,25 +237,15 @@ public final class IngestService {
         }
 
         long seed = ((BiomeManagerAccessor) level.getBiomeManager()).eminus$biomeZoomSeed();
-        return BiomeWindow.capture((quartX, quartY, quartZ) -> noiseBiome(chunk, around, quartX, quartY, quartZ),
+        return BiomeWindow.capture((quartX, quartY, quartZ) -> noiseBiome(pos, around, quartX, quartY, quartZ),
                 pos.x(), sectionY, pos.z(), seed);
     }
 
-    private static Holder<Biome> noiseBiome(LevelChunk chunk, LevelChunk[] around, int quartX, int quartY,
+    private static @Nullable Holder<Biome> noiseBiome(ChunkPos pos, LevelChunk[] around, int quartX, int quartY,
             int quartZ) {
-        ChunkPos pos = chunk.getPos();
         LevelChunk neighbour = around[neighbourIndex(QuartPos.toSection(quartX) - pos.x(),
                 QuartPos.toSection(quartZ) - pos.z())];
-        if (neighbour != null) {
-            return neighbour.getNoiseBiome(quartX, quartY, quartZ);
-        }
-
-        return chunk.getNoiseBiome(ownQuart(quartX, pos.x()), quartY, ownQuart(quartZ, pos.z()));
-    }
-
-    private static int ownQuart(int quart, int chunk) {
-        int first = QuartPos.fromSection(chunk);
-        return Mth.clamp(quart, first, first + BiomeWindow.QUARTS_PER_SECTION - 1);
+        return neighbour == null ? null : neighbour.getNoiseBiome(quartX, quartY, quartZ);
     }
 
     private static boolean neighboursLoaded(Level level, int chunkX, int chunkZ) {

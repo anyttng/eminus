@@ -77,7 +77,11 @@ public final class SectionConverter {
         return true;
     }
 
-    private static int biomeId(Holder<Biome> holder, Dictionary<String> biomes, SectionPyramid into) {
+    private static int biomeId(@Nullable Holder<Biome> holder, Dictionary<String> biomes, SectionPyramid into) {
+        if (holder == null) {
+            return VoxelEntry.KEPT_BIOME;
+        }
+
         Reference2IntMap<Holder<Biome>> known = into.biomeIds();
         int id = known.getInt(holder);
         if (id == SectionPyramid.ABSENT) {

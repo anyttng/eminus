@@ -3,7 +3,8 @@ package com.eminus.cell;
 public final class VoxelEntry {
     public static final int AIR_STATE_ID = 0;
     public static final int UNKNOWN_BIOME = 0xFFFF;
-    public static final int MAX_BIOME_ID = UNKNOWN_BIOME - 1;
+    public static final int KEPT_BIOME = UNKNOWN_BIOME - 1;
+    public static final int MAX_BIOME_ID = KEPT_BIOME - 1;
     public static final int MAX_LIGHT = 15;
 
     private static final int BIOME_SHIFT = 32;
@@ -32,6 +33,10 @@ public final class VoxelEntry {
 
     public static int biome(long entry) {
         return (int) ((entry >>> BIOME_SHIFT) & BIOME_MASK);
+    }
+
+    public static long withBiome(long entry, int biomeId) {
+        return (entry & ~(BIOME_MASK << BIOME_SHIFT)) | ((biomeId & BIOME_MASK) << BIOME_SHIFT);
     }
 
     public static boolean hasBiome(long entry) {
