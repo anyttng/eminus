@@ -26,7 +26,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
 
     public static final int FIRST_SIDE_FACE = Direction.NORTH.ordinal();
     public static final int SLOPES_PER_FACE = 2;
-    public static final int SLOPES_LENGTH = (FACE_COUNT - FIRST_SIDE_FACE) * SLOPES_PER_FACE;
+    public static final int SLOPES_LENGTH = FACE_COUNT * SLOPES_PER_FACE;
 
     public static final int VARIANT_WORDS = 2;
     public static final int MAX_VARIANT_REJECTIONS = 8;
@@ -99,7 +99,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
     }
 
     public static int slopeIndex(int face) {
-        return (face - FIRST_SIDE_FACE) * SLOPES_PER_FACE;
+        return face * SLOPES_PER_FACE;
     }
 
     public BakedModel withVariants(int[] table) {

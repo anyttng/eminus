@@ -11,7 +11,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.core.Direction;
 
 public final class ModelRecords implements AutoCloseable {
-    public static final int TEXELS = 6;
+    public static final int TEXELS = 7;
     public static final int BYTES = TEXELS * 4 * Float.BYTES;
 
     private static final String LABEL = "eminus-model-records";
