@@ -35,6 +35,8 @@ class FaceRasterizerTest {
     private static final float HEAD_FAR = 15.0F / 16.0F;
     private static final double HEAD_TILT = Math.toRadians(22.5);
     private static final float FLOOR = 0.25F;
+    private static final float RAIL_LOW = 1.0F / 16.0F;
+    private static final float RAIL_HIGH = 17.0F / 16.0F;
     private static final float SLOPE_TOLERANCE = 1.0E-4F;
     private static final int BAND_ROWS = 8;
     private static final int NO_TINT_LAYER = -1;
@@ -124,11 +126,52 @@ class FaceRasterizerTest {
     }
 
     @Test
-    void aSlopedQuadLandsOnBothFacesItFaces() {
+    void aSlopedQuadIsKeptOnOneFaceOnly() {
         BakedModel model = rasterizer.rasterize(List.of(ramp()), OPAQUE_WHITE, NO_TINTS);
 
         assertFalse(ModelMetadata.has(model.metadata(), ModelMetadata.BLADED));
-        assertEquals(FaceMask.UP | FaceMask.EAST, ModelMetadata.present(model.metadata()));
+        assertEquals(FaceMask.UP, ModelMetadata.present(model.metadata()));
+    }
+
+    @Test
+    void aRaisedRailKeepsItsSlopeOnItsUpAndDownFacesAlone() {
+        BakedModel model = rasterizer.rasterize(raisedRail(), OPAQUE_WHITE, NO_TINTS);
+        int down = Direction.DOWN.ordinal();
+        int up = Direction.UP.ordinal();
+
+        assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.SLOPED));
+        assertEquals(FaceMask.DOWN | FaceMask.UP, ModelMetadata.present(model.metadata()));
+        assertEquals(FaceMask.NONE, ModelMetadata.occludable(model.metadata()));
+        assertEquals(0.0F, model.slopeAlongWidth(up), SLOPE_TOLERANCE);
+        assertEquals(1.0F, model.slopeAlongHeight(up), SLOPE_TOLERANCE);
+        assertEquals(1.0F - RAIL_HIGH, model.insets()[up], SLOPE_TOLERANCE);
+        assertEquals(0.0F, model.slopeAlongWidth(down), SLOPE_TOLERANCE);
+        assertEquals(-1.0F, model.slopeAlongHeight(down), SLOPE_TOLERANCE);
+        assertEquals(RAIL_HIGH, model.insets()[down], SLOPE_TOLERANCE);
+        assertEquals(BakedModel.EMPTY_INSET, model.insets()[Direction.NORTH.ordinal()]);
+        assertEquals(BakedModel.EMPTY_INSET, model.insets()[Direction.SOUTH.ordinal()]);
+    }
+
+    @Test
+    void aFullCubeAndABottomSlabAreNotSloped() {
+        for (List<BakedQuad> quads : List.of(cube(), bottomSlab())) {
+            BakedModel model = rasterizer.rasterize(quads, OPAQUE_WHITE, NO_TINTS);
+
+            assertFalse(ModelMetadata.has(model.metadata(), ModelMetadata.SLOPED));
+            assertArrayEquals(new float[BakedModel.SLOPES_LENGTH], model.slopes());
+        }
+    }
+
+    @Test
+    void aFaceWhoseQuadsLieInTwoPlanesIsNotSloped() {
+        List<BakedQuad> quads = List.of(ramp(),
+                quad(Direction.UP, new float[] {0, FLOOR, 1, 1, FLOOR, 1, 1, FLOOR, 0, 0, FLOOR, 0}, NO_UV));
+        BakedModel model = rasterizer.rasterize(quads, OPAQUE_WHITE, NO_TINTS);
+        int up = Direction.UP.ordinal();
+
+        assertTrue((ModelMetadata.present(model.metadata()) & FaceMask.UP) != 0);
+        assertEquals(0.0F, model.slopeAlongWidth(up));
+        assertEquals(0.0F, model.slopeAlongHeight(up));
     }
 
     @Test
@@ -343,6 +386,14 @@ class FaceRasterizerTest {
         }
 
         return false;
+    }
+
+    private static List<BakedQuad> raisedRail() {
+        return List.of(
+                quad(Direction.UP, new float[] {
+                    0, RAIL_LOW, 1, 1, RAIL_LOW, 1, 1, RAIL_HIGH, 0, 0, RAIL_HIGH, 0}, FACE_UV),
+                quad(Direction.DOWN, new float[] {
+                    0, RAIL_HIGH, 0, 1, RAIL_HIGH, 0, 1, RAIL_LOW, 1, 0, RAIL_LOW, 1}, FACE_UV));
     }
 
     private static BakedQuad ramp() {
