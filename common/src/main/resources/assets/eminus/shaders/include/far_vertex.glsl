@@ -178,7 +178,7 @@ FarVertex far_vertex(int vertexId) {
         local.x += across;
         local.y += up;
         local.z += mix(boundsMin.z, boundsMax.z, unit.x);
-        extent = vec2(across, up);
+        extent = vec2(face == FIRST_BLADE_FACE ? unit.x : 1.0 - unit.x, unit.y * float(height));
     } else {
         int normalAxis = face < 2 ? 1 : (face < 4 ? 2 : 0);
         int widthAxis = face < 4 ? 0 : 2;
@@ -217,8 +217,14 @@ FarVertex far_vertex(int vertexId) {
     vertex.cellOrigin = origin;
     vertex.level = level;
 
-    vertex.faceUV = vec2(face == 2 || face == 5 ? float(width) - extent.x : extent.x,
-                         face == 1 ? float(height) - extent.y : extent.y);
+    if (face >= FIRST_BLADE_FACE) {
+        vec2 span = vec2(boundsMax.x - boundsMin.x, boundsMax.z - boundsMin.z);
+        vec3 painted = vec3(span.y, 0.0, face == FIRST_BLADE_FACE ? -span.x : span.x);
+        vertex.faceUV = vec2(dot(vertex.position, painted) > 0.0 ? 1.0 - extent.x : extent.x, extent.y);
+    } else {
+        vertex.faceUV = vec2(face == 2 || face == 5 ? float(width) - extent.x : extent.x,
+                             face == 1 ? float(height) - extent.y : extent.y);
+    }
 
     vertex.faceSlot = face >= FIRST_BLADE_FACE ? face - FIRST_BLADE_FACE : face;
     int slot = modelId * MODEL_FACES + vertex.faceSlot;
