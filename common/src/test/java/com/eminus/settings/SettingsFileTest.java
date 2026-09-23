@@ -44,11 +44,11 @@ class SettingsFileTest {
         String content = Files.readString(file, StandardCharsets.UTF_8);
 
         assertTrue(content.contains("// Finest detail level kept on disk, 0..4"), content);
-        assertTrue(content.contains("// Radius of the far layer, in top-level cells"), content);
+        assertTrue(content.contains("// Radius of LOD, in top-level cells"), content);
         assertTrue(content.contains("// Background worker threads."), content);
         assertTrue(content.contains("// How far out the finer detail levels reach"), content);
-        assertTrue(content.contains("// Fog over the far layer"), content);
-        assertTrue(content.contains("// Whether the far layer's outer edge fades out"), content);
+        assertTrue(content.contains("// Fog over LOD"), content);
+        assertTrue(content.contains("// Whether LOD's outer edge fades out"), content);
         assertEquals(written, SettingsFile.load(file));
     }
 

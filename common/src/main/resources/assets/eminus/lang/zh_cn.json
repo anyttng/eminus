@@ -12,17 +12,17 @@
   "gui.eminus.settings.far_render_cells": "远景渲染距离",
   "gui.eminus.settings.far_render_cells.hint": "远景层能延伸多远。工作量随该距离的平方增长：每帧遍历的网格更多，显存中的网格也更多。",
   "gui.eminus.settings.worker_threads": "工作线程",
-  "gui.eminus.settings.worker_threads.hint": "在后台构建远景地形的线程。线程越多，追赶得越快，与游戏自身的区块构建争抢也越厉害；越少则相反。",
+  "gui.eminus.settings.worker_threads.hint": "在后台构建 LOD 的线程。线程越多，追赶得越快，与游戏自身的区块构建争抢也越厉害；越少则相反。",
   "gui.eminus.settings.detail_distance": "细节距离",
-  "gui.eminus.settings.detail_distance.hint": "远景地形的精细细节能延伸多远。每提高一档，这个距离翻倍，并占用更多显存。屏幕分辨率越高，同一档位延伸得越远。",
-  "gui.eminus.settings.detail_distance.limited": "当前未能达到：几何缓冲区已满，远景地形的绘制比此设置所要求的更粗糙。",
+  "gui.eminus.settings.detail_distance.hint": "LOD 的精细细节能延伸多远。每提高一档，这个距离翻倍，并占用更多显存。屏幕分辨率越高，同一档位延伸得越远。",
+  "gui.eminus.settings.detail_distance.limited": "当前未能达到：几何缓冲区已满，LOD 的绘制比此设置所要求的更粗糙。",
   "gui.eminus.settings.detail_distance.ultra": "极高",
   "gui.eminus.settings.detail_distance.high": "高",
   "gui.eminus.settings.detail_distance.medium": "中",
   "gui.eminus.settings.detail_distance.low": "低",
   "gui.eminus.settings.detail_distance.minimal": "最低",
   "gui.eminus.settings.fog": "雾",
-  "gui.eminus.settings.fog.hint": "远景地形上的雾：延续游戏自身的雾，并在远景渲染距离处达到最浓。关闭后还会清除已加载区块中的露天雾，整个视野保持清晰。下界、Boss、水下或失明带来的雾会保留。",
+  "gui.eminus.settings.fog.hint": "LOD 上的雾：延续游戏自身的雾，并在远景渲染距离处达到最浓。关闭后还会清除已加载区块中的露天雾，整个视野保持清晰。下界、Boss、水下或失明带来的雾会保留。",
   "gui.eminus.settings.fade": "淡出",
-  "gui.eminus.settings.fade.hint": "让远景地形在最后 512 个方块内逐渐淡出，而不是以生硬的边缘结束。"
+  "gui.eminus.settings.fade.hint": "让 LOD 在最后 512 个方块内逐渐淡出，而不是以生硬的边缘结束。"
 }

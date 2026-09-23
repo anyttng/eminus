@@ -12,17 +12,17 @@
   "gui.eminus.settings.far_render_cells": "Distance d'affichage lointain",
   "gui.eminus.settings.far_render_cells.hint": "Jusqu'où porte la couche lointaine. Le travail croît avec le carré de cette distance : plus de maillages parcourus par image, et davantage en mémoire vidéo.",
   "gui.eminus.settings.worker_threads": "Fils d'exécution",
-  "gui.eminus.settings.worker_threads.hint": "Fils en arrière-plan qui construisent le terrain lointain. Plus nombreux, ils rattrapent plus vite et concurrencent davantage les constructeurs de tronçons du jeu ; moins nombreux, l'inverse.",
+  "gui.eminus.settings.worker_threads.hint": "Fils en arrière-plan qui construisent le LOD. Plus nombreux, ils rattrapent plus vite et concurrencent davantage les constructeurs de tronçons du jeu ; moins nombreux, l'inverse.",
   "gui.eminus.settings.detail_distance": "Distance de détail",
-  "gui.eminus.settings.detail_distance.hint": "Jusqu'où va le détail fin du terrain lointain. Chaque cran vers le haut double cette distance et coûte plus de mémoire vidéo. Avec une résolution d'écran plus élevée, le même cran va plus loin.",
-  "gui.eminus.settings.detail_distance.limited": "Pas atteinte pour l'instant : la réserve de géométrie est pleine, le terrain lointain est donc dessiné plus grossier que ce réglage ne le demande.",
+  "gui.eminus.settings.detail_distance.hint": "Jusqu'où va le détail fin du LOD. Chaque cran vers le haut double cette distance et coûte plus de mémoire vidéo. Avec une résolution d'écran plus élevée, le même cran va plus loin.",
+  "gui.eminus.settings.detail_distance.limited": "Pas atteinte pour l'instant : la réserve de géométrie est pleine, le LOD est donc dessiné plus grossier que ce réglage ne le demande.",
   "gui.eminus.settings.detail_distance.ultra": "Ultra",
   "gui.eminus.settings.detail_distance.high": "Élevée",
   "gui.eminus.settings.detail_distance.medium": "Moyenne",
   "gui.eminus.settings.detail_distance.low": "Basse",
   "gui.eminus.settings.detail_distance.minimal": "Minimale",
   "gui.eminus.settings.fog": "Brouillard",
-  "gui.eminus.settings.fog.hint": "Brouillard sur le terrain lointain, qui prolonge celui du jeu et devient complet à la distance lointaine. Désactivé, il retire aussi le brouillard en plein air des tronçons chargés : toute la vue reste nette. Le brouillard du Nether, d'un boss, sous l'eau ou dû à la cécité reste.",
+  "gui.eminus.settings.fog.hint": "Brouillard sur le LOD, qui prolonge celui du jeu et devient complet à la distance lointaine. Désactivé, il retire aussi le brouillard en plein air des tronçons chargés : toute la vue reste nette. Le brouillard du Nether, d'un boss, sous l'eau ou dû à la cécité reste.",
   "gui.eminus.settings.fade": "Fondu",
-  "gui.eminus.settings.fade.hint": "Fait disparaître le terrain lointain en fondu sur ses 512 derniers blocs au lieu d'un bord net."
+  "gui.eminus.settings.fade.hint": "Fait disparaître le LOD en fondu sur ses 512 derniers blocs au lieu d'un bord net."
 }

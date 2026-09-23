@@ -12,17 +12,17 @@
   "gui.eminus.settings.far_render_cells": "Far render distance",
   "gui.eminus.settings.far_render_cells.hint": "How far the far layer reaches. Work grows with the square of this distance: more meshes walked each frame, and more of them in video memory.",
   "gui.eminus.settings.worker_threads": "Worker threads",
-  "gui.eminus.settings.worker_threads.hint": "Background threads that build far terrain. Higher catches up faster and competes harder with the game's own chunk builders; lower is the other way round.",
+  "gui.eminus.settings.worker_threads.hint": "Background threads that build LOD. Higher catches up faster and competes harder with the game's own chunk builders; lower is the other way round.",
   "gui.eminus.settings.detail_distance": "Detail distance",
-  "gui.eminus.settings.detail_distance.hint": "How far out the finer detail of far terrain reaches. Each step up doubles that distance and costs more video memory. A higher screen resolution reaches further at the same step.",
-  "gui.eminus.settings.detail_distance.limited": "Not reached right now: the geometry arena is full, so far terrain is drawn coarser than this setting asks.",
+  "gui.eminus.settings.detail_distance.hint": "How far out the finer detail of LOD reaches. Each step up doubles that distance and costs more video memory. A higher screen resolution reaches further at the same step.",
+  "gui.eminus.settings.detail_distance.limited": "Not reached right now: the geometry arena is full, so LOD is drawn coarser than this setting asks.",
   "gui.eminus.settings.detail_distance.ultra": "Ultra",
   "gui.eminus.settings.detail_distance.high": "High",
   "gui.eminus.settings.detail_distance.medium": "Medium",
   "gui.eminus.settings.detail_distance.low": "Low",
   "gui.eminus.settings.detail_distance.minimal": "Minimal",
   "gui.eminus.settings.fog": "Fog",
-  "gui.eminus.settings.fog.hint": "Fog over the far terrain, carried on from the game's own fog and full at the far render distance. Off also clears the open-air fog from the loaded chunks, so the whole view stays clear. Fog in the Nether, from a boss, under water or from blindness stays.",
+  "gui.eminus.settings.fog.hint": "Fog over LOD, carried on from the game's own fog and full at the far render distance. Off also clears the open-air fog from the loaded chunks, so the whole view stays clear. Fog in the Nether, from a boss, under water or from blindness stays.",
   "gui.eminus.settings.fade": "Fade",
-  "gui.eminus.settings.fade.hint": "Fade the far terrain out over its last 512 blocks instead of ending it in a hard line."
+  "gui.eminus.settings.fade.hint": "Fade LOD out over its last 512 blocks instead of ending it in a hard line."
 }
