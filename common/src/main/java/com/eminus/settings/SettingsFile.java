@@ -27,11 +27,11 @@ public final class SettingsFile {
     private static final String LOWEST_STORED_LEVEL_COMMENT = """
             Finest detail level kept on disk, 0..4: one voxel covers 2^level blocks
             (0 = 1 block, 1 = 2, 2 = 4, 3 = 8, 4 = 16). 0 keeps single blocks such as
-            flowers visible at the far layer's nearest edge; 1 drops that level and
+            flowers visible at LOD's nearest edge; 1 drops that level and
             cuts the store to about a seventh.""";
 
     private static final String FAR_RENDER_CELLS_COMMENT = """
-            Radius of the far layer, in top-level cells of 512 blocks (32 chunks each):
+            Radius of LOD, in top-level cells of 512 blocks (32 chunks each):
             16 cells reach 8192 blocks, or 512 chunks. Work grows with the square of this
             number — more roots in the ring, more nodes walked per frame, more meshes in
             video memory.""";
@@ -40,7 +40,7 @@ public final class SettingsFile {
             Background worker threads. Written once from this machine as cores / 1.5,
             at least 1 and at most 8, so this number is yours rather than a universal
             default, and a config copied to another machine keeps it. Higher catches
-            far terrain up faster and competes harder with the game's own chunk
+            LOD up faster and competes harder with the game's own chunk
             builders; lower is the other way round.""";
 
     private static final String DETAIL_DISTANCE_COMMENT = """
@@ -51,14 +51,14 @@ public final class SettingsFile {
             so a higher resolution reaches further at the same step.""";
 
     private static final String FOG_COMMENT = """
-            Fog over the far layer, carried on from the game's own fog at the edge of
+            Fog over LOD, carried on from the game's own fog at the edge of
             the loaded chunks and full at the far render distance. false also clears the
             game's open-air fog from the loaded chunks, so the two meet without a step.
             Fog that ends inside the loaded chunks (the Nether, a boss, blindness) and
             fog in water, lava or powder snow stay either way.""";
 
     private static final String FADE_COMMENT = """
-            Whether the far layer's outer edge fades out over its last 512 blocks, or
+            Whether LOD's outer edge fades out over its last 512 blocks, or
             ends in a hard line.""";
 
     private static final Gson GSON = new Gson();
