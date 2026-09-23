@@ -6,6 +6,10 @@ public final class GreedyMerger {
     @FunctionalInterface
     public interface Emitter {
         void emit(int u, int v, int width, int height, long data);
+
+        default boolean merges(long data) {
+            return true;
+        }
     }
 
     private static final int SIDE = DetailLevel.VOXELS_PER_SIDE;
@@ -33,7 +37,7 @@ public final class GreedyMerger {
         openCount = 0;
 
         for (int v = 0; v < SIDE; v++) {
-            rowCount = runs(plane, v);
+            rowCount = runs(plane, v, emitter);
             match(v, emitter);
         }
 
@@ -42,7 +46,7 @@ public final class GreedyMerger {
         }
     }
 
-    private int runs(FacePlane plane, int v) {
+    private int runs(FacePlane plane, int v, Emitter emitter) {
         int present = plane.row(v);
         int count = 0;
         int u = 0;
@@ -55,8 +59,9 @@ public final class GreedyMerger {
 
             long data = plane.data(u, v);
             int width = 1;
+            boolean merges = emitter.merges(data);
 
-            while (width < MAX_RUN && u + width < SIDE
+            while (merges && width < MAX_RUN && u + width < SIDE
                     && (present & (1 << (u + width))) != 0
                     && plane.data(u + width, v) == data) {
                 width++;
@@ -84,7 +89,7 @@ public final class GreedyMerger {
 
             while (index < openCount && start(open[index]) <= start) {
                 if (start(open[index]) == start && width(open[index]) == width
-                        && openData[index] == data && height(open[index]) < MAX_RUN) {
+                        && openData[index] == data && height(open[index]) < MAX_RUN && emitter.merges(data)) {
                     grown[grownCount] = taller(open[index]);
                     grownData[grownCount] = data;
                     grownCount++;

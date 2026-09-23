@@ -19,7 +19,7 @@ struct FarVertex {
 };
 
 const int FAR_CORNERS_PER_QUAD = 4;
-const int FAR_MODEL_TEXELS = 4;
+const int FAR_MODEL_TEXELS = 6;
 const uint FAR_OFFSET_MASK = 1023u;
 const int FAR_OFFSET_SIGN = 512;
 const float FAR_OFFSET_STEPS = 256.0;
@@ -72,6 +72,23 @@ float far_inset(vec4 first, vec4 second, int face) {
     return second.y;
 }
 
+vec2 far_slope(vec4 fifth, vec4 sixth, int face) {
+    if (face == 2) {
+        return fifth.xy;
+    }
+    if (face == 3) {
+        return fifth.zw;
+    }
+    if (face == 4) {
+        return sixth.xy;
+    }
+    if (face == 5) {
+        return sixth.zw;
+    }
+
+    return vec2(0.0);
+}
+
 FarVertex far_vertex(int vertexId) {
     FarVertex vertex;
 
@@ -98,6 +115,8 @@ FarVertex far_vertex(int vertexId) {
     vec4 second = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 1);
     vec4 third = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 2);
     vec4 fourth = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 3);
+    vec4 fifth = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 4);
+    vec4 sixth = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 5);
     vec3 boundsMin = vec3(second.z, second.w, third.x);
     vec3 boundsMax = vec3(third.y, third.z, third.w);
 
@@ -126,13 +145,13 @@ FarVertex far_vertex(int vertexId) {
         int normalAxis = face < 2 ? 1 : (face < 4 ? 2 : 0);
         int widthAxis = face < 4 ? 0 : 2;
         int heightAxis = face < 2 ? 2 : 1;
-        float inset = far_inset(first, second, face);
-
-        local = far_axis_add(local, normalAxis, (face & 1) == 1 ? 1.0 - inset : inset);
         extent = vec2(unit.x * float(width - 1)
                           + mix(far_axis(boundsMin, widthAxis), far_axis(boundsMax, widthAxis), unit.x),
                       unit.y * float(height - 1)
                           + mix(far_axis(boundsMin, heightAxis), far_axis(boundsMax, heightAxis), unit.y));
+        float inset = far_inset(first, second, face) + dot(far_slope(fifth, sixth, face), extent);
+
+        local = far_axis_add(local, normalAxis, (face & 1) == 1 ? 1.0 - inset : inset);
         local = far_axis_add(local, widthAxis, extent.x);
         local = far_axis_add(local, heightAxis, extent.y);
     }
