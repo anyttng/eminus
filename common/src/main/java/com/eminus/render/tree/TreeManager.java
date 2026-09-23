@@ -11,10 +11,12 @@ import com.eminus.api.v1.LevelState;
 import com.eminus.api.v1.TreeState;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
+import com.eminus.cell.EdgeMask;
 import com.eminus.cell.FaceMask;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.ingest.CellChangeListener;
 import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.FluidCorners;
 import com.eminus.mesh.MeshListener;
 import com.eminus.mesh.MeshSummary;
 import com.eminus.settings.FarDistance;
@@ -78,8 +80,8 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     }
 
     @Override
-    public void changed(CellHandle handle, int faceMask) {
-        messages.add(new TreeMessage.CellChanged(handle, faceMask));
+    public void changed(CellHandle handle, int faceMask, int edgeMask) {
+        messages.add(new TreeMessage.CellChanged(handle, faceMask, edgeMask));
     }
 
     @Override
@@ -160,7 +162,8 @@ public final class TreeManager implements CellChangeListener, MeshListener {
 
     private void apply(TreeMessage message) {
         switch (message) {
-            case TreeMessage.CellChanged changed -> applyChange(changed.handle(), changed.faceMask());
+            case TreeMessage.CellChanged changed ->
+                    applyChange(changed.handle(), changed.faceMask(), changed.edgeMask());
             case TreeMessage.CellMeshed meshed -> applyMesh(meshed.mesh(), meshed.request());
             case TreeMessage.ColumnCovered covered -> applyCovered(covered.chunkX(), covered.chunkZ());
             case TreeMessage.FrameReady ready -> applyFrame();
@@ -226,8 +229,9 @@ public final class TreeManager implements CellChangeListener, MeshListener {
                 lastStarved, treeChanged, batchWaiting, pressureEvictions, settled, List.copyOf(levels));
     }
 
-    private void applyChange(CellHandle handle, int faceMask) {
-        TreeNode node = nodes.get(handle.key());
+    private void applyChange(CellHandle handle, int faceMask, int edgeMask) {
+        long key = handle.key();
+        TreeNode node = nodes.get(key);
         if (node == null) {
             builds.release(handle, ONE_REFERENCE);
         } else {
@@ -235,7 +239,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             requestBuild(node);
         }
 
-        requestNeighbours(handle.key(), faceMask);
+        requestNeighbours(key, faceMask);
+        if (CellKey.level(key) == FluidCorners.LEVEL) {
+            requestAcrossEdges(key, edgeMask);
+        }
     }
 
     private void applyCovered(int chunkX, int chunkZ) {
@@ -379,6 +386,21 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             if (neighbour != null) {
                 requestBuild(neighbour);
             }
+        }
+    }
+
+    private void requestAcrossEdges(long key, int edgeMask) {
+        int remaining = edgeMask;
+
+        while (remaining != 0) {
+            int slot = Integer.numberOfTrailingZeros(remaining);
+            TreeNode neighbour = nodes.get(CellKey.pack(CellKey.level(key), CellKey.x(key) + EdgeMask.stepX(slot),
+                    CellKey.y(key) + EdgeMask.stepY(slot), CellKey.z(key) + EdgeMask.stepZ(slot)));
+            if (neighbour != null) {
+                requestBuild(neighbour);
+            }
+
+            remaining &= remaining - 1;
         }
     }
 

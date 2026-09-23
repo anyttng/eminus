@@ -10,8 +10,24 @@ public final class QuadTint {
             return MeshBuffer.UNTINTED;
         }
 
+        return scratch.buffer().colourIndex(colour(scratch, row, x, y, z), offset);
+    }
+
+    public static int ofFluid(MeshScratch scratch, MeshModels models, int modelId, int corners, int x, int y, int z) {
+        int row = models.tintRow(modelId);
+        if (row == BiomeColours.NO_ROW && corners == FluidCorners.FLAT) {
+            return MeshBuffer.UNTINTED;
+        }
+
+        int colour = colour(scratch, row, x, y, z);
+        return corners == FluidCorners.FLAT
+                ? scratch.buffer().colourIndex(colour, QuadOffset.NONE)
+                : scratch.buffer().cornerIndex(colour, corners);
+    }
+
+    private static int colour(MeshScratch scratch, int row, int x, int y, int z) {
         int colour = row == BiomeColours.NO_ROW ? TintBlend.NO_COLOUR : scratch.blend().colour(row, x, y, z);
-        return scratch.buffer().colourIndex(colour == TintBlend.NO_COLOUR ? MeshBuffer.WHITE : colour, offset);
+        return colour == TintBlend.NO_COLOUR ? MeshBuffer.WHITE : colour;
     }
 
     private QuadTint() {

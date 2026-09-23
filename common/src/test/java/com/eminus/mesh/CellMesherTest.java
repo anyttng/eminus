@@ -104,6 +104,9 @@ class CellMesherTest {
     private static final CellFrame FRAME = new CellFrame(MIN_BLOCK_Y);
     private static final float OFFSET_TOLERANCE = 1.0F / 512.0F;
     private static final int COARSE_LEVEL = 1;
+    private static final int LAVA_FLUID = 1;
+    private static final float SOURCE_HEIGHT = 8.0F / 9.0F;
+    private static final float FLOWING_HEIGHT = 6.0F / 9.0F;
 
     private final Map<Integer, Integer> opacities = new HashMap<>();
     private final FakeModels models = new FakeModels();
@@ -505,7 +508,20 @@ class CellMesherTest {
     }
 
     @Test
-    void aLavaSourceKeepsItsSideAboveALowerFlowingLevel() {
+    void aLavaSourceKeepsItsSideAboveALowerFlowingLevelOnACoarseLevel() {
+        defineLava();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(SOURCE_LAVA));
+        cell.set(5, 4, 4, block(FLOWING_LAVA));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(has(mesh, Direction.EAST, 4, 4, 4, SOURCE_LAVA_MODEL));
+        assertEquals(FluidCorners.FLAT, cornersOf(mesh, Direction.UP, 4, 4, 4));
+    }
+
+    @Test
+    void aLavaSourceSlopesIntoALowerFlowingLevelWithNoFaceBetweenThem() {
         defineLava();
         Cell cell = blank();
         cell.set(4, 4, 4, block(SOURCE_LAVA));
@@ -513,7 +529,45 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, airAround(), 0);
 
-        assertTrue(has(mesh, Direction.EAST, 4, 4, 4, SOURCE_LAVA_MODEL));
+        assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
+        assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+        int source = cornersOf(mesh, Direction.UP, 4, 4, 4);
+        int flow = cornersOf(mesh, Direction.UP, 5, 4, 4);
+        assertEquals(FluidCorners.northEast(source), FluidCorners.northWest(flow));
+        assertEquals(FluidCorners.southEast(source), FluidCorners.southWest(flow));
+        assertTrue(FluidCorners.northWest(source) > FluidCorners.northEast(source));
+        assertTrue(FluidCorners.northWest(flow) > FluidCorners.northEast(flow));
+    }
+
+    @Test
+    void aLavaSideTowardsAirFollowsTheCornersOfItsTop() {
+        defineLava();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(SOURCE_LAVA));
+        cell.set(5, 4, 4, block(FLOWING_LAVA));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertEquals(cornersOf(mesh, Direction.UP, 4, 4, 4), cornersOf(mesh, Direction.NORTH, 4, 4, 4));
+    }
+
+    @Test
+    void aLavaTopUnderStoneWithEveryCornerFullIsHidden() {
+        defineLava();
+        Cell cell = blank();
+        for (int x = 3; x <= 5; x++) {
+            for (int z = 3; z <= 5; z++) {
+                cell.set(x, 4, z, block(SOURCE_LAVA));
+                if (x != 4 || z != 4) {
+                    cell.set(x, 5, z, block(SOURCE_LAVA));
+                }
+            }
+        }
+        cell.set(4, 5, 4, block(STONE));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(absent(mesh, Direction.UP, 4, 4, 4));
     }
 
     @Test
@@ -764,9 +818,10 @@ class CellMesherTest {
 
     private void defineLava() {
         defineBlocks();
-        int surface = ModelMetadata.pack(
-                FaceMask.ALL, FaceMask.DOWN, FaceMask.ALL & ~FaceMask.UP, ModelMetadata.MAX_EMISSION, 0);
-        int submerged = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, ModelMetadata.MAX_EMISSION, 0);
+        int surface = ModelMetadata.pack(FaceMask.ALL, FaceMask.DOWN, FaceMask.ALL & ~FaceMask.UP,
+                ModelMetadata.MAX_EMISSION, ModelMetadata.FLUID);
+        int submerged = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, ModelMetadata.MAX_EMISSION,
+                ModelMetadata.FLUID);
 
         models.define(SOURCE_LAVA, SOURCE_LAVA_MODEL, surface);
         models.define(FLOWING_LAVA, FLOWING_LAVA_MODEL, surface);
@@ -776,6 +831,20 @@ class CellMesherTest {
 
         opacities.put(SOURCE_LAVA, SEE_THROUGH_DAMPENING);
         opacities.put(FLOWING_LAVA, SEE_THROUGH_DAMPENING);
+        models.holds(SOURCE_LAVA, LAVA_FLUID, SOURCE_HEIGHT);
+        models.holds(FLOWING_LAVA, LAVA_FLUID, FLOWING_HEIGHT);
+        models.makeSolid(STONE);
+    }
+
+    private static int cornersOf(CellMesh mesh, Direction face, int x, int y, int z) {
+        for (int index = 0; index < mesh.quadCount(); index++) {
+            long quad = mesh.quad(index);
+            if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y && Quad.z(quad) == z) {
+                return mesh.offset(quad);
+            }
+        }
+
+        throw new AssertionError("No " + face + " quad at " + x + ", " + y + ", " + z);
     }
 
     private CellMesh mesh(Cell centre, Map<Direction, Cell> around, ColumnCoverage coverage) {

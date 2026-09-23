@@ -62,6 +62,23 @@ public final class MeshBuffer {
         return nearest(entry);
     }
 
+    public int cornerIndex(int colour, int corners) {
+        long entry = entry(colour, corners);
+        int index = colourIndices.get(entry);
+        if (index != ABSENT) {
+            return index;
+        }
+
+        if (colours.size() < MAX_COLOURS) {
+            return addColour(entry);
+        }
+
+        substituted++;
+        long flat = entry(colour, QuadOffset.NONE);
+        int flatIndex = colourIndices.get(flat);
+        return flatIndex != ABSENT ? flatIndex : nearest(flat);
+    }
+
     public void add(int group, long quad) {
         LongArrayList quads = groups[group];
         if (quads.size() == MAX_QUADS_PER_GROUP) {

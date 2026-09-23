@@ -45,7 +45,10 @@ class MeshServiceTest {
     private static final int MIN_BLOCK_Y = -64;
     private static final CellFrame FRAME = new CellFrame(MIN_BLOCK_Y);
     private static final String QUEUED_SERVICE = "queued";
-    private static final int OPENED_CELLS = QuadGroups.DIRECTIONAL_COUNT + 1;
+    private static final int FACE_CELLS = QuadGroups.DIRECTIONAL_COUNT + 1;
+    private static final int DIAGONAL_CELLS = 4;
+    private static final int OPENED_CELLS = FACE_CELLS + DIAGONAL_CELLS;
+    private static final int CELLS_ABOVE_ONE_CORNER = 3;
     private static final int FIRST_VOXEL = 0;
     private static final int LAST_VOXEL = DetailLevel.VOXELS_PER_SIDE - 1;
     private static final int NO_BLEND = 0;
@@ -57,8 +60,14 @@ class MeshServiceTest {
     private static final int UNBAKED_BELOW = 3;
     private static final int UNBAKED_ABOVE = 4;
     private static final int BIOME = 2;
+    private static final int WATER = 5;
+    private static final int WATER_MODEL = 9;
+    private static final int WATER_FLUID = 1;
+    private static final float SOURCE_HEIGHT = 8.0F / 9.0F;
     private static final int LEVEL = 0;
+    private static final int COARSE_LEVEL = 1;
     private static final long KEY = CellKey.pack(LEVEL, 1, 2, 3);
+    private static final long COARSE_KEY = CellKey.pack(COARSE_LEVEL, 1, 2, 3);
 
     private final FakeCellStore store = new FakeCellStore();
     private final WorkerHarness harness = new WorkerHarness(WORKER_THREADS);
@@ -93,6 +102,36 @@ class MeshServiceTest {
         assertEquals(QuadGroups.DIRECTIONAL_COUNT, delivered.get().quadCount());
         assertEquals(0, cache.liveCount());
         assertEquals(OPENED_CELLS, cache.parkedCount());
+    }
+
+    @Test
+    void aCoarseLevelWithoutBlendOpensOnlyItsFaceNeighbours() {
+        models.define(STONE, STONE_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
+        Cell cell = Cell.blank(COARSE_KEY);
+        cell.set(CUBE_AT, CUBE_AT, CUBE_AT, lit(STONE));
+        store.write(cell);
+
+        harness.run(() -> service.build(MeshTask.fresh(COARSE_KEY), new MeshScratch()));
+
+        assertNotNull(delivered.get());
+        assertEquals(FACE_CELLS, cache.parkedCount());
+    }
+
+    @Test
+    void aFluidOnTheTopEdgeOpensTheCellsAboveTheEdgesItTouches() {
+        models.define(WATER, WATER_MODEL, ModelMetadata.pack(FaceMask.ALL, FaceMask.NONE, FaceMask.ALL, 0,
+                ModelMetadata.TRANSLUCENT | ModelMetadata.FLUID));
+        models.holds(WATER, WATER_FLUID, SOURCE_HEIGHT);
+        Cell cell = Cell.blank(KEY);
+        cell.set(FIRST_VOXEL, LAST_VOXEL, FIRST_VOXEL, lit(WATER));
+        store.write(cell);
+
+        harness.run(() -> service.build(MeshTask.fresh(KEY), new MeshScratch()));
+
+        assertNotNull(delivered.get());
+        assertEquals(0, cache.liveCount());
+        assertEquals(OPENED_CELLS + CELLS_ABOVE_ONE_CORNER, cache.parkedCount());
     }
 
     @Test

@@ -42,7 +42,7 @@ class ConcurrentMergeTest {
     private final CellCache cells = new CellCache(store, saved::add, clock::get);
     private final CellFrame frame = new CellFrame(MIN_BLOCK_Y);
     private final CellMerger merger = new CellMerger(cells, frame, LOWEST_STORED_LEVEL,
-            (handle, faceMask) -> cells.release(handle));
+            (handle, faceMask, edgeMask) -> cells.release(handle));
     private final WorkerHarness harness = new WorkerHarness(SECTIONS);
 
     @AfterEach

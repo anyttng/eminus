@@ -1,6 +1,7 @@
 package com.eminus.mesh;
 
 import com.eminus.cell.CellFrame;
+import com.eminus.cell.CellKey;
 import com.eminus.cell.StateOpacity;
 import com.eminus.model.ModelMetadata;
 
@@ -26,7 +27,7 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
         scratch.reset();
         scratch.offsets().begin(frame, key);
         scratch.voxelModels().begin(frame, key);
-        FacePasses passes = new FacePasses(scratch, opacity, models, whenBaked, this);
+        FacePasses passes = new FacePasses(scratch, opacity, models, CellKey.level(key), whenBaked, this);
         BladePass blades = new BladePass(scratch, models, whenBaked);
 
         if (!passes.run() || !blades.run()) {

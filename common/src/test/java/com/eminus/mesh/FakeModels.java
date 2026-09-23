@@ -26,6 +26,9 @@ final class FakeModels implements MeshModels {
     private final Map<Integer, PositionalIds> positional = new HashMap<>();
     private final Set<Integer> unbaked = new HashSet<>();
     private final Set<Integer> unbakedFluids = new HashSet<>();
+    private final Map<Integer, Integer> fluidKinds = new HashMap<>();
+    private final Map<Integer, Float> fluidHeights = new HashMap<>();
+    private final Set<Integer> solids = new HashSet<>();
     private final List<Runnable> waiters = new ArrayList<>();
 
     private int requests;
@@ -60,6 +63,15 @@ final class FakeModels implements MeshModels {
     void submerge(int surfaceModelId, int submergedModelId) {
         submergedIds.put(surfaceModelId, submergedModelId);
         words.put(submergedModelId, words.get(surfaceModelId));
+    }
+
+    void holds(int stateId, int fluid, float height) {
+        fluidKinds.put(stateId, fluid);
+        fluidHeights.put(stateId, height);
+    }
+
+    void makeSolid(int stateId) {
+        solids.add(stateId);
     }
 
     void unbake(int stateId) {
@@ -144,5 +156,26 @@ final class FakeModels implements MeshModels {
     public int offset(int stateId, int blockX, int blockY, int blockZ) {
         BlockState state = offsetStates.get(stateId);
         return state == null ? QuadOffset.NONE : QuadOffset.of(state, blockX, blockY, blockZ);
+    }
+
+    @Override
+    public boolean holdsFluid(int stateId) {
+        return fluidKinds.containsKey(stateId);
+    }
+
+    @Override
+    public boolean sameFluid(int stateId, int otherStateId) {
+        Integer fluid = fluidKinds.get(stateId);
+        return fluid != null && fluid.equals(fluidKinds.get(otherStateId));
+    }
+
+    @Override
+    public float fluidHeight(int stateId) {
+        return fluidHeights.getOrDefault(stateId, 0.0F);
+    }
+
+    @Override
+    public boolean solid(int stateId) {
+        return solids.contains(stateId);
     }
 }

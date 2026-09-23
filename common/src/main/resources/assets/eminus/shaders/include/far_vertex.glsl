@@ -72,6 +72,34 @@ float far_inset(vec4 first, vec4 second, int face) {
     return second.y;
 }
 
+vec4 far_fluid_corners(uint corners, float flatHeight) {
+    float steps = float(CORNER_STEPS);
+    if (corners == 0u) {
+        return vec4(round(flatHeight * steps) / steps);
+    }
+
+    return vec4(float(corners & 255u), float((corners >> 8u) & 255u), float((corners >> 16u) & 255u),
+                float(corners >> 24u)) / steps;
+}
+
+float far_fluid_corner(vec4 surface, int face, vec2 unit) {
+    bool widthEnd = unit.x > FAR_HALF_VOXEL;
+    if (face == 1) {
+        return unit.y > FAR_HALF_VOXEL ? (widthEnd ? surface.w : surface.z) : (widthEnd ? surface.y : surface.x);
+    }
+    if (face == 2) {
+        return widthEnd ? surface.y : surface.x;
+    }
+    if (face == 3) {
+        return widthEnd ? surface.w : surface.z;
+    }
+    if (face == 4) {
+        return widthEnd ? surface.z : surface.x;
+    }
+
+    return widthEnd ? surface.w : surface.y;
+}
+
 vec2 far_slope(vec4 fifth, vec4 sixth, vec4 seventh, int face) {
     if (face == 0) {
         return fifth.xy;
@@ -124,13 +152,19 @@ FarVertex far_vertex(int vertexId) {
     vec3 boundsMin = vec3(second.z, second.w, third.x);
     vec3 boundsMax = vec3(third.y, third.z, third.w);
 
+    bool fluid = (floatBitsToInt(fourth.x) & FLUID_FLAG) != 0;
+    uint corners = 0u;
     vertex.tint = vec3(1.0);
     vec3 offset = vec3(0.0);
     if (colourIndex != 0) {
         uvec2 entry = texelFetch(Quads, int(mesh.z + mesh.w) + colourIndex).rg;
         vertex.tint = vec3((entry.r >> 16u) & 255u, (entry.r >> 8u) & 255u, entry.r & 255u) / 255.0;
-        offset = vec3(far_offset_axis(entry.g, FAR_OFFSET_X_SHIFT), far_offset_axis(entry.g, FAR_OFFSET_Y_SHIFT),
-                      far_offset_axis(entry.g, FAR_OFFSET_Z_SHIFT));
+        if (fluid) {
+            corners = entry.g;
+        } else {
+            offset = vec3(far_offset_axis(entry.g, FAR_OFFSET_X_SHIFT), far_offset_axis(entry.g, FAR_OFFSET_Y_SHIFT),
+                          far_offset_axis(entry.g, FAR_OFFSET_Z_SHIFT));
+        }
     }
 
     vec3 local = vec3(voxel) + offset;
@@ -154,6 +188,14 @@ FarVertex far_vertex(int vertexId) {
                       unit.y * float(height - 1)
                           + mix(far_axis(boundsMin, heightAxis), far_axis(boundsMax, heightAxis), unit.y));
         float inset = far_inset(first, second, face) + dot(far_slope(fifth, sixth, seventh, face), extent);
+        if (fluid && face != 0) {
+            float top = far_fluid_corner(far_fluid_corners(corners, boundsMax.y), face, unit);
+            if (face == 1) {
+                inset = 1.0 - top;
+            } else {
+                extent.y = unit.y * float(height - 1) + mix(boundsMin.y, top, unit.y);
+            }
+        }
 
         local = far_axis_add(local, normalAxis, (face & 1) == 1 ? 1.0 - inset : inset);
         local = far_axis_add(local, widthAxis, extent.x);
