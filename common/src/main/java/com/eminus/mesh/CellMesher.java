@@ -2,6 +2,7 @@ package com.eminus.mesh;
 
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.StateOpacity;
+import com.eminus.model.ModelMetadata;
 
 import net.minecraft.core.Direction;
 
@@ -47,6 +48,11 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
     public void emit(int u, int v, int width, int height, long data) {
         int group = QuadGroups.of(face, models.metadata(Quad.modelId(data)));
         scratch.buffer().add(group, placed(data, u, v, width, height));
+    }
+
+    @Override
+    public boolean merges(long data) {
+        return !ModelMetadata.has(models.metadata(Quad.modelId(data)), ModelMetadata.SLOPED);
     }
 
     private long placed(long data, int u, int v, int width, int height) {

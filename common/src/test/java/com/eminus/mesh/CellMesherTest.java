@@ -71,6 +71,10 @@ class CellMesherTest {
     private static final int SOURCE_LAVA_MODEL = 32;
     private static final int FLOWING_LAVA_MODEL = 33;
     private static final int SUBMERGED_LAVA_MODEL = 34;
+    private static final int HEADED = 35;
+    private static final int HEADED_MODEL = 36;
+    private static final int HEAD_FACES = 2;
+    private static final int HEADED_VOXELS = 3;
     private static final int VARIED_ROW = 4;
     private static final int GRASS_ROW = 0;
     private static final int PLAINS = 5;
@@ -369,6 +373,37 @@ class CellMesherTest {
         for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
             assertTrue(hasBlade(mesh, blade, 5, 6, 7, GRASS_MODEL), "blade " + blade);
         }
+    }
+
+    @Test
+    void aBladedVoxelWithSideFacesEmitsThemBesideItsBlades() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(5, 6, 7, block(HEADED));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertEquals(Quad.BLADE_COUNT + HEAD_FACES, mesh.quadCount());
+        assertTrue(has(mesh, Direction.EAST, 5, 6, 7, HEADED_MODEL));
+        assertTrue(has(mesh, Direction.WEST, 5, 6, 7, HEADED_MODEL));
+        for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
+            assertTrue(hasBlade(mesh, blade, 5, 6, 7, HEADED_MODEL), "blade " + blade);
+        }
+    }
+
+    @Test
+    void slopedFacesOfNeighbouringVoxelsNeverMerge() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(5, 6, 7, block(HEADED));
+        cell.set(5, 6, 8, block(HEADED));
+        cell.set(5, 7, 7, block(HEADED));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertEquals(HEADED_VOXELS * (Quad.BLADE_COUNT + HEAD_FACES), mesh.quadCount());
+        assertTrue(has(mesh, Direction.EAST, 5, 6, 8, HEADED_MODEL));
+        assertTrue(has(mesh, Direction.EAST, 5, 7, 7, HEADED_MODEL));
     }
 
     @Test
@@ -708,6 +743,8 @@ class CellMesherTest {
         models.define(WET_LEAVES, WET_LEAVES_MODEL, solid);
         models.define(GRASS, GRASS_MODEL, ModelMetadata.pack(
                 FaceMask.NONE, FaceMask.NONE, FaceMask.NONE, 0, ModelMetadata.BLADED));
+        models.define(HEADED, HEADED_MODEL, ModelMetadata.pack(FaceMask.EAST | FaceMask.WEST, FaceMask.NONE,
+                FaceMask.NONE, 0, ModelMetadata.BLADED | ModelMetadata.SLOPED));
         models.define(OPAQUE_LEAVES, OPAQUE_LEAVES_MODEL, solid);
         models.define(CUTOUT_LEAVES, CUTOUT_LEAVES_MODEL, clear);
         models.define(GRASS_BLOCK, GRASS_BLOCK_MODEL, solid);

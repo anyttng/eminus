@@ -1,5 +1,6 @@
 package com.eminus.model;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.IntFunction;
@@ -24,6 +25,8 @@ public final class FaceRasterizer {
     private static final float DIAGONAL = 0.70710678F;
     private static final int ALPHA_MASK = 0xFF00_0000;
     private static final int NO_TINT_LAYER = -1;
+    private static final float ALIGNED = 1.0F - 1.0E-3F;
+    private static final float COPLANAR = 1.0E-4F;
 
     private static final Direction[] FACES = Direction.values();
     private static final Vector3fc[] FACE_NORMALS = axes(FACES);
@@ -47,6 +50,11 @@ public final class FaceRasterizer {
     private final float[] textureV = new float[BakedQuad.VERTEX_COUNT];
     private final float[] depth = new float[BakedModel.FACE_TEXELS];
     private final Vector3f quadNormal = new Vector3f();
+    private final Vector3f planeNormal = new Vector3f();
+    private final Vector3f planePoint = new Vector3f();
+    private int present;
+    private int occluding;
+    private int occludable;
 
     public BakedModel rasterize(List<BakedQuad> quads, QuadTexels texels, IntFunction<Tint> tints) {
         return bladed(quads) ? blades(quads, texels, tints) : box(quads, texels, tints);
@@ -56,54 +64,13 @@ public final class FaceRasterizer {
         int[] faces = new int[BakedModel.FACE_COUNT * BakedModel.FACE_TEXELS];
         long[] tintMask = BakedModel.untintedMask();
         float[] insets = new float[BakedModel.FACE_COUNT];
-        int present = FaceMask.NONE;
-        int occluding = FaceMask.NONE;
-        int occludable = FaceMask.NONE;
+        clearMasks();
 
         for (int face = 0; face < BakedModel.FACE_COUNT; face++) {
-            Arrays.fill(depth, Float.MAX_VALUE);
-            int offset = face * BakedModel.FACE_TEXELS;
-
-            for (BakedQuad quad : quads) {
-                if (facing(quad, FACE_NORMALS[face])) {
-                    paint(quad, FACE_NORMALS[face], U_AXES[face], V_AXES[face], faces, tintMask, offset, texels);
-                }
-            }
-
-            float nearest = Float.MAX_VALUE;
-            float furthest = 0.0F;
-            int drawn = 0;
-            int opaque = 0;
-
-            for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
-                if (depth[texel] == Float.MAX_VALUE) {
-                    continue;
-                }
-
-                drawn++;
-                nearest = Math.min(nearest, depth[texel]);
-                furthest = Math.max(furthest, depth[texel]);
-                if ((faces[offset + texel] & ALPHA_MASK) == ALPHA_MASK) {
-                    opaque++;
-                }
-            }
-
-            if (drawn == 0) {
-                insets[face] = BakedModel.EMPTY_INSET;
-                continue;
-            }
-
-            insets[face] = nearest;
-            present |= bit(face);
-            if (furthest <= FLUSH) {
-                occludable |= bit(face);
-                if (opaque == BakedModel.FACE_TEXELS) {
-                    occluding |= bit(face);
-                }
-            }
+            boxFace(quads, face, faces, tintMask, insets, texels);
         }
 
-        return model(quads, faces, tintMask, insets, tints, present, occluding, occludable, 0);
+        return model(quads, faces, tintMask, insets, new float[BakedModel.SLOPES_LENGTH], tints, 0);
     }
 
     private BakedModel blades(List<BakedQuad> quads, QuadTexels texels, IntFunction<Tint> tints) {
@@ -111,13 +78,20 @@ public final class FaceRasterizer {
         long[] tintMask = BakedModel.untintedMask();
         float[] insets = new float[BakedModel.FACE_COUNT];
         Arrays.fill(insets, BakedModel.EMPTY_INSET);
+        List<BakedQuad> planes = new ArrayList<>();
+
+        for (BakedQuad quad : quads) {
+            if (!blade(quad)) {
+                planes.add(quad);
+            }
+        }
 
         for (int blade = 0; blade < BLADE_COUNT; blade++) {
             Arrays.fill(depth, Float.MAX_VALUE);
             int offset = blade * BakedModel.FACE_TEXELS;
 
             for (BakedQuad quad : quads) {
-                if (facing(quad, BLADE_NORMALS[blade])) {
+                if (blade(quad) && facing(quad, BLADE_NORMALS[blade])) {
                     paint(quad, BLADE_NORMALS[blade], BLADE_U_AXES[blade], BLADE_V_AXIS, faces, tintMask, offset,
                             texels);
                 }
@@ -126,12 +100,124 @@ public final class FaceRasterizer {
             insets[blade] = CENTRE;
         }
 
-        return model(quads, faces, tintMask, insets, tints, FaceMask.NONE, FaceMask.NONE, FaceMask.NONE,
-                ModelMetadata.BLADED);
+        float[] slopes = new float[BakedModel.SLOPES_LENGTH];
+        int flags = ModelMetadata.BLADED;
+        clearMasks();
+        for (int face = BakedModel.FIRST_SIDE_FACE; face < BakedModel.FACE_COUNT; face++) {
+            boxFace(planes, face, faces, tintMask, insets, texels);
+            if ((present & bit(face)) != 0 && slope(planes, face, insets, slopes)) {
+                flags |= ModelMetadata.SLOPED;
+            }
+        }
+
+        return model(quads, faces, tintMask, insets, slopes, tints, flags);
     }
 
-    private BakedModel model(List<BakedQuad> quads, int[] faces, long[] tintMask, float[] insets,
-            IntFunction<Tint> tints, int present, int occluding, int occludable, int extraFlags) {
+    private boolean slope(List<BakedQuad> quads, int face, float[] insets, float[] slopes) {
+        BakedQuad first = null;
+
+        for (BakedQuad quad : quads) {
+            if (!facing(quad, FACE_NORMALS[face])) {
+                continue;
+            }
+
+            if (first == null) {
+                first = quad;
+                planeNormal.set(normalOf(quad));
+            } else if (!coplanar(quad, first)) {
+                return false;
+            }
+        }
+
+        if (first == null) {
+            return false;
+        }
+
+        float atOrigin = depthOnPlane(face, first.position(0), 0.0F, 0.0F);
+        float alongWidth = depthOnPlane(face, first.position(0), 1.0F, 0.0F) - atOrigin;
+        float alongHeight = depthOnPlane(face, first.position(0), 0.0F, 1.0F) - atOrigin;
+        if (Math.abs(alongWidth) <= COPLANAR && Math.abs(alongHeight) <= COPLANAR) {
+            return false;
+        }
+
+        int index = BakedModel.slopeIndex(face);
+        insets[face] = atOrigin;
+        slopes[index] = alongWidth;
+        slopes[index + 1] = alongHeight;
+        return true;
+    }
+
+    private boolean coplanar(BakedQuad quad, BakedQuad first) {
+        return normalOf(quad).dot(planeNormal) >= ALIGNED
+                && Math.abs(planeNormal.dot(planePoint.set(quad.position(0)).sub(first.position(0)))) <= COPLANAR;
+    }
+
+    private float depthOnPlane(int face, Vector3fc origin, float width, float height) {
+        Direction.Axis normal = FACES[face].getAxis();
+        int normalAxis = normal.ordinal();
+        int widthAxis = (normal == Direction.Axis.Z ? Direction.Axis.X : Direction.Axis.Z).ordinal();
+        int heightAxis = Direction.Axis.Y.ordinal();
+
+        float across = planeNormal.get(widthAxis) * (width - origin.get(widthAxis))
+                + planeNormal.get(heightAxis) * (height - origin.get(heightAxis));
+        planePoint.setComponent(widthAxis, width);
+        planePoint.setComponent(heightAxis, height);
+        planePoint.setComponent(normalAxis, origin.get(normalAxis) - across / planeNormal.get(normalAxis));
+        return CENTRE - along(planePoint, FACE_NORMALS[face]);
+    }
+
+    private void boxFace(List<BakedQuad> quads, int face, int[] faces, long[] tintMask, float[] insets,
+            QuadTexels texels) {
+        Arrays.fill(depth, Float.MAX_VALUE);
+        int offset = face * BakedModel.FACE_TEXELS;
+
+        for (BakedQuad quad : quads) {
+            if (facing(quad, FACE_NORMALS[face])) {
+                paint(quad, FACE_NORMALS[face], U_AXES[face], V_AXES[face], faces, tintMask, offset, texels);
+            }
+        }
+
+        float nearest = Float.MAX_VALUE;
+        float furthest = 0.0F;
+        int drawn = 0;
+        int opaque = 0;
+
+        for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
+            if (depth[texel] == Float.MAX_VALUE) {
+                continue;
+            }
+
+            drawn++;
+            nearest = Math.min(nearest, depth[texel]);
+            furthest = Math.max(furthest, depth[texel]);
+            if ((faces[offset + texel] & ALPHA_MASK) == ALPHA_MASK) {
+                opaque++;
+            }
+        }
+
+        if (drawn == 0) {
+            insets[face] = BakedModel.EMPTY_INSET;
+            return;
+        }
+
+        insets[face] = nearest;
+        present |= bit(face);
+        if (furthest <= FLUSH) {
+            occludable |= bit(face);
+            if (opaque == BakedModel.FACE_TEXELS) {
+                occluding |= bit(face);
+            }
+        }
+    }
+
+    private void clearMasks() {
+        present = FaceMask.NONE;
+        occluding = FaceMask.NONE;
+        occludable = FaceMask.NONE;
+    }
+
+    private BakedModel model(List<BakedQuad> quads, int[] faces, long[] tintMask, float[] insets, float[] slopes,
+            IntFunction<Tint> tints, int extraFlags) {
         int tintLayer = tintLayer(quads);
         Tint tint = tintLayer == NO_TINT_LAYER ? null : tints.apply(tintLayer);
         int tintRow = BiomeColours.NO_ROW;
@@ -142,23 +228,27 @@ public final class FaceRasterizer {
 
         int metadata = ModelMetadata.pack(present, occluding, occludable, emission(quads),
                 flags(quads, tintRow) | extraFlags);
-        return new BakedModel(faces, tintMask, insets, bounds(quads), metadata, tintRow);
+        return new BakedModel(faces, tintMask, insets, slopes, bounds(quads), metadata, tintRow);
     }
 
     private boolean bladed(List<BakedQuad> quads) {
-        if (quads.isEmpty()) {
-            return false;
-        }
+        boolean blades = false;
 
         for (BakedQuad quad : quads) {
-            Vector3fc normal = normalOf(quad);
-            if (Math.abs(normal.y()) > MIN_FACING
-                    || Math.abs(Math.abs(normal.x()) - Math.abs(normal.z())) > MIN_FACING) {
+            if (blade(quad)) {
+                blades = true;
+            } else if (Math.abs(normalOf(quad).y()) > DIAGONAL) {
                 return false;
             }
         }
 
-        return true;
+        return blades;
+    }
+
+    private boolean blade(BakedQuad quad) {
+        Vector3fc normal = normalOf(quad);
+        return Math.abs(normal.y()) <= MIN_FACING
+                && Math.abs(Math.abs(normal.x()) - Math.abs(normal.z())) <= MIN_FACING;
     }
 
     private void paint(BakedQuad quad, Vector3fc normal, Vector3fc uAxis, Vector3fc vAxis,

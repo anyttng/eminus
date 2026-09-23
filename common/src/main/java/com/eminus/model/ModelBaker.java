@@ -176,7 +176,6 @@ public final class ModelBaker implements StateBaker {
             return model;
         }
 
-        return new BakedModel(model.faces(), model.tintMask(), model.insets(), model.bounds(),
-                ModelMetadata.withEmission(model.metadata(), emission), model.tintRow());
+        return model.withMetadata(ModelMetadata.withEmission(model.metadata(), emission));
     }
 }
