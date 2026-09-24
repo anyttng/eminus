@@ -3,6 +3,8 @@ package com.eminus.render.arena;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.OptionalLong;
+
 import com.eminus.cell.DetailLevel;
 import com.eminus.settings.DetailDistance;
 import com.eminus.settings.FarDistance;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.Test;
 class ArenaSizingTest {
     private static final long ROOMY_DEVICE = 8L * 1024 * 1024 * 1024;
     private static final long CRAMPED_DEVICE = 64L * 1024 * 1024;
+    private static final long TEXEL_LIMITED = 1024L * 1024 * 1024;
     private static final float FOCAL_PIXELS = 978.0F;
     private static final int FAR_CELLS = Settings.DEFAULT_FAR_RENDER_CELLS;
     private static final int SUBDIVISION = Settings.DEFAULT_DETAIL_DISTANCE.pixels();
@@ -39,9 +42,11 @@ class ArenaSizingTest {
     }
 
     @Test
-    void theLargestRenderDistanceIsCappedAtTheMaximum() {
-        assertEquals(ArenaSizing.MAX_BYTES,
-                ArenaSizing.wanted(Settings.MAX_FAR_RENDER_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL));
+    void theLargestRenderDistanceIsCappedAtTheCeiling() {
+        long wanted = ArenaSizing.wanted(Settings.MAX_FAR_RENDER_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+
+        assertTrue(wanted > TEXEL_LIMITED, "The largest render distance asks for more than the ceiling: " + wanted);
+        assertEquals(TEXEL_LIMITED, ArenaSizing.fitted(wanted, TEXEL_LIMITED));
     }
 
     @Test
@@ -49,7 +54,43 @@ class ArenaSizingTest {
         long bytes = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
 
         assertTrue(bytes > ArenaSizing.MIN_BYTES, "The default asks for more than the minimum: " + bytes);
-        assertTrue(bytes < ArenaSizing.MAX_BYTES, "The default asks for less than the maximum: " + bytes);
+        assertTrue(bytes < ArenaSizing.UNREAD_TEXEL_BYTES, "The default asks for less than the fallback: " + bytes);
+    }
+
+    @Test
+    void theCeilingIsTheTexelLimitOnAnUnboundedDevice() {
+        assertEquals(TEXEL_LIMITED,
+                ArenaSizing.ceiling(OptionalLong.of(TEXEL_LIMITED), Long.MAX_VALUE, OptionalLong.empty()));
+    }
+
+    @Test
+    void anUnreadTexelLimitLeavesTheFallback() {
+        assertEquals(ArenaSizing.UNREAD_TEXEL_BYTES,
+                ArenaSizing.ceiling(OptionalLong.empty(), Long.MAX_VALUE, OptionalLong.empty()));
+    }
+
+    @Test
+    void noCeilingPassesTheVertexIndexCap() {
+        assertEquals(4L * 1024 * 1024 * 1024, ArenaSizing.VERTEX_INDEX_BYTES);
+        assertEquals(ArenaSizing.VERTEX_INDEX_BYTES,
+                ArenaSizing.ceiling(OptionalLong.of(Long.MAX_VALUE), Long.MAX_VALUE, OptionalLong.empty()));
+    }
+
+    @Test
+    void halfTheFreeVideoMemoryBoundsTheCeiling() {
+        assertEquals(TEXEL_LIMITED / 4, ArenaSizing.ceiling(OptionalLong.of(TEXEL_LIMITED), Long.MAX_VALUE,
+                OptionalLong.of(TEXEL_LIMITED / 2)));
+    }
+
+    @Test
+    void theDeviceShareBoundsTheCeiling() {
+        assertEquals(TEXEL_LIMITED / ArenaSizing.DEVICE_SHARE,
+                ArenaSizing.ceiling(OptionalLong.of(TEXEL_LIMITED), TEXEL_LIMITED, OptionalLong.empty()));
+    }
+
+    @Test
+    void aFloorAboveTheCeilingStartsAtTheCeiling() {
+        assertEquals(TEXEL_LIMITED, ArenaSizing.fitted(4 * TEXEL_LIMITED, TEXEL_LIMITED));
     }
 
     @Test
@@ -108,7 +149,9 @@ class ArenaSizingTest {
 
     @Test
     void aDeviceShareBelowTheMinimumRefusesTheArena() {
-        assertEquals(ArenaSizing.REFUSED, ArenaSizing.fitted(ArenaSizing.MAX_BYTES, CRAMPED_DEVICE));
+        long ceiling = ArenaSizing.ceiling(OptionalLong.of(TEXEL_LIMITED), CRAMPED_DEVICE, OptionalLong.empty());
+
+        assertEquals(ArenaSizing.REFUSED, ArenaSizing.fitted(TEXEL_LIMITED, ceiling));
     }
 
     @Test
