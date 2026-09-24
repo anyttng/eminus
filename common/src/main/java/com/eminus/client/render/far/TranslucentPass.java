@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
+import com.eminus.client.gpu.game.GameTypes;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.render.backend.DepthConvention;
 
@@ -64,7 +65,7 @@ public final class TranslucentPass {
                 .withShaderDefine("NEAR_SECTIONS")
                 .withColorTargetState(new ColorTargetState(Optional.of(BlendFunction.TRANSLUCENT),
                         FarTarget.COLOUR_FORMAT, ColorTargetState.WRITE_ALL))
-                .withDepthStencilState(new DepthStencilState(depth.compare(), true))
+                .withDepthStencilState(new DepthStencilState(GameTypes.compare(depth.compare()), true))
                 .build();
     }
 }

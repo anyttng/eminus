@@ -1,17 +1,17 @@
 package com.eminus.render.backend;
 
-import com.mojang.renderpearl.api.GpuFormat;
+import com.eminus.gpu.Format;
 
 import org.jspecify.annotations.Nullable;
 
 public record BackendSupport(
         @Nullable BackendLimitation limitation,
-        @Nullable GpuFormat depthFormat,
+        @Nullable Format depthFormat,
         DepthConvention depth) {
 
     public static final String ACCEPTED = "accepted";
 
-    public static BackendSupport accepted(GpuFormat depthFormat, DepthConvention depth) {
+    public static BackendSupport accepted(Format depthFormat, DepthConvention depth) {
         return new BackendSupport(null, depthFormat, depth);
     }
 

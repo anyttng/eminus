@@ -2,6 +2,7 @@ package com.eminus.client.render.far;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 
 import com.eminus.Eminus;
@@ -21,13 +22,16 @@ import com.eminus.mesh.BakeryTints;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
 import com.eminus.model.ModelIndex;
+import com.eminus.client.gpu.game.GameGpu;
+import com.eminus.client.gpu.game.GameTypes;
 import com.eminus.client.model.ClientBakery;
+import com.eminus.gpu.Capabilities;
+import com.eminus.gpu.Gpu;
 import com.eminus.render.arena.ArenaSizing;
 import com.eminus.render.arena.MeshSlot;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.render.backend.BackendSupport;
 import com.eminus.client.render.backend.BackendCheck;
-import com.eminus.client.render.backend.DeviceReading;
 import com.eminus.render.far.CompositeFog;
 import com.eminus.render.far.DrawCommands;
 import com.eminus.render.far.MeshOrder;
@@ -121,13 +125,14 @@ public final class FarRenderer implements AutoCloseable {
         RenderSystem.assertOnRenderThread();
 
         RenderTarget main = client.gameRenderer.mainRenderTarget();
-        long ceiling = ceiling();
+        Gpu gpu = GameGpu.create();
+        long ceiling = ceiling(gpu.capabilities());
         long bytes = ArenaSizing.fitted(
                 bounded(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
                         FarProjection.focalPixels(client.options.fov().get(), main.height),
                         runtime.lowestStoredLevel()), ceiling),
                 ceiling);
-        BackendSupport support = BackendCheck.run(bytes);
+        BackendSupport support = BackendCheck.run(gpu, bytes);
         GeometryArena arena = GeometryArena.create(support, bytes);
         if (arena == null) {
             return null;
@@ -136,7 +141,7 @@ public final class FarRenderer implements AutoCloseable {
         ClientBakery baking = ClientBakery.start(client);
         FarRenderer renderer = new FarRenderer(runtime, baking,
                 ModelPublisher.start(baking.bakery()), arena,
-                FarTarget.create(support.depthFormat(), main.width, main.height), FarFrame.create(),
+                FarTarget.create(GameTypes.format(support.depthFormat()), main.width, main.height), FarFrame.create(),
                 NearMaskPass.create(FarTarget.COLOUR_FORMAT), NearSectionTable.create(),
                 OpaquePass.create(support.depth()), OcclusionPass.create(support.depth()),
                 TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),
@@ -153,14 +158,16 @@ public final class FarRenderer implements AutoCloseable {
         return renderer;
     }
 
-    private static long ceiling() {
-        DeviceReading device = DeviceReading.read();
-        long maxAllocation = RenderSystem.getDevice().getDeviceInfo().limits().maxMemoryAllocationSize();
-        long ceiling = ArenaSizing.ceiling(device.texelBytes(), maxAllocation, device.freeBytes());
+    private static long ceiling(Capabilities device) {
+        OptionalLong texelBytes = device.texelElements().isPresent()
+                ? OptionalLong.of(device.texelElements().getAsLong() * ArenaSizing.QUAD_BYTES)
+                : OptionalLong.empty();
+        long maxAllocation = device.maxAllocationBytes();
+        long ceiling = ArenaSizing.ceiling(texelBytes, maxAllocation, device.freeBytes());
 
         Eminus.LOGGER.info("Geometry arena ceiling {} MiB: texel buffer {}, vertex index {} MiB, device share {}, "
                 + "free video memory {}", ceiling / BYTES_PER_MIB,
-                device.texelBytes().isPresent() ? device.texelBytes().getAsLong() / BYTES_PER_MIB + " MiB"
+                texelBytes.isPresent() ? texelBytes.getAsLong() / BYTES_PER_MIB + " MiB"
                         : "unread, " + ArenaSizing.UNREAD_TEXEL_BYTES / BYTES_PER_MIB + " MiB in its place",
                 ArenaSizing.VERTEX_INDEX_BYTES / BYTES_PER_MIB,
                 maxAllocation == Long.MAX_VALUE ? "unbounded"
