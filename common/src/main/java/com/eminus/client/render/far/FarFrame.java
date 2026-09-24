@@ -1,13 +1,14 @@
 package com.eminus.client.render.far;
 
 import java.nio.ByteBuffer;
+import java.util.EnumSet;
+import java.util.Set;
 
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Std140;
+import com.eminus.gpu.buffer.Buffer;
+import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.handoff.NearSections;
-
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.Std140Builder;
-import com.mojang.blaze3d.buffers.Std140SizeCalculator;
-import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.world.level.CardinalLighting;
 
@@ -15,36 +16,39 @@ import org.joml.Matrix4fc;
 import org.lwjgl.system.MemoryStack;
 
 public final class FarFrame implements AutoCloseable {
-    public static final int SIZE = new Std140SizeCalculator()
+    public static final int SIZE = Std140.size()
             .putMat4f().putInt().putInt()
             .putInt().putInt().putIVec3()
             .putFloat().putFloat().putFloat().putFloat().putFloat().putFloat()
             .get();
 
     private static final String LABEL = "eminus-far-frame";
-    private static final int USAGE = GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST;
+    private static final Set<BufferUsage> USAGE = EnumSet.of(BufferUsage.UNIFORM, BufferUsage.COPY_DST);
+    private static final long START_OF_BUFFER = 0L;
 
-    private final GpuBuffer buffer;
+    private final Gpu gpu;
+    private final Buffer buffer;
 
-    private FarFrame(GpuBuffer buffer) {
+    private FarFrame(Gpu gpu, Buffer buffer) {
+        this.gpu = gpu;
         this.buffer = buffer;
     }
 
-    public static FarFrame create() {
-        RenderSystem.assertOnRenderThread();
-        return new FarFrame(RenderSystem.getDevice().createBuffer(() -> LABEL, USAGE, SIZE));
+    public static FarFrame create(Gpu gpu) {
+        gpu.assertRenderThread();
+        return new FarFrame(gpu, gpu.buffer(LABEL, USAGE, SIZE));
     }
 
-    public GpuBuffer buffer() {
+    public Buffer buffer() {
         return buffer;
     }
 
     public void write(Matrix4fc viewProjection, int minBlockY, int atlasCells, NearSections near,
             CardinalLighting shade) {
-        RenderSystem.assertOnRenderThread();
+        gpu.assertRenderThread();
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            ByteBuffer written = Std140Builder.onStack(stack, SIZE)
+            ByteBuffer written = Std140.into(stack.malloc(SIZE))
                     .putMat4f(viewProjection)
                     .putInt(minBlockY)
                     .putInt(atlasCells)
@@ -58,7 +62,7 @@ public final class FarFrame implements AutoCloseable {
                     .putFloat(shade.west())
                     .putFloat(shade.east())
                     .get();
-            RenderSystem.getDevice().createCommandEncoder().writeToBuffer(buffer.slice(), written);
+            gpu.write(buffer, START_OF_BUFFER, written);
         }
     }
 

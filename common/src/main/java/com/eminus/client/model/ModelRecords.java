@@ -2,11 +2,13 @@ package com.eminus.client.model;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.EnumSet;
+import java.util.Set;
 
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.buffer.Buffer;
+import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.model.BakedModel;
-
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.core.Direction;
 
@@ -15,27 +17,28 @@ public final class ModelRecords implements AutoCloseable {
     public static final int BYTES = TEXELS * 4 * Float.BYTES;
 
     private static final String LABEL = "eminus-model-records";
-    private static final int USAGE = GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER | GpuBuffer.USAGE_COPY_DST;
+    private static final Set<BufferUsage> USAGE = EnumSet.of(BufferUsage.TEXEL, BufferUsage.COPY_DST);
 
-    private final GpuBuffer buffer;
+    private final Gpu gpu;
+    private final Buffer buffer;
     private final ByteBuffer scratch = ByteBuffer.allocateDirect(BYTES).order(ByteOrder.nativeOrder());
 
-    private ModelRecords(GpuBuffer buffer) {
+    private ModelRecords(Gpu gpu, Buffer buffer) {
+        this.gpu = gpu;
         this.buffer = buffer;
     }
 
-    public static ModelRecords create(int capacity) {
-        RenderSystem.assertOnRenderThread();
-        GpuBuffer buffer = RenderSystem.getDevice().createBuffer(() -> LABEL, USAGE, (long) capacity * BYTES);
-        return new ModelRecords(buffer);
+    public static ModelRecords create(Gpu gpu, int capacity) {
+        gpu.assertRenderThread();
+        return new ModelRecords(gpu, gpu.buffer(LABEL, USAGE, (long) capacity * BYTES));
     }
 
-    public GpuBuffer buffer() {
+    public Buffer buffer() {
         return buffer;
     }
 
     public void write(int modelId, BakedModel model, int variantStart) {
-        RenderSystem.assertOnRenderThread();
+        gpu.assertRenderThread();
         float[] insets = model.insets();
         float[] bounds = model.bounds();
 
@@ -61,8 +64,7 @@ public final class ModelRecords implements AutoCloseable {
         }
         scratch.flip();
 
-        RenderSystem.getDevice().createCommandEncoder()
-                .writeToBuffer(buffer.slice((long) modelId * BYTES, BYTES), scratch);
+        gpu.write(buffer, (long) modelId * BYTES, scratch);
     }
 
     @Override

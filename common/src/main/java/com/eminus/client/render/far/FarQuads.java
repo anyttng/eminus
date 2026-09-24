@@ -82,8 +82,8 @@ final class FarQuads {
         pass.setUniform("FarFrame", frame);
         pass.setUniform("Quads", GameTypes.buffer(arena.quads()));
         pass.setUniform("MeshRecords", GameTypes.buffer(arena.records().buffer()));
-        pass.setUniform("ModelRecords", models.records().buffer());
-        pass.setUniform("ModelVariants", models.variants().buffer());
+        pass.setUniform("ModelRecords", GameTypes.buffer(models.records().buffer()));
+        pass.setUniform("ModelVariants", GameTypes.buffer(models.variants().buffer()));
         pass.setUniform("NearSections", nearSections);
         pass.setUniform("Atlas", GameTypes.view(models.atlas().colour()), atlasSampler());
         pass.setUniform("TintMask", GameTypes.view(models.atlas().tintMask()), atlasSampler());

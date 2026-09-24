@@ -143,8 +143,8 @@ public final class FarRenderer implements AutoCloseable {
         ClientBakery baking = ClientBakery.start(client);
         FarRenderer renderer = new FarRenderer(gpu, runtime, baking,
                 ModelPublisher.start(gpu, baking.bakery()), arena,
-                FarTarget.create(gpu, support.depthFormat(), main.width, main.height), FarFrame.create(),
-                NearMaskPass.create(FarTarget.COLOUR_FORMAT), NearSectionTable.create(),
+                FarTarget.create(gpu, support.depthFormat(), main.width, main.height), FarFrame.create(gpu),
+                NearMaskPass.create(FarTarget.COLOUR_FORMAT), NearSectionTable.create(gpu),
                 OpaquePass.create(support.depth()), OcclusionPass.create(support.depth()),
                 TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),
                 IndirectCommands.create(gpu, START_COMMANDS),
@@ -283,14 +283,15 @@ public final class FarRenderer implements AutoCloseable {
             mask.draw(target.depth(), target.colour(), gpu.mainDepth());
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(),
                     GameTypes.indexedIndirect(indirect.buffer(), 0, commands.opaqueCount()), commands.opaqueCount(),
-                    frame.buffer(),
-                    nearSections.buffer());
+                    GameTypes.buffer(frame.buffer()),
+                    GameTypes.buffer(nearSections.buffer()));
             if (client.options.ambientOcclusion().get()) {
                 occlusion.draw(target, main, farViewProjection, gameViewProjection);
             }
             translucent.draw(target, arena, models, client.gameRenderer.lightmap(),
                     GameTypes.indexedIndirect(indirect.buffer(), commands.opaqueCount(), commands.translucentCount()),
-                    commands.translucentCount(), frame.buffer(), nearSections.buffer());
+                    commands.translucentCount(), GameTypes.buffer(frame.buffer()),
+                    GameTypes.buffer(nearSections.buffer()));
             composite.draw(target, main, farViewProjection, gameViewProjection, fog, gameFog.color);
         }
     }
