@@ -25,6 +25,7 @@ final class TreeTraversal {
     private static final Direction[] FACES = Direction.values();
     private static final Comparator<Candidate> LARGEST_FIRST =
             (first, second) -> Float.compare(second.size(), first.size());
+    private static final int UNSERVED = -1;
 
     private final NodeTable nodes;
     private final TreeExtent extent;
@@ -34,9 +35,12 @@ final class TreeTraversal {
     private final List<MeshSummary> drawn = new ArrayList<>();
     private final LongOpenHashSet drawnKeys = new LongOpenHashSet();
     private final LongOpenHashSet descendedKeys = new LongOpenHashSet();
+    private final List<TreeNode> outside = new ArrayList<>();
     private final List<Candidate> candidates = new ArrayList<>();
     private final List<TreeNode> requested = new ArrayList<>();
     private final FloatArrayList requestedPriorities = new FloatArrayList();
+    private final List<TreeNode> outOfViewRequested = new ArrayList<>();
+    private final FloatArrayList outOfViewSizes = new FloatArrayList();
 
     private boolean starved;
     private double minX;
@@ -54,16 +58,19 @@ final class TreeTraversal {
         this.extent = extent;
     }
 
-    RenderList walk(Collection<TreeNode> roots, CameraFrame camera, int budget, long walk) {
+    RenderList walk(Collection<TreeNode> roots, CameraFrame camera, int budget, int outOfViewBudget, long walk) {
         frustum.set(camera.viewProjection());
         current.clear();
         current.addAll(roots);
         drawn.clear();
         drawnKeys.clear();
         descendedKeys.clear();
+        outside.clear();
         candidates.clear();
         requested.clear();
         requestedPriorities.clear();
+        outOfViewRequested.clear();
+        outOfViewSizes.clear();
         starved = false;
         double farBlocks = (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
 
@@ -79,7 +86,11 @@ final class TreeTraversal {
         }
 
         if (!camera.arenaPressure()) {
-            request(budget);
+            starved = hand(candidates, budget, requested, requestedPriorities) == UNSERVED;
+            int outOfViewLeft = outOfViewBudget - requested.size();
+            if (!starved && outOfViewLeft > 0) {
+                requestOutOfView(camera, farBlocks, outOfViewLeft);
+            }
         }
 
         return new RenderList(List.copyOf(drawn), borders());
@@ -131,6 +142,15 @@ final class TreeTraversal {
         return requestedPriorities.getFloat(index);
     }
 
+    // Reused by the next walk; consumed before it.
+    List<TreeNode> outOfViewRequested() {
+        return outOfViewRequested;
+    }
+
+    float outOfViewSize(int index) {
+        return outOfViewSizes.getFloat(index);
+    }
+
     boolean starved() {
         return starved;
     }
@@ -144,6 +164,7 @@ final class TreeTraversal {
         }
 
         if (!frustum.testAab((float) minX, (float) minY, (float) minZ, (float) maxX, (float) maxY, (float) maxZ)) {
+            outside.add(node);
             return;
         }
 
@@ -183,30 +204,74 @@ final class TreeTraversal {
         return ProjectedSize.of(node.level(), distance, camera);
     }
 
-    private void request(int budget) {
-        candidates.sort(LARGEST_FIRST);
+    private void requestOutOfView(CameraFrame camera, double farBlocks, int budget) {
+        candidates.clear();
+        current.clear();
+        current.addAll(outside);
 
-        for (Candidate candidate : candidates) {
+        while (!current.isEmpty()) {
+            next.clear();
+
+            for (TreeNode node : current) {
+                collectOutOfView(node, camera, farBlocks);
+            }
+
+            current.clear();
+            current.addAll(next);
+        }
+
+        hand(candidates, budget, outOfViewRequested, outOfViewSizes);
+    }
+
+    private void collectOutOfView(TreeNode node, CameraFrame camera, double farBlocks) {
+        box(node, camera);
+
+        if (ProjectedSize.horizontalDistance(minX, maxX, minZ, maxZ) > farBlocks) {
+            return;
+        }
+
+        float size = size(node, camera);
+        if (node.level() <= extent.lowestLevel() || size <= camera.subdivisionPixels()) {
+            return;
+        }
+
+        if (node.missingOctants() != OccupancyMask.EMPTY) {
+            candidates.add(new Candidate(node, size));
+        }
+
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            TreeNode child = node.child(octant);
+            if (child != null) {
+                next.add(child);
+            }
+        }
+    }
+
+    private int hand(List<Candidate> from, int budget, List<TreeNode> into, FloatArrayList sizes) {
+        from.sort(LARGEST_FIRST);
+        int left = budget;
+
+        for (Candidate candidate : from) {
             int missing = candidate.node().missingOctants();
 
-            while (missing != 0 && budget > 0) {
+            while (missing != 0 && left > 0) {
                 TreeNode child = nodes.child(candidate.node(), Integer.numberOfTrailingZeros(missing));
                 if (child == null) {
-                    starved = true;
-                    return;
+                    return UNSERVED;
                 }
 
-                requested.add(child);
-                requestedPriorities.add(candidate.size());
-                budget--;
+                into.add(child);
+                sizes.add(candidate.size());
+                left--;
                 missing &= missing - 1;
             }
 
             if (missing != 0) {
-                starved = true;
-                return;
+                return UNSERVED;
             }
         }
+
+        return left;
     }
 
     private void descend(TreeNode node) {

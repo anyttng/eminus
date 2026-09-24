@@ -57,6 +57,7 @@ class TreeManagerTest {
     private static final double ONE_BLOCK = 1.0;
     private static final double TELEPORT = 2_000.0;
     private static final int ONE_OCTANT = 0b1;
+    private static final int ALL_OCTANTS = 0xFF;
     private static final int OLDER_QUADS = 2;
     private static final int NEWER_QUADS = 3;
     private static final int QUEUED_ROOTS = 800;
@@ -262,21 +263,98 @@ class TreeManagerTest {
     }
 
     @Test
-    void aStillCameraSkipsTheWalkAndAMovedCameraOrAChangedTreeWalks() {
+    void aStillCameraWalksOnceAfterMotionThenSkipsAndAMovedCameraOrAChangedTreeWalks() {
         startRing();
         awaitWalks(1);
 
         manager.frame(frame(EYE_X, EYE_Z));
-        manager.changed(open(OUTSIDE), FaceMask.NONE, EdgeMask.NONE);
-        builds.takeRelease();
-        assertEquals(1, manager.walks());
+        awaitWalks(2);
+
+        manager.frame(frame(EYE_X, EYE_Z));
+        syncMessages();
+        assertEquals(2, manager.walks());
 
         manager.frame(frame(EYE_X + ONE_BLOCK, EYE_Z));
-        awaitWalks(2);
+        awaitWalks(3);
 
         manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
         manager.frame(frame(EYE_X + ONE_BLOCK, EYE_Z));
+        awaitWalks(4);
+    }
+
+    @Test
+    void aStillCameraWalksAfterMotionWhileOutOfViewCandidatesRemainAndSkipsOnceNoneDo() {
+        startRing();
+        manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
+        manager.meshed(TestMeshes.of(WEST, ONE_OCTANT), rootRequests.get(WEST));
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        awaitWalks(2);
+        assertTrue(builds.idle());
+
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        FakeBuilds.Call request = builds.take();
+        assertEquals(CellKey.child(WEST, 0), request.key());
         awaitWalks(3);
+
+        manager.meshed(CellMesh.empty(request.key()), request.request());
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        awaitWalks(4);
+        assertTrue(builds.idle());
+
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        syncMessages();
+        assertEquals(4, manager.walks());
+    }
+
+    @Test
+    void outOfViewBuildsInFlightLeaveTheInViewBudgetWholeAndGoOutBelowIt() {
+        startRing();
+        manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
+        manager.meshed(TestMeshes.of(WEST, ALL_OCTANTS), rootRequests.get(WEST));
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        awaitWalks(2);
+
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            FakeBuilds.Call child = builds.take();
+            manager.meshed(TestMeshes.of(child.key(), ALL_OCTANTS), child.request());
+        }
+
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        for (int index = 0; index < RequestBudget.MAX_PER_WALK; index++) {
+            assertTrue(builds.take().priority() < 0.0F);
+        }
+
+        manager.meshed(TestMeshes.of(KEY, ALL_OCTANTS), rootRequests.get(KEY));
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            FakeBuilds.Call inView = builds.take();
+            assertEquals(KEY, CellKey.parent(inView.key()));
+            assertEquals(ProjectedSize.CONTAINS_CAMERA, inView.priority());
+        }
+
+        syncMessages();
+        assertTrue(builds.idle());
+    }
+
+    @Test
+    void afterAWalkUnderPressureNothingOutOfViewIsRequestedUntilTheCameraMoves() {
+        startRing();
+        manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
+        manager.meshed(TestMeshes.of(WEST, ONE_OCTANT), rootRequests.get(WEST));
+        manager.frame(FakeCameras.underPressure(east(EYE_X + ONE_BLOCK)));
+        awaitWalks(2);
+
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        awaitWalks(3);
+        assertTrue(builds.idle());
+
+        manager.frame(east(EYE_X + 2 * ONE_BLOCK));
+        awaitWalks(4);
+        assertTrue(builds.idle());
+
+        manager.frame(east(EYE_X + 2 * ONE_BLOCK));
+        assertEquals(CellKey.child(WEST, 0), builds.take().key());
     }
 
     @Test
@@ -376,6 +454,15 @@ class TreeManagerTest {
 
     private static CameraFrame close(double x, double z) {
         return FakeCameras.everything(x, EYE_Y, z, ONE_CELL, FakeCameras.CLOSE_PIXELS_PER_BLOCK);
+    }
+
+    private static CameraFrame east(double x) {
+        return FakeCameras.looking(x, EYE_Y, EYE_Z, 1.0F, 0.0F, 0.0F, ONE_CELL, FakeCameras.CLOSE_PIXELS_PER_BLOCK);
+    }
+
+    private void syncMessages() {
+        manager.changed(open(OUTSIDE), FaceMask.NONE, EdgeMask.NONE);
+        builds.takeRelease();
     }
 
     private CellHandle open(long key) {
