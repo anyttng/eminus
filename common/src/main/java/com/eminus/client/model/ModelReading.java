@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import com.eminus.client.gpu.game.GameGpu;
 import com.eminus.model.BakedModel;
 import com.eminus.model.BiomeColours;
 import com.eminus.model.ModelBakery;
@@ -113,7 +114,7 @@ public final class ModelReading {
     private static void upload(ModelBakery bakery, long[] summary) {
         int count = bakery.modelCount();
 
-        try (ModelAtlas atlas = ModelAtlas.create(START_CELLS);
+        try (ModelAtlas atlas = ModelAtlas.create(GameGpu.create(), START_CELLS);
                 ModelRecords records = ModelRecords.create(Math.max(count, 1))) {
             summary[CELLS_FROM] = atlas.cellsPerSide();
             int variantStart = 0;

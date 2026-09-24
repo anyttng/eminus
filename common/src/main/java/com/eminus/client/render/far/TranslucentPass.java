@@ -54,8 +54,8 @@ public final class TranslucentPass {
 
     private static RenderPassDescriptor descriptor(FarTarget target) {
         return RenderPassDescriptor.builder(() -> PASS_LABEL)
-                .withColorAttachment(target.colourView(), Optional.empty())
-                .withDepthAttachment(target.depthView(), OptionalDouble.empty())
+                .withColorAttachment(GameTypes.view(target.colour()), Optional.empty())
+                .withDepthAttachment(GameTypes.view(target.depth()), OptionalDouble.empty())
                 .withRenderArea(new RenderPass.RenderArea(0, 0, target.width(), target.height()))
                 .build();
     }
@@ -64,7 +64,7 @@ public final class TranslucentPass {
         return FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT)
                 .withShaderDefine("NEAR_SECTIONS")
                 .withColorTargetState(new ColorTargetState(Optional.of(BlendFunction.TRANSLUCENT),
-                        FarTarget.COLOUR_FORMAT, ColorTargetState.WRITE_ALL))
+                        GameTypes.format(FarTarget.COLOUR_FORMAT), ColorTargetState.WRITE_ALL))
                 .withDepthStencilState(new DepthStencilState(GameTypes.compare(depth.compare()), true))
                 .build();
     }

@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 
 import com.eminus.Eminus;
+import com.eminus.client.gpu.game.GameTypes;
 import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.render.backend.DepthConvention;
 
@@ -83,7 +84,7 @@ public final class OcclusionPass implements AutoCloseable {
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(far))) {
             pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
             pass.setUniform("Occlusion", uniform);
-            pass.setUniform("FarDepth", far.depthView(),
+            pass.setUniform("FarDepth", GameTypes.view(far.depth()),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
             pass.setUniform("GameDepth", game.getDepthTextureView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
@@ -121,7 +122,7 @@ public final class OcclusionPass implements AutoCloseable {
 
     private static RenderPassDescriptor descriptor(FarTarget far) {
         return RenderPassDescriptor.builder(() -> PASS_LABEL)
-                .withColorAttachment(far.colourView(), Optional.empty())
+                .withColorAttachment(GameTypes.view(far.colour()), Optional.empty())
                 .withRenderArea(new RenderPass.RenderArea(0, 0, far.width(), far.height()))
                 .build();
     }
@@ -142,8 +143,8 @@ public final class OcclusionPass implements AutoCloseable {
                 .withShaderDefine("MIN_BIAS", MIN_BIAS)
                 .withShaderDefine("BIAS_PER_SQUARED_BLOCK", BIAS_PER_SQUARED_BLOCK)
                 .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
-                .withColorTargetState(new ColorTargetState(Optional.of(MULTIPLY), FarTarget.COLOUR_FORMAT,
-                        ColorTargetState.WRITE_ALL))
+                .withColorTargetState(new ColorTargetState(Optional.of(MULTIPLY),
+                        GameTypes.format(FarTarget.COLOUR_FORMAT), ColorTargetState.WRITE_ALL))
                 .withCull(false);
 
         return depth.zeroToOne() ? builder.withShaderDefine("DEPTH_ZERO_TO_ONE").build() : builder.build();

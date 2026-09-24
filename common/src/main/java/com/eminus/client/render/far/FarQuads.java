@@ -13,8 +13,8 @@ import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.far.DrawCommands;
 import com.eminus.client.gpu.game.GameTypes;
 import com.eminus.client.render.arena.GeometryArena;
+import com.eminus.gpu.Format;
 
-import com.mojang.renderpearl.api.GpuFormat;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
@@ -39,11 +39,11 @@ final class FarQuads {
 
     private static final BindGroupLayout LAYOUT = BindGroupLayout.builder()
             .withUniform("FarFrame", UniformType.UNIFORM_BUFFER)
-            .withUniform("Quads", UniformType.TEXEL_BUFFER, GpuFormat.RG32_UINT)
-            .withUniform("MeshRecords", UniformType.TEXEL_BUFFER, GpuFormat.RGBA32_UINT)
-            .withUniform("ModelRecords", UniformType.TEXEL_BUFFER, GpuFormat.RGBA32_FLOAT)
-            .withUniform("ModelVariants", UniformType.TEXEL_BUFFER, GpuFormat.RG32_UINT)
-            .withUniform("NearSections", UniformType.TEXEL_BUFFER, GpuFormat.R32_UINT)
+            .withUniform("Quads", UniformType.TEXEL_BUFFER, GameTypes.format(Format.RG32_UINT))
+            .withUniform("MeshRecords", UniformType.TEXEL_BUFFER, GameTypes.format(Format.RGBA32_UINT))
+            .withUniform("ModelRecords", UniformType.TEXEL_BUFFER, GameTypes.format(Format.RGBA32_FLOAT))
+            .withUniform("ModelVariants", UniformType.TEXEL_BUFFER, GameTypes.format(Format.RG32_UINT))
+            .withUniform("NearSections", UniformType.TEXEL_BUFFER, GameTypes.format(Format.R32_UINT))
             .withUniform("Atlas", UniformType.COMBINED_IMAGE_SAMPLER)
             .withUniform("TintMask", UniformType.COMBINED_IMAGE_SAMPLER)
             .withUniform("Lightmap", UniformType.COMBINED_IMAGE_SAMPLER)
@@ -85,8 +85,8 @@ final class FarQuads {
         pass.setUniform("ModelRecords", models.records().buffer());
         pass.setUniform("ModelVariants", models.variants().buffer());
         pass.setUniform("NearSections", nearSections);
-        pass.setUniform("Atlas", models.atlas().colourView(), atlasSampler());
-        pass.setUniform("TintMask", models.atlas().tintMaskView(), atlasSampler());
+        pass.setUniform("Atlas", GameTypes.view(models.atlas().colour()), atlasSampler());
+        pass.setUniform("TintMask", GameTypes.view(models.atlas().tintMask()), atlasSampler());
         pass.setUniform("Lightmap", lightmap, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
 
         RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);

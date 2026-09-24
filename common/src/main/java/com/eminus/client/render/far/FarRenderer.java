@@ -142,8 +142,8 @@ public final class FarRenderer implements AutoCloseable {
 
         ClientBakery baking = ClientBakery.start(client);
         FarRenderer renderer = new FarRenderer(gpu, runtime, baking,
-                ModelPublisher.start(baking.bakery()), arena,
-                FarTarget.create(GameTypes.format(support.depthFormat()), main.width, main.height), FarFrame.create(),
+                ModelPublisher.start(gpu, baking.bakery()), arena,
+                FarTarget.create(gpu, support.depthFormat(), main.width, main.height), FarFrame.create(),
                 NearMaskPass.create(FarTarget.COLOUR_FORMAT), NearSectionTable.create(),
                 OpaquePass.create(support.depth()), OcclusionPass.create(support.depth()),
                 TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),
@@ -280,8 +280,7 @@ public final class FarRenderer implements AutoCloseable {
 
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
                     nearSections.sections(), level.cardinalLighting());
-            mask.draw(target.depthView(), target.colourView(), target.width(), target.height(),
-                    main.getDepthTextureView());
+            mask.draw(target.depth(), target.colour(), gpu.mainDepth());
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(),
                     GameTypes.indexedIndirect(indirect.buffer(), 0, commands.opaqueCount()), commands.opaqueCount(),
                     frame.buffer(),

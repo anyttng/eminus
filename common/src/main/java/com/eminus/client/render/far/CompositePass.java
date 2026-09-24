@@ -78,9 +78,9 @@ public final class CompositePass implements AutoCloseable {
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(game))) {
             pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
             pass.setUniform("Composite", uniform);
-            pass.setUniform("FarColour", far.colourView(),
+            pass.setUniform("FarColour", GameTypes.view(far.colour()),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.setUniform("FarDepth", far.depthView(),
+            pass.setUniform("FarDepth", GameTypes.view(far.depth()),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
             pass.draw(VERTICES, INSTANCES, 0, 0);
         }

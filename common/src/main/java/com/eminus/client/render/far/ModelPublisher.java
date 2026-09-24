@@ -6,6 +6,7 @@ import com.eminus.model.ModelBakery;
 import com.eminus.client.model.ModelAtlas;
 import com.eminus.client.model.ModelRecords;
 import com.eminus.client.model.ModelVariants;
+import com.eminus.gpu.Gpu;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
@@ -33,9 +34,9 @@ public final class ModelPublisher implements AutoCloseable {
         this.variants = variants;
     }
 
-    public static ModelPublisher start(ModelBakery bakery) {
+    public static ModelPublisher start(Gpu gpu, ModelBakery bakery) {
         RenderSystem.assertOnRenderThread();
-        return new ModelPublisher(bakery, ModelAtlas.create(START_CELLS), ModelRecords.create(START_RECORDS),
+        return new ModelPublisher(bakery, ModelAtlas.create(gpu, START_CELLS), ModelRecords.create(START_RECORDS),
                 ModelVariants.create(START_VARIANTS));
     }
 
