@@ -5,9 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import com.eminus.gpu.Std140;
 import com.eminus.handoff.NearSections;
-
-import com.mojang.blaze3d.buffers.Std140Builder;
 
 import net.minecraft.world.level.CardinalLighting;
 
@@ -29,7 +28,7 @@ class FarFrameLayoutTest {
     void theShadeFloatsStartInTheTailOfTheNearOrigin() {
         ByteBuffer bytes = ByteBuffer.allocateDirect(FarFrame.SIZE).order(ByteOrder.nativeOrder());
 
-        FarFrame.layout(Std140Builder.intoBuffer(bytes), new Matrix4f(), 0, 0, new NearSections(), SHADE);
+        FarFrame.layout(Std140.into(bytes), new Matrix4f(), 0, 0, new NearSections(), SHADE);
 
         assertEquals(SHADE.down(), bytes.getFloat(SHADE_DOWN_OFFSET), DELTA);
         assertEquals(SHADE.up(), bytes.getFloat(SHADE_DOWN_OFFSET + INT_BYTES), DELTA);

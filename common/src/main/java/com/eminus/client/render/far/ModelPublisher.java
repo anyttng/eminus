@@ -8,8 +8,6 @@ import com.eminus.client.model.ModelRecords;
 import com.eminus.client.model.ModelVariants;
 import com.eminus.gpu.Gpu;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-
 public final class ModelPublisher implements AutoCloseable {
     public static final int START_CELLS = 4;
     public static final int START_RECORDS = 1024;
@@ -17,6 +15,7 @@ public final class ModelPublisher implements AutoCloseable {
 
     private static final int GROWTH = 2;
 
+    private final Gpu gpu;
     private final ModelBakery bakery;
     private final ModelAtlas atlas;
 
@@ -27,7 +26,9 @@ public final class ModelPublisher implements AutoCloseable {
     private int variantEntries;
     private boolean atlasFull;
 
-    private ModelPublisher(ModelBakery bakery, ModelAtlas atlas, ModelRecords records, ModelVariants variants) {
+    private ModelPublisher(Gpu gpu, ModelBakery bakery, ModelAtlas atlas, ModelRecords records,
+            ModelVariants variants) {
+        this.gpu = gpu;
         this.bakery = bakery;
         this.atlas = atlas;
         this.records = records;
@@ -35,9 +36,9 @@ public final class ModelPublisher implements AutoCloseable {
     }
 
     public static ModelPublisher start(Gpu gpu, ModelBakery bakery) {
-        RenderSystem.assertOnRenderThread();
-        return new ModelPublisher(bakery, ModelAtlas.create(gpu, START_CELLS), ModelRecords.create(START_RECORDS),
-                ModelVariants.create(START_VARIANTS));
+        gpu.assertRenderThread();
+        return new ModelPublisher(gpu, bakery, ModelAtlas.create(gpu, START_CELLS),
+                ModelRecords.create(gpu, START_RECORDS), ModelVariants.create(gpu, START_VARIANTS));
     }
 
     public ModelAtlas atlas() {
@@ -57,7 +58,7 @@ public final class ModelPublisher implements AutoCloseable {
     }
 
     public void publish() {
-        RenderSystem.assertOnRenderThread();
+        gpu.assertRenderThread();
         int baked = bakery.modelCount();
         if (baked > recordCapacity) {
             growRecords(baked);
@@ -109,7 +110,7 @@ public final class ModelPublisher implements AutoCloseable {
         }
 
         records.close();
-        records = ModelRecords.create(grown);
+        records = ModelRecords.create(gpu, grown);
         recordCapacity = grown;
 
         int start = 0;
@@ -127,7 +128,7 @@ public final class ModelPublisher implements AutoCloseable {
         }
 
         variants.close();
-        variants = ModelVariants.create(grown);
+        variants = ModelVariants.create(gpu, grown);
 
         int start = 0;
         for (int modelId = 0; modelId < published; modelId++) {
