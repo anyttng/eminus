@@ -1,11 +1,12 @@
 package com.eminus.render.tree;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.OccupancyMask;
@@ -13,40 +14,138 @@ import com.eminus.cell.OccupancyMask;
 import org.junit.jupiter.api.Test;
 
 class TreeCleanerTest {
-    private static final int FOUR_OCTANTS = 0b1111;
-    private static final long RECENT = 5L;
-    private static final long OLDEST = 1L;
-    private static final long OLD = 3L;
-    private static final long NEXT_WALK = RECENT + 1;
+    private static final int CELL = DetailLevel.blocksPerCell(DetailLevel.MAX);
+    private static final double INSIDE = CELL / 2.0;
+    private static final long OLD = 1L;
+    private static final long NEWER = 3L;
+    private static final long WALK = 5L;
+    private static final int WHOLE_SET = OccupancyMask.OCTANTS;
+    private static final int HALF_SET = 4;
+    private static final int FIVE_CHILDREN = 5;
+    private static final int SETS_OF_FIVE = 13;
+    private static final int FIRST_FAR_CELL = 10;
+    private static final int FARTHER_CELL = 20;
+    private static final int NEAR_CELL = 3;
+    private static final int WIDE_FAR_CELLS = 8;
+    private static final int ONE_FAR_CELL = 1;
+    private static final int MANY_FAR_CELLS = 64;
+    private static final float ONE_PIXEL_PER_BLOCK = 1.0F;
 
     private final NodeTable nodes = new NodeTable(NodeTable.CAPACITY);
     private final TreeCleaner cleaner = new TreeCleaner();
-    private final TreeNode root = nodes.root(CellKey.pack(DetailLevel.MAX, 0, 0, 0));
-    private final TreeNode recent = child(0, RECENT);
-    private final TreeNode oldest = child(1, OLDEST);
-    private final TreeNode old = child(2, OLD);
-    private final TreeNode unmeshed = nodes.child(root, 3);
-
-    TreeCleanerTest() {
-        root.meshed(TestMeshes.summary(root.key(), FOUR_OCTANTS));
-        root.seen(OLDEST);
-    }
+    private final CellFrame frame = new CellFrame(0);
 
     @Test
     void nothingIsEvictedWithoutPressure() {
-        assertTrue(cleaner.pick(nodes.all(), false, NEXT_WALK).isEmpty());
+        children(root(0), WHOLE_SET, OLD);
+
+        assertTrue(cleaner.pick(nodes.all(), FakeCameras.everything(INSIDE, INSIDE, INSIDE, MANY_FAR_CELLS,
+                ONE_PIXEL_PER_BLOCK), frame, WALK).isEmpty());
     }
 
     @Test
-    void underPressureTheLeastRecentlySeenMeshedNonRootsGoFirst() {
-        assertEquals(List.of(oldest, old, recent), cleaner.pick(nodes.all(), true, NEXT_WALK));
-        assertNull(unmeshed.mesh());
+    void aSetWithAChildTheWalkUsedIsNoCandidate() {
+        List<TreeNode> set = children(root(0), HALF_SET, OLD);
+        set.get(1).seen(WALK);
+
+        assertTrue(pick(ONE_PIXEL_PER_BLOCK, MANY_FAR_CELLS).isEmpty());
     }
 
     @Test
-    void underPressureNothingTheWalkUsedIsEvicted() {
-        assertEquals(List.of(oldest, old), cleaner.pick(nodes.all(), true, RECENT));
-        assertTrue(cleaner.pick(nodes.all(), true, OLDEST).isEmpty());
+    void aSetWithoutAMeshIsNoCandidate() {
+        TreeNode root = root(0);
+        for (int octant = 0; octant < HALF_SET; octant++) {
+            nodes.child(root, octant).seen(OLD);
+        }
+
+        assertTrue(pick(ONE_PIXEL_PER_BLOCK, MANY_FAR_CELLS).isEmpty());
+    }
+
+    @Test
+    void anUnusedSetIsTakenWhole() {
+        List<TreeNode> set = children(root(0), HALF_SET, OLD);
+
+        assertEquals(set, pick(ONE_PIXEL_PER_BLOCK, MANY_FAR_CELLS));
+    }
+
+    @Test
+    void theQuotaNeverSplitsASet() {
+        List<TreeNode> expected = new ArrayList<>();
+        for (int x = 0; x < SETS_OF_FIVE; x++) {
+            expected.addAll(children(root(FIRST_FAR_CELL + x), FIVE_CHILDREN, OLD));
+        }
+
+        List<TreeNode> picked = pick(ONE_PIXEL_PER_BLOCK, MANY_FAR_CELLS);
+
+        assertEquals(SETS_OF_FIVE * FIVE_CHILDREN, picked.size());
+        assertTrue(picked.containsAll(expected));
+    }
+
+    @Test
+    void theOutOfViewSetsWaitWhileAnUnwantedOneIsLeft() {
+        List<TreeNode> unwanted = new ArrayList<>();
+        for (int x = 0; x < TreeCleaner.PRESSURE_EVICTIONS / WHOLE_SET; x++) {
+            unwanted.addAll(children(root(FIRST_FAR_CELL + x), WHOLE_SET, OLD));
+        }
+        children(root(0), WHOLE_SET, OLD);
+
+        List<TreeNode> picked = pick(ONE_PIXEL_PER_BLOCK, MANY_FAR_CELLS);
+
+        assertEquals(unwanted.size(), picked.size());
+        assertTrue(picked.containsAll(unwanted));
+        assertEquals(picked.size(), cleaner.unwantedPicked());
+    }
+
+    @Test
+    void theOutOfViewSetsFollowOnceTheUnwantedRunOut() {
+        List<TreeNode> unwanted = children(root(FIRST_FAR_CELL), WHOLE_SET, OLD);
+        List<TreeNode> outOfView = children(root(0), WHOLE_SET, OLD);
+
+        List<TreeNode> picked = pick(ONE_PIXEL_PER_BLOCK, MANY_FAR_CELLS);
+
+        assertEquals(concat(unwanted, outOfView), picked);
+        assertEquals(WHOLE_SET, cleaner.unwantedPicked());
+    }
+
+    @Test
+    void aFartherOutOfViewParentGoesBeforeANearerOne() {
+        List<TreeNode> nearer = children(root(0), WHOLE_SET, OLD);
+        List<TreeNode> farther = children(root(NEAR_CELL), WHOLE_SET, OLD);
+
+        List<TreeNode> picked = pick(FakeCameras.CLOSE_PIXELS_PER_BLOCK, WIDE_FAR_CELLS);
+
+        assertEquals(concat(farther, nearer), picked);
+        assertEquals(0, cleaner.unwantedPicked());
+    }
+
+    @Test
+    void aSetBeyondTheFarRenderDistanceIsUnwantedHoweverLargeOnScreen() {
+        List<TreeNode> beyond = children(root(NEAR_CELL), WHOLE_SET, OLD);
+        List<TreeNode> inside = children(root(0), WHOLE_SET, OLD);
+
+        List<TreeNode> picked = pick(FakeCameras.CLOSE_PIXELS_PER_BLOCK, ONE_FAR_CELL);
+
+        assertEquals(concat(beyond, inside), picked);
+        assertEquals(WHOLE_SET, cleaner.unwantedPicked());
+    }
+
+    @Test
+    void theOldestUnwantedSetGoesFirstEvenWhenAnotherIsSmallerOnScreen() {
+        List<TreeNode> newer = children(root(FARTHER_CELL), WHOLE_SET, NEWER);
+        List<TreeNode> older = children(root(FIRST_FAR_CELL), WHOLE_SET, OLD);
+
+        assertEquals(concat(older, newer), pick(ONE_PIXEL_PER_BLOCK, MANY_FAR_CELLS));
+    }
+
+    @Test
+    void aSetOnlyAZoomRefinesIsUnwantedAfterTheZoom() {
+        List<TreeNode> zoomOnly = children(root(FIRST_FAR_CELL), WHOLE_SET, OLD);
+        List<TreeNode> outOfView = children(root(0), WHOLE_SET, OLD);
+        CameraFrame zoomed = FakeCameras.zoomed(FakeCameras.underPressure(FakeCameras.everything(INSIDE, INSIDE,
+                INSIDE, MANY_FAR_CELLS, ONE_PIXEL_PER_BLOCK)), FakeCameras.CLOSE_PIXELS_PER_BLOCK);
+
+        assertEquals(concat(zoomOnly, outOfView), cleaner.pick(nodes.all(), zoomed, frame, WALK));
+        assertEquals(WHOLE_SET, cleaner.unwantedPicked());
     }
 
     @Test
@@ -56,12 +155,42 @@ class TreeCleanerTest {
             subdivide(full, full.root(CellKey.pack(DetailLevel.MAX, x, 0, 0)));
         }
 
-        assertTrue(cleaner.pick(full.all(), false, NEXT_WALK).isEmpty());
+        assertTrue(cleaner.pick(full.all(), FakeCameras.everything(INSIDE, INSIDE, INSIDE, MANY_FAR_CELLS,
+                ONE_PIXEL_PER_BLOCK), frame, WALK).isEmpty());
+    }
+
+    private List<TreeNode> pick(float pixelsPerBlock, int farCells) {
+        return cleaner.pick(nodes.all(), FakeCameras.underPressure(
+                FakeCameras.everything(INSIDE, INSIDE, INSIDE, farCells, pixelsPerBlock)), frame, WALK);
+    }
+
+    private TreeNode root(int cellX) {
+        TreeNode root = nodes.root(CellKey.pack(DetailLevel.MAX, cellX, 0, 0));
+        root.meshed(TestMeshes.summary(root.key(), OccupancyMask.EMPTY));
+        return root;
+    }
+
+    private List<TreeNode> children(TreeNode parent, int count, long seen) {
+        List<TreeNode> children = new ArrayList<>();
+        for (int octant = 0; octant < count; octant++) {
+            TreeNode child = nodes.child(parent, octant);
+            child.meshed(TestMeshes.summary(child.key(), OccupancyMask.EMPTY));
+            child.seen(seen);
+            children.add(child);
+        }
+
+        return children;
+    }
+
+    private static List<TreeNode> concat(List<TreeNode> first, List<TreeNode> second) {
+        List<TreeNode> both = new ArrayList<>(first);
+        both.addAll(second);
+        return both;
     }
 
     private static void subdivide(NodeTable table, TreeNode node) {
-        node.meshed(TestMeshes.summary(node.key(), FOUR_OCTANTS));
-        node.seen(OLDEST);
+        node.meshed(TestMeshes.summary(node.key(), OccupancyMask.EMPTY));
+        node.seen(OLD);
         if (CellKey.level(node.key()) == DetailLevel.MIN) {
             return;
         }
@@ -73,12 +202,5 @@ class TreeCleanerTest {
             }
             subdivide(table, child);
         }
-    }
-
-    private TreeNode child(int octant, long seen) {
-        TreeNode child = nodes.child(root, octant);
-        child.meshed(TestMeshes.summary(child.key(), OccupancyMask.EMPTY));
-        child.seen(seen);
-        return child;
     }
 }

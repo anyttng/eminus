@@ -1,6 +1,7 @@
 package com.eminus.client.session;
 
 import java.nio.file.Path;
+import java.util.BitSet;
 
 import com.eminus.Eminus;
 import com.eminus.handoff.NearFieldOverride;
@@ -184,6 +185,14 @@ public final class ClientSession {
         IngestService ingest = ingestFor(source);
         if (ingest != null) {
             ingest.markLightUpdate(pos, System.currentTimeMillis());
+        }
+    }
+
+    public static void lightPacketApplied(ClientLevel source, int chunkX, int chunkZ, BitSet sections) {
+        IngestService ingest = ingestFor(source);
+        if (ingest != null) {
+            ingest.markLightPacket(chunkX, chunkZ, sections, source.getLightEngine().getMinLightSection(),
+                    System.currentTimeMillis());
         }
     }
 

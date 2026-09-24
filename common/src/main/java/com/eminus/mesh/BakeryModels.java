@@ -6,6 +6,8 @@ import com.eminus.model.ModelBakery;
 import com.eminus.model.ModelIndex;
 import com.eminus.model.ModelSource;
 
+import net.minecraft.world.level.material.FluidState;
+
 public record BakeryModels(ModelIndex index, ModelSource models) implements MeshModels {
     private static final int NO_METADATA = 0;
 
@@ -53,7 +55,34 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     }
 
     @Override
+    public boolean fillsHeight(int modelId) {
+        BakedModel model = models.model(modelId);
+        return model == null || model.fillsHeight();
+    }
+
+    @Override
     public int offset(int stateId, int blockX, int blockY, int blockZ) {
         return QuadOffset.of(index.state(stateId), blockX, blockY, blockZ);
+    }
+
+    @Override
+    public boolean holdsFluid(int stateId) {
+        return !index.state(stateId).getFluidState().isEmpty();
+    }
+
+    @Override
+    public boolean sameFluid(int stateId, int otherStateId) {
+        FluidState fluid = index.state(stateId).getFluidState();
+        return !fluid.isEmpty() && fluid.getType().isSame(index.state(otherStateId).getFluidState().getType());
+    }
+
+    @Override
+    public float fluidHeight(int stateId) {
+        return index.state(stateId).getFluidState().getOwnHeight();
+    }
+
+    @Override
+    public boolean solid(int stateId) {
+        return index.state(stateId).isSolid();
     }
 }

@@ -268,9 +268,10 @@ public final class SqliteCellStore implements CellStore {
                 return;
             }
 
-            if (version == StoreFormat.BEFORE_COVERAGE) {
-                Eminus.LOGGER.warn("The cell store {} is format version {}, which records no covered columns; "
-                        + "its cells are dropped and it is rebuilt as version {}", file, version, StoreFormat.VERSION);
+            if (version == StoreFormat.BEFORE_COVERAGE || version == StoreFormat.BEFORE_GAPS) {
+                Eminus.LOGGER.warn("The cell store {} is format version {}, whose coarser voxels carry no height "
+                        + "bounds; its cells are dropped and it is rebuilt as version {}", file, version,
+                        StoreFormat.VERSION);
                 statement.execute(DROP_CELLS);
                 statement.execute(DROP_DICTIONARY);
                 statement.execute(DROP_COLUMNS);

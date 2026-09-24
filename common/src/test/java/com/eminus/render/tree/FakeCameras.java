@@ -18,7 +18,8 @@ final class FakeCameras {
             .ortho(-EVERYWHERE, EVERYWHERE, -EVERYWHERE, EVERYWHERE, -EVERYWHERE, EVERYWHERE);
 
     static CameraFrame everything(double x, double y, double z, int farCells, float pixelsPerBlock) {
-        return new CameraFrame(x, y, z, EVERYTHING, pixelsPerBlock, farCells, THRESHOLD_PIXELS, false);
+        return new CameraFrame(x, y, z, EVERYTHING, pixelsPerBlock, pixelsPerBlock, farCells, THRESHOLD_PIXELS,
+                false);
     }
 
     static CameraFrame looking(double x, double y, double z, float dirX, float dirY, float dirZ, int farCells,
@@ -26,12 +27,18 @@ final class FakeCameras {
         Matrix4f viewProjection = new Matrix4f()
                 .perspective(FOV_RADIANS, ASPECT, NEAR, FAR)
                 .lookAlong(dirX, dirY, dirZ, 0.0F, 1.0F, 0.0F);
-        return new CameraFrame(x, y, z, viewProjection, pixelsPerBlock, farCells, THRESHOLD_PIXELS, false);
+        return new CameraFrame(x, y, z, viewProjection, pixelsPerBlock, pixelsPerBlock, farCells, THRESHOLD_PIXELS,
+                false);
+    }
+
+    static CameraFrame zoomed(CameraFrame frame, float inViewPixelsPerBlock) {
+        return new CameraFrame(frame.eyeX(), frame.eyeY(), frame.eyeZ(), frame.viewProjection(),
+                frame.pixelsPerBlock(), inViewPixelsPerBlock, frame.farCells(), frame.subdivisionPixels(),
+                frame.pressure());
     }
 
     static CameraFrame underPressure(CameraFrame frame) {
-        return new CameraFrame(frame.eyeX(), frame.eyeY(), frame.eyeZ(), frame.viewProjection(),
-                frame.pixelsPerBlock(), frame.farCells(), frame.subdivisionPixels(), true);
+        return frame.underPressure();
     }
 
     private FakeCameras() {

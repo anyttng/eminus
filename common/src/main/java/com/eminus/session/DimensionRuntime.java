@@ -101,7 +101,7 @@ public final class DimensionRuntime {
     }
 
     public void stopListening() {
-        changes.set((handle, faceMask) -> cells.release(handle));
+        changes.set((handle, faceMask, edgeMask) -> cells.release(handle));
     }
 
     void createFolder() {
@@ -131,7 +131,7 @@ public final class DimensionRuntime {
         states = new StateTable(stateIds);
         biomes = biomeIds;
         coverage = openCoverage();
-        changes.set((handle, faceMask) -> cells.release(handle));
+        changes.set((handle, faceMask, edgeMask) -> cells.release(handle));
         Changes forwarded = new Changes();
         merger = new CellMerger(cells, frame, lowestStoredLevel, forwarded);
         ingest = new IngestService(ingestService, states, biomes, merger, coverage, forwarded);
@@ -207,8 +207,8 @@ public final class DimensionRuntime {
 
     private final class Changes implements CellChangeListener {
         @Override
-        public void changed(CellHandle handle, int faceMask) {
-            changes.get().changed(handle, faceMask);
+        public void changed(CellHandle handle, int faceMask, int edgeMask) {
+            changes.get().changed(handle, faceMask, edgeMask);
         }
 
         @Override

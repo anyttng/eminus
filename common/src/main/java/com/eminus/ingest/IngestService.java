@@ -1,5 +1,9 @@
 package com.eminus.ingest;
 
+import java.util.BitSet;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.eminus.Eminus;
@@ -16,7 +20,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.QuartPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
@@ -43,6 +46,7 @@ public final class IngestService {
     private final LongOpenHashSet deferred = new LongOpenHashSet();
     private final LongOpenHashSet lightOnly = new LongOpenHashSet();
     private final LightDigests digests = new LightDigests();
+    private final Queue<Long> stale = new ConcurrentLinkedQueue<>();
 
     private volatile boolean running = true;
 
@@ -114,6 +118,14 @@ public final class IngestService {
             }
         }
 
+        if (trigger != IngestTrigger.UNLOAD && coverage.covers(chunkX, chunkZ)) {
+            for (int index = 0; index < sections.length; index++) {
+                if (!submitted[index] && sections[index].hasOnlyAir()) {
+                    probeSkipped(chunkX, chunk.getSectionYFromSectionIndex(index), chunkZ);
+                }
+            }
+        }
+
         if (count == 0) {
             service.enqueue(pyramid -> cover(chunkX, chunkZ));
             return;
@@ -127,8 +139,19 @@ public final class IngestService {
         }
     }
 
+    private void probeSkipped(int sectionX, int sectionY, int sectionZ) {
+        service.enqueue(pyramid -> {
+            if (running && merger.storesBeyondOpenSky(sectionX, sectionY, sectionZ)) {
+                stale.add(SectionPos.asLong(sectionX, sectionY, sectionZ));
+            }
+        });
+    }
+
     public void markBlockChange(BlockPos pos, long now) {
-        long sectionNode = SectionPos.asLong(pos);
+        markChanged(SectionPos.asLong(pos), now);
+    }
+
+    private void markChanged(long sectionNode, long now) {
         lightOnly.remove(sectionNode);
         debounce.mark(sectionNode, now);
     }
@@ -146,7 +169,21 @@ public final class IngestService {
         debounce.mark(sectionNode, now);
     }
 
+    public void markLightPacket(int chunkX, int chunkZ, BitSet sections, int minSectionY, long now) {
+        if (!coverage.covers(chunkX, chunkZ)) {
+            return;
+        }
+
+        for (int index = sections.nextSetBit(0); index >= 0; index = sections.nextSetBit(index + 1)) {
+            markLightUpdate(SectionPos.of(chunkX, minSectionY + index, chunkZ), now);
+        }
+    }
+
     public void pollDebounce(ClientLevel level, long now) {
+        for (Long sectionNode = stale.poll(); sectionNode != null; sectionNode = stale.poll()) {
+            markChanged(sectionNode, now);
+        }
+
         debounce.drain(now, sectionNode -> submitMarked(level, sectionNode));
         deferred.removeIf(
                 column -> level.getChunkSource().getChunkNow(SectionPos.x(column), SectionPos.z(column)) == null);
@@ -155,6 +192,7 @@ public final class IngestService {
     public void stop() {
         running = false;
         digests.clear();
+        stale.clear();
     }
 
     private void submitMarked(ClientLevel level, long sectionNode) {
@@ -169,16 +207,35 @@ public final class IngestService {
             return;
         }
 
-        if (!coverage.covers(sectionX, sectionZ) || !neighboursLoaded(level, sectionX, sectionZ)) {
+        if (!coverage.covers(sectionX, sectionZ)) {
             submitChunk(chunk, trigger);
             return;
         }
 
-        if (!skyPublished(level.getLightEngine(), SectionPos.of(sectionX, sectionY, sectionZ))) {
+        // The light engine drops the layers of an air-only section whose 26 neighbours are air-only too, for good.
+        if (!chunk.getSections()[index].hasOnlyAir()
+                && !skyPublished(level.getLightEngine(), SectionPos.of(sectionX, sectionY, sectionZ))) {
             return;
         }
 
-        submit(level.getLightEngine(), chunk, index, null, trigger);
+        LevelLightEngine light = level.getLightEngine();
+        submit(light, chunk, index, null, trigger);
+        submitRunBelow(light, chunk, index);
+    }
+
+    private void submitRunBelow(LevelLightEngine light, LevelChunk chunk, int index) {
+        if (!hasSky(light)) {
+            return;
+        }
+
+        for (int below = index - 1; below >= 0; below--) {
+            if (!chunk.getSections()[below].hasOnlyAir()
+                    || layer(light, LightLayer.SKY, sectionPos(chunk, below)) != null) {
+                return;
+            }
+
+            submit(light, chunk, below, null, IngestTrigger.LIGHT);
+        }
     }
 
     private void submit(LevelLightEngine light, LevelChunk chunk, int index, @Nullable AtomicInteger remaining,
@@ -188,7 +245,7 @@ public final class IngestService {
         int sectionY = chunk.getSectionYFromSectionIndex(index);
         int sectionZ = chunk.getPos().z();
         SectionPos sectionPos = SectionPos.of(sectionX, sectionY, sectionZ);
-        DataLayer skyLight = skyLayer(light, chunk.getLevel(), sectionPos);
+        DataLayer skyLight = Objects.requireNonNullElseGet(sky(light, sectionPos), () -> openSky(light));
         DataLayer blockLight = layer(light, LightLayer.BLOCK, sectionPos);
 
         boolean differs = digests.record(sectionPos.asLong(), skyLight, blockLight);
@@ -236,25 +293,15 @@ public final class IngestService {
         }
 
         long seed = ((BiomeManagerAccessor) level.getBiomeManager()).eminus$biomeZoomSeed();
-        return BiomeWindow.capture((quartX, quartY, quartZ) -> noiseBiome(chunk, around, quartX, quartY, quartZ),
+        return BiomeWindow.capture((quartX, quartY, quartZ) -> noiseBiome(pos, around, quartX, quartY, quartZ),
                 pos.x(), sectionY, pos.z(), seed);
     }
 
-    private static Holder<Biome> noiseBiome(LevelChunk chunk, LevelChunk[] around, int quartX, int quartY,
+    private static @Nullable Holder<Biome> noiseBiome(ChunkPos pos, LevelChunk[] around, int quartX, int quartY,
             int quartZ) {
-        ChunkPos pos = chunk.getPos();
         LevelChunk neighbour = around[neighbourIndex(QuartPos.toSection(quartX) - pos.x(),
                 QuartPos.toSection(quartZ) - pos.z())];
-        if (neighbour != null) {
-            return neighbour.getNoiseBiome(quartX, quartY, quartZ);
-        }
-
-        return chunk.getNoiseBiome(ownQuart(quartX, pos.x()), quartY, ownQuart(quartZ, pos.z()));
-    }
-
-    private static int ownQuart(int quart, int chunk) {
-        int first = QuartPos.fromSection(chunk);
-        return Mth.clamp(quart, first, first + BiomeWindow.QUARTS_PER_SECTION - 1);
+        return neighbour == null ? null : neighbour.getNoiseBiome(quartX, quartY, quartZ);
     }
 
     private static boolean neighboursLoaded(Level level, int chunkX, int chunkZ) {
@@ -278,22 +325,45 @@ public final class IngestService {
     }
 
     private static boolean submits(LevelLightEngine light, LevelChunk chunk, int index) {
-        SectionPos sectionPos = SectionPos.of(chunk.getPos(), chunk.getSectionYFromSectionIndex(index));
-        if (!skyPublished(light, sectionPos)) {
-            return false;
-        }
-
+        SectionPos sectionPos = sectionPos(chunk, index);
         if (!chunk.getSections()[index].hasOnlyAir()) {
-            return true;
+            return skyPublished(light, sectionPos);
         }
 
-        return SectionConverter.lightDiffersFromBlank(layer(light, LightLayer.SKY, sectionPos),
+        return SectionConverter.lightDiffersFromBlank(sky(light, sectionPos),
                 layer(light, LightLayer.BLOCK, sectionPos));
     }
 
+    private static SectionPos sectionPos(LevelChunk chunk, int index) {
+        return SectionPos.of(chunk.getPos(), chunk.getSectionYFromSectionIndex(index));
+    }
+
     private static boolean skyPublished(LevelLightEngine light, SectionPos sectionPos) {
-        return light.getLayerListener(LightLayer.SKY) == LayerLightEventListener.DummyLightLayerEventListener.INSTANCE
-                || layer(light, LightLayer.SKY, sectionPos) != null;
+        return !hasSky(light) || layer(light, LightLayer.SKY, sectionPos) != null;
+    }
+
+    private static boolean hasSky(LevelLightEngine light) {
+        return light.getLayerListener(LightLayer.SKY) != LayerLightEventListener.DummyLightLayerEventListener.INSTANCE;
+    }
+
+    private static @Nullable DataLayer sky(LevelLightEngine light, SectionPos sectionPos) {
+        DataLayer own = layer(light, LightLayer.SKY, sectionPos);
+        if (own != null || !hasSky(light)) {
+            return own;
+        }
+
+        for (int sectionY = sectionPos.y() + 1; sectionY < light.getMaxLightSection(); sectionY++) {
+            DataLayer above = layer(light, LightLayer.SKY, SectionPos.of(sectionPos.x(), sectionY, sectionPos.z()));
+            if (above != null) {
+                return SectionConverter.repeatBottomRow(above);
+            }
+        }
+
+        return null;
+    }
+
+    private static DataLayer openSky(LevelLightEngine light) {
+        return hasSky(light) ? new DataLayer(SectionConverter.DEFAULT_SKY_LIGHT) : new DataLayer();
     }
 
     private static boolean lightOn(LevelLightEngine light, int chunkX, int chunkZ) {
@@ -315,32 +385,4 @@ public final class IngestService {
         return light.getLayerListener(layer).getDataLayerData(sectionPos);
     }
 
-    private static DataLayer skyLayer(LevelLightEngine light, Level level, SectionPos sectionPos) {
-        DataLayer stored = layer(light, LightLayer.SKY, sectionPos);
-        return stored != null ? stored : skyFromGame(level, sectionPos);
-    }
-
-    private static DataLayer skyFromGame(Level level, SectionPos sectionPos) {
-        DataLayer built = new DataLayer();
-        BlockPos.MutableBlockPos block = new BlockPos.MutableBlockPos();
-        int originX = sectionPos.minBlockX();
-        int originY = sectionPos.minBlockY();
-        int originZ = sectionPos.minBlockZ();
-
-        for (int z = 0; z < SectionPyramid.SECTION_SIDE; z++) {
-            for (int x = 0; x < SectionPyramid.SECTION_SIDE; x++) {
-                block.set(originX + x, originY, originZ + z);
-                int value = level.getBrightness(LightLayer.SKY, block);
-                if (value == 0) {
-                    continue;
-                }
-
-                for (int y = 0; y < SectionPyramid.SECTION_SIDE; y++) {
-                    built.set(x, y, z, value);
-                }
-            }
-        }
-
-        return built;
-    }
 }

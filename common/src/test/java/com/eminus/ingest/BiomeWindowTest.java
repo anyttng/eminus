@@ -10,6 +10,7 @@ import java.util.List;
 import com.eminus.VanillaBootstrap;
 
 import net.minecraft.core.Holder;
+import net.minecraft.core.QuartPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
@@ -53,6 +54,31 @@ class BiomeWindowTest {
                 }
             }
         }
+    }
+
+    @Test
+    void aBlockWhoseChosenSampleLiesInAMissingChunkHasNoBiome() {
+        BiomeResolver world = (quartX, quartY, quartZ) -> quartX < QuartPos.fromSection(1)
+                ? HOLDERS.get(Math.floorMod(quartZ, BIOMES))
+                : null;
+        BiomeManager game = new BiomeManager(world, SEED);
+        BiomeWindow window = BiomeWindow.capture(world, 0, 0, 0, SEED);
+        int missing = 0;
+
+        for (int y = 0; y < SectionPyramid.SECTION_SIDE; y++) {
+            for (int z = 0; z < SectionPyramid.SECTION_SIDE; z++) {
+                for (int x = 0; x < SectionPyramid.SECTION_SIDE; x++) {
+                    Holder<Biome> expected = game.getBiome(x, y, z);
+                    assertSame(expected, window.at(x, y, z));
+                    if (expected == null) {
+                        missing++;
+                    }
+                }
+            }
+        }
+
+        assertTrue(missing > 0);
+        assertTrue(missing < SectionPyramid.SECTION_SIDE * SectionPyramid.SECTION_SIDE * SectionPyramid.SECTION_SIDE);
     }
 
     @Test

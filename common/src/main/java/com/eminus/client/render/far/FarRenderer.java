@@ -27,6 +27,7 @@ import com.eminus.render.arena.MeshSlot;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.render.backend.BackendSupport;
 import com.eminus.client.render.backend.BackendCheck;
+import com.eminus.client.render.backend.DeviceReading;
 import com.eminus.render.far.CompositeFog;
 import com.eminus.render.far.DrawCommands;
 import com.eminus.render.far.MeshOrder;
@@ -62,6 +63,7 @@ import org.jspecify.annotations.Nullable;
 public final class FarRenderer implements AutoCloseable {
     public static final int START_COMMANDS = 32768;
     public static final String ARENA_CAP_PROPERTY = "eminus.arena.maxMiB";
+    public static final String ARENA_FLOOR_PROPERTY = "eminus.arena.minMiB";
 
     private static final long BYTES_PER_MIB = 1L << 20;
 
@@ -119,11 +121,12 @@ public final class FarRenderer implements AutoCloseable {
         RenderSystem.assertOnRenderThread();
 
         RenderTarget main = client.gameRenderer.mainRenderTarget();
+        long ceiling = ceiling();
         long bytes = ArenaSizing.fitted(
-                capped(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
+                bounded(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
                         FarProjection.focalPixels(client.options.fov().get(), main.height),
-                        runtime.lowestStoredLevel())),
-                RenderSystem.getDevice().getDeviceInfo().limits().maxMemoryAllocationSize());
+                        runtime.lowestStoredLevel()), ceiling),
+                ceiling);
         BackendSupport support = BackendCheck.run(bytes);
         GeometryArena arena = GeometryArena.create(support, bytes);
         if (arena == null) {
@@ -150,15 +153,45 @@ public final class FarRenderer implements AutoCloseable {
         return renderer;
     }
 
-    private static long capped(long wanted) {
-        Long capMiB = Long.getLong(ARENA_CAP_PROPERTY);
-        if (capMiB == null) {
-            return wanted;
+    private static long ceiling() {
+        DeviceReading device = DeviceReading.read();
+        long maxAllocation = RenderSystem.getDevice().getDeviceInfo().limits().maxMemoryAllocationSize();
+        long ceiling = ArenaSizing.ceiling(device.texelBytes(), maxAllocation, device.freeBytes());
+
+        Eminus.LOGGER.info("Geometry arena ceiling {} MiB: texel buffer {}, vertex index {} MiB, device share {}, "
+                + "free video memory {}", ceiling / BYTES_PER_MIB,
+                device.texelBytes().isPresent() ? device.texelBytes().getAsLong() / BYTES_PER_MIB + " MiB"
+                        : "unread, " + ArenaSizing.UNREAD_TEXEL_BYTES / BYTES_PER_MIB + " MiB in its place",
+                ArenaSizing.VERTEX_INDEX_BYTES / BYTES_PER_MIB,
+                maxAllocation == Long.MAX_VALUE ? "unbounded"
+                        : maxAllocation / ArenaSizing.DEVICE_SHARE / BYTES_PER_MIB + " MiB",
+                device.freeBytes().isPresent() ? device.freeBytes().getAsLong() / BYTES_PER_MIB + " MiB, "
+                        + device.freeBytes().getAsLong() / ArenaSizing.FREE_MEMORY_SHARE / BYTES_PER_MIB + " MiB taken"
+                        : "not reported");
+        return ceiling;
+    }
+
+    private static long bounded(long wanted, long ceiling) {
+        long bytes = wanted;
+        Long floorMiB = Long.getLong(ARENA_FLOOR_PROPERTY);
+        if (floorMiB != null) {
+            Eminus.LOGGER.info("Geometry arena raised to at least {} MiB by -D{}, {} MiB wanted", floorMiB,
+                    ARENA_FLOOR_PROPERTY, wanted / BYTES_PER_MIB);
+            bytes = Math.max(bytes, floorMiB * BYTES_PER_MIB);
+            if (bytes > ceiling) {
+                Eminus.LOGGER.info("Geometry arena floor of {} MiB is above the device ceiling: the arena starts at "
+                        + "{} MiB", floorMiB, ceiling / BYTES_PER_MIB);
+            }
         }
 
-        Eminus.LOGGER.info("Geometry arena capped at {} MiB by -D{}, {} MiB wanted", capMiB, ARENA_CAP_PROPERTY,
-                wanted / BYTES_PER_MIB);
-        return Math.min(wanted, capMiB * BYTES_PER_MIB);
+        Long capMiB = Long.getLong(ARENA_CAP_PROPERTY);
+        if (capMiB != null) {
+            Eminus.LOGGER.info("Geometry arena capped at {} MiB by -D{}, {} MiB wanted", capMiB, ARENA_CAP_PROPERTY,
+                    wanted / BYTES_PER_MIB);
+            bytes = Math.min(bytes, capMiB * BYTES_PER_MIB);
+        }
+
+        return bytes;
     }
 
     public static boolean recreates(Settings built, Settings updated) {
@@ -207,9 +240,10 @@ public final class FarRenderer implements AutoCloseable {
         FarProjection.gameViewProjection(levelProjection.projection(), viewRotation, gameViewProjection);
 
         Settings settings = SettingsService.get().settings();
-        float focalPixels = FarProjection.focalPixels(client.options.fov().get(), main.height);
-        tree.frame(new CameraFrame(eye.x, eye.y, eye.z, new Matrix4f(farViewProjection), focalPixels,
-                settings.farRenderCells(), settings.detailDistance().pixels(), arena.pressure()));
+        tree.frame(new CameraFrame(eye.x, eye.y, eye.z, new Matrix4f(farViewProjection),
+                FarProjection.focalPixels(client.options.fov().get(), main.height),
+                FarProjection.focalPixels(camera.getFov(), main.height), settings.farRenderCells(),
+                settings.detailDistance().pixels(), arena.pressure()));
 
         FogData gameFog = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData;
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
@@ -223,7 +257,8 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         order.update(renderList, runtime.frame(), eye.x, eye.y, eye.z);
-        commands.write(order.meshes(), order.translucent(), arena, runtime.frame(), eye.x, eye.y, eye.z);
+        commands.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(), eye.x,
+                eye.y, eye.z);
 
         if (commands.count() > 0) {
             if (indirect.capacity() < commands.capacity()) {
@@ -232,9 +267,7 @@ public final class FarRenderer implements AutoCloseable {
             }
 
             indirect.write(commands);
-            if (commands.translucentCount() > 0) {
-                fillNearSections(client, renderDistance, eye);
-            }
+            fillNearSections(client, renderDistance, eye);
 
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
                     nearSections.sections(), level.cardinalLighting());
@@ -332,7 +365,7 @@ public final class FarRenderer implements AutoCloseable {
         ClientLevel level = client.level;
         nearSections.fill(client.levelRenderer,
                 Util.toMillis(client.gameRenderer.gameRenderState().optionsRenderState.chunkSectionFadeInTime),
-                order.translucent(), runtime.frame(),
+                order.meshes(), runtime.frame(),
                 NearSections.section(Mth.floor(eye.x)), NearSections.section(Mth.floor(eye.y)),
                 NearSections.section(Mth.floor(eye.z)), renderDistance,
                 renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSectionY(), level.getSectionsCount());

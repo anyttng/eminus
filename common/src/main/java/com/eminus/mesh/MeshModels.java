@@ -17,5 +17,15 @@ public interface MeshModels {
 
     int tintRow(int modelId);
 
+    boolean fillsHeight(int modelId);
+
     int offset(int stateId, int blockX, int blockY, int blockZ);
+
+    boolean holdsFluid(int stateId);
+
+    boolean sameFluid(int stateId, int otherStateId);
+
+    float fluidHeight(int stateId);
+
+    boolean solid(int stateId);
 }

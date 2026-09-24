@@ -14,6 +14,7 @@ import org.jspecify.annotations.Nullable;
 public final class FluidBaker {
     private static final int ALPHA_MASK = 0xFF00_0000;
     private static final int UP = Direction.UP.ordinal();
+    private static final float FULL_HEIGHT = 1.0F;
 
     private final FluidStateModelSet models;
     private final SolidSprites sprites;
@@ -44,18 +45,26 @@ public final class FluidBaker {
             tintRow = tint.row();
         }
 
-        int flags = (translucent ? ModelMetadata.TRANSLUCENT : 0)
+        int flags = ModelMetadata.FLUID
+                | (translucent ? ModelMetadata.TRANSLUCENT : 0)
                 | (tintRow == BiomeColours.NO_ROW ? 0 : ModelMetadata.TINTED);
-        int occluding = !translucent && opaque(side) ? FaceMask.ALL & ~FaceMask.UP : FaceMask.NONE;
-        int metadata = ModelMetadata.pack(FaceMask.ALL, occluding, FaceMask.ALL & ~FaceMask.UP, 0, flags);
-
         float height = fluid.getOwnHeight();
-        return new BakedModel(faces, tintMask, surfaceInsets(height), surfaceBounds(height), metadata, tintRow);
+        float[] bounds = surfaceBounds(height);
+        int metadata = ModelMetadata.pack(FaceMask.ALL, occluding(bounds, translucent || !opaque(side)),
+                occludable(bounds), 0, flags);
+
+        return new BakedModel(faces, tintMask, surfaceInsets(height), bounds, metadata, tintRow);
     }
 
     public static BakedModel submerged(BakedModel surface) {
-        return new BakedModel(surface.faces(), surface.tintMask(), new float[BakedModel.FACE_COUNT],
-                BakedModel.fullBounds(), surface.metadata(), surface.tintRow());
+        int word = surface.metadata();
+        float[] bounds = BakedModel.fullBounds();
+        boolean seeThrough = ModelMetadata.has(word, ModelMetadata.TRANSLUCENT) || !opaque(surface.faces());
+        int metadata = ModelMetadata.pack(ModelMetadata.present(word), occluding(bounds, seeThrough),
+                occludable(bounds), ModelMetadata.emission(word), word & ModelMetadata.FLAGS);
+
+        return new BakedModel(surface.faces(), surface.tintMask(), new float[BakedModel.FACE_COUNT], bounds,
+                metadata, surface.tintRow());
     }
 
     static float[] surfaceInsets(float height) {
@@ -68,6 +77,22 @@ public final class FluidBaker {
         float[] bounds = BakedModel.fullBounds();
         bounds[BakedModel.MAX_Y] = height;
         return bounds;
+    }
+
+    static int occluding(float[] bounds, boolean seeThrough) {
+        if (seeThrough) {
+            return FaceMask.NONE;
+        }
+
+        return reachesTop(bounds) ? FaceMask.ALL : FaceMask.DOWN;
+    }
+
+    static int occludable(float[] bounds) {
+        return reachesTop(bounds) ? FaceMask.ALL : FaceMask.ALL & ~FaceMask.UP;
+    }
+
+    private static boolean reachesTop(float[] bounds) {
+        return bounds[BakedModel.MAX_Y] >= FULL_HEIGHT;
     }
 
     private int[] still(TextureAtlasSprite sprite) {
@@ -88,8 +113,8 @@ public final class FluidBaker {
         return start + (end - start) * (step + 0.5F) / BakedModel.FACE_SIDE;
     }
 
-    private static boolean opaque(int[] side) {
-        for (int texel : side) {
+    private static boolean opaque(int[] texels) {
+        for (int texel : texels) {
             if ((texel & ALPHA_MASK) != ALPHA_MASK) {
                 return false;
             }

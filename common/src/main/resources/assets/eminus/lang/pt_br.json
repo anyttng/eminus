@@ -12,17 +12,17 @@
   "gui.eminus.settings.far_render_cells": "Distância de renderização distante",
   "gui.eminus.settings.far_render_cells.hint": "Até onde a camada distante alcança. O trabalho cresce com o quadrado dessa distância: mais malhas percorridas por quadro e mais delas na memória de vídeo.",
   "gui.eminus.settings.worker_threads": "Threads de trabalho",
-  "gui.eminus.settings.worker_threads.hint": "Threads em segundo plano que constroem o terreno distante. Mais threads alcançam o atraso mais rápido e competem mais com os construtores de chunks do próprio jogo; menos, o contrário.",
+  "gui.eminus.settings.worker_threads.hint": "Threads em segundo plano que constroem o LOD. Mais threads alcançam o atraso mais rápido e competem mais com os construtores de chunks do próprio jogo; menos, o contrário.",
   "gui.eminus.settings.detail_distance": "Distância de detalhe",
-  "gui.eminus.settings.detail_distance.hint": "Até onde vai o detalhe fino do terreno distante. Cada passo acima dobra essa distância e custa mais memória de vídeo. Com uma resolução de tela maior, o mesmo passo vai mais longe.",
-  "gui.eminus.settings.detail_distance.limited": "No momento não é alcançada: a reserva de geometria está cheia, então o terreno distante é desenhado mais grosseiro do que esta configuração pede.",
+  "gui.eminus.settings.detail_distance.hint": "Até onde vai o detalhe fino do LOD. Cada passo acima dobra essa distância e custa mais memória de vídeo. Com uma resolução de tela maior, o mesmo passo vai mais longe.",
+  "gui.eminus.settings.detail_distance.limited": "No momento não é alcançada: a reserva de geometria está cheia, então o LOD é desenhado mais grosseiro do que esta configuração pede.",
   "gui.eminus.settings.detail_distance.ultra": "Ultra",
   "gui.eminus.settings.detail_distance.high": "Alta",
   "gui.eminus.settings.detail_distance.medium": "Média",
   "gui.eminus.settings.detail_distance.low": "Baixa",
   "gui.eminus.settings.detail_distance.minimal": "Mínima",
   "gui.eminus.settings.fog": "Névoa",
-  "gui.eminus.settings.fog.hint": "Névoa sobre o terreno distante, que continua a névoa do próprio jogo e fica total na distância longínqua. Desligada, também remove a névoa ao ar livre dos chunks carregados, deixando toda a vista nítida. A névoa do Nether, de um chefe, debaixo d'água ou da cegueira permanece.",
+  "gui.eminus.settings.fog.hint": "Névoa sobre o LOD, que continua a névoa do próprio jogo e fica total na distância longínqua. Desligada, também remove a névoa ao ar livre dos chunks carregados, deixando toda a vista nítida. A névoa do Nether, de um chefe, debaixo d'água ou da cegueira permanece.",
   "gui.eminus.settings.fade": "Esmaecimento",
-  "gui.eminus.settings.fade.hint": "Esmaece o terreno distante nos seus últimos 512 blocos em vez de terminá-lo com uma borda dura."
+  "gui.eminus.settings.fade.hint": "Esmaece o LOD nos seus últimos 512 blocos em vez de terminá-lo com uma borda dura."
 }

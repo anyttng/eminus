@@ -4,7 +4,9 @@ import java.util.Arrays;
 
 import com.eminus.cell.FaceMask;
 
-public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] bounds, int metadata,
+import net.minecraft.core.Direction;
+
+public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] slopes, float[] bounds, int metadata,
         int tintRow, int[] variants) {
     public static final int FACE_COUNT = 6;
     public static final int FACE_SIDE = 16;
@@ -21,6 +23,12 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] b
     public static final int MAX_Z = 5;
 
     public static final float EMPTY_INSET = 1.0F;
+    public static final float BLOCK_BOTTOM = 0.0F;
+    public static final float BLOCK_TOP = 1.0F;
+
+    public static final int FIRST_SIDE_FACE = Direction.NORTH.ordinal();
+    public static final int SLOPES_PER_FACE = 2;
+    public static final int SLOPES_LENGTH = FACE_COUNT * SLOPES_PER_FACE;
 
     public static final int VARIANT_WORDS = 2;
     public static final int MAX_VARIANT_REJECTIONS = 8;
@@ -29,8 +37,13 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] b
 
     private static final long ALL_TINTED = -1L;
 
+    public BakedModel(int[] faces, long[] tintMask, float[] insets, float[] slopes, float[] bounds, int metadata,
+            int tintRow) {
+        this(faces, tintMask, insets, slopes, bounds, metadata, tintRow, NO_VARIANTS);
+    }
+
     public BakedModel(int[] faces, long[] tintMask, float[] insets, float[] bounds, int metadata, int tintRow) {
-        this(faces, tintMask, insets, bounds, metadata, tintRow, NO_VARIANTS);
+        this(faces, tintMask, insets, new float[SLOPES_LENGTH], bounds, metadata, tintRow, NO_VARIANTS);
     }
 
     public static BakedModel empty() {
@@ -79,14 +92,35 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] b
         return faces[face * FACE_TEXELS + texel];
     }
 
+    public float slopeAlongWidth(int face) {
+        return slopes[slopeIndex(face)];
+    }
+
+    public float slopeAlongHeight(int face) {
+        return slopes[slopeIndex(face) + 1];
+    }
+
+    public static int slopeIndex(int face) {
+        return face * SLOPES_PER_FACE;
+    }
+
+    public boolean fillsHeight() {
+        return bounds[MIN_Y] <= BLOCK_BOTTOM && bounds[MAX_Y] >= BLOCK_TOP;
+    }
+
     public BakedModel withVariants(int[] table) {
-        return new BakedModel(faces, tintMask, insets, bounds, metadata, tintRow, table);
+        return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, table);
+    }
+
+    public BakedModel withMetadata(int word) {
+        return new BakedModel(faces, tintMask, insets, slopes, bounds, word, tintRow, variants);
     }
 
     public boolean sameGeometry(BakedModel other) {
         return metadata == other.metadata
                 && tintRow == other.tintRow
                 && Arrays.equals(insets, other.insets)
+                && Arrays.equals(slopes, other.slopes)
                 && Arrays.equals(bounds, other.bounds);
     }
 
@@ -106,6 +140,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] b
                 && Arrays.equals(faces, model.faces)
                 && Arrays.equals(tintMask, model.tintMask)
                 && Arrays.equals(insets, model.insets)
+                && Arrays.equals(slopes, model.slopes)
                 && Arrays.equals(bounds, model.bounds)
                 && Arrays.equals(variants, model.variants);
     }
@@ -115,6 +150,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] b
         int hash = Arrays.hashCode(faces);
         hash = 31 * hash + Arrays.hashCode(tintMask);
         hash = 31 * hash + Arrays.hashCode(insets);
+        hash = 31 * hash + Arrays.hashCode(slopes);
         hash = 31 * hash + Arrays.hashCode(bounds);
         hash = 31 * hash + Arrays.hashCode(variants);
         hash = 31 * hash + metadata;

@@ -60,7 +60,7 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
                 }
             } else if (blade(normal)) {
                 blades++;
-                float scale = bladeScale(quad, sprites);
+                float scale = bladeScale(quad, baked.bounds(), sprites);
                 if (Math.abs(scale - NO_BLADES) > Math.abs(bladeScale - NO_BLADES)) {
                     bladeScale = scale;
                 }
@@ -120,7 +120,7 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
         return face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1.0F - along : along;
     }
 
-    private static float bladeScale(BakedQuad quad, SpriteColumns sprites) {
+    private static float bladeScale(BakedQuad quad, float[] bakedBounds, SpriteColumns sprites) {
         float minX = Float.MAX_VALUE;
         float maxX = -Float.MAX_VALUE;
         float minU = Float.MAX_VALUE;
@@ -135,7 +135,9 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
         }
 
         float spriteColumns = sprites.columns(quad, maxU - minU);
-        return spriteColumns <= 0.0F ? NO_BLADES : (maxX - minX) * BakedModel.FACE_SIDE / spriteColumns;
+        float imageSpan = bakedBounds[BakedModel.MAX_X] - bakedBounds[BakedModel.MIN_X];
+        return spriteColumns <= 0.0F || imageSpan <= 0.0F ? NO_BLADES
+                : (maxX - minX) / imageSpan * BakedModel.FACE_SIDE / spriteColumns;
     }
 
     private static float[] boundsOf(List<BakedQuad> quads) {

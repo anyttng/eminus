@@ -22,6 +22,7 @@ import com.eminus.api.v1.TreeState;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
+import com.eminus.cell.EdgeMask;
 import com.eminus.cell.FaceMask;
 import com.eminus.cell.OccupancyMask;
 import com.eminus.cell.cache.CellCache;
@@ -56,6 +57,7 @@ class TreeManagerTest {
     private static final double ONE_BLOCK = 1.0;
     private static final double TELEPORT = 2_000.0;
     private static final int ONE_OCTANT = 0b1;
+    private static final int ALL_OCTANTS = 0xFF;
     private static final int OLDER_QUADS = 2;
     private static final int NEWER_QUADS = 3;
     private static final int QUEUED_ROOTS = 800;
@@ -71,7 +73,7 @@ class TreeManagerTest {
     private final FakeBuilds builds = new FakeBuilds();
     private final Map<Long, Long> rootRequests = new HashMap<>();
     private final Map<Long, Float> rootPriorities = new HashMap<>();
-    private final TreeManager manager =
+    private TreeManager manager =
             TreeManager.start(builds, new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN));
 
     @AfterEach
@@ -85,15 +87,15 @@ class TreeManagerTest {
         settleRing();
 
         CellHandle handle = open(KEY);
-        manager.changed(handle, FaceMask.NONE);
+        manager.changed(handle, FaceMask.NONE, EdgeMask.NONE);
 
         FakeBuilds.Call first = builds.take();
         assertEquals(KEY, first.key());
         assertSame(handle, first.handle());
         assertEquals(1, first.references());
 
-        manager.changed(open(KEY), FaceMask.NONE);
-        manager.changed(open(KEY), FaceMask.NONE);
+        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.NONE);
+        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.NONE);
         manager.meshed(CellMesh.empty(KEY), first.request());
 
         FakeBuilds.Call rebuilt = builds.take();
@@ -107,9 +109,9 @@ class TreeManagerTest {
     void aMeshOfAnOlderRequestNeverReplacesTheNewerOne() {
         settleRing();
 
-        manager.changed(open(KEY), FaceMask.NONE);
+        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.NONE);
         FakeBuilds.Call first = builds.take();
-        manager.changed(open(KEY), FaceMask.NONE);
+        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.NONE);
         manager.meshed(CellMesh.empty(KEY), first.request());
         FakeBuilds.Call rebuilt = builds.take();
 
@@ -197,7 +199,7 @@ class TreeManagerTest {
         settleRing();
 
         CellHandle handle = open(KEY);
-        manager.changed(handle, FaceMask.WEST | FaceMask.UP);
+        manager.changed(handle, FaceMask.WEST | FaceMask.UP, EdgeMask.NONE);
 
         FakeBuilds.Call own = builds.take();
         assertEquals(KEY, own.key());
@@ -211,11 +213,23 @@ class TreeManagerTest {
     }
 
     @Test
+    void anEdgeChangeAboveTheSlopingLevelRebuildsNoCellAcrossTheEdge() {
+        settleRing();
+
+        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.bit(-1, 0, 0) | EdgeMask.bit(-1, 0, -1));
+        manager.changed(open(WEST), FaceMask.NONE, EdgeMask.NONE);
+
+        assertEquals(KEY, builds.take().key());
+        assertEquals(WEST, builds.take().key());
+        assertTrue(builds.idle());
+    }
+
+    @Test
     void aBoundaryChangeOnACellWithoutANodeStillRebuildsTheNeighbourNode() {
         settleRing();
 
         CellHandle handle = open(ABOVE);
-        manager.changed(handle, FaceMask.DOWN);
+        manager.changed(handle, FaceMask.DOWN, EdgeMask.NONE);
 
         FakeBuilds.Release released = builds.takeRelease();
         assertSame(handle, released.handle());
@@ -240,7 +254,7 @@ class TreeManagerTest {
     @Test
     void aChangeOnACellWithoutANodeReleasesItsHandle() {
         CellHandle handle = open(OUTSIDE);
-        manager.changed(handle, FaceMask.NONE);
+        manager.changed(handle, FaceMask.NONE, EdgeMask.NONE);
 
         FakeBuilds.Release released = builds.takeRelease();
         assertSame(handle, released.handle());
@@ -249,21 +263,98 @@ class TreeManagerTest {
     }
 
     @Test
-    void aStillCameraSkipsTheWalkAndAMovedCameraOrAChangedTreeWalks() {
+    void aStillCameraWalksOnceAfterMotionThenSkipsAndAMovedCameraOrAChangedTreeWalks() {
         startRing();
         awaitWalks(1);
 
         manager.frame(frame(EYE_X, EYE_Z));
-        manager.changed(open(OUTSIDE), FaceMask.NONE);
-        builds.takeRelease();
-        assertEquals(1, manager.walks());
+        awaitWalks(2);
+
+        manager.frame(frame(EYE_X, EYE_Z));
+        syncMessages();
+        assertEquals(2, manager.walks());
 
         manager.frame(frame(EYE_X + ONE_BLOCK, EYE_Z));
-        awaitWalks(2);
+        awaitWalks(3);
 
         manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
         manager.frame(frame(EYE_X + ONE_BLOCK, EYE_Z));
+        awaitWalks(4);
+    }
+
+    @Test
+    void aStillCameraWalksAfterMotionWhileOutOfViewCandidatesRemainAndSkipsOnceNoneDo() {
+        startRing();
+        manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
+        manager.meshed(TestMeshes.of(WEST, ONE_OCTANT), rootRequests.get(WEST));
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        awaitWalks(2);
+        assertTrue(builds.idle());
+
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        FakeBuilds.Call request = builds.take();
+        assertEquals(CellKey.child(WEST, 0), request.key());
         awaitWalks(3);
+
+        manager.meshed(CellMesh.empty(request.key()), request.request());
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        awaitWalks(4);
+        assertTrue(builds.idle());
+
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        syncMessages();
+        assertEquals(4, manager.walks());
+    }
+
+    @Test
+    void outOfViewBuildsInFlightLeaveTheInViewBudgetWholeAndGoOutBelowIt() {
+        startRing();
+        manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
+        manager.meshed(TestMeshes.of(WEST, ALL_OCTANTS), rootRequests.get(WEST));
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        awaitWalks(2);
+
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            FakeBuilds.Call child = builds.take();
+            manager.meshed(TestMeshes.of(child.key(), ALL_OCTANTS), child.request());
+        }
+
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        for (int index = 0; index < RequestBudget.MAX_PER_WALK; index++) {
+            assertTrue(builds.take().priority() < 0.0F);
+        }
+
+        manager.meshed(TestMeshes.of(KEY, ALL_OCTANTS), rootRequests.get(KEY));
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            FakeBuilds.Call inView = builds.take();
+            assertEquals(KEY, CellKey.parent(inView.key()));
+            assertEquals(ProjectedSize.CONTAINS_CAMERA, inView.priority());
+        }
+
+        syncMessages();
+        assertTrue(builds.idle());
+    }
+
+    @Test
+    void afterAWalkUnderPressureNothingOutOfViewIsRequestedUntilTheCameraMoves() {
+        startRing();
+        manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
+        manager.meshed(TestMeshes.of(WEST, ONE_OCTANT), rootRequests.get(WEST));
+        manager.frame(FakeCameras.underPressure(east(EYE_X + ONE_BLOCK)));
+        awaitWalks(2);
+
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        awaitWalks(3);
+        assertTrue(builds.idle());
+
+        manager.frame(east(EYE_X + 2 * ONE_BLOCK));
+        awaitWalks(4);
+        assertTrue(builds.idle());
+
+        manager.frame(east(EYE_X + 2 * ONE_BLOCK));
+        assertEquals(CellKey.child(WEST, 0), builds.take().key());
     }
 
     @Test
@@ -285,6 +376,37 @@ class TreeManagerTest {
 
         assertEquals(0L, state.pressureEvictions());
         assertTrue(builds.idle());
+    }
+
+    @Test
+    void aTableFilledOutOfViewGivesWayToTheNodesInView() throws Exception {
+        manager.stop();
+        manager = TreeManager.start(builds, new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN),
+                RING_COLUMNS + OccupancyMask.OCTANTS);
+        startRing();
+        manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
+        manager.meshed(TestMeshes.of(WEST, ALL_OCTANTS), rootRequests.get(WEST));
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        awaitWalks(2);
+
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            FakeBuilds.Call behind = builds.take();
+            assertEquals(WEST, CellKey.parent(behind.key()));
+            manager.meshed(TestMeshes.of(behind.key(), OccupancyMask.EMPTY), behind.request());
+        }
+
+        manager.meshed(TestMeshes.of(KEY, ALL_OCTANTS), rootRequests.get(KEY));
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        syncMessages();
+        manager.frame(east(EYE_X + ONE_BLOCK));
+
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            assertEquals(KEY, CellKey.parent(builds.take().key()));
+        }
+
+        TreeState state = manager.snapshot().get(AWAIT_MILLIS, TimeUnit.MILLISECONDS);
+        assertEquals(OccupancyMask.OCTANTS, state.pressureEvictions());
     }
 
     @Test
@@ -353,7 +475,7 @@ class TreeManagerTest {
         startRing();
         manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
         manager.meshed(CellMesh.empty(WEST), rootRequests.get(WEST));
-        manager.changed(open(OUTSIDE), FaceMask.NONE);
+        manager.changed(open(OUTSIDE), FaceMask.NONE, EdgeMask.NONE);
         builds.takeRelease();
     }
 
@@ -363,6 +485,15 @@ class TreeManagerTest {
 
     private static CameraFrame close(double x, double z) {
         return FakeCameras.everything(x, EYE_Y, z, ONE_CELL, FakeCameras.CLOSE_PIXELS_PER_BLOCK);
+    }
+
+    private static CameraFrame east(double x) {
+        return FakeCameras.looking(x, EYE_Y, EYE_Z, 1.0F, 0.0F, 0.0F, ONE_CELL, FakeCameras.CLOSE_PIXELS_PER_BLOCK);
+    }
+
+    private void syncMessages() {
+        manager.changed(open(OUTSIDE), FaceMask.NONE, EdgeMask.NONE);
+        builds.takeRelease();
     }
 
     private CellHandle open(long key) {

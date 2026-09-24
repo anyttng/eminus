@@ -13,6 +13,9 @@ import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.MeshSlot;
 import com.eminus.render.arena.MeshSlots;
+import com.eminus.render.tree.RenderList;
+
+import it.unimi.dsi.fastutil.longs.Long2IntFunction;
 
 import net.minecraft.core.Direction;
 
@@ -39,6 +42,9 @@ class DrawCommandsTest {
     private static final double FAR_ABOVE = 4096.0;
     private static final double FAR_BELOW = -4096.0;
     private static final double INSIDE = 16.0;
+    private static final int BORDER_QUADS = 3;
+    private static final int EAST_BIT = 1 << Direction.EAST.ordinal();
+    private static final Long2IntFunction NO_BORDERS = key -> RenderList.NO_BORDER_FACES;
 
     private final CellFrame frame = new CellFrame(0);
     private final DrawCommands commands = new DrawCommands(CAPACITY);
@@ -112,7 +118,7 @@ class DrawCommandsTest {
         MeshSlot near = slot(key, BLOCK);
         MeshSlot far = slot(farKey, FAR_BLOCK);
 
-        commands.write(List.of(mesh(key), mesh(farKey)), List.of(),
+        commands.write(List.of(mesh(key), mesh(farKey)), List.of(), NO_BORDERS,
                 wanted -> wanted == key ? near : wanted == farKey ? far : null, frame, INSIDE, FAR_ABOVE, INSIDE);
 
         assertEquals(2, commands.opaqueCount());
@@ -144,7 +150,8 @@ class DrawCommandsTest {
     void theTranslucentCommandsSitAfterTheOpaqueOnes() {
         MeshSlot held = both(key, BLOCK);
 
-        commands.write(List.of(mesh(key)), List.of(mesh(key)), slots(held), frame, INSIDE, INSIDE, INSIDE);
+        commands.write(List.of(mesh(key)), List.of(mesh(key)), NO_BORDERS, slots(held), frame, INSIDE, INSIDE,
+                INSIDE);
 
         assertEquals(2, commands.opaqueCount());
         assertEquals(1, commands.translucentCount());
@@ -163,6 +170,35 @@ class DrawCommandsTest {
     @Test
     void aTranslucentMeshTheArenaDoesNotHoldContributesNothing() {
         translucent(missing -> null, mesh(key));
+
+        assertEquals(0, commands.count());
+    }
+
+    @Test
+    void aBorderGroupWithoutItsMarkIsNotDrawn() {
+        commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots(border(key, BLOCK)), frame, INSIDE, INSIDE,
+                INSIDE);
+
+        assertEquals(0, commands.count());
+    }
+
+    @Test
+    void aBorderGroupUnderItsMarkBecomesOneOpaqueCommandOverItsOwnQuadRange() {
+        commands.write(List.of(mesh(key)), List.of(), wanted -> wanted == key ? EAST_BIT : RenderList.NO_BORDER_FACES,
+                slots(border(key, BLOCK)), frame, INSIDE, INSIDE, INSIDE);
+
+        assertEquals(1, commands.opaqueCount());
+        assertEquals(BORDER_QUADS, commands.quads());
+
+        IntBuffer written = commands.buffer().asIntBuffer();
+        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * CORNERS_PER_QUAD,
+                written.get(VERTEX_OFFSET));
+    }
+
+    @Test
+    void aMarkedBorderGroupFacingAwayFromTheCameraIsNotDrawn() {
+        commands.write(List.of(mesh(key)), List.of(), wanted -> EAST_BIT, slots(border(key, BLOCK)), frame,
+                FAR_BELOW, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
     }
@@ -189,11 +225,11 @@ class DrawCommandsTest {
     }
 
     private void write(MeshSlots slots, double cameraY) {
-        commands.write(List.of(mesh(key)), List.of(), slots, frame, INSIDE, cameraY, INSIDE);
+        commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots, frame, INSIDE, cameraY, INSIDE);
     }
 
     private void translucent(MeshSlots slots, MeshSummary... ordered) {
-        commands.write(List.of(), List.of(ordered), slots, frame, INSIDE, INSIDE, INSIDE);
+        commands.write(List.of(), List.of(ordered), NO_BORDERS, slots, frame, INSIDE, INSIDE, INSIDE);
     }
 
     private static MeshSlots slots(MeshSlot held) {
@@ -215,6 +251,14 @@ class DrawCommandsTest {
         groupStart[QuadGroups.TRANSLUCENT] = WATER_START;
         groupCount[QuadGroups.TRANSLUCENT] = WATER_QUADS;
         return new MeshSlot(key, block, WATER_START + WATER_QUADS, NO_COLOURS, groupStart, groupCount);
+    }
+
+    private static MeshSlot border(long key, int block) {
+        int[] groupStart = new int[QuadGroups.COUNT];
+        int[] groupCount = new int[QuadGroups.COUNT];
+        groupStart[QuadGroups.border(Direction.EAST)] = WATER_START;
+        groupCount[QuadGroups.border(Direction.EAST)] = BORDER_QUADS;
+        return new MeshSlot(key, block, WATER_START + BORDER_QUADS, NO_COLOURS, groupStart, groupCount);
     }
 
     private static MeshSlot both(long key, int block) {

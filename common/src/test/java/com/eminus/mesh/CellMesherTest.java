@@ -66,6 +66,17 @@ class CellMesherTest {
     private static final int SUBMERGED_WATER_MODEL = 25;
     private static final int VARIED_MODEL = 27;
     private static final int FLOWING_WATER_MODEL = 29;
+    private static final int SOURCE_LAVA = 30;
+    private static final int FLOWING_LAVA = 31;
+    private static final int SOURCE_LAVA_MODEL = 32;
+    private static final int FLOWING_LAVA_MODEL = 33;
+    private static final int SUBMERGED_LAVA_MODEL = 34;
+    private static final int HEADED = 35;
+    private static final int HEADED_MODEL = 36;
+    private static final int SLAB = 37;
+    private static final int SLAB_MODEL = 38;
+    private static final int HEAD_FACES = 2;
+    private static final int HEADED_VOXELS = 3;
     private static final int VARIED_ROW = 4;
     private static final int GRASS_ROW = 0;
     private static final int PLAINS = 5;
@@ -73,6 +84,8 @@ class CellMesherTest {
     private static final int SWAMP_GREEN = 0x6A7039;
     private static final int PLAINS_WIDTH = 8;
     private static final int NO_BLEND = 0;
+    private static final int FIRST_CAP_BIOME = 1;
+    private static final int CAPPED_LAYERS = 16;
 
     private static final int BIOME = 3;
     private static final int FULL_SKY = 15;
@@ -80,6 +93,9 @@ class CellMesherTest {
     private static final int GRADIENT_BASE = 12;
     private static final int GRADIENT_SPAN = 4;
     private static final int TORCH_BLOCK_LIGHT = 14;
+    private static final int BORDER_SKY = 9;
+    private static final int FLOOR_BOTTOM_QUADS = 4;
+    private static final int FLOOR_EDGE_QUADS = 2;
     private static final int GLASS_FACES_IN_AIR = 5;
     private static final int CUBE_SIDE = 2;
     private static final int CUBE_FACES = 6;
@@ -95,6 +111,9 @@ class CellMesherTest {
     private static final CellFrame FRAME = new CellFrame(MIN_BLOCK_Y);
     private static final float OFFSET_TOLERANCE = 1.0F / 512.0F;
     private static final int COARSE_LEVEL = 1;
+    private static final int LAVA_FLUID = 1;
+    private static final float SOURCE_HEIGHT = 8.0F / 9.0F;
+    private static final float FLOWING_HEIGHT = 6.0F / 9.0F;
 
     private final Map<Integer, Integer> opacities = new HashMap<>();
     private final FakeModels models = new FakeModels();
@@ -126,18 +145,24 @@ class CellMesherTest {
     }
 
     @Test
-    void aFullFloorShowsFourQuadsOnTopAndNothingElse() {
+    void aFullFloorShowsFourQuadsOnTopAndKeepsItsCoveredEdgesInBorderGroups() {
         defineBlocks();
         CellMesh mesh = mesh(floor(), ground(), 0);
 
         assertEquals(4, mesh.groupCount(Direction.UP.ordinal()));
-        assertEquals(4, mesh.quadCount());
-
-        for (int index = 0; index < mesh.quadCount(); index++) {
+        assertEquals(4, mesh.groupStart(QuadGroups.FIRST_BORDER));
+        for (int index = 0; index < mesh.groupStart(QuadGroups.FIRST_BORDER); index++) {
             long quad = mesh.quad(index);
             assertEquals(Quad.MAX_SIDE, Quad.width(quad));
             assertEquals(Quad.MAX_SIDE, Quad.height(quad));
         }
+
+        assertEquals(FLOOR_BOTTOM_QUADS, mesh.groupCount(QuadGroups.border(Direction.DOWN)));
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            assertEquals(FLOOR_EDGE_QUADS, mesh.groupCount(QuadGroups.border(side)));
+        }
+
+        assertEquals(0, mesh.groupCount(QuadGroups.border(Direction.UP)));
     }
 
     @Test
@@ -367,6 +392,37 @@ class CellMesherTest {
     }
 
     @Test
+    void aBladedVoxelWithSideFacesEmitsThemBesideItsBlades() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(5, 6, 7, block(HEADED));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertEquals(Quad.BLADE_COUNT + HEAD_FACES, mesh.quadCount());
+        assertTrue(has(mesh, Direction.EAST, 5, 6, 7, HEADED_MODEL));
+        assertTrue(has(mesh, Direction.WEST, 5, 6, 7, HEADED_MODEL));
+        for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
+            assertTrue(hasBlade(mesh, blade, 5, 6, 7, HEADED_MODEL), "blade " + blade);
+        }
+    }
+
+    @Test
+    void slopedFacesOfNeighbouringVoxelsNeverMerge() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(5, 6, 7, block(HEADED));
+        cell.set(5, 6, 8, block(HEADED));
+        cell.set(5, 7, 7, block(HEADED));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertEquals(HEADED_VOXELS * (Quad.BLADE_COUNT + HEAD_FACES), mesh.quadCount());
+        assertTrue(has(mesh, Direction.EAST, 5, 6, 8, HEADED_MODEL));
+        assertTrue(has(mesh, Direction.EAST, 5, 7, 7, HEADED_MODEL));
+    }
+
+    @Test
     void everyClassCutsTowardsAColumnNeverIngestedUntilItsNeighbourLands() {
         defineBlocks();
         Cell cell = blank();
@@ -424,6 +480,270 @@ class CellMesherTest {
         assertFalse(has(mesh, Direction.EAST, 4, 9, 4, FLOWING_WATER_MODEL));
         assertTrue(absent(mesh, Direction.UP, 4, 9, 4));
         assertTrue(has(mesh, Direction.EAST, 4, 10, 4, WATER_MODEL));
+    }
+
+    @Test
+    void glassBesideALavaSurfaceKeepsTheFaceTheyShare() {
+        defineLava();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(GLASS));
+        cell.set(5, 4, 4, block(SOURCE_LAVA));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(has(mesh, Direction.EAST, 4, 4, 4, GLASS_MODEL));
+    }
+
+    @Test
+    void glassBesideSubmergedLavaLosesTheFaceTheyShare() {
+        defineLava();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(GLASS));
+        cell.set(5, 4, 4, block(SOURCE_LAVA));
+        cell.set(5, 5, 4, block(SOURCE_LAVA));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
+    }
+
+    @Test
+    void twoLavaSurfacesOfOneLevelShareNoFace() {
+        defineLava();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(SOURCE_LAVA));
+        cell.set(5, 4, 4, block(SOURCE_LAVA));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
+        assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+    }
+
+    @Test
+    void aFaceOnTheCellBorderCoveredOnlyByTheNeighbourCellGoesToItsBorderGroupOnEveryLevel() {
+        defineBlocks();
+        for (int level = DetailLevel.MIN; level <= DetailLevel.MAX; level++) {
+            Cell cell = blank();
+            cell.set(LAST, 4, 4, block(STONE));
+            Map<Direction, Cell> around = airAround();
+            Cell east = blank();
+            east.set(0, 4, 4, block(STONE));
+            around.put(Direction.EAST, east);
+
+            CellMesh mesh = mesh(cell, around, level);
+
+            assertEquals(QuadGroups.border(Direction.EAST), groupOf(mesh, Direction.EAST, LAST, 4, 4, STONE_MODEL));
+            assertEquals(Direction.WEST.ordinal(), groupOf(mesh, Direction.WEST, LAST, 4, 4, STONE_MODEL));
+        }
+    }
+
+    @Test
+    void aBorderFaceIsLitByTheFirstOpenVoxelAboveTheOneFacingIt() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(LAST, 4, 4, block(STONE));
+        Map<Direction, Cell> around = airAround();
+        Cell east = blank();
+        east.set(0, 4, 4, block(STONE));
+        east.set(0, 5, 4, block(STONE));
+        east.set(0, 6, 4, VoxelEntry.pack(AIR, BIOME, VoxelEntry.light(BORDER_SKY, TORCH_BLOCK_LIGHT)));
+        around.put(Direction.EAST, east);
+
+        CellMesh mesh = mesh(cell, around, 0);
+
+        assertEquals(VoxelEntry.light(BORDER_SKY, TORCH_BLOCK_LIGHT),
+                lightAt(mesh, Direction.EAST, LAST, 4, 4, STONE_MODEL));
+    }
+
+    @Test
+    void aBorderFaceWithNothingOpenAboveTheFacingVoxelTakesFullSky() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(LAST, LAST, 4, block(STONE));
+        Map<Direction, Cell> around = airAround();
+        Cell east = blank();
+        east.set(0, LAST, 4, VoxelEntry.pack(STONE, BIOME, VoxelEntry.light(0, NO_BLOCK_LIGHT)));
+        around.put(Direction.EAST, east);
+
+        CellMesh mesh = mesh(cell, around, 0);
+
+        assertEquals(VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT),
+                lightAt(mesh, Direction.EAST, LAST, LAST, 4, STONE_MODEL));
+    }
+
+    @Test
+    void waterAgainstWaterOnTheCellBorderTakesNoBorderFace() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(LAST, 4, 4, block(WATER));
+        Map<Direction, Cell> around = airAround();
+        Cell east = blank();
+        east.set(0, 4, 4, block(WATER));
+        around.put(Direction.EAST, east);
+
+        CellMesh mesh = mesh(cell, around, COARSE_LEVEL);
+
+        assertTrue(absent(mesh, Direction.EAST, LAST, 4, 4));
+    }
+
+    @Test
+    void aFaceCoveredInsideTheCellTakesNoBorderFace() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(LAST - 1, 4, 4, block(STONE));
+        cell.set(LAST, 4, 4, block(STONE));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(absent(mesh, Direction.EAST, LAST - 1, 4, 4));
+        assertTrue(absent(mesh, Direction.WEST, LAST, 4, 4));
+    }
+
+    @Test
+    void aShorterCoarseVoxelLeavesTheSideOfItsTallerNeighbourShown() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(STONE));
+        long shorter = VoxelEntry.withGaps(block(STONE), 0, 1);
+        cell.set(5, 4, 4, shorter);
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(has(mesh, Direction.EAST, 4, 4, 4, STONE_MODEL));
+        assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+        assertEquals(VoxelEntry.gaps(shorter), cornersOf(mesh, Direction.UP, 5, 4, 4));
+    }
+
+    @Test
+    void coarseVoxelsOfOneHeightHideTheSideTheyShare() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 4, 4, VoxelEntry.withGaps(block(STONE), 0, 1));
+        cell.set(5, 4, 4, VoxelEntry.withGaps(block(STONE), 0, 1));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
+        assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+    }
+
+    @Test
+    void aVoxelOverAShorterOneShowsItsBottomAndTheShorterItsTop() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 4, 4, VoxelEntry.withGaps(block(STONE), 0, 1));
+        cell.set(4, 5, 4, block(STONE));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(has(mesh, Direction.UP, 4, 4, 4, STONE_MODEL));
+        assertTrue(has(mesh, Direction.DOWN, 4, 5, 4, STONE_MODEL));
+    }
+
+    @Test
+    void gappedSideFacesNeverMergeUpwards() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 4, 4, VoxelEntry.withGaps(block(STONE), 0, 1));
+        cell.set(4, 5, 4, VoxelEntry.withGaps(block(STONE), 0, 1));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(has(mesh, Direction.WEST, 4, 4, 4, STONE_MODEL));
+        assertTrue(has(mesh, Direction.WEST, 4, 5, 4, STONE_MODEL));
+    }
+
+    @Test
+    void partialHeightSideFacesNeverMergeUpwardsOnACoarseLevel() {
+        defineBlocks();
+        models.define(SLAB, SLAB_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.DOWN, FaceMask.ALL & ~FaceMask.UP, 0, 0));
+        models.partialHeight(SLAB_MODEL);
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(SLAB));
+        cell.set(4, 5, 4, block(SLAB));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(has(mesh, Direction.WEST, 4, 4, 4, SLAB_MODEL));
+        assertTrue(has(mesh, Direction.WEST, 4, 5, 4, SLAB_MODEL));
+    }
+
+    @Test
+    void fullHeightSideFacesStillMergeUpwardsOnACoarseLevel() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(GLASS));
+        cell.set(4, 5, 4, block(GLASS));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(has(mesh, Direction.WEST, 4, 4, 4, GLASS_MODEL));
+        assertTrue(absent(mesh, Direction.WEST, 4, 5, 4));
+    }
+
+    @Test
+    void aLavaSourceKeepsItsSideAboveALowerFlowingLevelOnACoarseLevel() {
+        defineLava();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(SOURCE_LAVA));
+        cell.set(5, 4, 4, block(FLOWING_LAVA));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(has(mesh, Direction.EAST, 4, 4, 4, SOURCE_LAVA_MODEL));
+        assertEquals(FluidCorners.FLAT, cornersOf(mesh, Direction.UP, 4, 4, 4));
+    }
+
+    @Test
+    void aLavaSourceSlopesIntoALowerFlowingLevelWithNoFaceBetweenThem() {
+        defineLava();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(SOURCE_LAVA));
+        cell.set(5, 4, 4, block(FLOWING_LAVA));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
+        assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+        int source = cornersOf(mesh, Direction.UP, 4, 4, 4);
+        int flow = cornersOf(mesh, Direction.UP, 5, 4, 4);
+        assertEquals(FluidCorners.northEast(source), FluidCorners.northWest(flow));
+        assertEquals(FluidCorners.southEast(source), FluidCorners.southWest(flow));
+        assertTrue(FluidCorners.northWest(source) > FluidCorners.northEast(source));
+        assertTrue(FluidCorners.northWest(flow) > FluidCorners.northEast(flow));
+    }
+
+    @Test
+    void aLavaSideTowardsAirFollowsTheCornersOfItsTop() {
+        defineLava();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(SOURCE_LAVA));
+        cell.set(5, 4, 4, block(FLOWING_LAVA));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertEquals(cornersOf(mesh, Direction.UP, 4, 4, 4), cornersOf(mesh, Direction.NORTH, 4, 4, 4));
+    }
+
+    @Test
+    void aLavaTopUnderStoneWithEveryCornerFullIsHidden() {
+        defineLava();
+        Cell cell = blank();
+        for (int x = 3; x <= 5; x++) {
+            for (int z = 3; z <= 5; z++) {
+                cell.set(x, 4, z, block(SOURCE_LAVA));
+                if (x != 4 || z != 4) {
+                    cell.set(x, 5, z, block(SOURCE_LAVA));
+                }
+            }
+        }
+        cell.set(4, 5, 4, block(STONE));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(absent(mesh, Direction.UP, 4, 4, 4));
     }
 
     @Test
@@ -503,6 +823,29 @@ class CellMesherTest {
             long quad = mesh.quad(index);
             int expected = Quad.x(quad) < PLAINS_WIDTH ? PLAINS_GREEN : SWAMP_GREEN;
             assertEquals(expected, mesh.colour(quad));
+        }
+    }
+
+    @Test
+    void aVoxelPastTheColourCapKeepsItsOwnGaps() {
+        defineBlocks();
+        Cell cell = blank();
+        int biome = FIRST_CAP_BIOME;
+        for (int y = 0; y < CAPPED_LAYERS; y++) {
+            for (int z = 0; z < SIDE; z++) {
+                for (int x = (y + z) % 2; x < SIDE; x += 2) {
+                    cell.set(x, y, z, tinted(biome++));
+                }
+            }
+        }
+
+        long gapped = VoxelEntry.withGaps(tinted(biome), 0, 1);
+        cell.set(LAST, LAST, LAST, gapped);
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        for (Direction face : Direction.values()) {
+            assertEquals(VoxelEntry.gaps(gapped), cornersOf(mesh, face, LAST, LAST, LAST), face.getName());
         }
     }
 
@@ -653,6 +996,8 @@ class CellMesherTest {
         models.define(WET_LEAVES, WET_LEAVES_MODEL, solid);
         models.define(GRASS, GRASS_MODEL, ModelMetadata.pack(
                 FaceMask.NONE, FaceMask.NONE, FaceMask.NONE, 0, ModelMetadata.BLADED));
+        models.define(HEADED, HEADED_MODEL, ModelMetadata.pack(FaceMask.EAST | FaceMask.WEST, FaceMask.NONE,
+                FaceMask.NONE, 0, ModelMetadata.BLADED | ModelMetadata.SLOPED));
         models.define(OPAQUE_LEAVES, OPAQUE_LEAVES_MODEL, solid);
         models.define(CUTOUT_LEAVES, CUTOUT_LEAVES_MODEL, clear);
         models.define(GRASS_BLOCK, GRASS_BLOCK_MODEL, solid);
@@ -668,6 +1013,37 @@ class CellMesherTest {
         opacities.put(OPAQUE_LEAVES, StateTable.FULL_OPACITY);
         opacities.put(CUTOUT_LEAVES, StateTable.FULL_OPACITY);
         opacities.put(GRASS_BLOCK, StateTable.FULL_OPACITY);
+    }
+
+    private void defineLava() {
+        defineBlocks();
+        int surface = ModelMetadata.pack(FaceMask.ALL, FaceMask.DOWN, FaceMask.ALL & ~FaceMask.UP,
+                ModelMetadata.MAX_EMISSION, ModelMetadata.FLUID);
+        int submerged = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, ModelMetadata.MAX_EMISSION,
+                ModelMetadata.FLUID);
+
+        models.define(SOURCE_LAVA, SOURCE_LAVA_MODEL, surface);
+        models.define(FLOWING_LAVA, FLOWING_LAVA_MODEL, surface);
+        models.submerge(SOURCE_LAVA_MODEL, SUBMERGED_LAVA_MODEL);
+        models.submerge(FLOWING_LAVA_MODEL, SUBMERGED_LAVA_MODEL);
+        models.describe(SUBMERGED_LAVA_MODEL, submerged);
+
+        opacities.put(SOURCE_LAVA, SEE_THROUGH_DAMPENING);
+        opacities.put(FLOWING_LAVA, SEE_THROUGH_DAMPENING);
+        models.holds(SOURCE_LAVA, LAVA_FLUID, SOURCE_HEIGHT);
+        models.holds(FLOWING_LAVA, LAVA_FLUID, FLOWING_HEIGHT);
+        models.makeSolid(STONE);
+    }
+
+    private static int cornersOf(CellMesh mesh, Direction face, int x, int y, int z) {
+        for (int index = 0; index < mesh.quadCount(); index++) {
+            long quad = mesh.quad(index);
+            if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y && Quad.z(quad) == z) {
+                return mesh.offset(quad);
+            }
+        }
+
+        throw new AssertionError("No " + face + " quad at " + x + ", " + y + ", " + z);
     }
 
     private CellMesh mesh(Cell centre, Map<Direction, Cell> around, ColumnCoverage coverage) {
@@ -708,6 +1084,11 @@ class CellMesherTest {
 
     private static long block(int stateId) {
         return VoxelEntry.pack(stateId, BIOME, VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT));
+    }
+
+    private long tinted(int biome) {
+        tints.define(GRASS_ROW, biome, biome);
+        return VoxelEntry.pack(GRASS_BLOCK, biome, VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT));
     }
 
     private static Cell cube(int stateId) {
@@ -807,6 +1188,21 @@ class CellMesherTest {
         }
 
         return false;
+    }
+
+    private static int groupOf(CellMesh mesh, Direction face, int x, int y, int z, int modelId) {
+        for (int group = 0; group < QuadGroups.COUNT; group++) {
+            int start = mesh.groupStart(group);
+            for (int index = start; index < start + mesh.groupCount(group); index++) {
+                long quad = mesh.quad(index);
+                if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y
+                        && Quad.z(quad) == z && Quad.modelId(quad) == modelId) {
+                    return group;
+                }
+            }
+        }
+
+        return NO_QUAD;
     }
 
     private static int lightAt(CellMesh mesh, Direction face, int x, int y, int z, int modelId) {
