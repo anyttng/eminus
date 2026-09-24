@@ -10,6 +10,7 @@ import com.eminus.gpu.pipeline.Binding;
 import com.eminus.gpu.pipeline.Blend;
 import com.eminus.gpu.pipeline.DepthCompare;
 import com.eminus.gpu.texture.Sampler;
+import com.eminus.gpu.texture.Texture;
 import com.eminus.gpu.texture.TextureUsage;
 
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -24,6 +25,7 @@ import com.mojang.blaze3d.textures.AddressMode;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
 import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.blaze3d.textures.GpuTextureView;
 
 public final class GameTypes {
     private static final BlendFunction MULTIPLY = new BlendFunction(BlendFactor.ZERO, BlendFactor.SRC_COLOR,
@@ -55,6 +57,10 @@ public final class GameTypes {
 
     public static GpuBuffer buffer(Buffer buffer) {
         return ((GameBuffer) buffer).buffer();
+    }
+
+    public static GpuTextureView view(Texture texture) {
+        return ((GameTexture) texture).view();
     }
 
     public static GpuBufferSlice indexedIndirect(Buffer commands, int firstCommand, int count) {

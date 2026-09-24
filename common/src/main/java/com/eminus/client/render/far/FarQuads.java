@@ -13,8 +13,8 @@ import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.far.DrawCommands;
 import com.eminus.client.gpu.game.GameTypes;
 import com.eminus.client.render.arena.GeometryArena;
+import com.eminus.gpu.Format;
 
-import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.pipeline.BindGroupLayout;
@@ -39,11 +39,11 @@ final class FarQuads {
 
     private static final BindGroupLayout LAYOUT = BindGroupLayout.builder()
             .withUniform("FarFrame", UniformType.UNIFORM_BUFFER)
-            .withUniform("Quads", UniformType.TEXEL_BUFFER, GpuFormat.RG32_UINT)
-            .withUniform("MeshRecords", UniformType.TEXEL_BUFFER, GpuFormat.RGBA32_UINT)
-            .withUniform("ModelRecords", UniformType.TEXEL_BUFFER, GpuFormat.RGBA32_FLOAT)
-            .withUniform("ModelVariants", UniformType.TEXEL_BUFFER, GpuFormat.RG32_UINT)
-            .withUniform("NearSections", UniformType.TEXEL_BUFFER, GpuFormat.R32_UINT)
+            .withUniform("Quads", UniformType.TEXEL_BUFFER, GameTypes.format(Format.RG32_UINT))
+            .withUniform("MeshRecords", UniformType.TEXEL_BUFFER, GameTypes.format(Format.RGBA32_UINT))
+            .withUniform("ModelRecords", UniformType.TEXEL_BUFFER, GameTypes.format(Format.RGBA32_FLOAT))
+            .withUniform("ModelVariants", UniformType.TEXEL_BUFFER, GameTypes.format(Format.RG32_UINT))
+            .withUniform("NearSections", UniformType.TEXEL_BUFFER, GameTypes.format(Format.R32_UINT))
             .withSampler("Atlas")
             .withSampler("TintMask")
             .withSampler("Lightmap")
@@ -85,8 +85,8 @@ final class FarQuads {
         pass.setUniform("ModelRecords", models.records().buffer());
         pass.setUniform("ModelVariants", models.variants().buffer());
         pass.setUniform("NearSections", nearSections);
-        pass.bindTexture("Atlas", models.atlas().colourView(), atlasSampler());
-        pass.bindTexture("TintMask", models.atlas().tintMaskView(), atlasSampler());
+        pass.bindTexture("Atlas", GameTypes.view(models.atlas().colour()), atlasSampler());
+        pass.bindTexture("TintMask", GameTypes.view(models.atlas().tintMask()), atlasSampler());
         pass.bindTexture("Lightmap", lightmap, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
 
         RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
