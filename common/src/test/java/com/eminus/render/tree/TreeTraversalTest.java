@@ -13,6 +13,8 @@ import com.eminus.cell.DetailLevel;
 import com.eminus.cell.OccupancyMask;
 import com.eminus.mesh.MeshSummary;
 
+import net.minecraft.core.Direction;
+
 import org.junit.jupiter.api.Test;
 
 class TreeTraversalTest {
@@ -33,6 +35,7 @@ class TreeTraversalTest {
     private static final int LOWEST_IS_TOP = DetailLevel.MAX;
     private static final int TINY_TABLE = 1;
     private static final int NEXT_CELL = 1;
+    private static final int EAST_OCTANTS = 0b1010;
 
     private final NodeTable nodes = new NodeTable(NodeTable.CAPACITY);
     private final TreeExtent extent = new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN);
@@ -200,6 +203,28 @@ class TreeTraversalTest {
         }
 
         assertTrue(traversal.starved());
+    }
+
+    @Test
+    void aDrawnNodeIsMarkedTowardsEveryNeighbourDrawnAtAnotherLevel() {
+        TreeNode split = meshedRoot(rootKey, EAST_OCTANTS);
+        long wholeKey = CellKey.pack(DetailLevel.MAX, NEXT_CELL, 0, 0);
+        meshedRoot(wholeKey, OccupancyMask.EMPTY);
+
+        RenderList before = traversal.walk(nodes.roots(), inside(), BUDGET, WALK);
+        assertEquals(RenderList.NO_BORDER_FACES, before.borderFaces(wholeKey));
+        List<TreeNode> children = List.copyOf(traversal.requested());
+        for (TreeNode child : children) {
+            child.meshed(TestMeshes.summary(child.key(), OccupancyMask.EMPTY));
+        }
+
+        RenderList after = traversal.walk(nodes.roots(), inside(), BUDGET, WALK + 1);
+
+        assertFalse(after.meshes().contains(split.mesh()));
+        assertEquals(1 << Direction.WEST.ordinal(), after.borderFaces(wholeKey));
+        for (TreeNode child : children) {
+            assertEquals(1 << Direction.EAST.ordinal(), after.borderFaces(child.key()));
+        }
     }
 
     @Test

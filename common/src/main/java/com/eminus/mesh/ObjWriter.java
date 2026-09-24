@@ -10,7 +10,8 @@ import net.minecraft.core.Direction;
 public final class ObjWriter {
     private static final Direction[] FACES = Direction.values();
     private static final String[] GROUP_NAMES = {
-        "down", "up", "north", "south", "west", "east", "double-sided", "translucent"};
+        "down", "up", "north", "south", "west", "east", "double-sided", "translucent", "border-down", "border-up",
+        "border-north", "border-south", "border-west", "border-east"};
 
     private static final int CORNERS = 4;
 

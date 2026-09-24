@@ -18,6 +18,7 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
 
     private Direction face;
     private int plane;
+    private boolean border;
     private boolean coarse;
 
     public CellMesher(MeshScratch scratch, MeshModels models, CellFrame frame) {
@@ -43,15 +44,16 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
     }
 
     @Override
-    public void accept(Direction towards, int at, FacePlane quads) {
+    public void accept(Direction towards, int at, FacePlane quads, boolean onBorder) {
         face = towards;
         plane = at;
+        border = onBorder;
         scratch.merger().merge(quads, this);
     }
 
     @Override
     public void emit(int u, int v, int width, int height, long data) {
-        int group = QuadGroups.of(face, models.metadata(Quad.modelId(data)));
+        int group = border ? QuadGroups.border(face) : QuadGroups.of(face, models.metadata(Quad.modelId(data)));
         scratch.buffer().add(group, placed(data, u, v, width, height));
     }
 

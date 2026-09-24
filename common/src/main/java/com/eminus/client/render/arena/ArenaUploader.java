@@ -10,7 +10,6 @@ import java.util.List;
 import com.eminus.Eminus;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshBuffer;
-import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.ArenaSizing;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
@@ -21,7 +20,7 @@ import com.mojang.blaze3d.vertex.StagingBuffer;
 import org.jspecify.annotations.Nullable;
 
 public final class ArenaUploader implements AutoCloseable {
-    public static final int MAX_QUADS = QuadGroups.COUNT * MeshBuffer.MAX_QUADS_PER_GROUP;
+    public static final int MAX_QUADS = MeshBuffer.MAX_QUADS;
     public static final int MAX_SLOTS = MAX_QUADS + MeshBuffer.MAX_COLOURS;
     public static final int MAX_MESH_BYTES = MAX_SLOTS * ArenaSizing.QUAD_BYTES;
     public static final String MAPPED_STAGING_PROPERTY = "eminus.staging.mappedKiB";

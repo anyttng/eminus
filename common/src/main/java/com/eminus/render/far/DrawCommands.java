@@ -11,6 +11,8 @@ import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.MeshSlot;
 import com.eminus.render.arena.MeshSlots;
 
+import it.unimi.dsi.fastutil.longs.Long2IntFunction;
+
 public final class DrawCommands {
     public static final int VERTICES_PER_QUAD = 4;
     public static final int INDICES_PER_QUAD = 6;
@@ -63,8 +65,8 @@ public final class DrawCommands {
         return bytes.clear().limit(count() * COMMAND_BYTES);
     }
 
-    public void write(List<MeshSummary> opaque, List<MeshSummary> translucent, MeshSlots slots, CellFrame frame,
-            double cameraX, double cameraY, double cameraZ) {
+    public void write(List<MeshSummary> opaque, List<MeshSummary> translucent, Long2IntFunction borderFaces,
+            MeshSlots slots, CellFrame frame, double cameraX, double cameraY, double cameraZ) {
         commands.clear();
         opaqueCount = 0;
         translucentCount = 0;
@@ -73,7 +75,7 @@ public final class DrawCommands {
         for (MeshSummary mesh : opaque) {
             MeshSlot slot = slots.slot(mesh.key());
             if (slot != null) {
-                writeGroups(slot, frame, cameraX, cameraY, cameraZ);
+                writeGroups(slot, borderFaces.get(mesh.key()), frame, cameraX, cameraY, cameraZ);
             }
         }
 
@@ -85,11 +87,15 @@ public final class DrawCommands {
         }
     }
 
-    private void writeGroups(MeshSlot slot, CellFrame frame, double cameraX, double cameraY, double cameraZ) {
+    private void writeGroups(MeshSlot slot, int borderFaces, CellFrame frame, double cameraX, double cameraY,
+            double cameraZ) {
         slot.bounds(frame, bounds);
 
-        for (int group = 0; group < QuadGroups.TRANSLUCENT; group++) {
-            if (slot.groupCount(group) == 0 || !GroupFacing.visible(group, bounds, cameraX, cameraY, cameraZ)) {
+        for (int group = 0; group < QuadGroups.COUNT; group++) {
+            if (group == QuadGroups.TRANSLUCENT
+                    || QuadGroups.isBorder(group) && (borderFaces & 1 << QuadGroups.direction(group)) == 0
+                    || slot.groupCount(group) == 0
+                    || !GroupFacing.visible(group, bounds, cameraX, cameraY, cameraZ)) {
                 continue;
             }
 

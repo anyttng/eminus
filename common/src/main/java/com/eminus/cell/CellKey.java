@@ -10,6 +10,7 @@ public final class CellKey {
     public static final int MIN_VERTICAL = -(1 << (VERTICAL_BITS - 1));
     public static final int MAX_VERTICAL = (1 << (VERTICAL_BITS - 1)) - 1;
 
+    private static final int CHILDREN_PER_AXIS = 2;
     private static final int LEVEL_BITS = 3;
     private static final int Y_SHIFT = 0;
     private static final int Z_SHIFT = Y_SHIFT + VERTICAL_BITS;
@@ -55,9 +56,16 @@ public final class CellKey {
 
     public static long child(long key, int octant) {
         return pack(level(key) - 1,
-                x(key) * 2 + OccupancyMask.x(octant),
-                y(key) * 2 + OccupancyMask.y(octant),
-                z(key) * 2 + OccupancyMask.z(octant));
+                x(key) * CHILDREN_PER_AXIS + OccupancyMask.x(octant),
+                y(key) * CHILDREN_PER_AXIS + OccupancyMask.y(octant),
+                z(key) * CHILDREN_PER_AXIS + OccupancyMask.z(octant));
+    }
+
+    public static long parent(long key) {
+        return pack(level(key) + 1,
+                Math.floorDiv(x(key), CHILDREN_PER_AXIS),
+                Math.floorDiv(y(key), CHILDREN_PER_AXIS),
+                Math.floorDiv(z(key), CHILDREN_PER_AXIS));
     }
 
     private static long biasHorizontal(int coordinate) {
