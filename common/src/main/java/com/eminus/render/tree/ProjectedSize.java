@@ -30,6 +30,19 @@ final class ProjectedSize {
         return (float) (DetailLevel.blocksPerCell(level) * camera.pixelsPerBlock() / distance);
     }
 
+    static double horizontalDistance(CellFrame frame, long key, CameraFrame camera) {
+        int level = CellKey.level(key);
+        int side = DetailLevel.blocksPerCell(level);
+        double minX = frame.originBlockX(CellKey.x(key), level) - camera.eyeX();
+        double minZ = frame.originBlockZ(CellKey.z(key), level) - camera.eyeZ();
+
+        return horizontalDistance(minX, minX + side, minZ, minZ + side);
+    }
+
+    static double horizontalDistance(double minX, double maxX, double minZ, double maxZ) {
+        return Math.sqrt(axisDistanceSquared(minX, maxX) + axisDistanceSquared(minZ, maxZ));
+    }
+
     static double axisDistanceSquared(double min, double max) {
         double outside = Math.max(min, Math.max(0.0, -max));
         return outside * outside;
