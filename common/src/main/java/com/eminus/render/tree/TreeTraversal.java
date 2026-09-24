@@ -139,9 +139,7 @@ final class TreeTraversal {
     private void visit(TreeNode node, CameraFrame camera, double farBlocks, long walk) {
         box(node, camera);
 
-        double horizontal = Math.sqrt(ProjectedSize.axisDistanceSquared(minX, maxX)
-                + ProjectedSize.axisDistanceSquared(minZ, maxZ));
-        if (horizontal > farBlocks) {
+        if (ProjectedSize.horizontalDistance(minX, maxX, minZ, maxZ) > farBlocks) {
             return;
         }
 
