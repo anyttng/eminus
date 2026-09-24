@@ -39,6 +39,10 @@ class TreeTraversalTest {
     private static final int NO_OUT_OF_VIEW = 0;
     private static final double PAST_THE_EDGE = 32.0;
     private static final int ROOTS_AND_ONE_CHILD = 3;
+    private static final float SPYGLASS_ZOOM = 10.0F;
+    private static final float WIDER_FOV = 1.5F;
+    private static final float HALF_THRESHOLD = 0.5F;
+    private static final float QUARTER_ABOVE_THRESHOLD = 1.25F;
 
     private final NodeTable nodes = new NodeTable(NodeTable.CAPACITY);
     private final TreeExtent extent = new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN);
@@ -243,6 +247,58 @@ class TreeTraversalTest {
     }
 
     @Test
+    void aNarrowerCameraFovRefinesANodeTheSetFovLeavesWhole() {
+        TreeNode root = meshedRoot(rootKey, ALL_OCTANTS);
+        CameraFrame set = behindAt(HALF_THRESHOLD);
+
+        assertEquals(List.of(root.mesh()), traversal.walk(nodes.roots(), set, BUDGET, NO_OUT_OF_VIEW, WALK).meshes());
+        assertTrue(traversal.requested().isEmpty());
+
+        traversal.walk(nodes.roots(), FakeCameras.zoomed(set, set.pixelsPerBlock() * SPYGLASS_ZOOM), BUDGET,
+                NO_OUT_OF_VIEW, WALK + 1);
+        assertEquals(OccupancyMask.OCTANTS, traversal.requested().size());
+        for (TreeNode child : traversal.requested()) {
+            assertSame(root, child.parent());
+        }
+    }
+
+    @Test
+    void aWiderCameraFovWalksAsTheSetFov() {
+        meshedRoot(rootKey, ALL_OCTANTS);
+        NodeTable widerNodes = new NodeTable(NodeTable.CAPACITY);
+        TreeTraversal widerTraversal = new TreeTraversal(widerNodes, extent);
+        widerNodes.root(rootKey).meshed(TestMeshes.summary(rootKey, ALL_OCTANTS));
+        CameraFrame set = behindAt(QUARTER_ABOVE_THRESHOLD);
+        CameraFrame wider = FakeCameras.zoomed(set, set.pixelsPerBlock() / WIDER_FOV);
+
+        RenderList setList = traversal.walk(nodes.roots(), set, BUDGET, NO_OUT_OF_VIEW, WALK);
+        RenderList widerList = widerTraversal.walk(widerNodes.roots(), wider, BUDGET, NO_OUT_OF_VIEW, WALK);
+
+        assertEquals(set.pixelsPerBlock(), wider.inViewPixelsPerBlock());
+        assertEquals(OccupancyMask.OCTANTS, traversal.requested().size());
+        assertEquals(meshKeys(setList), meshKeys(widerList));
+        assertEquals(keys(traversal.requested()), keys(widerTraversal.requested()));
+    }
+
+    @Test
+    void theOutOfViewPassMeasuresWithTheSetFovUnderAZoom() {
+        meshedRoot(rootKey, ALL_OCTANTS);
+        meshedRoot(aheadKey(), OccupancyMask.EMPTY);
+        float halfThreshold = (float) (FakeCameras.THRESHOLD_PIXELS * PAST_THE_EDGE / CELL * HALF_THRESHOLD);
+        CameraFrame set = FakeCameras.looking(CELL + PAST_THE_EDGE, INSIDE, INSIDE, 1.0F, 0.0F, 0.0F, FAR_CELLS,
+                halfThreshold);
+
+        traversal.walk(nodes.roots(), set, BUDGET, BUDGET, WALK);
+        List<TreeNode> setRequested = List.copyOf(traversal.outOfViewRequested());
+        traversal.walk(nodes.roots(), FakeCameras.zoomed(set, halfThreshold * SPYGLASS_ZOOM), BUDGET, BUDGET,
+                WALK + 1);
+
+        assertTrue(setRequested.isEmpty());
+        assertTrue(traversal.outOfViewRequested().isEmpty());
+        assertTrue(traversal.requested().isEmpty());
+    }
+
+    @Test
     void nothingSubdividesBelowTheLowestStoredLevel() {
         TreeTraversal capped = new TreeTraversal(nodes, new TreeExtent(new CellFrame(0), 1, LOWEST_IS_TOP));
         TreeNode root = meshedRoot(rootKey, ALL_OCTANTS);
@@ -363,6 +419,19 @@ class TreeTraversalTest {
 
     private static CameraFrame inside() {
         return FakeCameras.everything(INSIDE, INSIDE, INSIDE, FAR_CELLS, FakeCameras.CLOSE_PIXELS_PER_BLOCK);
+    }
+
+    private static List<Long> meshKeys(RenderList list) {
+        return list.meshes().stream().map(MeshSummary::key).toList();
+    }
+
+    private static List<Long> keys(List<TreeNode> requested) {
+        return requested.stream().map(TreeNode::key).toList();
+    }
+
+    private static CameraFrame behindAt(float thresholds) {
+        return FakeCameras.everything(BEHIND, INSIDE, INSIDE, FAR_CELLS,
+                (float) (FakeCameras.THRESHOLD_PIXELS * -BEHIND / CELL * thresholds));
     }
 
     private static CameraFrame far(int farCells) {

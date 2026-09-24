@@ -8,7 +8,16 @@ public record CameraFrame(
         double eyeZ,
         Matrix4fc viewProjection,
         float pixelsPerBlock,
+        float inViewPixelsPerBlock,
         int farCells,
         int subdivisionPixels,
-        boolean arenaPressure) {
+        boolean pressure) {
+    public CameraFrame {
+        inViewPixelsPerBlock = Math.max(inViewPixelsPerBlock, pixelsPerBlock);
+    }
+
+    CameraFrame underPressure() {
+        return new CameraFrame(eyeX, eyeY, eyeZ, viewProjection, pixelsPerBlock, inViewPixelsPerBlock, farCells,
+                subdivisionPixels, true);
+    }
 }

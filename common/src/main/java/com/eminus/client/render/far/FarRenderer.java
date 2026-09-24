@@ -239,9 +239,10 @@ public final class FarRenderer implements AutoCloseable {
         FarProjection.gameViewProjection(levelProjection.projection(), viewRotation, gameViewProjection);
 
         Settings settings = SettingsService.get().settings();
-        float focalPixels = FarProjection.focalPixels(client.options.fov().get(), main.height);
-        tree.frame(new CameraFrame(eye.x, eye.y, eye.z, new Matrix4f(farViewProjection), focalPixels,
-                settings.farRenderCells(), settings.detailDistance().pixels(), arena.pressure()));
+        tree.frame(new CameraFrame(eye.x, eye.y, eye.z, new Matrix4f(farViewProjection),
+                FarProjection.focalPixels(client.options.fov().get(), main.height),
+                FarProjection.focalPixels(camera.getFov(), main.height), settings.farRenderCells(),
+                settings.detailDistance().pixels(), arena.pressure()));
 
         FogData gameFog = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData;
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
