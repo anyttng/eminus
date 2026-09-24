@@ -1,28 +1,24 @@
 package com.eminus.client.render.far;
 
 import java.nio.ByteBuffer;
-import java.util.Optional;
+import java.util.EnumSet;
+import java.util.Set;
 
 import com.eminus.Eminus;
-import com.eminus.client.gpu.game.GameTypes;
 import com.eminus.client.handoff.NearMaskPass;
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Std140;
+import com.eminus.gpu.buffer.Buffer;
+import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.pass.Pass;
+import com.eminus.gpu.pass.PassSpec;
+import com.eminus.gpu.pipeline.Binding;
+import com.eminus.gpu.pipeline.Blend;
+import com.eminus.gpu.pipeline.Pipeline;
+import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.gpu.texture.Sampler;
+import com.eminus.gpu.texture.Texture;
 import com.eminus.render.backend.DepthConvention;
-
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.Std140Builder;
-import com.mojang.blaze3d.buffers.Std140SizeCalculator;
-import com.mojang.blaze3d.pipeline.BindGroupLayout;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.ColorTargetState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.platform.BlendFactor;
-import com.mojang.blaze3d.shaders.UniformType;
-import com.mojang.blaze3d.systems.RenderPass;
-import com.mojang.blaze3d.systems.RenderPassDescriptor;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
 
 import net.minecraft.resources.Identifier;
 
@@ -44,51 +40,45 @@ public final class OcclusionPass implements AutoCloseable {
             "core/far_occlusion");
     private static final String PASS_LABEL = "eminus-far-occlusion";
     private static final String UNIFORM_LABEL = "eminus-occlusion";
-    private static final int UNIFORM_USAGE = GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST;
-    private static final int SIZE = new Std140SizeCalculator()
+    private static final String OCCLUSION = "Occlusion";
+    private static final String FAR_DEPTH = "FarDepth";
+    private static final String GAME_DEPTH = "GameDepth";
+    private static final Set<BufferUsage> UNIFORM_USAGE = EnumSet.of(BufferUsage.UNIFORM, BufferUsage.COPY_DST);
+    private static final int SIZE = Std140.size()
             .putMat4f().putMat4f().putMat4f()
             .putFloat()
             .get();
+    private static final long START_OF_BUFFER = 0L;
     private static final int VERTICES = 3;
-    private static final int INSTANCES = 1;
     private static final float HALF = 0.5F;
-    private static final BlendFunction MULTIPLY = new BlendFunction(BlendFactor.ZERO, BlendFactor.SRC_COLOR,
-            BlendFactor.ZERO, BlendFactor.ONE);
 
-    private static final BindGroupLayout LAYOUT = BindGroupLayout.builder()
-            .withUniform("Occlusion", UniformType.UNIFORM_BUFFER)
-            .withSampler("FarDepth")
-            .withSampler("GameDepth")
-            .build();
-
-    private final RenderPipeline pipeline;
-    private final GpuBuffer uniform;
+    private final Gpu gpu;
+    private final Pipeline pipeline;
+    private final Buffer uniform;
     private final Matrix4f farInverse = new Matrix4f();
     private final Matrix4f gameInverse = new Matrix4f();
 
-    private OcclusionPass(RenderPipeline pipeline, GpuBuffer uniform) {
+    private OcclusionPass(Gpu gpu, Pipeline pipeline, Buffer uniform) {
+        this.gpu = gpu;
         this.pipeline = pipeline;
         this.uniform = uniform;
     }
 
-    public static OcclusionPass create(DepthConvention depth) {
-        RenderSystem.assertOnRenderThread();
-        GpuBuffer uniform = RenderSystem.getDevice().createBuffer(() -> UNIFORM_LABEL, UNIFORM_USAGE, SIZE);
-        return new OcclusionPass(pipeline(depth), uniform);
+    public static OcclusionPass create(Gpu gpu, DepthConvention depth) {
+        gpu.assertRenderThread();
+        return new OcclusionPass(gpu, gpu.pipeline(pipeline(depth)), gpu.buffer(UNIFORM_LABEL, UNIFORM_USAGE, SIZE));
     }
 
-    public void draw(FarTarget far, RenderTarget game, Matrix4fc farViewProjection, Matrix4fc gameViewProjection) {
-        RenderSystem.assertOnRenderThread();
+    public void draw(FarTarget far, Texture gameDepth, Matrix4fc farViewProjection, Matrix4fc gameViewProjection) {
+        gpu.assertRenderThread();
         write(farViewProjection, gameViewProjection, far.height());
 
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(far))) {
-            pass.setPipeline(pipeline);
-            pass.setUniform("Occlusion", uniform);
-            pass.bindTexture("FarDepth", GameTypes.view(far.depth()),
-                    RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.bindTexture("GameDepth", game.getDepthTextureView(),
-                    RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.draw(VERTICES, INSTANCES, 0, 0);
+        try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, far.colour(), null))) {
+            pass.pipeline(pipeline);
+            pass.bind(OCCLUSION, uniform);
+            pass.bind(FAR_DEPTH, far.depth(), Sampler.NEAREST);
+            pass.bind(GAME_DEPTH, gameDepth, Sampler.NEAREST);
+            pass.draw(VERTICES);
         }
     }
 
@@ -102,13 +92,13 @@ public final class OcclusionPass implements AutoCloseable {
         gameViewProjection.invert(gameInverse);
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            ByteBuffer written = Std140Builder.onStack(stack, SIZE)
+            ByteBuffer written = Std140.into(stack.malloc(SIZE))
                     .putMat4f(farViewProjection)
                     .putMat4f(farInverse)
                     .putMat4f(gameInverse)
                     .putFloat(focalPixels(farViewProjection, height))
                     .get();
-            RenderSystem.getDevice().createCommandEncoder().writeToBuffer(uniform.slice(), written);
+            gpu.write(uniform, START_OF_BUFFER, written);
         }
     }
 
@@ -120,32 +110,22 @@ public final class OcclusionPass implements AutoCloseable {
         return (float) scale * height * HALF;
     }
 
-    private static RenderPassDescriptor descriptor(FarTarget far) {
-        return RenderPassDescriptor.create(() -> PASS_LABEL)
-                .withColorAttachment(GameTypes.view(far.colour()), Optional.empty())
-                .withRenderArea(new RenderPass.RenderArea(0, 0, far.width(), far.height()));
-    }
+    private static PipelineSpec pipeline(DepthConvention depth) {
+        PipelineSpec.Builder builder = PipelineSpec.builder(PIPELINE, VERTEX_SHADER, FRAGMENT_SHADER)
+                .withBinding(Binding.uniform(OCCLUSION))
+                .withBinding(Binding.sampled(FAR_DEPTH))
+                .withBinding(Binding.sampled(GAME_DEPTH))
+                .withDefine("FARTHEST", (float) DepthConvention.REVERSED_FARTHEST)
+                .withDefine("NEAREST", (float) DepthConvention.REVERSED_NEAREST)
+                .withDefine("GAME_DEPTH_CLEARED", NearMaskPass.GAME_DEPTH_CLEARED)
+                .withDefine("SAMPLES", SAMPLES)
+                .withDefine("RADIUS", RADIUS)
+                .withDefine("PIXEL_RADIUS", PIXEL_RADIUS)
+                .withDefine("STRENGTH", STRENGTH)
+                .withDefine("MIN_BIAS", MIN_BIAS)
+                .withDefine("BIAS_PER_SQUARED_BLOCK", BIAS_PER_SQUARED_BLOCK)
+                .withColourTarget(FarTarget.COLOUR_FORMAT, Blend.MULTIPLY, true);
 
-    private static RenderPipeline pipeline(DepthConvention depth) {
-        RenderPipeline.Builder builder = RenderPipeline.builder()
-                .withLocation(PIPELINE)
-                .withVertexShader(VERTEX_SHADER)
-                .withFragmentShader(FRAGMENT_SHADER)
-                .withBindGroupLayout(LAYOUT)
-                .withShaderDefine("FARTHEST", (float) DepthConvention.REVERSED_FARTHEST)
-                .withShaderDefine("NEAREST", (float) DepthConvention.REVERSED_NEAREST)
-                .withShaderDefine("GAME_DEPTH_CLEARED", NearMaskPass.GAME_DEPTH_CLEARED)
-                .withShaderDefine("SAMPLES", SAMPLES)
-                .withShaderDefine("RADIUS", RADIUS)
-                .withShaderDefine("PIXEL_RADIUS", PIXEL_RADIUS)
-                .withShaderDefine("STRENGTH", STRENGTH)
-                .withShaderDefine("MIN_BIAS", MIN_BIAS)
-                .withShaderDefine("BIAS_PER_SQUARED_BLOCK", BIAS_PER_SQUARED_BLOCK)
-                .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
-                .withColorTargetState(new ColorTargetState(Optional.of(MULTIPLY),
-                        GameTypes.format(FarTarget.COLOUR_FORMAT), ColorTargetState.WRITE_ALL))
-                .withCull(false);
-
-        return depth.zeroToOne() ? builder.withShaderDefine("DEPTH_ZERO_TO_ONE").build() : builder.build();
+        return depth.zeroToOne() ? builder.withDefine("DEPTH_ZERO_TO_ONE").build() : builder.build();
     }
 }

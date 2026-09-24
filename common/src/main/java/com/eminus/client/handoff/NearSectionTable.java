@@ -12,9 +12,11 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.compat.sodium.SodiumDrawnSections;
 import com.eminus.compat.sodium.SodiumMixinPlugin;
+import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.buffer.TexelView;
 import com.eminus.handoff.NearSections;
 import com.eminus.mesh.MeshSummary;
 
@@ -22,6 +24,8 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
 
 public final class NearSectionTable implements AutoCloseable {
+    public static final Format TEXEL_FORMAT = Format.R32_UINT;
+
     private static final String LABEL = "eminus-near-sections";
     private static final Set<BufferUsage> USAGE = EnumSet.of(BufferUsage.TEXEL, BufferUsage.COPY_DST);
     private static final long START_OF_BUFFER = 0L;
@@ -33,6 +37,7 @@ public final class NearSectionTable implements AutoCloseable {
     private final boolean sodium = SodiumMixinPlugin.sodiumPresent();
 
     private Buffer buffer;
+    private TexelView view;
     private ByteBuffer scratch;
     private IntBuffer texels;
     private LevelRenderer levelRenderer;
@@ -55,8 +60,8 @@ public final class NearSectionTable implements AutoCloseable {
         return sections;
     }
 
-    public Buffer buffer() {
-        return buffer;
+    public TexelView texels() {
+        return view;
     }
 
     public void fill(LevelRenderer renderer, List<MeshSummary> meshes, CellFrame frame, int cameraSectionX,
@@ -85,7 +90,7 @@ public final class NearSectionTable implements AutoCloseable {
 
     @Override
     public void close() {
-        buffer.close();
+        free();
     }
 
     private boolean owned(int sectionX, int sectionY, int sectionZ) {
@@ -106,7 +111,7 @@ public final class NearSectionTable implements AutoCloseable {
     private void upload() {
         int bytes = sections.texels() * Integer.BYTES;
         if (buffer.size() < bytes) {
-            buffer.close();
+            free();
             allocate(bytes);
         }
 
@@ -117,7 +122,13 @@ public final class NearSectionTable implements AutoCloseable {
 
     private void allocate(int bytes) {
         buffer = gpu.buffer(LABEL, USAGE, bytes);
+        view = gpu.texelView(buffer, TEXEL_FORMAT);
         scratch = ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder());
         texels = scratch.asIntBuffer();
+    }
+
+    private void free() {
+        view.close();
+        buffer.close();
     }
 }

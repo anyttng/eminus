@@ -6,10 +6,12 @@ import java.util.Set;
 
 import com.eminus.Eminus;
 import com.eminus.api.v1.ArenaState;
+import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.gpu.buffer.Staging;
+import com.eminus.gpu.buffer.TexelView;
 import com.eminus.mesh.CellMesh;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.ArenaPressure;
@@ -24,6 +26,8 @@ import it.unimi.dsi.fastutil.longs.LongList;
 import org.jspecify.annotations.Nullable;
 
 public final class GeometryArena implements MeshSlots, AutoCloseable {
+    public static final Format QUAD_FORMAT = Format.RG32_UINT;
+
     private static final String LABEL = "eminus-geometry-arena";
     private static final Set<BufferUsage> USAGE =
             EnumSet.of(BufferUsage.VERTEX, BufferUsage.TEXEL, BufferUsage.COPY_DST);
@@ -32,6 +36,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
 
     private final Gpu gpu;
     private final Buffer quads;
+    private final TexelView quadTexels;
     private final long bytes;
     private final ArenaAllocator allocator;
     private final MeshRecords records;
@@ -54,6 +59,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         this.allocator = allocator;
         this.records = records;
         this.uploader = uploader;
+        quadTexels = gpu.texelView(quads, QUAD_FORMAT);
     }
 
     public static @Nullable GeometryArena create(Gpu gpu, BackendSupport support, long bytes) {
@@ -72,8 +78,8 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
                 ArenaUploader.create(gpu));
     }
 
-    public Buffer quads() {
-        return quads;
+    public TexelView quads() {
+        return quadTexels;
     }
 
     public MeshRecords records() {
@@ -200,6 +206,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     public void close() {
         uploader.close();
         records.close();
+        quadTexels.close();
         quads.close();
     }
 }

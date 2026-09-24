@@ -20,6 +20,7 @@ import com.eminus.gpu.texture.Texture;
 import com.eminus.gpu.texture.TextureUsage;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.DeviceInfo;
 import com.mojang.blaze3d.systems.GpuDevice;
@@ -49,6 +50,10 @@ public final class GameGpu implements Gpu {
                 info.features().drawIndirect(), info.features().multiDrawIndirect(),
                 info.features().persistentMapping(), info.limits().maxMemoryAllocationSize(),
                 reading.texelElements(), reading.freeBytes()));
+    }
+
+    public static void reserveQuadIndices(int maxIndices) {
+        RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS).getBuffer(maxIndices);
     }
 
     @Override
