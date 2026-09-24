@@ -84,6 +84,8 @@ class CellMesherTest {
     private static final int SWAMP_GREEN = 0x6A7039;
     private static final int PLAINS_WIDTH = 8;
     private static final int NO_BLEND = 0;
+    private static final int FIRST_CAP_BIOME = 1;
+    private static final int CAPPED_LAYERS = 16;
 
     private static final int BIOME = 3;
     private static final int FULL_SKY = 15;
@@ -825,6 +827,29 @@ class CellMesherTest {
     }
 
     @Test
+    void aVoxelPastTheColourCapKeepsItsOwnGaps() {
+        defineBlocks();
+        Cell cell = blank();
+        int biome = FIRST_CAP_BIOME;
+        for (int y = 0; y < CAPPED_LAYERS; y++) {
+            for (int z = 0; z < SIDE; z++) {
+                for (int x = (y + z) % 2; x < SIDE; x += 2) {
+                    cell.set(x, y, z, tinted(biome++));
+                }
+            }
+        }
+
+        long gapped = VoxelEntry.withGaps(tinted(biome), 0, 1);
+        cell.set(LAST, LAST, LAST, gapped);
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        for (Direction face : Direction.values()) {
+            assertEquals(VoxelEntry.gaps(gapped), cornersOf(mesh, face, LAST, LAST, LAST), face.getName());
+        }
+    }
+
+    @Test
     void aBladedVoxelOfAnOffsetStateCarriesTheOffsetItsBlockPositionGives() {
         defineBlocks();
         BlockState grass = Blocks.SHORT_GRASS.defaultBlockState();
@@ -1059,6 +1084,11 @@ class CellMesherTest {
 
     private static long block(int stateId) {
         return VoxelEntry.pack(stateId, BIOME, VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT));
+    }
+
+    private long tinted(int biome) {
+        tints.define(GRASS_ROW, biome, biome);
+        return VoxelEntry.pack(GRASS_BLOCK, biome, VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT));
     }
 
     private static Cell cube(int stateId) {
