@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.eminus.cell.DetailLevel;
 import com.eminus.settings.DetailDistance;
+import com.eminus.settings.FarDistance;
 import com.eminus.settings.Settings;
 
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,12 @@ class ArenaSizingTest {
     private static final int FAR_CELLS = Settings.DEFAULT_FAR_RENDER_CELLS;
     private static final int SUBDIVISION = Settings.DEFAULT_DETAIL_DISTANCE.pixels();
     private static final int LOWEST_LEVEL = Settings.DEFAULT_LOWEST_STORED_LEVEL;
+    private static final float MEASURED_FOCAL_PIXELS = 977.6F;
+    private static final int MEASURED_FAR_CHUNKS = 128;
+    private static final int MEASURED_FAR_CELLS = FarDistance.chunksToCells(MEASURED_FAR_CHUNKS);
+    private static final long WHOLE_PERCENT = 100L;
+    private static final long HIGH_WATER_PERCENT = 85L;
+    private static final long FILL_PERCENT = 95L;
 
     @Test
     void aBudgetBelowTheFloorIsLiftedToIt() {
@@ -46,17 +53,23 @@ class ArenaSizingTest {
     }
 
     @Test
-    void theBudgetHoldsTheCellsTheTraversalCanAskFor() {
-        long cells = 0;
+    void theDemandAtLowIsPinned() {
+        long quads = 733L * 3 * 6600 + 733L * 2 * 9500 + 733L * 11400 + 201L * 7200 + 50L * 5700;
 
-        for (int level = DetailLevel.MIN; level <= DetailLevel.MAX; level++) {
-            cells += (long) ArenaDemand.columns(level, FOCAL_PIXELS, SUBDIVISION, FAR_CELLS)
-                    * ArenaDemand.cellsPerColumn(level);
-        }
+        assertEquals(withHeadroom(quads), ArenaSizing.wanted(MEASURED_FAR_CELLS, DetailDistance.LOW.pixels(),
+                MEASURED_FOCAL_PIXELS, DetailLevel.MIN));
+    }
 
-        long bytes = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+    @Test
+    void theDemandAtMediumIsPinned() {
+        long quads = 2932L * 3 * 6600 + 2932L * 2 * 9500 + 804L * 11400 + 201L * 7200 + 50L * 5700;
 
-        assertEquals(cells, bytes / (ArenaSizing.BUDGETED_QUADS_PER_CELL * ArenaSizing.QUAD_BYTES));
+        assertEquals(withHeadroom(quads), ArenaSizing.wanted(MEASURED_FAR_CELLS, DetailDistance.MEDIUM.pixels(),
+                MEASURED_FOCAL_PIXELS, DetailLevel.MIN));
+    }
+
+    private static long withHeadroom(long quads) {
+        return Math.ceilDiv(quads * Long.BYTES * WHOLE_PERCENT * WHOLE_PERCENT, HIGH_WATER_PERCENT * FILL_PERCENT);
     }
 
     @Test

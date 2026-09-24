@@ -62,6 +62,7 @@ import org.jspecify.annotations.Nullable;
 public final class FarRenderer implements AutoCloseable {
     public static final int START_COMMANDS = 32768;
     public static final String ARENA_CAP_PROPERTY = "eminus.arena.maxMiB";
+    public static final String ARENA_FLOOR_PROPERTY = "eminus.arena.minMiB";
 
     private static final long BYTES_PER_MIB = 1L << 20;
 
@@ -120,7 +121,7 @@ public final class FarRenderer implements AutoCloseable {
 
         RenderTarget main = client.gameRenderer.mainRenderTarget();
         long bytes = ArenaSizing.fitted(
-                capped(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
+                bounded(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
                         FarProjection.focalPixels(client.options.fov().get(), main.height),
                         runtime.lowestStoredLevel())),
                 RenderSystem.getDevice().getDeviceInfo().limits().maxMemoryAllocationSize());
@@ -150,15 +151,23 @@ public final class FarRenderer implements AutoCloseable {
         return renderer;
     }
 
-    private static long capped(long wanted) {
-        Long capMiB = Long.getLong(ARENA_CAP_PROPERTY);
-        if (capMiB == null) {
-            return wanted;
+    private static long bounded(long wanted) {
+        long bytes = wanted;
+        Long floorMiB = Long.getLong(ARENA_FLOOR_PROPERTY);
+        if (floorMiB != null) {
+            Eminus.LOGGER.info("Geometry arena raised to at least {} MiB by -D{}, {} MiB wanted", floorMiB,
+                    ARENA_FLOOR_PROPERTY, wanted / BYTES_PER_MIB);
+            bytes = Math.max(bytes, floorMiB * BYTES_PER_MIB);
         }
 
-        Eminus.LOGGER.info("Geometry arena capped at {} MiB by -D{}, {} MiB wanted", capMiB, ARENA_CAP_PROPERTY,
-                wanted / BYTES_PER_MIB);
-        return Math.min(wanted, capMiB * BYTES_PER_MIB);
+        Long capMiB = Long.getLong(ARENA_CAP_PROPERTY);
+        if (capMiB != null) {
+            Eminus.LOGGER.info("Geometry arena capped at {} MiB by -D{}, {} MiB wanted", capMiB, ARENA_CAP_PROPERTY,
+                    wanted / BYTES_PER_MIB);
+            bytes = Math.min(bytes, capMiB * BYTES_PER_MIB);
+        }
+
+        return bytes;
     }
 
     public static boolean recreates(Settings built, Settings updated) {
