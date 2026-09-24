@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 
 import com.eminus.cell.CellKey;
 import com.eminus.cell.OccupancyMask;
+import com.eminus.render.arena.ArenaPressure;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
@@ -16,6 +17,7 @@ public final class NodeTable {
     private final int capacity;
     private final Long2ObjectOpenHashMap<TreeNode> nodes = new Long2ObjectOpenHashMap<>();
     private final Long2ObjectOpenHashMap<TreeNode> roots = new Long2ObjectOpenHashMap<>();
+    private final ArenaPressure pressure = new ArenaPressure();
 
     public NodeTable(int capacity) {
         this.capacity = capacity;
@@ -25,8 +27,16 @@ public final class NodeTable {
         return nodes.size();
     }
 
+    public int capacity() {
+        return capacity;
+    }
+
     public int free() {
         return Math.max(0, capacity - nodes.size());
+    }
+
+    boolean pressure() {
+        return pressure.holding();
     }
 
     @Nullable TreeNode get(long key) {
@@ -47,6 +57,7 @@ public final class NodeTable {
             node = TreeNode.root(key);
             nodes.put(key, node);
             roots.put(key, node);
+            updatePressure();
         }
 
         return node;
@@ -61,6 +72,7 @@ public final class NodeTable {
         TreeNode child = new TreeNode(key, parent, octant);
         nodes.put(key, child);
         parent.attach(child);
+        updatePressure();
         return child;
     }
 
@@ -73,6 +85,11 @@ public final class NodeTable {
         }
 
         removeSubtree(node, removed);
+        updatePressure();
+    }
+
+    private void updatePressure() {
+        pressure.update(nodes.size(), capacity, false);
     }
 
     private void removeSubtree(TreeNode node, Consumer<TreeNode> removed) {

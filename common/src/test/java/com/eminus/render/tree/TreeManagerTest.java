@@ -73,7 +73,7 @@ class TreeManagerTest {
     private final FakeBuilds builds = new FakeBuilds();
     private final Map<Long, Long> rootRequests = new HashMap<>();
     private final Map<Long, Float> rootPriorities = new HashMap<>();
-    private final TreeManager manager =
+    private TreeManager manager =
             TreeManager.start(builds, new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN));
 
     @AfterEach
@@ -376,6 +376,37 @@ class TreeManagerTest {
 
         assertEquals(0L, state.pressureEvictions());
         assertTrue(builds.idle());
+    }
+
+    @Test
+    void aTableFilledOutOfViewGivesWayToTheNodesInView() throws Exception {
+        manager.stop();
+        manager = TreeManager.start(builds, new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN),
+                RING_COLUMNS + OccupancyMask.OCTANTS);
+        startRing();
+        manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
+        manager.meshed(TestMeshes.of(WEST, ALL_OCTANTS), rootRequests.get(WEST));
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        awaitWalks(2);
+
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            FakeBuilds.Call behind = builds.take();
+            assertEquals(WEST, CellKey.parent(behind.key()));
+            manager.meshed(TestMeshes.of(behind.key(), OccupancyMask.EMPTY), behind.request());
+        }
+
+        manager.meshed(TestMeshes.of(KEY, ALL_OCTANTS), rootRequests.get(KEY));
+        manager.frame(east(EYE_X + ONE_BLOCK));
+        syncMessages();
+        manager.frame(east(EYE_X + ONE_BLOCK));
+
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            assertEquals(KEY, CellKey.parent(builds.take().key()));
+        }
+
+        TreeState state = manager.snapshot().get(AWAIT_MILLIS, TimeUnit.MILLISECONDS);
+        assertEquals(OccupancyMask.OCTANTS, state.pressureEvictions());
     }
 
     @Test

@@ -85,7 +85,7 @@ final class TreeTraversal {
             current.addAll(next);
         }
 
-        if (!camera.arenaPressure()) {
+        if (!camera.pressure()) {
             starved = hand(candidates, budget, requested, requestedPriorities) == UNSERVED;
             int outOfViewLeft = outOfViewBudget - requested.size();
             if (!starved && outOfViewLeft > 0) {
@@ -170,7 +170,7 @@ final class TreeTraversal {
 
         node.seen(walk);
 
-        float size = size(node, camera);
+        float size = size(node, camera.inViewPixelsPerBlock());
         if (node.level() > extent.lowestLevel() && size > camera.subdivisionPixels()) {
             if (node.missingOctants() != OccupancyMask.EMPTY) {
                 candidates.add(new Candidate(node, size));
@@ -197,11 +197,11 @@ final class TreeTraversal {
         }
     }
 
-    private float size(TreeNode node, CameraFrame camera) {
+    private float size(TreeNode node, float pixelsPerBlock) {
         double distance = Math.sqrt(ProjectedSize.axisDistanceSquared(minX, maxX)
                 + ProjectedSize.axisDistanceSquared(minY, maxY)
                 + ProjectedSize.axisDistanceSquared(minZ, maxZ));
-        return ProjectedSize.of(node.level(), distance, camera);
+        return ProjectedSize.of(node.level(), distance, pixelsPerBlock);
     }
 
     private void requestOutOfView(CameraFrame camera, double farBlocks, int budget) {
@@ -230,7 +230,7 @@ final class TreeTraversal {
             return;
         }
 
-        float size = size(node, camera);
+        float size = size(node, camera.pixelsPerBlock());
         if (node.level() <= extent.lowestLevel() || size <= camera.subdivisionPixels()) {
             return;
         }

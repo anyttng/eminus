@@ -138,6 +138,17 @@ class TreeCleanerTest {
     }
 
     @Test
+    void aSetOnlyAZoomRefinesIsUnwantedAfterTheZoom() {
+        List<TreeNode> zoomOnly = children(root(FIRST_FAR_CELL), WHOLE_SET, OLD);
+        List<TreeNode> outOfView = children(root(0), WHOLE_SET, OLD);
+        CameraFrame zoomed = FakeCameras.zoomed(FakeCameras.underPressure(FakeCameras.everything(INSIDE, INSIDE,
+                INSIDE, MANY_FAR_CELLS, ONE_PIXEL_PER_BLOCK)), FakeCameras.CLOSE_PIXELS_PER_BLOCK);
+
+        assertEquals(concat(zoomOnly, outOfView), cleaner.pick(nodes.all(), zoomed, frame, WALK));
+        assertEquals(WHOLE_SET, cleaner.unwantedPicked());
+    }
+
+    @Test
     void aFullTableWithoutPressureEvictsNothing() {
         NodeTable full = new NodeTable(NodeTable.CAPACITY);
         for (int x = 0; full.free() > 0; x++) {

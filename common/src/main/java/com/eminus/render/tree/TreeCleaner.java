@@ -33,7 +33,7 @@ final class TreeCleaner {
     List<TreeNode> pick(Collection<TreeNode> all, CameraFrame camera, CellFrame frame, long walk) {
         picked.clear();
         unwantedPicked = 0;
-        if (!camera.arenaPressure()) {
+        if (!camera.pressure()) {
             return List.of();
         }
 

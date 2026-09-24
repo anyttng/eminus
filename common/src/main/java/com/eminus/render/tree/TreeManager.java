@@ -7,6 +7,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.eminus.Eminus;
 import com.eminus.api.v1.LevelState;
 import com.eminus.api.v1.TreeState;
 import com.eminus.cell.CellKey;
@@ -35,10 +36,12 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private static final double STILL_BLOCKS_SQUARED = STILL_BLOCKS * STILL_BLOCKS;
     private static final float MATRIX_EPSILON = 1.0e-6F;
     private static final int ONE_REFERENCE = 1;
+    private static final String PRESSURE_ON = "on";
+    private static final String PRESSURE_OFF = "off";
 
     private final TreeBuilds builds;
     private final TreeExtent extent;
-    private final NodeTable nodes = new NodeTable(NodeTable.CAPACITY);
+    private final NodeTable nodes;
     private final TreeRing ring = new TreeRing();
     private final TreeRing.Columns columns = new Columns();
     private final TreeTraversal traversal;
@@ -60,6 +63,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private int outOfViewRefinements;
     private boolean outOfViewDue;
     private boolean outOfViewHeld;
+    private boolean lastTablePressure;
     private @Nullable CameraFrame camera;
     private double lastEyeX;
     private double lastEyeY;
@@ -68,14 +72,19 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private volatile long walks;
     private volatile boolean running = true;
 
-    private TreeManager(TreeBuilds builds, TreeExtent extent) {
+    private TreeManager(TreeBuilds builds, TreeExtent extent, int capacity) {
         this.builds = builds;
         this.extent = extent;
+        nodes = new NodeTable(capacity);
         traversal = new TreeTraversal(nodes, extent);
     }
 
     public static TreeManager start(TreeBuilds builds, TreeExtent extent) {
-        TreeManager manager = new TreeManager(builds, extent);
+        return start(builds, extent, NodeTable.CAPACITY);
+    }
+
+    static TreeManager start(TreeBuilds builds, TreeExtent extent, int capacity) {
+        TreeManager manager = new TreeManager(builds, extent, capacity);
         manager.thread.setDaemon(true);
         manager.thread.setPriority(THREAD_PRIORITY);
         manager.thread.start();
@@ -292,23 +301,33 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     }
 
     private void applyFrame() {
-        CameraFrame camera = frames.getAndSet(null);
-        if (camera == null) {
+        CameraFrame posted = frames.getAndSet(null);
+        if (posted == null) {
             return;
         }
 
-        this.camera = camera;
-
-        if (ring.update(camera.eyeX(), camera.eyeZ(), camera.farCells(), columns)) {
+        this.camera = posted;
+        if (ring.update(posted.eyeX(), posted.eyeZ(), posted.farCells(), columns)) {
             treeChanged = true;
         }
+
+        boolean tablePressure = nodes.pressure();
+        if (tablePressure != lastTablePressure) {
+            lastTablePressure = tablePressure;
+            treeChanged = true;
+            Eminus.LOGGER.info("[eminus-tree] table pressure={} nodes={} capacity={} walk={}",
+                    tablePressure ? PRESSURE_ON : PRESSURE_OFF, nodes.size(), nodes.capacity(), walks);
+        }
+
+        CameraFrame camera = tablePressure && !posted.pressure() ? posted.underPressure() : posted;
+        this.camera = camera;
 
         boolean still = still(camera);
         if (!treeChanged && still && !outOfViewDue) {
             return;
         }
 
-        if (camera.arenaPressure()) {
+        if (camera.pressure()) {
             outOfViewHeld = true;
         } else if (!still) {
             outOfViewHeld = false;
