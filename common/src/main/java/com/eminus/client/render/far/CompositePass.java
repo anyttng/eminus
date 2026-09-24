@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
+import com.eminus.client.gpu.game.GameTypes;
 import com.eminus.render.backend.DepthConvention;
 import com.eminus.render.far.CompositeFog;
 
@@ -129,7 +130,7 @@ public final class CompositePass implements AutoCloseable {
                 .withShaderDefine("NEAREST", (float) DepthConvention.REVERSED_NEAREST)
                 .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
                 .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA))
-                .withDepthStencilState(new DepthStencilState(depth.compare(), true))
+                .withDepthStencilState(new DepthStencilState(GameTypes.compare(depth.compare()), true))
                 .withCull(false);
 
         return depth.zeroToOne() ? builder.withShaderDefine("DEPTH_ZERO_TO_ONE").build() : builder.build();

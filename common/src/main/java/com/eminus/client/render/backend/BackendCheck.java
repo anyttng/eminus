@@ -1,29 +1,26 @@
 package com.eminus.client.render.backend;
 
-import java.util.Optional;
+import java.util.EnumSet;
 import java.util.OptionalDouble;
+import java.util.Set;
 
 import com.eminus.Eminus;
+import com.eminus.gpu.Capabilities;
+import com.eminus.gpu.Format;
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Std140;
+import com.eminus.gpu.buffer.Buffer;
+import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.pass.Pass;
+import com.eminus.gpu.pass.PassSpec;
+import com.eminus.gpu.pipeline.Binding;
+import com.eminus.gpu.pipeline.Pipeline;
+import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.gpu.texture.Texture;
+import com.eminus.gpu.texture.TextureUsage;
 import com.eminus.render.backend.BackendLimitation;
 import com.eminus.render.backend.BackendSupport;
 import com.eminus.render.backend.DepthConvention;
-
-import com.mojang.blaze3d.GpuFormat;
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.Std140Builder;
-import com.mojang.blaze3d.buffers.Std140SizeCalculator;
-import com.mojang.blaze3d.pipeline.BindGroupLayout;
-import com.mojang.blaze3d.pipeline.DepthStencilState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.shaders.UniformType;
-import com.mojang.blaze3d.systems.DeviceFeatures;
-import com.mojang.blaze3d.systems.GpuDevice;
-import com.mojang.blaze3d.systems.RenderPass;
-import com.mojang.blaze3d.systems.RenderPassDescriptor;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
 
 import net.minecraft.resources.Identifier;
 
@@ -32,7 +29,7 @@ import org.joml.Vector4fc;
 import org.lwjgl.system.MemoryStack;
 
 public final class BackendCheck {
-    public static final GpuFormat DEPTH_FORMAT = GpuFormat.D32_FLOAT;
+    public static final Format DEPTH_FORMAT = Format.D32_FLOAT;
 
     private static final Identifier PROBE_PIPELINE = Identifier.fromNamespaceAndPath(Eminus.MODID, "depth_probe");
     private static final Identifier PROBE_SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/depth_probe");
@@ -41,44 +38,38 @@ public final class BackendCheck {
     private static final String PASS_LABEL = "eminus-probe-pass";
     private static final String UNIFORM_LABEL = "eminus-probe-uniform";
     private static final String PROBE_UNIFORM = "Probe";
-    private static final GpuFormat COLOUR_FORMAT = GpuFormat.RGBA8_UNORM;
+    private static final Format COLOUR_FORMAT = Format.RGBA8_UNORM;
     private static final Vector4fc CLEAR_COLOUR = new Vector4f();
-    private static final int TARGET_USAGE = GpuTexture.USAGE_RENDER_ATTACHMENT;
+    private static final Set<TextureUsage> TARGET_USAGE = EnumSet.of(TextureUsage.ATTACHMENT);
+    private static final Set<BufferUsage> UNIFORM_USAGE = EnumSet.of(BufferUsage.UNIFORM);
     private static final int PROBE_SIDE = 1;
-    private static final int PROBE_LAYERS = 1;
     private static final int PROBE_MIPS = 1;
     private static final int PROBE_VERTICES = 3;
-    private static final int PROBE_INSTANCES = 1;
     private static final float PROBE_DEPTH = 0.5F;
-    private static final int UNIFORM_SIZE = new Std140SizeCalculator().putFloat().get();
-
-    private static final BindGroupLayout PROBE_LAYOUT = BindGroupLayout.builder()
-            .withUniform(PROBE_UNIFORM, UniformType.UNIFORM_BUFFER)
-            .build();
+    private static final int UNIFORM_SIZE = Std140.size().putFloat().get();
 
     private BackendCheck() {
     }
 
-    public static BackendSupport run(long arenaBytes) {
-        RenderSystem.assertOnRenderThread();
-        GpuDevice device = RenderSystem.getDevice();
-        DepthConvention depth = DepthConvention.of(device.getDeviceInfo());
+    public static BackendSupport run(Gpu gpu, long arenaBytes) {
+        gpu.assertRenderThread();
+        Capabilities capabilities = gpu.capabilities();
+        DepthConvention depth = DepthConvention.of(capabilities.depthZeroToOne());
 
-        if (arenaBytes <= 0 || arenaBytes > device.getDeviceInfo().limits().maxMemoryAllocationSize()) {
+        if (arenaBytes <= 0 || arenaBytes > capabilities.maxAllocationBytes()) {
             return refuse(BackendLimitation.ARENA_MEMORY, depth);
         }
 
-        DeviceFeatures features = device.getDeviceInfo().features();
-        if (!features.drawIndirect() || !features.multiDrawIndirect()) {
+        if (!capabilities.drawIndirect() || !capabilities.multiDrawIndirect()) {
             return refuse(BackendLimitation.DRAW_INDIRECT, depth);
         }
 
-        RenderPipeline probe = probePipeline(depth);
-        if (!device.precompilePipeline(probe).isValid()) {
+        Pipeline probe = gpu.pipeline(probePipeline(depth));
+        if (!probe.compiles()) {
             return refuse(BackendLimitation.FRAGMENT_DEPTH, depth);
         }
 
-        if (!draws(device, probe, DEPTH_FORMAT)) {
+        if (!draws(gpu, probe, DEPTH_FORMAT)) {
             return refuse(BackendLimitation.DEPTH_TARGET, depth);
         }
 
@@ -91,18 +82,16 @@ public final class BackendCheck {
         return BackendSupport.refused(limitation, depth);
     }
 
-    private static boolean draws(GpuDevice device, RenderPipeline probe, GpuFormat format) {
-        try (GpuBuffer uniform = probeUniform(device);
-                GpuTexture colour =
-                        device.createTexture(COLOUR_LABEL, TARGET_USAGE, COLOUR_FORMAT, PROBE_SIDE, PROBE_SIDE, PROBE_LAYERS, PROBE_MIPS);
-                GpuTexture depth =
-                        device.createTexture(DEPTH_LABEL, TARGET_USAGE, format, PROBE_SIDE, PROBE_SIDE, PROBE_LAYERS, PROBE_MIPS);
-                GpuTextureView colourView = device.createTextureView(colour);
-                GpuTextureView depthView = device.createTextureView(depth);
-                RenderPass pass = device.createCommandEncoder().createRenderPass(descriptor(colourView, depthView))) {
-            pass.setPipeline(probe);
-            pass.setUniform(PROBE_UNIFORM, uniform);
-            pass.draw(PROBE_VERTICES, PROBE_INSTANCES, 0, 0);
+    private static boolean draws(Gpu gpu, Pipeline probe, Format format) {
+        try (Buffer uniform = probeUniform(gpu);
+                Texture colour = gpu.texture(COLOUR_LABEL, TARGET_USAGE, COLOUR_FORMAT, PROBE_SIDE, PROBE_SIDE,
+                        PROBE_MIPS);
+                Texture depth = gpu.texture(DEPTH_LABEL, TARGET_USAGE, format, PROBE_SIDE, PROBE_SIDE, PROBE_MIPS);
+                Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, colour, CLEAR_COLOUR)
+                        .withDepth(depth, OptionalDouble.of(DepthConvention.REVERSED_FARTHEST)))) {
+            pass.pipeline(probe);
+            pass.bind(PROBE_UNIFORM, uniform);
+            pass.draw(PROBE_VERTICES);
             return true;
         } catch (RuntimeException refused) {
             Eminus.LOGGER.info("Depth format {} refused: {}", format, refused.getMessage());
@@ -110,29 +99,18 @@ public final class BackendCheck {
         }
     }
 
-    private static GpuBuffer probeUniform(GpuDevice device) {
+    private static Buffer probeUniform(Gpu gpu) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            return device.createBuffer(() -> UNIFORM_LABEL, GpuBuffer.USAGE_UNIFORM,
-                    Std140Builder.onStack(stack, UNIFORM_SIZE).putFloat(PROBE_DEPTH).get());
+            return gpu.buffer(UNIFORM_LABEL, UNIFORM_USAGE,
+                    Std140.into(stack.malloc(UNIFORM_SIZE)).putFloat(PROBE_DEPTH).get());
         }
     }
 
-    private static RenderPassDescriptor descriptor(GpuTextureView colour, GpuTextureView depth) {
-        return RenderPassDescriptor.create(() -> PASS_LABEL)
-                .withColorAttachment(colour, Optional.of(CLEAR_COLOUR))
-                .withDepthAttachment(depth, OptionalDouble.of(DepthConvention.REVERSED_FARTHEST))
-                .withRenderArea(new RenderPass.RenderArea(0, 0, PROBE_SIDE, PROBE_SIDE));
-    }
-
-    private static RenderPipeline probePipeline(DepthConvention depth) {
-        return RenderPipeline.builder()
-                .withLocation(PROBE_PIPELINE)
-                .withVertexShader(PROBE_SHADER)
-                .withFragmentShader(PROBE_SHADER)
-                .withBindGroupLayout(PROBE_LAYOUT)
-                .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
-                .withDepthStencilState(new DepthStencilState(depth.compare(), true))
-                .withCull(false)
+    private static PipelineSpec probePipeline(DepthConvention depth) {
+        return PipelineSpec.builder(PROBE_PIPELINE, PROBE_SHADER, PROBE_SHADER)
+                .withBinding(Binding.uniform(PROBE_UNIFORM))
+                .withColourTarget(COLOUR_FORMAT, null, true)
+                .withDepthTest(depth.compare(), true)
                 .build();
     }
 }

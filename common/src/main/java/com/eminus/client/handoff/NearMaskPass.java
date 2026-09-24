@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
+import com.eminus.client.gpu.game.GameTypes;
 import com.eminus.render.backend.DepthConvention;
 
 import com.mojang.blaze3d.GpuFormat;
@@ -77,7 +78,7 @@ public final class NearMaskPass {
                 .withShaderDefine("MASKED", (float) DepthConvention.REVERSED_NEAREST)
                 .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
                 .withColorTargetState(new ColorTargetState(Optional.empty(), colourFormat, ColorTargetState.WRITE_NONE))
-                .withDepthStencilState(new DepthStencilState(DepthConvention.REVERSED_COMPARE, true))
+                .withDepthStencilState(new DepthStencilState(GameTypes.compare(DepthConvention.REVERSED_COMPARE), true))
                 .withCull(false)
                 .build();
     }

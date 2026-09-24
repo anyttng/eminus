@@ -1,14 +1,12 @@
-package com.eminus.client.render.backend;
+package com.eminus.client.gpu.game;
 
 import java.lang.reflect.Field;
 import java.nio.IntBuffer;
 import java.util.OptionalLong;
 
 import com.eminus.Eminus;
-import com.eminus.render.arena.ArenaSizing;
 
 import com.mojang.blaze3d.systems.GpuDevice;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vulkan.VulkanDevice;
 
 import org.lwjgl.opengl.ATIMeminfo;
@@ -30,7 +28,7 @@ import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties;
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties2;
 import org.lwjgl.vulkan.VkPhysicalDeviceProperties;
 
-public record DeviceReading(OptionalLong texelBytes, OptionalLong freeBytes) {
+record DeviceReading(OptionalLong texelElements, OptionalLong freeBytes) {
     private static final String OPENGL = "OpenGL";
     private static final String VULKAN = "Vulkan";
     private static final DeviceReading UNREAD = new DeviceReading(OptionalLong.empty(), OptionalLong.empty());
@@ -43,13 +41,11 @@ public record DeviceReading(OptionalLong texelBytes, OptionalLong freeBytes) {
     private static final int ATI_TOTAL_FREE = 0;
     private static final int NO_HEAP = -1;
 
-    public static DeviceReading read() {
-        RenderSystem.assertOnRenderThread();
-        GpuDevice device = RenderSystem.getDevice();
+    static DeviceReading read(GpuDevice device) {
         String backend = device.getDeviceInfo().backendName();
 
         return switch (backend) {
-            case OPENGL -> new DeviceReading(reading(backend, TEXEL_LIMIT, DeviceReading::glTexelBytes),
+            case OPENGL -> new DeviceReading(reading(backend, TEXEL_LIMIT, DeviceReading::glTexelElements),
                     reading(backend, FREE_MEMORY, DeviceReading::glFreeBytes));
             case VULKAN -> vulkan(device);
             default -> {
@@ -68,7 +64,7 @@ public record DeviceReading(OptionalLong texelBytes, OptionalLong freeBytes) {
             return UNREAD;
         }
 
-        return new DeviceReading(reading(VULKAN, TEXEL_LIMIT, () -> vkTexelBytes(physical)),
+        return new DeviceReading(reading(VULKAN, TEXEL_LIMIT, () -> vkTexelElements(physical)),
                 reading(VULKAN, FREE_MEMORY, () -> vkFreeBytes(physical)));
     }
 
@@ -85,8 +81,8 @@ public record DeviceReading(OptionalLong texelBytes, OptionalLong freeBytes) {
         Eminus.LOGGER.warn("The {} was not read on {}: {}", name, backend, refused.toString());
     }
 
-    private static OptionalLong glTexelBytes() {
-        return OptionalLong.of(GL32C.glGetInteger64(GL31C.GL_MAX_TEXTURE_BUFFER_SIZE) * ArenaSizing.QUAD_BYTES);
+    private static OptionalLong glTexelElements() {
+        return OptionalLong.of(GL32C.glGetInteger64(GL31C.GL_MAX_TEXTURE_BUFFER_SIZE));
     }
 
     private static OptionalLong glFreeBytes() {
@@ -113,12 +109,11 @@ public record DeviceReading(OptionalLong texelBytes, OptionalLong freeBytes) {
         return ((VulkanDevice) backend.get(device)).vkDevice().getPhysicalDevice();
     }
 
-    private static OptionalLong vkTexelBytes(VkPhysicalDevice physical) {
+    private static OptionalLong vkTexelElements(VkPhysicalDevice physical) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             VkPhysicalDeviceProperties properties = VkPhysicalDeviceProperties.calloc(stack);
             VK10.vkGetPhysicalDeviceProperties(physical, properties);
-            return OptionalLong.of(Integer.toUnsignedLong(properties.limits().maxTexelBufferElements())
-                    * ArenaSizing.QUAD_BYTES);
+            return OptionalLong.of(Integer.toUnsignedLong(properties.limits().maxTexelBufferElements()));
         }
     }
 

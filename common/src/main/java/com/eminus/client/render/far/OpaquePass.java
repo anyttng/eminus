@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
+import com.eminus.client.gpu.game.GameTypes;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.render.backend.DepthConvention;
 
@@ -64,7 +65,7 @@ public final class OpaquePass {
         return FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT)
                 .withShaderDefine("FULL_COVERAGE")
                 .withShaderDefine("NEAR_SECTIONS")
-                .withDepthStencilState(new DepthStencilState(depth.compare(), true))
+                .withDepthStencilState(new DepthStencilState(GameTypes.compare(depth.compare()), true))
                 .build();
     }
 }
