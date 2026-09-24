@@ -22,11 +22,10 @@ import com.eminus.mesh.BakeryTints;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
 import com.eminus.model.ModelIndex;
-import com.eminus.client.gpu.game.GameGpu;
-import com.eminus.client.gpu.game.GameTypes;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.texture.Texture;
 import com.eminus.render.arena.ArenaSizing;
 import com.eminus.render.arena.MeshSlot;
 import com.eminus.client.render.arena.GeometryArena;
@@ -48,9 +47,6 @@ import com.eminus.client.session.ClientSession;
 import com.eminus.settings.FarDistance;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
-
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -122,16 +118,15 @@ public final class FarRenderer implements AutoCloseable {
                 new TreeExtent(runtime.frame(), heightCells, runtime.lowestStoredLevel()));
     }
 
-    public static @Nullable FarRenderer start(Minecraft client, EminusInstance instance, DimensionRuntime runtime,
-            int levelHeight, Settings settings) {
-        RenderSystem.assertOnRenderThread();
+    public static @Nullable FarRenderer start(Minecraft client, Gpu gpu, EminusInstance instance,
+            DimensionRuntime runtime, int levelHeight, Settings settings) {
+        gpu.assertRenderThread();
 
-        RenderTarget main = client.gameRenderer.mainRenderTarget();
-        Gpu gpu = GameGpu.create();
+        Texture main = gpu.mainColour();
         long ceiling = ceiling(gpu.capabilities());
         long bytes = ArenaSizing.fitted(
                 bounded(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
-                        FarProjection.focalPixels(client.options.fov().get(), main.height),
+                        FarProjection.focalPixels(client.options.fov().get(), main.height()),
                         runtime.lowestStoredLevel()), ceiling),
                 ceiling);
         BackendSupport support = BackendCheck.run(gpu, bytes);
@@ -143,10 +138,10 @@ public final class FarRenderer implements AutoCloseable {
         ClientBakery baking = ClientBakery.start(client);
         FarRenderer renderer = new FarRenderer(gpu, runtime, baking,
                 ModelPublisher.start(gpu, baking.bakery()), arena,
-                FarTarget.create(gpu, support.depthFormat(), main.width, main.height), FarFrame.create(gpu),
-                NearMaskPass.create(FarTarget.COLOUR_FORMAT), NearSectionTable.create(gpu),
-                OpaquePass.create(support.depth()), OcclusionPass.create(support.depth()),
-                TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),
+                FarTarget.create(gpu, support.depthFormat(), main.width(), main.height()), FarFrame.create(gpu),
+                NearMaskPass.create(gpu, FarTarget.COLOUR_FORMAT), NearSectionTable.create(gpu),
+                OpaquePass.create(gpu, support.depth()), OcclusionPass.create(gpu, support.depth()),
+                TranslucentPass.create(gpu, support.depth()), CompositePass.create(gpu, support.depth()),
                 IndirectCommands.create(gpu, START_COMMANDS),
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
 
@@ -225,7 +220,7 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     public void frame(Minecraft client) {
-        RenderSystem.assertOnRenderThread();
+        gpu.assertRenderThread();
         if (stopped) {
             return;
         }
@@ -237,21 +232,21 @@ public final class FarRenderer implements AutoCloseable {
 
         models.publish();
 
-        RenderTarget main = client.gameRenderer.mainRenderTarget();
-        target.resize(main.width, main.height);
+        Texture main = gpu.mainColour();
+        target.resize(main.width(), main.height());
 
         int renderDistance = client.options.getEffectiveRenderDistance();
         Camera camera = client.gameRenderer.mainCamera();
         Vec3 eye = camera.position();
         camera.getViewRotationMatrix(viewRotation);
         projection.viewProjection(NearPlane.blocks(renderDistance), camera.getFov(), levelProjection.fold(),
-                viewRotation, main.width, main.height, farViewProjection);
+                viewRotation, main.width(), main.height(), farViewProjection);
         FarProjection.gameViewProjection(levelProjection.projection(), viewRotation, gameViewProjection);
 
         Settings settings = SettingsService.get().settings();
         tree.frame(new CameraFrame(eye.x, eye.y, eye.z, new Matrix4f(farViewProjection),
-                FarProjection.focalPixels(client.options.fov().get(), main.height),
-                FarProjection.focalPixels(camera.getFov(), main.height), settings.farRenderCells(),
+                FarProjection.focalPixels(client.options.fov().get(), main.height()),
+                FarProjection.focalPixels(camera.getFov(), main.height()), settings.farRenderCells(),
                 settings.detailDistance().pixels(), arena.pressure()));
 
         FogData gameFog = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData;
@@ -280,19 +275,17 @@ public final class FarRenderer implements AutoCloseable {
 
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
                     nearSections.sections(), level.cardinalLighting());
-            mask.draw(target.depth(), target.colour(), gpu.mainDepth());
-            opaque.draw(target, arena, models, client.gameRenderer.lightmap(),
-                    GameTypes.indexedIndirect(indirect.buffer(), 0, commands.opaqueCount()), commands.opaqueCount(),
-                    GameTypes.buffer(frame.buffer()),
-                    GameTypes.buffer(nearSections.buffer()));
+            Texture mainDepth = gpu.mainDepth();
+            Texture lightmap = gpu.lightmap();
+            mask.draw(target.depth(), target.colour(), mainDepth);
+            opaque.draw(target, arena, models, lightmap, indirect.buffer(), 0, commands.opaqueCount(),
+                    frame.buffer(), nearSections.texels());
             if (client.options.ambientOcclusion().get()) {
-                occlusion.draw(target, main, farViewProjection, gameViewProjection);
+                occlusion.draw(target, mainDepth, farViewProjection, gameViewProjection);
             }
-            translucent.draw(target, arena, models, client.gameRenderer.lightmap(),
-                    GameTypes.indexedIndirect(indirect.buffer(), commands.opaqueCount(), commands.translucentCount()),
-                    commands.translucentCount(), GameTypes.buffer(frame.buffer()),
-                    GameTypes.buffer(nearSections.buffer()));
-            composite.draw(target, main, farViewProjection, gameViewProjection, fog, gameFog.color);
+            translucent.draw(target, arena, models, lightmap, indirect.buffer(), commands.opaqueCount(),
+                    commands.translucentCount(), frame.buffer(), nearSections.texels());
+            composite.draw(target, main, mainDepth, farViewProjection, gameViewProjection, fog, gameFog.color);
         }
     }
 
@@ -319,7 +312,7 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     public CompletableFuture<FarLayerState> state() {
-        RenderSystem.assertOnRenderThread();
+        gpu.assertRenderThread();
         String dimension = runtime.identity().dimension();
         ArenaState arenaState = arena.state();
         IngestService ingest = runtime.ingest();
@@ -331,7 +324,7 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     public CompletableFuture<List<long[]>> describe(int blockX, int blockY, int blockZ) {
-        RenderSystem.assertOnRenderThread();
+        gpu.assertRenderThread();
         List<long[]> rows = new ArrayList<>(DetailLevel.COUNT);
 
         for (int level = DetailLevel.MIN; level <= DetailLevel.MAX; level++) {
@@ -353,7 +346,7 @@ public final class FarRenderer implements AutoCloseable {
 
     @Override
     public void close() {
-        RenderSystem.assertOnRenderThread();
+        gpu.assertRenderThread();
         stopped = true;
         runtime.stopListening();
         tree.stop();

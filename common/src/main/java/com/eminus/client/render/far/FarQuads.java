@@ -11,23 +11,19 @@ import com.eminus.model.BakedModel;
 import com.eminus.model.ModelMetadata;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.far.DrawCommands;
-import com.eminus.client.gpu.game.GameTypes;
+import com.eminus.client.handoff.NearSectionTable;
+import com.eminus.client.model.ModelRecords;
+import com.eminus.client.model.ModelVariants;
 import com.eminus.client.render.arena.GeometryArena;
-import com.eminus.gpu.Format;
+import com.eminus.client.render.arena.MeshRecords;
+import com.eminus.gpu.buffer.Buffer;
+import com.eminus.gpu.buffer.TexelView;
+import com.eminus.gpu.pass.Pass;
+import com.eminus.gpu.pipeline.Binding;
+import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.gpu.texture.Sampler;
+import com.eminus.gpu.texture.Texture;
 
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
-import com.mojang.renderpearl.api.pipeline.RenderPipeline;
-import com.mojang.renderpearl.api.pipeline.UniformType;
-import com.mojang.renderpearl.api.commands.RenderPass;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.textures.AddressMode;
-import com.mojang.renderpearl.api.textures.FilterMode;
-import com.mojang.renderpearl.api.textures.GpuSampler;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
-
-import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.resources.Identifier;
 
 final class FarQuads {
@@ -36,67 +32,59 @@ final class FarQuads {
 
     private static final int MAX_GROUP_INDICES = MeshBuffer.MAX_QUADS_PER_GROUP * DrawCommands.INDICES_PER_QUAD;
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/far_quads");
+    private static final String FRAME = "FarFrame";
+    private static final String QUADS = "Quads";
+    private static final String MESH_RECORDS = "MeshRecords";
+    private static final String MODEL_RECORDS = "ModelRecords";
+    private static final String MODEL_VARIANTS = "ModelVariants";
+    private static final String NEAR_SECTIONS = "NearSections";
+    private static final String ATLAS = "Atlas";
+    private static final String TINT_MASK = "TintMask";
+    private static final String LIGHTMAP = "Lightmap";
 
-    private static final BindGroupLayout LAYOUT = BindGroupLayout.builder()
-            .withUniform("FarFrame", UniformType.UNIFORM_BUFFER)
-            .withUniform("Quads", UniformType.TEXEL_BUFFER, GameTypes.format(Format.RG32_UINT))
-            .withUniform("MeshRecords", UniformType.TEXEL_BUFFER, GameTypes.format(Format.RGBA32_UINT))
-            .withUniform("ModelRecords", UniformType.TEXEL_BUFFER, GameTypes.format(Format.RGBA32_FLOAT))
-            .withUniform("ModelVariants", UniformType.TEXEL_BUFFER, GameTypes.format(Format.RG32_UINT))
-            .withUniform("NearSections", UniformType.TEXEL_BUFFER, GameTypes.format(Format.R32_UINT))
-            .withUniform("Atlas", UniformType.COMBINED_IMAGE_SAMPLER)
-            .withUniform("TintMask", UniformType.COMBINED_IMAGE_SAMPLER)
-            .withUniform("Lightmap", UniformType.COMBINED_IMAGE_SAMPLER)
-            .build();
-
-    static RenderPipeline.Builder pipeline(Identifier location, float alphaCutout) {
-        return RenderPipeline.builder()
-                .withLocation(location)
-                .withVertexShader(SHADER)
-                .withFragmentShader(SHADER)
-                .withBindGroupLayout(BindGroupLayouts.GLOBALS)
-                .withBindGroupLayout(LAYOUT)
-                .withShaderDefine("QUADS_PER_BLOCK", ArenaAllocator.QUADS_PER_BLOCK)
-                .withShaderDefine("VOXELS_PER_SIDE", DetailLevel.VOXELS_PER_SIDE)
-                .withShaderDefine("MIN_HORIZONTAL", CellKey.MIN_HORIZONTAL)
-                .withShaderDefine("MIN_VERTICAL", CellKey.MIN_VERTICAL)
-                .withShaderDefine("MODEL_FACES", BakedModel.FACE_COUNT)
-                .withShaderDefine("FIRST_BLADE_FACE", Quad.FIRST_BLADE_FACE)
-                .withShaderDefine("FLUID_FLAG", ModelMetadata.FLUID)
-                .withShaderDefine("CORNER_STEPS", FluidCorners.STEPS)
-                .withShaderDefine("FACE_SIDE", BakedModel.FACE_SIDE)
-                .withShaderDefine("MAX_VARIANT_REJECTIONS", BakedModel.MAX_VARIANT_REJECTIONS)
-                .withShaderDefine("ALPHA_CUTOUT", alphaCutout)
-                .withShaderDefine("SHADE_BLADE", SHADE_BLADE)
-                .withShaderDefine("MAX_SAMPLES", MAX_SAMPLES)
-                .withShaderDefine("NEAR_SECTION_BLOCKS", NearSections.SECTION_BLOCKS)
-                .withShaderDefine("NEAR_TEXEL_BITS", NearSections.BITS_PER_TEXEL)
-                .withShaderDefine("NEAR_TEXEL_SHIFT", NearSections.TEXEL_SHIFT)
-                .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
-                .withCull(false);
+    static PipelineSpec.Builder pipeline(Identifier location, float alphaCutout) {
+        return PipelineSpec.builder(location, SHADER, SHADER)
+                .withGameGlobals()
+                .withBinding(Binding.uniform(FRAME))
+                .withBinding(Binding.texel(QUADS, GeometryArena.QUAD_FORMAT))
+                .withBinding(Binding.texel(MESH_RECORDS, MeshRecords.TEXEL_FORMAT))
+                .withBinding(Binding.texel(MODEL_RECORDS, ModelRecords.TEXEL_FORMAT))
+                .withBinding(Binding.texel(MODEL_VARIANTS, ModelVariants.TEXEL_FORMAT))
+                .withBinding(Binding.texel(NEAR_SECTIONS, NearSectionTable.TEXEL_FORMAT))
+                .withBinding(Binding.sampled(ATLAS))
+                .withBinding(Binding.sampled(TINT_MASK))
+                .withBinding(Binding.sampled(LIGHTMAP))
+                .withDefine("QUADS_PER_BLOCK", ArenaAllocator.QUADS_PER_BLOCK)
+                .withDefine("VOXELS_PER_SIDE", DetailLevel.VOXELS_PER_SIDE)
+                .withDefine("MIN_HORIZONTAL", CellKey.MIN_HORIZONTAL)
+                .withDefine("MIN_VERTICAL", CellKey.MIN_VERTICAL)
+                .withDefine("MODEL_FACES", BakedModel.FACE_COUNT)
+                .withDefine("FIRST_BLADE_FACE", Quad.FIRST_BLADE_FACE)
+                .withDefine("FLUID_FLAG", ModelMetadata.FLUID)
+                .withDefine("CORNER_STEPS", FluidCorners.STEPS)
+                .withDefine("FACE_SIDE", BakedModel.FACE_SIDE)
+                .withDefine("MAX_VARIANT_REJECTIONS", BakedModel.MAX_VARIANT_REJECTIONS)
+                .withDefine("ALPHA_CUTOUT", alphaCutout)
+                .withDefine("SHADE_BLADE", SHADE_BLADE)
+                .withDefine("MAX_SAMPLES", MAX_SAMPLES)
+                .withDefine("NEAR_SECTION_BLOCKS", NearSections.SECTION_BLOCKS)
+                .withDefine("NEAR_TEXEL_BITS", NearSections.BITS_PER_TEXEL)
+                .withDefine("NEAR_TEXEL_SHIFT", NearSections.TEXEL_SHIFT);
     }
 
-    static void bind(RenderPass pass, GeometryArena arena, ModelPublisher models, GpuTextureView lightmap,
-            GpuBuffer frame, GpuBuffer nearSections) {
-        pass.setUniform("Globals", RenderSystem.getGlobalSettingsUniform());
-        pass.setUniform("FarFrame", frame);
-        pass.setUniform("Quads", GameTypes.buffer(arena.quads()));
-        pass.setUniform("MeshRecords", GameTypes.buffer(arena.records().buffer()));
-        pass.setUniform("ModelRecords", GameTypes.buffer(models.records().buffer()));
-        pass.setUniform("ModelVariants", GameTypes.buffer(models.variants().buffer()));
-        pass.setUniform("NearSections", nearSections);
-        pass.setUniform("Atlas", GameTypes.view(models.atlas().colour()), atlasSampler());
-        pass.setUniform("TintMask", GameTypes.view(models.atlas().tintMask()), atlasSampler());
-        pass.setUniform("Lightmap", lightmap, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
-
-        RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
-        GpuBuffer indexBuffer = indices.getBuffer(MAX_GROUP_INDICES);
-        pass.setIndexBuffer(indexBuffer, indices.type());
-    }
-
-    private static GpuSampler atlasSampler() {
-        return RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE,
-                FilterMode.NEAREST, FilterMode.NEAREST, true);
+    static void bind(Pass pass, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer frame,
+            TexelView nearSections) {
+        pass.bindGameGlobals();
+        pass.bind(FRAME, frame);
+        pass.bind(QUADS, arena.quads());
+        pass.bind(MESH_RECORDS, arena.records().texels());
+        pass.bind(MODEL_RECORDS, models.records().texels());
+        pass.bind(MODEL_VARIANTS, models.variants().texels());
+        pass.bind(NEAR_SECTIONS, nearSections);
+        pass.bind(ATLAS, models.atlas().colour(), Sampler.NEAREST_MIPPED);
+        pass.bind(TINT_MASK, models.atlas().tintMask(), Sampler.NEAREST_MIPPED);
+        pass.bind(LIGHTMAP, lightmap, Sampler.LINEAR);
+        pass.quadIndices(MAX_GROUP_INDICES);
     }
 
     private FarQuads() {

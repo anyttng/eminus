@@ -1,23 +1,19 @@
 package com.eminus.client.render.far;
 
-import java.util.Optional;
 import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
-import com.eminus.client.gpu.game.GameTypes;
 import com.eminus.client.render.arena.GeometryArena;
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.buffer.Buffer;
+import com.eminus.gpu.buffer.TexelView;
+import com.eminus.gpu.pass.Pass;
+import com.eminus.gpu.pass.PassSpec;
+import com.eminus.gpu.pipeline.Blend;
+import com.eminus.gpu.pipeline.Pipeline;
+import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.gpu.texture.Texture;
 import com.eminus.render.backend.DepthConvention;
-
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
-import com.mojang.renderpearl.api.pipeline.BlendFunction;
-import com.mojang.renderpearl.api.pipeline.ColorTargetState;
-import com.mojang.renderpearl.api.pipeline.DepthStencilState;
-import com.mojang.renderpearl.api.pipeline.RenderPipeline;
-import com.mojang.renderpearl.api.commands.RenderPass;
-import com.mojang.renderpearl.api.commands.RenderPassDescriptor;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
 
 import net.minecraft.resources.Identifier;
 
@@ -27,45 +23,39 @@ public final class TranslucentPass {
     private static final Identifier PIPELINE = Identifier.fromNamespaceAndPath(Eminus.MODID, "far_translucent");
     private static final String PASS_LABEL = "eminus-far-translucent";
 
-    private final RenderPipeline pipeline;
+    private final Gpu gpu;
+    private final Pipeline pipeline;
 
-    private TranslucentPass(RenderPipeline pipeline) {
+    private TranslucentPass(Gpu gpu, Pipeline pipeline) {
+        this.gpu = gpu;
         this.pipeline = pipeline;
     }
 
-    public static TranslucentPass create(DepthConvention depth) {
-        RenderSystem.assertOnRenderThread();
-        return new TranslucentPass(pipeline(depth));
+    public static TranslucentPass create(Gpu gpu, DepthConvention depth) {
+        gpu.assertRenderThread();
+        return new TranslucentPass(gpu, gpu.pipeline(pipeline(depth)));
     }
 
-    public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, GpuTextureView lightmap,
-            GpuBufferSlice commands, int drawCount, GpuBuffer frame, GpuBuffer nearSections) {
-        RenderSystem.assertOnRenderThread();
+    public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer commands,
+            int firstCommand, int drawCount, Buffer frame, TexelView nearSections) {
+        gpu.assertRenderThread();
         if (drawCount == 0) {
             return;
         }
 
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(target))) {
-            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
+        try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, target.colour(), null)
+                .withDepth(target.depth(), OptionalDouble.empty()))) {
+            pass.pipeline(pipeline);
             FarQuads.bind(pass, arena, models, lightmap, frame, nearSections);
-            pass.drawIndexedIndirect(commands, drawCount);
+            pass.drawIndexedIndirect(commands, firstCommand, drawCount);
         }
     }
 
-    private static RenderPassDescriptor descriptor(FarTarget target) {
-        return RenderPassDescriptor.builder(() -> PASS_LABEL)
-                .withColorAttachment(GameTypes.view(target.colour()), Optional.empty())
-                .withDepthAttachment(GameTypes.view(target.depth()), OptionalDouble.empty())
-                .withRenderArea(new RenderPass.RenderArea(0, 0, target.width(), target.height()))
-                .build();
-    }
-
-    private static RenderPipeline pipeline(DepthConvention depth) {
+    private static PipelineSpec pipeline(DepthConvention depth) {
         return FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT)
-                .withShaderDefine("NEAR_SECTIONS")
-                .withColorTargetState(new ColorTargetState(Optional.of(BlendFunction.TRANSLUCENT),
-                        GameTypes.format(FarTarget.COLOUR_FORMAT), ColorTargetState.WRITE_ALL))
-                .withDepthStencilState(new DepthStencilState(GameTypes.compare(depth.compare()), true))
+                .withDefine("NEAR_SECTIONS")
+                .withColourTarget(FarTarget.COLOUR_FORMAT, Blend.TRANSLUCENT, true)
+                .withDepthTest(depth.compare(), true)
                 .build();
     }
 }

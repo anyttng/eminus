@@ -10,7 +10,6 @@ import com.eminus.gpu.pipeline.Binding;
 import com.eminus.gpu.pipeline.Blend;
 import com.eminus.gpu.pipeline.DepthCompare;
 import com.eminus.gpu.texture.Sampler;
-import com.eminus.gpu.texture.Texture;
 import com.eminus.gpu.texture.TextureUsage;
 
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -25,16 +24,15 @@ import com.mojang.renderpearl.api.textures.AddressMode;
 import com.mojang.renderpearl.api.textures.FilterMode;
 import com.mojang.renderpearl.api.textures.GpuSampler;
 import com.mojang.renderpearl.api.textures.GpuTexture;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
 
-public final class GameTypes {
+final class GameTypes {
     private static final BlendFunction MULTIPLY = new BlendFunction(BlendFactor.ZERO, BlendFactor.SRC_COLOR,
             BlendFactor.ZERO, BlendFactor.ONE);
 
     private GameTypes() {
     }
 
-    public static GpuFormat format(Format format) {
+    static GpuFormat format(Format format) {
         return switch (format) {
             case RGBA8_UNORM -> GpuFormat.RGBA8_UNORM;
             case R8_UNORM -> GpuFormat.R8_UNORM;
@@ -55,20 +53,16 @@ public final class GameTypes {
         throw new IllegalStateException("The game's texture format " + format + " has no port format");
     }
 
-    public static GpuBuffer buffer(Buffer buffer) {
+    static GpuBuffer buffer(Buffer buffer) {
         return ((GameBuffer) buffer).buffer();
     }
 
-    public static GpuTextureView view(Texture texture) {
-        return ((GameTexture) texture).view();
-    }
-
-    public static GpuBufferSlice indexedIndirect(Buffer commands, int firstCommand, int count) {
+    static GpuBufferSlice indexedIndirect(Buffer commands, int firstCommand, int count) {
         return buffer(commands).slice((long) firstCommand * Pass.INDEXED_INDIRECT_BYTES,
                 (long) count * Pass.INDEXED_INDIRECT_BYTES);
     }
 
-    public static CompareOp compare(DepthCompare compare) {
+    static CompareOp compare(DepthCompare compare) {
         return switch (compare) {
             case GREATER_OR_EQUAL -> CompareOp.GREATER_THAN_OR_EQUAL;
             case LESS_OR_EQUAL -> CompareOp.LESS_THAN_OR_EQUAL;

@@ -5,15 +5,18 @@ import java.nio.ByteOrder;
 import java.util.EnumSet;
 import java.util.Set;
 
+import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.buffer.TexelView;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.MeshSlot;
 
 public final class MeshRecords implements AutoCloseable {
     public static final int TEXELS = 1;
     public static final int BYTES = TEXELS * 4 * Integer.BYTES;
+    public static final Format TEXEL_FORMAT = Format.RGBA32_UINT;
 
     private static final String LABEL = "eminus-mesh-records";
     private static final Set<BufferUsage> USAGE = EnumSet.of(BufferUsage.TEXEL, BufferUsage.COPY_DST);
@@ -22,6 +25,7 @@ public final class MeshRecords implements AutoCloseable {
 
     private final Gpu gpu;
     private final Buffer buffer;
+    private final TexelView texels;
     private final int capacity;
     private final ByteBuffer scratch =
             ByteBuffer.allocateDirect(MAX_BLOCKS_PER_MESH * BYTES).order(ByteOrder.nativeOrder());
@@ -30,6 +34,7 @@ public final class MeshRecords implements AutoCloseable {
         this.gpu = gpu;
         this.buffer = buffer;
         this.capacity = capacity;
+        texels = gpu.texelView(buffer, TEXEL_FORMAT);
     }
 
     public static MeshRecords create(Gpu gpu, int capacity) {
@@ -37,8 +42,8 @@ public final class MeshRecords implements AutoCloseable {
         return new MeshRecords(gpu, gpu.buffer(LABEL, USAGE, (long) capacity * BYTES), capacity);
     }
 
-    public Buffer buffer() {
-        return buffer;
+    public TexelView texels() {
+        return texels;
     }
 
     public int capacity() {
@@ -64,6 +69,7 @@ public final class MeshRecords implements AutoCloseable {
 
     @Override
     public void close() {
+        texels.close();
         buffer.close();
     }
 }
