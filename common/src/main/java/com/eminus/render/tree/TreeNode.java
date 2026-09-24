@@ -24,6 +24,7 @@ public final class TreeNode {
     private long lastSeen;
     private long request;
     private boolean building;
+    private boolean outOfViewBuild;
     private boolean rebuild;
 
     TreeNode(long key, @Nullable TreeNode parent, int octant) {
@@ -159,14 +160,20 @@ public final class TreeNode {
         return request;
     }
 
-    void startBuild(long dispatched) {
+    void startBuild(long dispatched, boolean outOfView) {
         request = dispatched;
         building = true;
+        outOfViewBuild = outOfView;
+    }
+
+    boolean outOfViewBuild() {
+        return outOfViewBuild;
     }
 
     void meshed(MeshSummary built) {
         mesh = built;
         building = false;
+        outOfViewBuild = false;
     }
 
     void markRebuild() {

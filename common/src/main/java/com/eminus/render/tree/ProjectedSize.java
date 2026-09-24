@@ -30,6 +30,10 @@ final class ProjectedSize {
         return (float) (DetailLevel.blocksPerCell(level) * camera.pixelsPerBlock() / distance);
     }
 
+    static float outOfView(float size) {
+        return -1.0F / size;
+    }
+
     static double horizontalDistance(CellFrame frame, long key, CameraFrame camera) {
         int level = CellKey.level(key);
         int side = DetailLevel.blocksPerCell(level);
