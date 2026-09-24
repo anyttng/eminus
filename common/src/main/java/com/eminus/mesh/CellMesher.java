@@ -40,6 +40,12 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
             return null;
         }
 
+        if (scratch.buffer().lostPlacements()) {
+            scratch.buffer().resetReserving();
+            passes.run();
+            blades.run();
+        }
+
         return scratch.buffer().freeze(key, occupancy);
     }
 

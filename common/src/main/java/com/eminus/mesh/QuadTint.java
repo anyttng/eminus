@@ -23,9 +23,7 @@ public final class QuadTint {
         }
 
         int colour = colour(scratch, row, x, y, z);
-        return corners == FluidCorners.FLAT
-                ? scratch.buffer().colourIndex(colour, gaps)
-                : scratch.buffer().cornerIndex(colour, corners);
+        return scratch.buffer().colourIndex(colour, corners == FluidCorners.FLAT ? gaps : corners);
     }
 
     private static int colour(MeshScratch scratch, int row, int x, int y, int z) {
