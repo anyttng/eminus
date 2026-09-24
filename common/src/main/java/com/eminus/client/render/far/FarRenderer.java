@@ -70,6 +70,7 @@ public final class FarRenderer implements AutoCloseable {
 
     private static final long BYTES_PER_MIB = 1L << 20;
 
+    private final Gpu gpu;
     private final DimensionRuntime runtime;
     private final ClientBakery baking;
     private final ModelPublisher models;
@@ -98,10 +99,11 @@ public final class FarRenderer implements AutoCloseable {
     private int uploaded;
     private boolean stopped;
 
-    private FarRenderer(DimensionRuntime runtime, ClientBakery baking, ModelPublisher models, GeometryArena arena,
-            FarTarget target, FarFrame frame, NearMaskPass mask, NearSectionTable nearSections, OpaquePass opaque,
-            OcclusionPass occlusion, TranslucentPass translucent, CompositePass composite, IndirectCommands indirect,
-            int heightCells) {
+    private FarRenderer(Gpu gpu, DimensionRuntime runtime, ClientBakery baking, ModelPublisher models,
+            GeometryArena arena, FarTarget target, FarFrame frame, NearMaskPass mask, NearSectionTable nearSections,
+            OpaquePass opaque, OcclusionPass occlusion, TranslucentPass translucent, CompositePass composite,
+            IndirectCommands indirect, int heightCells) {
+        this.gpu = gpu;
         this.runtime = runtime;
         this.baking = baking;
         this.models = models;
@@ -132,19 +134,19 @@ public final class FarRenderer implements AutoCloseable {
                         runtime.lowestStoredLevel()), ceiling),
                 ceiling);
         BackendSupport support = BackendCheck.run(gpu, bytes);
-        GeometryArena arena = GeometryArena.create(support, bytes);
+        GeometryArena arena = GeometryArena.create(gpu, support, bytes);
         if (arena == null) {
             return null;
         }
 
         ClientBakery baking = ClientBakery.start(client);
-        FarRenderer renderer = new FarRenderer(runtime, baking,
+        FarRenderer renderer = new FarRenderer(gpu, runtime, baking,
                 ModelPublisher.start(baking.bakery()), arena,
                 FarTarget.create(GameTypes.format(support.depthFormat()), main.width, main.height), FarFrame.create(),
                 NearMaskPass.create(FarTarget.COLOUR_FORMAT), NearSectionTable.create(),
                 OpaquePass.create(support.depth()), OcclusionPass.create(support.depth()),
                 TranslucentPass.create(support.depth()), CompositePass.create(support.depth()),
-                IndirectCommands.create(START_COMMANDS),
+                IndirectCommands.create(gpu, START_COMMANDS),
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
 
         renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(), runtime.frame(),
@@ -269,7 +271,7 @@ public final class FarRenderer implements AutoCloseable {
         if (commands.count() > 0) {
             if (indirect.capacity() < commands.capacity()) {
                 indirect.close();
-                indirect = IndirectCommands.create(commands.capacity());
+                indirect = IndirectCommands.create(gpu, commands.capacity());
             }
 
             indirect.write(commands);
@@ -282,13 +284,14 @@ public final class FarRenderer implements AutoCloseable {
             mask.draw(target.depthView(), target.colourView(), target.width(), target.height(),
                     main.getDepthTextureView());
             opaque.draw(target, arena, models, client.gameRenderer.lightmap(),
-                    indirect.range(0, commands.opaqueCount()), commands.opaqueCount(), frame.buffer(),
+                    GameTypes.indexedIndirect(indirect.buffer(), 0, commands.opaqueCount()), commands.opaqueCount(),
+                    frame.buffer(),
                     nearSections.buffer());
             if (client.options.ambientOcclusion().get()) {
                 occlusion.draw(target, main, farViewProjection, gameViewProjection);
             }
             translucent.draw(target, arena, models, client.gameRenderer.lightmap(),
-                    indirect.range(commands.opaqueCount(), commands.translucentCount()),
+                    GameTypes.indexedIndirect(indirect.buffer(), commands.opaqueCount(), commands.translucentCount()),
                     commands.translucentCount(), frame.buffer(), nearSections.buffer());
             composite.draw(target, main, farViewProjection, gameViewProjection, fog, gameFog.color);
         }

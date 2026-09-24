@@ -3,7 +3,9 @@ package com.eminus.client.gpu.game;
 import java.util.Set;
 
 import com.eminus.gpu.Format;
+import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.pass.Pass;
 import com.eminus.gpu.pipeline.Binding;
 import com.eminus.gpu.pipeline.Blend;
 import com.eminus.gpu.pipeline.DepthCompare;
@@ -13,6 +15,7 @@ import com.eminus.gpu.texture.TextureUsage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.platform.BlendFactor;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.platform.CompareOp;
@@ -48,6 +51,15 @@ public final class GameTypes {
             }
         }
         throw new IllegalStateException("The game's texture format " + format + " has no port format");
+    }
+
+    public static GpuBuffer buffer(Buffer buffer) {
+        return ((GameBuffer) buffer).buffer();
+    }
+
+    public static GpuBufferSlice indexedIndirect(Buffer commands, int firstCommand, int count) {
+        return buffer(commands).slice((long) firstCommand * Pass.INDEXED_INDIRECT_BYTES,
+                (long) count * Pass.INDEXED_INDIRECT_BYTES);
     }
 
     public static CompareOp compare(DepthCompare compare) {

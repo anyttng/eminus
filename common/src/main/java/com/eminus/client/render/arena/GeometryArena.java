@@ -1,9 +1,15 @@
 package com.eminus.client.render.arena;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 import com.eminus.Eminus;
 import com.eminus.api.v1.ArenaState;
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.buffer.Buffer;
+import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.buffer.Staging;
 import com.eminus.mesh.CellMesh;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.ArenaPressure;
@@ -12,10 +18,6 @@ import com.eminus.render.arena.MeshSlot;
 import com.eminus.render.arena.MeshSlots;
 import com.eminus.render.backend.BackendSupport;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.StagingBuffer;
-
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongList;
 
@@ -23,12 +25,13 @@ import org.jspecify.annotations.Nullable;
 
 public final class GeometryArena implements MeshSlots, AutoCloseable {
     private static final String LABEL = "eminus-geometry-arena";
-    private static final int USAGE =
-            GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER | GpuBuffer.USAGE_COPY_DST;
+    private static final Set<BufferUsage> USAGE =
+            EnumSet.of(BufferUsage.VERTEX, BufferUsage.TEXEL, BufferUsage.COPY_DST);
     private static final long WARNING_PERIOD_NANOS = 1_000_000_000L;
     private static final int MIB_SHIFT = 20;
 
-    private final GpuBuffer quads;
+    private final Gpu gpu;
+    private final Buffer quads;
     private final long bytes;
     private final ArenaAllocator allocator;
     private final MeshRecords records;
@@ -43,8 +46,9 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     private long lastWarning = System.nanoTime() - WARNING_PERIOD_NANOS;
     private boolean announcedPressure;
 
-    private GeometryArena(GpuBuffer quads, long bytes, ArenaAllocator allocator, MeshRecords records,
+    private GeometryArena(Gpu gpu, Buffer quads, long bytes, ArenaAllocator allocator, MeshRecords records,
             ArenaUploader uploader) {
+        this.gpu = gpu;
         this.quads = quads;
         this.bytes = bytes;
         this.allocator = allocator;
@@ -52,23 +56,23 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         this.uploader = uploader;
     }
 
-    public static @Nullable GeometryArena create(BackendSupport support, long bytes) {
-        RenderSystem.assertOnRenderThread();
+    public static @Nullable GeometryArena create(Gpu gpu, BackendSupport support, long bytes) {
+        gpu.assertRenderThread();
 
         if (!support.accepted()) {
             return null;
         }
 
         int blocks = ArenaSizing.blocks(bytes);
-        GpuBuffer quads = RenderSystem.getDevice().createBuffer(() -> LABEL, USAGE, bytes);
+        Buffer quads = gpu.buffer(LABEL, USAGE, bytes);
         Eminus.LOGGER.info("Geometry arena of {} MiB: {} blocks of {} quads",
                 bytes >> MIB_SHIFT, blocks, ArenaAllocator.QUADS_PER_BLOCK);
 
-        return new GeometryArena(quads, bytes, new ArenaAllocator(blocks), MeshRecords.create(blocks),
-                ArenaUploader.create());
+        return new GeometryArena(gpu, quads, bytes, new ArenaAllocator(blocks), MeshRecords.create(gpu, blocks),
+                ArenaUploader.create(gpu));
     }
 
-    public GpuBuffer quads() {
+    public Buffer quads() {
         return quads;
     }
 
@@ -99,7 +103,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     }
 
     public int accept(List<CellMesh> meshes, int from) {
-        RenderSystem.assertOnRenderThread();
+        gpu.assertRenderThread();
         refused = 0;
         int index = from;
 
@@ -112,8 +116,8 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
                     continue;
                 }
 
-                StagingBuffer.BufferHandle handle = step.stage(mesh);
-                if (handle == null) {
+                Staging.Staged staged = step.stage(mesh);
+                if (staged == null) {
                     break;
                 }
 
@@ -122,7 +126,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
                 if (placed == null) {
                     refuse(mesh.quadCount());
                 } else {
-                    step.copy(handle, quads, placed.block() * ArenaSizing.BLOCK_BYTES);
+                    step.copy(staged, quads, placed.block() * ArenaSizing.BLOCK_BYTES);
                 }
 
                 index++;
@@ -143,7 +147,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     }
 
     public void evict(LongList keys) {
-        RenderSystem.assertOnRenderThread();
+        gpu.assertRenderThread();
 
         for (int at = 0; at < keys.size(); at++) {
             release(keys.getLong(at));

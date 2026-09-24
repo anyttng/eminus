@@ -1,28 +1,32 @@
 package com.eminus.client.render.far;
 
-import com.eminus.render.far.DrawCommands;
+import java.util.EnumSet;
+import java.util.Set;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.buffer.Buffer;
+import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.render.far.DrawCommands;
 
 public final class IndirectCommands implements AutoCloseable {
     private static final String LABEL = "eminus-indirect-commands";
-    private static final int USAGE = GpuBuffer.USAGE_INDIRECT_PARAMETERS | GpuBuffer.USAGE_COPY_DST;
+    private static final Set<BufferUsage> USAGE = EnumSet.of(BufferUsage.INDIRECT, BufferUsage.COPY_DST);
+    private static final int START_OF_BUFFER = 0;
 
-    private final GpuBuffer buffer;
+    private final Gpu gpu;
+    private final Buffer buffer;
     private final int capacity;
 
-    private IndirectCommands(GpuBuffer buffer, int capacity) {
+    private IndirectCommands(Gpu gpu, Buffer buffer, int capacity) {
+        this.gpu = gpu;
         this.buffer = buffer;
         this.capacity = capacity;
     }
 
-    public static IndirectCommands create(int capacity) {
-        RenderSystem.assertOnRenderThread();
-        GpuBuffer buffer = RenderSystem.getDevice()
-                .createBuffer(() -> LABEL, USAGE, (long) capacity * DrawCommands.COMMAND_BYTES);
-        return new IndirectCommands(buffer, capacity);
+    public static IndirectCommands create(Gpu gpu, int capacity) {
+        gpu.assertRenderThread();
+        return new IndirectCommands(gpu, gpu.buffer(LABEL, USAGE, (long) capacity * DrawCommands.COMMAND_BYTES),
+                capacity);
     }
 
     public int capacity() {
@@ -30,12 +34,12 @@ public final class IndirectCommands implements AutoCloseable {
     }
 
     public void write(DrawCommands commands) {
-        RenderSystem.assertOnRenderThread();
-        RenderSystem.getDevice().createCommandEncoder().writeToBuffer(range(0, commands.count()), commands.buffer());
+        gpu.assertRenderThread();
+        gpu.write(buffer, START_OF_BUFFER, commands.buffer());
     }
 
-    public GpuBufferSlice range(int first, int count) {
-        return buffer.slice((long) first * DrawCommands.COMMAND_BYTES, (long) count * DrawCommands.COMMAND_BYTES);
+    public Buffer buffer() {
+        return buffer;
     }
 
     @Override
