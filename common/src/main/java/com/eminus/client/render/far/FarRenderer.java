@@ -223,7 +223,8 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         order.update(renderList, runtime.frame(), eye.x, eye.y, eye.z);
-        commands.write(order.meshes(), order.translucent(), arena, runtime.frame(), eye.x, eye.y, eye.z);
+        commands.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(), eye.x,
+                eye.y, eye.z);
 
         if (commands.count() > 0) {
             if (indirect.capacity() < commands.capacity()) {

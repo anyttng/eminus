@@ -91,6 +91,9 @@ class CellMesherTest {
     private static final int GRADIENT_BASE = 12;
     private static final int GRADIENT_SPAN = 4;
     private static final int TORCH_BLOCK_LIGHT = 14;
+    private static final int BORDER_SKY = 9;
+    private static final int FLOOR_BOTTOM_QUADS = 4;
+    private static final int FLOOR_EDGE_QUADS = 2;
     private static final int GLASS_FACES_IN_AIR = 5;
     private static final int CUBE_SIDE = 2;
     private static final int CUBE_FACES = 6;
@@ -140,18 +143,24 @@ class CellMesherTest {
     }
 
     @Test
-    void aFullFloorShowsFourQuadsOnTopAndNothingElse() {
+    void aFullFloorShowsFourQuadsOnTopAndKeepsItsCoveredEdgesInBorderGroups() {
         defineBlocks();
         CellMesh mesh = mesh(floor(), ground(), 0);
 
         assertEquals(4, mesh.groupCount(Direction.UP.ordinal()));
-        assertEquals(4, mesh.quadCount());
-
-        for (int index = 0; index < mesh.quadCount(); index++) {
+        assertEquals(4, mesh.groupStart(QuadGroups.FIRST_BORDER));
+        for (int index = 0; index < mesh.groupStart(QuadGroups.FIRST_BORDER); index++) {
             long quad = mesh.quad(index);
             assertEquals(Quad.MAX_SIDE, Quad.width(quad));
             assertEquals(Quad.MAX_SIDE, Quad.height(quad));
         }
+
+        assertEquals(FLOOR_BOTTOM_QUADS, mesh.groupCount(QuadGroups.border(Direction.DOWN)));
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            assertEquals(FLOOR_EDGE_QUADS, mesh.groupCount(QuadGroups.border(side)));
+        }
+
+        assertEquals(0, mesh.groupCount(QuadGroups.border(Direction.UP)));
     }
 
     @Test
@@ -507,6 +516,86 @@ class CellMesherTest {
 
         assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
         assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+    }
+
+    @Test
+    void aFaceOnTheCellBorderCoveredOnlyByTheNeighbourCellGoesToItsBorderGroupOnEveryLevel() {
+        defineBlocks();
+        for (int level = DetailLevel.MIN; level <= DetailLevel.MAX; level++) {
+            Cell cell = blank();
+            cell.set(LAST, 4, 4, block(STONE));
+            Map<Direction, Cell> around = airAround();
+            Cell east = blank();
+            east.set(0, 4, 4, block(STONE));
+            around.put(Direction.EAST, east);
+
+            CellMesh mesh = mesh(cell, around, level);
+
+            assertEquals(QuadGroups.border(Direction.EAST), groupOf(mesh, Direction.EAST, LAST, 4, 4, STONE_MODEL));
+            assertEquals(Direction.WEST.ordinal(), groupOf(mesh, Direction.WEST, LAST, 4, 4, STONE_MODEL));
+        }
+    }
+
+    @Test
+    void aBorderFaceIsLitByTheFirstOpenVoxelAboveTheOneFacingIt() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(LAST, 4, 4, block(STONE));
+        Map<Direction, Cell> around = airAround();
+        Cell east = blank();
+        east.set(0, 4, 4, block(STONE));
+        east.set(0, 5, 4, block(STONE));
+        east.set(0, 6, 4, VoxelEntry.pack(AIR, BIOME, VoxelEntry.light(BORDER_SKY, TORCH_BLOCK_LIGHT)));
+        around.put(Direction.EAST, east);
+
+        CellMesh mesh = mesh(cell, around, 0);
+
+        assertEquals(VoxelEntry.light(BORDER_SKY, TORCH_BLOCK_LIGHT),
+                lightAt(mesh, Direction.EAST, LAST, 4, 4, STONE_MODEL));
+    }
+
+    @Test
+    void aBorderFaceWithNothingOpenAboveTheFacingVoxelTakesFullSky() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(LAST, LAST, 4, block(STONE));
+        Map<Direction, Cell> around = airAround();
+        Cell east = blank();
+        east.set(0, LAST, 4, VoxelEntry.pack(STONE, BIOME, VoxelEntry.light(0, NO_BLOCK_LIGHT)));
+        around.put(Direction.EAST, east);
+
+        CellMesh mesh = mesh(cell, around, 0);
+
+        assertEquals(VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT),
+                lightAt(mesh, Direction.EAST, LAST, LAST, 4, STONE_MODEL));
+    }
+
+    @Test
+    void waterAgainstWaterOnTheCellBorderTakesNoBorderFace() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(LAST, 4, 4, block(WATER));
+        Map<Direction, Cell> around = airAround();
+        Cell east = blank();
+        east.set(0, 4, 4, block(WATER));
+        around.put(Direction.EAST, east);
+
+        CellMesh mesh = mesh(cell, around, COARSE_LEVEL);
+
+        assertTrue(absent(mesh, Direction.EAST, LAST, 4, 4));
+    }
+
+    @Test
+    void aFaceCoveredInsideTheCellTakesNoBorderFace() {
+        defineBlocks();
+        Cell cell = blank();
+        cell.set(LAST - 1, 4, 4, block(STONE));
+        cell.set(LAST, 4, 4, block(STONE));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(absent(mesh, Direction.EAST, LAST - 1, 4, 4));
+        assertTrue(absent(mesh, Direction.WEST, LAST, 4, 4));
     }
 
     @Test
@@ -1069,6 +1158,21 @@ class CellMesherTest {
         }
 
         return false;
+    }
+
+    private static int groupOf(CellMesh mesh, Direction face, int x, int y, int z, int modelId) {
+        for (int group = 0; group < QuadGroups.COUNT; group++) {
+            int start = mesh.groupStart(group);
+            for (int index = start; index < start + mesh.groupCount(group); index++) {
+                long quad = mesh.quad(index);
+                if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y
+                        && Quad.z(quad) == z && Quad.modelId(quad) == modelId) {
+                    return group;
+                }
+            }
+        }
+
+        return NO_QUAD;
     }
 
     private static int lightAt(CellMesh mesh, Direction face, int x, int y, int z, int modelId) {

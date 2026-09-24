@@ -13,10 +13,16 @@ import com.eminus.mesh.MeshSummary;
 import com.eminus.settings.FarDistance;
 
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
+import it.unimi.dsi.fastutil.longs.Long2IntMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+
+import net.minecraft.core.Direction;
 
 import org.joml.FrustumIntersection;
 
 final class TreeTraversal {
+    private static final Direction[] FACES = Direction.values();
     private static final Comparator<Candidate> LARGEST_FIRST =
             (first, second) -> Float.compare(second.size(), first.size());
 
@@ -26,6 +32,8 @@ final class TreeTraversal {
     private final List<TreeNode> current = new ArrayList<>();
     private final List<TreeNode> next = new ArrayList<>();
     private final List<MeshSummary> drawn = new ArrayList<>();
+    private final LongOpenHashSet drawnKeys = new LongOpenHashSet();
+    private final LongOpenHashSet descendedKeys = new LongOpenHashSet();
     private final List<Candidate> candidates = new ArrayList<>();
     private final List<TreeNode> requested = new ArrayList<>();
     private final FloatArrayList requestedPriorities = new FloatArrayList();
@@ -51,6 +59,8 @@ final class TreeTraversal {
         current.clear();
         current.addAll(roots);
         drawn.clear();
+        drawnKeys.clear();
+        descendedKeys.clear();
         candidates.clear();
         requested.clear();
         requestedPriorities.clear();
@@ -72,7 +82,44 @@ final class TreeTraversal {
             request(budget);
         }
 
-        return new RenderList(List.copyOf(drawn));
+        return new RenderList(List.copyOf(drawn), borders());
+    }
+
+    private Long2IntMap borders() {
+        Long2IntOpenHashMap borders = new Long2IntOpenHashMap();
+        for (MeshSummary mesh : drawn) {
+            int faces = borderFaces(mesh.key());
+            if (faces != RenderList.NO_BORDER_FACES) {
+                borders.put(mesh.key(), faces);
+            }
+        }
+
+        return borders;
+    }
+
+    private int borderFaces(long key) {
+        int faces = RenderList.NO_BORDER_FACES;
+        for (Direction face : FACES) {
+            long neighbour = CellKey.neighbour(key, face);
+            if (!drawnKeys.contains(neighbour)
+                    && (descendedKeys.contains(neighbour) || ancestorDrawn(neighbour))) {
+                faces |= 1 << face.ordinal();
+            }
+        }
+
+        return faces;
+    }
+
+    private boolean ancestorDrawn(long key) {
+        long ancestor = key;
+        for (int level = CellKey.level(key) + 1; level <= DetailLevel.MAX; level++) {
+            ancestor = CellKey.parent(ancestor);
+            if (drawnKeys.contains(ancestor)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Reused by the next walk; consumed before it.
@@ -113,6 +160,7 @@ final class TreeTraversal {
             keepChildren(node, walk);
             if (node.occupancy() != OccupancyMask.EMPTY && node.childrenReady()) {
                 node.markDescended();
+                descendedKeys.add(node.key());
                 descend(node);
                 return;
             }
@@ -175,6 +223,7 @@ final class TreeTraversal {
     }
 
     private void draw(TreeNode node) {
+        drawnKeys.add(node.key());
         MeshSummary mesh = node.mesh();
         if (mesh != null && !mesh.isEmpty()) {
             drawn.add(mesh);

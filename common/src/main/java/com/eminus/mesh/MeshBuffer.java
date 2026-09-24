@@ -10,6 +10,9 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 public final class MeshBuffer {
     public static final int MAX_QUADS_PER_GROUP = DetailLevel.VOXELS_PER_CELL;
+    public static final int MAX_QUADS_PER_BORDER = DetailLevel.VOXELS_PER_SIDE * DetailLevel.VOXELS_PER_SIDE;
+    public static final int MAX_QUADS = QuadGroups.FIRST_BORDER * MAX_QUADS_PER_GROUP
+            + QuadGroups.DIRECTIONAL_COUNT * MAX_QUADS_PER_BORDER;
     public static final int MAX_COLOURS = Quad.MAX_COLOUR_INDEX + 1;
     public static final int UNTINTED = 0;
     public static final int WHITE = 0xFF_FFFF;
@@ -85,7 +88,7 @@ public final class MeshBuffer {
 
     public void add(int group, long quad) {
         LongArrayList quads = groups[group];
-        if (quads.size() == MAX_QUADS_PER_GROUP) {
+        if (quads.size() == (QuadGroups.isBorder(group) ? MAX_QUADS_PER_BORDER : MAX_QUADS_PER_GROUP)) {
             truncated++;
             return;
         }
