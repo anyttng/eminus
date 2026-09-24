@@ -46,12 +46,12 @@ final class GamePass implements Pass {
 
     @Override
     public void bind(String name, Buffer uniform) {
-        pass.setUniform(name, ((GameBuffer) uniform).buffer());
+        pass.setUniform(name, GameTypes.buffer(uniform));
     }
 
     @Override
     public void bind(String name, TexelView texels) {
-        pass.setUniform(name, ((GameBuffer) texels.buffer()).buffer());
+        pass.setUniform(name, GameTypes.buffer(texels.buffer()));
     }
 
     @Override
@@ -77,8 +77,7 @@ final class GamePass implements Pass {
 
     @Override
     public void drawIndexedIndirect(Buffer commands, int firstCommand, int count) {
-        pass.drawIndexedIndirect(((GameBuffer) commands).buffer().slice((long) firstCommand * INDEXED_INDIRECT_BYTES,
-                (long) count * INDEXED_INDIRECT_BYTES), count);
+        pass.drawIndexedIndirect(GameTypes.indexedIndirect(commands, firstCommand, count), count);
     }
 
     @Override

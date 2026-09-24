@@ -11,6 +11,7 @@ import com.eminus.model.BakedModel;
 import com.eminus.model.ModelMetadata;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.far.DrawCommands;
+import com.eminus.client.gpu.game.GameTypes;
 import com.eminus.client.render.arena.GeometryArena;
 
 import com.mojang.renderpearl.api.GpuFormat;
@@ -79,8 +80,8 @@ final class FarQuads {
             GpuBuffer frame, GpuBuffer nearSections) {
         pass.setUniform("Globals", RenderSystem.getGlobalSettingsUniform());
         pass.setUniform("FarFrame", frame);
-        pass.setUniform("Quads", arena.quads());
-        pass.setUniform("MeshRecords", arena.records().buffer());
+        pass.setUniform("Quads", GameTypes.buffer(arena.quads()));
+        pass.setUniform("MeshRecords", GameTypes.buffer(arena.records().buffer()));
         pass.setUniform("ModelRecords", models.records().buffer());
         pass.setUniform("ModelVariants", models.variants().buffer());
         pass.setUniform("NearSections", nearSections);
