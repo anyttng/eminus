@@ -6,9 +6,9 @@ A NeoForge and Fabric client mod that draws terrain far beyond the game's render
 
 ## Versions
 
-- Minecraft **26.2**
-- NeoForge **26.2.0.76+**
-- Fabric Loader **0.19.5+** with Fabric API **0.159.0+26.2**
+- Minecraft **26.3**
+- NeoForge
+- Fabric Loader with Fabric API
 
 ## Status
 

@@ -26,7 +26,9 @@ Every setting takes effect where you change it; Lowest stored level restarts LOD
 
 ## Compatibility
 
-Runs on **NeoForge** and **Fabric**, Minecraft 26.2. Mod Menu is optional on Fabric. **Sodium** is supported on both loaders.
+Runs on **NeoForge** and **Fabric**. Mod Menu is optional on Fabric.
+
+**Sodium** is supported on both loaders.
 
 ## Before you download
 
