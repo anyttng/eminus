@@ -189,6 +189,11 @@ final class OpenGlPipeline implements Pipeline {
     }
 
     @Override
+    public Identifier location() {
+        return spec.location();
+    }
+
+    @Override
     public boolean compiles() {
         return program != NO_PROGRAM;
     }

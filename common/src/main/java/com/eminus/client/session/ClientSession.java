@@ -77,7 +77,7 @@ public final class ClientSession {
     }
 
     public static void resourcesReloaded() {
-        if (renderer != null) {
+        if (runtime != null) {
             restartRenderer();
         }
     }

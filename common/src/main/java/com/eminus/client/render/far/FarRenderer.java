@@ -25,6 +25,7 @@ import com.eminus.model.ModelIndex;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.render.arena.ArenaSizing;
 import com.eminus.render.arena.MeshSlot;
@@ -52,6 +53,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.fog.FogData;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 import net.minecraft.world.phys.Vec3;
@@ -132,6 +134,23 @@ public final class FarRenderer implements AutoCloseable {
         BackendSupport support = BackendCheck.run(gpu, bytes);
         GeometryArena arena = GeometryArena.create(gpu, support, bytes);
         if (arena == null) {
+            gpu.close();
+            return null;
+        }
+
+        NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOUR_FORMAT);
+        OpaquePass opaque = OpaquePass.create(gpu, support.depth());
+        OcclusionPass occlusion = OcclusionPass.create(gpu, support.depth());
+        TranslucentPass translucent = TranslucentPass.create(gpu, support.depth());
+        CompositePass composite = CompositePass.create(gpu, support.depth());
+        Identifier refused = refusedProgram(List.of(mask.pipeline(), opaque.pipeline(), occlusion.pipeline(),
+                translucent.pipeline(), composite.pipeline()));
+        if (refused != null) {
+            Eminus.LOGGER.warn("Renderer disabled: program {} did not compile", refused);
+            composite.close();
+            occlusion.close();
+            arena.close();
+            gpu.close();
             return null;
         }
 
@@ -139,9 +158,7 @@ public final class FarRenderer implements AutoCloseable {
         FarRenderer renderer = new FarRenderer(gpu, runtime, baking,
                 ModelPublisher.start(gpu, baking.bakery()), arena,
                 FarTarget.create(gpu, support.depthFormat(), main.width(), main.height()), FarFrame.create(gpu),
-                NearMaskPass.create(gpu, FarTarget.COLOUR_FORMAT), NearSectionTable.create(gpu),
-                OpaquePass.create(gpu, support.depth()), OcclusionPass.create(gpu, support.depth()),
-                TranslucentPass.create(gpu, support.depth()), CompositePass.create(gpu, support.depth()),
+                mask, NearSectionTable.create(gpu), opaque, occlusion, translucent, composite,
                 IndirectCommands.create(gpu, START_COMMANDS),
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
 
@@ -153,6 +170,16 @@ public final class FarRenderer implements AutoCloseable {
         Eminus.LOGGER.info("Far renderer started for {}", runtime.identity().dimension());
 
         return renderer;
+    }
+
+    static @Nullable Identifier refusedProgram(List<Pipeline> pipelines) {
+        for (Pipeline pipeline : pipelines) {
+            if (!pipeline.compiles()) {
+                return pipeline.location();
+            }
+        }
+
+        return null;
     }
 
     private static long ceiling(Capabilities device) {

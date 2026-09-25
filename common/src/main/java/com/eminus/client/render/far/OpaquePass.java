@@ -39,6 +39,10 @@ public final class OpaquePass {
         return new OpaquePass(gpu, gpu.pipeline(pipeline(depth)));
     }
 
+    public Pipeline pipeline() {
+        return pipeline;
+    }
+
     public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer commands,
             int firstCommand, int drawCount, Buffer frame, TexelView nearSections) {
         gpu.assertRenderThread();

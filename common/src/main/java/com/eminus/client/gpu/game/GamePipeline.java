@@ -14,6 +14,7 @@ import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 
 import net.minecraft.client.renderer.BindGroupLayouts;
+import net.minecraft.resources.Identifier;
 
 record GamePipeline(RenderPipeline pipeline) implements Pipeline {
     static GamePipeline of(PipelineSpec spec) {
@@ -66,6 +67,11 @@ record GamePipeline(RenderPipeline pipeline) implements Pipeline {
             }
         }
         return layout.build();
+    }
+
+    @Override
+    public Identifier location() {
+        return pipeline.getLocation();
     }
 
     @Override

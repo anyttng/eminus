@@ -40,6 +40,10 @@ public final class NearMaskPass {
     }
 
     // A GL render pass sizes its viewport from a colour attachment alone, so the far colour rides along unwritten.
+    public Pipeline pipeline() {
+        return pipeline;
+    }
+
     public void draw(Texture farDepth, Texture colour, Texture gameDepth) {
         gpu.assertRenderThread();
 
