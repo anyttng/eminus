@@ -7,7 +7,6 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -175,10 +174,7 @@ public final class OpenGlGpu implements Gpu {
 
         OpenGlTexture fresh = OpenGlTexture.borrowed(this, handle);
         if (kept != null) {
-            int freed = textureClosed(kept.id());
-            Eminus.LOGGER.info("[eminus-gl] borrowed slot={} old_id={} new_id={} same_id={} framebuffers_freed={}"
-                    + " framebuffers_live={}", slot.name().toLowerCase(Locale.ROOT), kept.id(), fresh.id(),
-                    kept.id() == fresh.id(), freed, framebuffers.size());
+            textureClosed(kept.id());
         }
         borrowed.put(slot, fresh);
         return fresh;
@@ -258,8 +254,7 @@ public final class OpenGlGpu implements Gpu {
         return id;
     }
 
-    int textureClosed(int texture) {
-        int freed = 0;
+    void textureClosed(int texture) {
         Iterator<Map.Entry<Long, Integer>> entries = framebuffers.entrySet().iterator();
         while (entries.hasNext()) {
             Map.Entry<Long, Integer> entry = entries.next();
@@ -267,10 +262,8 @@ public final class OpenGlGpu implements Gpu {
                 GameHandles.deleteFramebuffer(entry.getValue());
                 objects.deleted(OpenGlObjects.Kind.FRAMEBUFFER);
                 entries.remove();
-                freed++;
             }
         }
-        return freed;
     }
 
     private static long key(int colour, int depth) {
