@@ -19,16 +19,19 @@ final class GameHandles {
     private GameHandles() {
     }
 
-    static int mainColour() {
-        return id(target().getColorTextureView());
+    record Handle(Object owner, int id) {
     }
 
-    static int mainDepth() {
-        return id(target().getDepthTextureView());
+    static Handle mainColour() {
+        return handle(target().getColorTextureView());
     }
 
-    static int lightmap() {
-        return id(Minecraft.getInstance().gameRenderer.lightmap());
+    static Handle mainDepth() {
+        return handle(target().getDepthTextureView());
+    }
+
+    static Handle lightmap() {
+        return handle(Minecraft.getInstance().gameRenderer.lightmap());
     }
 
     static int globals() {
@@ -43,8 +46,8 @@ final class GameHandles {
         return Minecraft.getInstance().gameRenderer.mainRenderTarget();
     }
 
-    private static int id(GpuTextureView view) {
-        return ((FrameBufferAttachment) view).glId();
+    private static Handle handle(GpuTextureView view) {
+        return new Handle(view, ((FrameBufferAttachment) view).glId());
     }
 
     static int genTexture() {
