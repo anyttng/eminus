@@ -7,6 +7,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -62,10 +63,17 @@ public final class OpenGlGpu implements Gpu {
     private static final long NO_ALLOCATION_LIMIT = Long.MAX_VALUE;
     private static final int ID_BITS = 32;
 
+    private enum Borrowed {
+        MAIN_COLOUR,
+        MAIN_DEPTH,
+        LIGHTMAP
+    }
+
     private final Capabilities capabilities;
     private final OpenGlObjects objects = new OpenGlObjects();
     private final Map<Sampler, Integer> samplers = new EnumMap<>(Sampler.class);
     private final Map<Long, Integer> framebuffers = new HashMap<>();
+    private final Map<Borrowed, OpenGlTexture> borrowed = new EnumMap<>(Borrowed.class);
     private final List<OpenGlPipeline> pipelines = new ArrayList<>();
     private final int vertexArray;
     private int quadIndices = NO_BUFFER;
@@ -146,17 +154,34 @@ public final class OpenGlGpu implements Gpu {
 
     @Override
     public Texture mainColour() {
-        return OpenGlTexture.borrowed(this, GameHandles.mainColour());
+        return borrowed(Borrowed.MAIN_COLOUR, GameHandles.mainColour());
     }
 
     @Override
     public Texture mainDepth() {
-        return OpenGlTexture.borrowed(this, GameHandles.mainDepth());
+        return borrowed(Borrowed.MAIN_DEPTH, GameHandles.mainDepth());
     }
 
     @Override
     public Texture lightmap() {
-        return OpenGlTexture.borrowed(this, GameHandles.lightmap());
+        return borrowed(Borrowed.LIGHTMAP, GameHandles.lightmap());
+    }
+
+    private OpenGlTexture borrowed(Borrowed slot, GameHandles.Handle handle) {
+        OpenGlTexture kept = borrowed.get(slot);
+        if (kept != null && kept.borrowedFrom(handle)) {
+            return kept;
+        }
+
+        OpenGlTexture fresh = OpenGlTexture.borrowed(this, handle);
+        if (kept != null) {
+            int freed = textureClosed(kept.id());
+            Eminus.LOGGER.info("[eminus-gl] borrowed slot={} old_id={} new_id={} same_id={} framebuffers_freed={}"
+                    + " framebuffers_live={}", slot.name().toLowerCase(Locale.ROOT), kept.id(), fresh.id(),
+                    kept.id() == fresh.id(), freed, framebuffers.size());
+        }
+        borrowed.put(slot, fresh);
+        return fresh;
     }
 
     @Override
@@ -233,7 +258,8 @@ public final class OpenGlGpu implements Gpu {
         return id;
     }
 
-    void textureClosed(int texture) {
+    int textureClosed(int texture) {
+        int freed = 0;
         Iterator<Map.Entry<Long, Integer>> entries = framebuffers.entrySet().iterator();
         while (entries.hasNext()) {
             Map.Entry<Long, Integer> entry = entries.next();
@@ -241,8 +267,10 @@ public final class OpenGlGpu implements Gpu {
                 GameHandles.deleteFramebuffer(entry.getValue());
                 objects.deleted(OpenGlObjects.Kind.FRAMEBUFFER);
                 entries.remove();
+                freed++;
             }
         }
+        return freed;
     }
 
     private static long key(int colour, int depth) {
@@ -300,6 +328,7 @@ public final class OpenGlGpu implements Gpu {
             objects.deleted(OpenGlObjects.Kind.FRAMEBUFFER);
         }
         framebuffers.clear();
+        borrowed.clear();
         if (quadIndices != NO_BUFFER) {
             GL15C.glDeleteBuffers(quadIndices);
             objects.deleted(OpenGlObjects.Kind.BUFFER);
