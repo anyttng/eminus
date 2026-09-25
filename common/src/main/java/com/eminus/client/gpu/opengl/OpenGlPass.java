@@ -41,7 +41,7 @@ final class OpenGlPass implements Pass {
         OpenGlTexture depth = (OpenGlTexture) spec.depth();
         int framebuffer = gpu.framebuffer(colour, depth);
         GameHandles.bindFramebuffer(framebuffer);
-        GL11C.glViewport(0, 0, colour.width(), colour.height());
+        GameHandles.viewport(0, 0, colour.width(), colour.height());
         GameHandles.scissor(0, 0, colour.width(), colour.height());
         GL20C.glDrawBuffers(GL30C.GL_COLOR_ATTACHMENT0);
 

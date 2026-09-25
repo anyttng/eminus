@@ -74,6 +74,10 @@ final class GameHandles {
         GlStateManager._glDeleteFramebuffers(framebuffer);
     }
 
+    static void viewport(int x, int y, int width, int height) {
+        GlStateManager._viewport(x, y, width, height);
+    }
+
     static void scissor(int x, int y, int width, int height) {
         GlStateManager._enableScissorTest();
         GlStateManager._scissorBox(x, y, width, height);
