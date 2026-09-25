@@ -8,7 +8,7 @@ import com.eminus.handoff.NearFieldOverride;
 import com.eminus.ingest.IngestService;
 import com.eminus.ingest.IngestTrigger;
 import com.eminus.mixin.BiomeManagerAccessor;
-import com.eminus.client.gpu.game.GameGpu;
+import com.eminus.client.gpu.Gpus;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
@@ -260,7 +260,7 @@ public final class ClientSession {
         rendered = SettingsService.get().settings();
         renderedCutoutLeaves = minecraft.options.cutoutLeaves().get();
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
-        renderer = FarRenderer.start(minecraft, GameGpu.create(), instance, runtime, level.getHeight(), rendered);
+        renderer = FarRenderer.start(minecraft, Gpus.create(), instance, runtime, level.getHeight(), rendered);
     }
 
     private static void stopRenderer() {

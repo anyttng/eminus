@@ -5,18 +5,12 @@ import java.nio.IntBuffer;
 import java.util.OptionalLong;
 
 import com.eminus.Eminus;
+import com.eminus.client.gpu.opengl.OpenGlLimits;
 
 import com.mojang.renderpearl.api.device.GpuDevice;
 import com.mojang.renderpearl.backend.vulkan.VulkanDevice;
 import com.mojang.renderpearl.frontend.FrontendGpuDevice;
 
-import org.lwjgl.opengl.ATIMeminfo;
-import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GL11C;
-import org.lwjgl.opengl.GL31C;
-import org.lwjgl.opengl.GL32C;
-import org.lwjgl.opengl.GLCapabilities;
-import org.lwjgl.opengl.NVXGPUMemoryInfo;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.EXTMemoryBudget;
 import org.lwjgl.vulkan.VK10;
@@ -37,17 +31,13 @@ record DeviceReading(OptionalLong texelElements, OptionalLong freeBytes) {
     private static final String FREE_MEMORY = "free video memory";
     private static final String PHYSICAL_DEVICE = "physical device";
     private static final String BACKEND_FIELD = "backend";
-    private static final long BYTES_PER_KIB = 1024L;
-    private static final int ATI_MEMINFO_VALUES = 4;
-    private static final int ATI_TOTAL_FREE = 0;
     private static final int NO_HEAP = -1;
 
     static DeviceReading read(GpuDevice device) {
         String backend = device.getDeviceInfo().backendName();
 
         return switch (backend) {
-            case OPENGL -> new DeviceReading(reading(backend, TEXEL_LIMIT, DeviceReading::glTexelElements),
-                    reading(backend, FREE_MEMORY, DeviceReading::glFreeBytes));
+            case OPENGL -> new DeviceReading(OpenGlLimits.texelElements(), OpenGlLimits.freeBytes());
             case VULKAN -> vulkan(device);
             default -> {
                 Eminus.LOGGER.warn("Device limits not read: backend {} is neither {} nor {}", backend, OPENGL, VULKAN);
@@ -80,28 +70,6 @@ record DeviceReading(OptionalLong texelElements, OptionalLong freeBytes) {
 
     private static void logRefusal(String backend, String name, Throwable refused) {
         Eminus.LOGGER.warn("The {} was not read on {}: {}", name, backend, refused.toString());
-    }
-
-    private static OptionalLong glTexelElements() {
-        return OptionalLong.of(GL32C.glGetInteger64(GL31C.GL_MAX_TEXTURE_BUFFER_SIZE));
-    }
-
-    private static OptionalLong glFreeBytes() {
-        GLCapabilities capabilities = GL.getCapabilities();
-        if (capabilities.GL_NVX_gpu_memory_info) {
-            return OptionalLong.of(GL11C.glGetInteger(NVXGPUMemoryInfo.GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX)
-                    * BYTES_PER_KIB);
-        }
-
-        if (capabilities.GL_ATI_meminfo) {
-            try (MemoryStack stack = MemoryStack.stackPush()) {
-                IntBuffer values = stack.mallocInt(ATI_MEMINFO_VALUES);
-                GL11C.glGetIntegerv(ATIMeminfo.GL_VBO_FREE_MEMORY_ATI, values);
-                return OptionalLong.of(Integer.toUnsignedLong(values.get(ATI_TOTAL_FREE)) * BYTES_PER_KIB);
-            }
-        }
-
-        return OptionalLong.empty();
     }
 
     private static VkPhysicalDevice vkPhysicalDevice(GpuDevice device) throws ReflectiveOperationException {
