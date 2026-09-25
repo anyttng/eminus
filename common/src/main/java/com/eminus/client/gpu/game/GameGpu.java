@@ -56,6 +56,11 @@ public final class GameGpu implements Gpu {
         RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS).getBuffer(maxIndices);
     }
 
+    public static String backendName() {
+        RenderSystem.assertOnRenderThread();
+        return RenderSystem.getDevice().getDeviceInfo().backendName();
+    }
+
     @Override
     public Capabilities capabilities() {
         return capabilities;
@@ -138,5 +143,9 @@ public final class GameGpu implements Gpu {
     @Override
     public Optional<Compute> compute() {
         return Optional.empty();
+    }
+
+    @Override
+    public void close() {
     }
 }

@@ -362,6 +362,7 @@ public final class FarRenderer implements AutoCloseable {
         target.close();
         models.close();
         arena.close();
+        gpu.close();
         Eminus.LOGGER.info("Far renderer stopped for {}", runtime.identity().dimension());
     }
 

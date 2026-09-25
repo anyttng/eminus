@@ -16,7 +16,7 @@ import com.eminus.gpu.pipeline.PipelineSpec;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.gpu.texture.TextureUsage;
 
-public interface Gpu {
+public interface Gpu extends AutoCloseable {
     Capabilities capabilities();
 
     int maxTextureSide(Format format);
@@ -48,4 +48,7 @@ public interface Gpu {
     Staging staging(String label, int bytes, boolean persistentlyMapped);
 
     Optional<Compute> compute();
+
+    @Override
+    void close();
 }
