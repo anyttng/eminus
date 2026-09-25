@@ -1,6 +1,8 @@
 package com.eminus.client.gpu.game;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -18,12 +20,14 @@ import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.pipeline.PipelineSpec;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.gpu.texture.TextureUsage;
+import com.eminus.mixin.GpuDeviceAccessor;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.DeviceInfo;
 import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.blaze3d.systems.GpuDeviceBackend;
 import com.mojang.blaze3d.textures.GpuTexture;
 
 import net.minecraft.client.Minecraft;
@@ -34,6 +38,7 @@ public final class GameGpu implements Gpu {
 
     private final GpuDevice device;
     private final Capabilities capabilities;
+    private final List<GamePipeline> pipelines = new ArrayList<>();
 
     private GameGpu(GpuDevice device, Capabilities capabilities) {
         this.device = device;
@@ -127,7 +132,9 @@ public final class GameGpu implements Gpu {
 
     @Override
     public Pipeline pipeline(PipelineSpec spec) {
-        return GamePipeline.of(spec);
+        GamePipeline pipeline = GamePipeline.of(spec);
+        pipelines.add(pipeline);
+        return pipeline;
     }
 
     @Override
@@ -147,5 +154,8 @@ public final class GameGpu implements Gpu {
 
     @Override
     public void close() {
+        GpuDeviceBackend backend = ((GpuDeviceAccessor) device).eminus$backend();
+        pipelines.forEach(pipeline -> pipeline.release(backend));
+        pipelines.clear();
     }
 }

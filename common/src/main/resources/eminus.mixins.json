@@ -10,8 +10,11 @@
     "ClientLevelMixin",
     "ClientPacketListenerMixin",
     "GameRendererMixin",
+    "GlDeviceAccessor",
+    "GpuDeviceAccessor",
     "SpriteContentsAccessor",
     "StairBlockAccessor",
+    "VulkanDeviceAccessor",
     "WeightedVariantsAccessor"
   ],
   "injectors": {

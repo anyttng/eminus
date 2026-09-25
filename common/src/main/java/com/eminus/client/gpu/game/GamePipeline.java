@@ -5,8 +5,15 @@ import java.util.Optional;
 import com.eminus.gpu.pipeline.Binding;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.mixin.GlDeviceAccessor;
+import com.eminus.mixin.VulkanDeviceAccessor;
 
+import com.mojang.blaze3d.opengl.GlProgram;
+import com.mojang.blaze3d.opengl.GlRenderPipeline;
+import com.mojang.blaze3d.systems.GpuDeviceBackend;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vulkan.VulkanDevice;
+import com.mojang.blaze3d.vulkan.VulkanRenderPipeline;
 import com.mojang.blaze3d.pipeline.BindGroupLayout;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
@@ -79,5 +86,19 @@ record GamePipeline(RenderPipeline pipeline) implements Pipeline {
     @Override
     public boolean compiles() {
         return RenderSystem.getDevice().precompilePipeline(pipeline).isValid();
+    }
+
+    void release(GpuDeviceBackend backend) {
+        if (backend instanceof VulkanDevice vulkan) {
+            VulkanRenderPipeline compiled = ((VulkanDeviceAccessor) vulkan).eminus$pipelineCache().remove(pipeline);
+            if (compiled != null) {
+                vulkan.createCommandEncoder().queueForDestroy(compiled);
+            }
+        } else if (backend instanceof GlDeviceAccessor gl) {
+            GlRenderPipeline compiled = gl.eminus$pipelineCache().remove(pipeline);
+            if (compiled != null && compiled.program() != GlProgram.INVALID_PROGRAM) {
+                compiled.program().close();
+            }
+        }
     }
 }

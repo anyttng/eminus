@@ -120,11 +120,11 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     public static @Nullable FarRenderer start(Minecraft client, Gpu gpu, EminusInstance instance,
-            DimensionRuntime runtime, int levelHeight, Settings settings) {
+            DimensionRuntime runtime, int levelHeight, Settings settings, long replacedArenaBytes) {
         gpu.assertRenderThread();
 
         Texture main = gpu.mainColour();
-        long ceiling = ceiling(gpu.capabilities());
+        long ceiling = ceiling(gpu.capabilities(), replacedArenaBytes);
         long bytes = ArenaSizing.fitted(
                 bounded(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
                         FarProjection.focalPixels(client.options.fov().get(), main.height()),
@@ -181,12 +181,15 @@ public final class FarRenderer implements AutoCloseable {
         return null;
     }
 
-    private static long ceiling(Capabilities device) {
+    private static long ceiling(Capabilities device, long replacedArenaBytes) {
         OptionalLong texelBytes = device.texelElements().isPresent()
                 ? OptionalLong.of(device.texelElements().getAsLong() * ArenaSizing.QUAD_BYTES)
                 : OptionalLong.empty();
+        OptionalLong freeBytes = device.freeBytes().isPresent()
+                ? OptionalLong.of(device.freeBytes().getAsLong() + replacedArenaBytes)
+                : OptionalLong.empty();
         long maxAllocation = device.maxAllocationBytes();
-        long ceiling = ArenaSizing.ceiling(texelBytes, maxAllocation, device.freeBytes());
+        long ceiling = ArenaSizing.ceiling(texelBytes, maxAllocation, freeBytes);
 
         Eminus.LOGGER.info("Geometry arena ceiling {} MiB: texel buffer {}, vertex index {} MiB, device share {}, "
                 + "free video memory {}", ceiling / BYTES_PER_MIB,
@@ -195,8 +198,9 @@ public final class FarRenderer implements AutoCloseable {
                 ArenaSizing.VERTEX_INDEX_BYTES / BYTES_PER_MIB,
                 maxAllocation == Long.MAX_VALUE ? "unbounded"
                         : maxAllocation / ArenaSizing.DEVICE_SHARE / BYTES_PER_MIB + " MiB",
-                device.freeBytes().isPresent() ? device.freeBytes().getAsLong() / BYTES_PER_MIB + " MiB, "
-                        + device.freeBytes().getAsLong() / ArenaSizing.FREE_MEMORY_SHARE / BYTES_PER_MIB + " MiB taken"
+                freeBytes.isPresent() ? freeBytes.getAsLong() / BYTES_PER_MIB + " MiB with the replaced arena's "
+                        + replacedArenaBytes / BYTES_PER_MIB + " MiB, "
+                        + freeBytes.getAsLong() / ArenaSizing.FREE_MEMORY_SHARE / BYTES_PER_MIB + " MiB taken"
                         : "not reported");
         return ceiling;
     }
@@ -222,6 +226,10 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         return bytes;
+    }
+
+    public long arenaBytes() {
+        return arena.state().bytes();
     }
 
     public static boolean recreates(Settings built, Settings updated) {
