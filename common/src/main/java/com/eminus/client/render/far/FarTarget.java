@@ -1,57 +1,56 @@
 package com.eminus.client.render.far;
 
-import com.mojang.renderpearl.api.GpuFormat;
-import com.mojang.renderpearl.api.device.GpuDevice;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.textures.GpuTexture;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
+import java.util.EnumSet;
+import java.util.Set;
+
+import com.eminus.gpu.Format;
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.texture.Texture;
+import com.eminus.gpu.texture.TextureUsage;
 
 public final class FarTarget implements AutoCloseable {
     private static final String COLOUR_LABEL = "eminus-far-colour";
     private static final String DEPTH_LABEL = "eminus-far-depth";
-    public static final GpuFormat COLOUR_FORMAT = GpuFormat.RGBA8_UNORM;
-    private static final int USAGE = GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_TEXTURE_BINDING;
-    private static final int LAYERS = 1;
+    public static final Format COLOUR_FORMAT = Format.RGBA8_UNORM;
+    private static final Set<TextureUsage> USAGE = EnumSet.of(TextureUsage.ATTACHMENT, TextureUsage.SAMPLED);
     private static final int MIPS = 1;
 
-    private final GpuFormat depthFormat;
+    private final Gpu gpu;
+    private final Format depthFormat;
 
-    private GpuTexture colour;
-    private GpuTexture depth;
-    private GpuTextureView colourView;
-    private GpuTextureView depthView;
-    private int width;
-    private int height;
+    private Texture colour;
+    private Texture depth;
 
-    private FarTarget(GpuFormat depthFormat, int width, int height) {
+    private FarTarget(Gpu gpu, Format depthFormat, int width, int height) {
+        this.gpu = gpu;
         this.depthFormat = depthFormat;
         allocate(width, height);
     }
 
-    public static FarTarget create(GpuFormat depthFormat, int width, int height) {
-        RenderSystem.assertOnRenderThread();
-        return new FarTarget(depthFormat, width, height);
+    public static FarTarget create(Gpu gpu, Format depthFormat, int width, int height) {
+        gpu.assertRenderThread();
+        return new FarTarget(gpu, depthFormat, width, height);
     }
 
     public int width() {
-        return width;
+        return colour.width();
     }
 
     public int height() {
-        return height;
+        return colour.height();
     }
 
-    public GpuTextureView colourView() {
-        return colourView;
+    public Texture colour() {
+        return colour;
     }
 
-    public GpuTextureView depthView() {
-        return depthView;
+    public Texture depth() {
+        return depth;
     }
 
     public void resize(int width, int height) {
-        RenderSystem.assertOnRenderThread();
-        if (width == this.width && height == this.height) {
+        gpu.assertRenderThread();
+        if (width == width() && height == height()) {
             return;
         }
 
@@ -65,18 +64,11 @@ public final class FarTarget implements AutoCloseable {
     }
 
     private void allocate(int width, int height) {
-        GpuDevice device = RenderSystem.getDevice();
-        this.width = width;
-        this.height = height;
-        colour = device.createTexture(COLOUR_LABEL, USAGE, COLOUR_FORMAT, width, height, LAYERS, MIPS);
-        depth = device.createTexture(DEPTH_LABEL, USAGE, depthFormat, width, height, LAYERS, MIPS);
-        colourView = device.createTextureView(colour);
-        depthView = device.createTextureView(depth);
+        colour = gpu.texture(COLOUR_LABEL, USAGE, COLOUR_FORMAT, width, height, MIPS);
+        depth = gpu.texture(DEPTH_LABEL, USAGE, depthFormat, width, height, MIPS);
     }
 
     private void free() {
-        colourView.close();
-        depthView.close();
         colour.close();
         depth.close();
     }

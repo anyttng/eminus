@@ -2,29 +2,32 @@ package com.eminus.client.model;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.EnumSet;
+import java.util.Set;
 
 import com.eminus.Eminus;
+import com.eminus.gpu.Format;
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.texture.Texture;
+import com.eminus.gpu.texture.TextureUsage;
 import com.eminus.model.BakedModel;
 import com.eminus.model.Mips;
 import com.eminus.model.ModelSource;
 import com.eminus.model.Solidify;
 
-import com.mojang.renderpearl.api.GpuFormat;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.textures.GpuTexture;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
-
 public final class ModelAtlas implements AutoCloseable {
     private static final String COLOUR_LABEL = "eminus-model-atlas";
     private static final String TINT_MASK_LABEL = "eminus-model-tint-mask";
-    private static final int USAGE = GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING;
-    private static final int LAYERS = 1;
+    private static final Format COLOUR_FORMAT = Format.RGBA8_UNORM;
+    private static final Format TINT_MASK_FORMAT = Format.R8_UNORM;
+    private static final Set<TextureUsage> USAGE = EnumSet.of(TextureUsage.COPY_DST, TextureUsage.SAMPLED);
     private static final int BYTES_PER_TEXEL = 4;
     private static final int STAGING_ALIGNMENT = BYTES_PER_TEXEL;
     private static final int GROWTH = 2;
     private static final int ALPHA_MASK = 0xFF00_0000;
     private static final int RGB_MASK = 0x00FF_FFFF;
 
+    private final Gpu gpu;
     private final int[] faceColour = new int[BakedModel.FACE_TEXELS];
     private final int[] faceTint = new int[BakedModel.FACE_TEXELS];
     private final ByteBuffer colourScratch =
@@ -32,40 +35,29 @@ public final class ModelAtlas implements AutoCloseable {
     private final ByteBuffer tintScratch =
             ByteBuffer.allocateDirect(BakedModel.FACE_TEXELS).order(ByteOrder.nativeOrder());
 
-    private GpuTexture colour;
-    private GpuTexture tintMask;
-    private GpuTextureView colourView;
-    private GpuTextureView tintMaskView;
+    private Texture colour;
+    private Texture tintMask;
     private int cellsPerSide;
 
-    private ModelAtlas(GpuTexture colour, GpuTexture tintMask, int cellsPerSide) {
+    private ModelAtlas(Gpu gpu, Texture colour, Texture tintMask, int cellsPerSide) {
+        this.gpu = gpu;
         this.colour = colour;
         this.tintMask = tintMask;
         this.cellsPerSide = cellsPerSide;
     }
 
-    public static ModelAtlas create(int cellsPerSide) {
-        RenderSystem.assertOnRenderThread();
-        return new ModelAtlas(allocate(COLOUR_LABEL, GpuFormat.RGBA8_UNORM, cellsPerSide),
-                allocate(TINT_MASK_LABEL, GpuFormat.R8_UNORM, cellsPerSide), cellsPerSide);
+    public static ModelAtlas create(Gpu gpu, int cellsPerSide) {
+        gpu.assertRenderThread();
+        return new ModelAtlas(gpu, allocate(gpu, COLOUR_LABEL, COLOUR_FORMAT, cellsPerSide),
+                allocate(gpu, TINT_MASK_LABEL, TINT_MASK_FORMAT, cellsPerSide), cellsPerSide);
     }
 
-    public GpuTextureView colourView() {
-        RenderSystem.assertOnRenderThread();
-        if (colourView == null) {
-            colourView = RenderSystem.getDevice().createTextureView(colour);
-        }
-
-        return colourView;
+    public Texture colour() {
+        return colour;
     }
 
-    public GpuTextureView tintMaskView() {
-        RenderSystem.assertOnRenderThread();
-        if (tintMaskView == null) {
-            tintMaskView = RenderSystem.getDevice().createTextureView(tintMask);
-        }
-
-        return tintMaskView;
+    public Texture tintMask() {
+        return tintMask;
     }
 
     public int cellsPerSide() {
@@ -81,7 +73,7 @@ public final class ModelAtlas implements AutoCloseable {
     }
 
     public void upload(int modelId, BakedModel model) {
-        RenderSystem.assertOnRenderThread();
+        gpu.assertRenderThread();
         int slot = modelId * BakedModel.FACE_COUNT;
 
         for (int index = 0; index < BakedModel.FACE_COUNT; index++) {
@@ -90,16 +82,17 @@ public final class ModelAtlas implements AutoCloseable {
     }
 
     public int grow(ModelSource source) {
-        RenderSystem.assertOnRenderThread();
+        gpu.assertRenderThread();
         int grown = cellsPerSide * GROWTH;
-        if (grown * BakedModel.FACE_SIDE > maxSide()) {
-            Eminus.LOGGER.error("The model atlas cannot grow past {} texels a side, the device limit.", maxSide());
+        int maxSide = gpu.maxTextureSide(COLOUR_FORMAT);
+        if (grown * BakedModel.FACE_SIDE > maxSide) {
+            Eminus.LOGGER.error("The model atlas cannot grow past {} texels a side, the device limit.", maxSide);
             return 0;
         }
 
         release();
-        colour = allocate(COLOUR_LABEL, GpuFormat.RGBA8_UNORM, grown);
-        tintMask = allocate(TINT_MASK_LABEL, GpuFormat.R8_UNORM, grown);
+        colour = allocate(gpu, COLOUR_LABEL, COLOUR_FORMAT, grown);
+        tintMask = allocate(gpu, TINT_MASK_LABEL, TINT_MASK_FORMAT, grown);
         cellsPerSide = grown;
 
         int reuploaded = 0;
@@ -120,27 +113,12 @@ public final class ModelAtlas implements AutoCloseable {
         release();
     }
 
-    private static GpuTexture allocate(String label, GpuFormat format, int cellsPerSide) {
-        return RenderSystem.getDevice().createTexture(label, USAGE, format,
-                cellsPerSide * BakedModel.FACE_SIDE, cellsPerSide * BakedModel.FACE_SIDE, LAYERS,
-                Mips.levelCount(BakedModel.FACE_SIDE));
-    }
-
-    private static int maxSide() {
-        return RenderSystem.getDevice().getDeviceInfo().limits().maxTextureSizeForFormat(GpuFormat.RGBA8_UNORM);
+    private static Texture allocate(Gpu gpu, String label, Format format, int cellsPerSide) {
+        return gpu.texture(label, USAGE, format, cellsPerSide * BakedModel.FACE_SIDE,
+                cellsPerSide * BakedModel.FACE_SIDE, Mips.levelCount(BakedModel.FACE_SIDE));
     }
 
     private void release() {
-        if (colourView != null) {
-            colourView.close();
-            colourView = null;
-        }
-
-        if (tintMaskView != null) {
-            tintMaskView.close();
-            tintMaskView = null;
-        }
-
         colour.close();
         tintMask.close();
     }
@@ -163,14 +141,9 @@ public final class ModelAtlas implements AutoCloseable {
             int side = BakedModel.FACE_SIDE >> level;
             fillColour(colourLevels[level]);
             fillTint(tintLevels[level]);
-            write(colour, colourScratch, level, cellX * side, cellY * side, side);
-            write(tintMask, tintScratch, level, cellX * side, cellY * side, side);
+            gpu.write(colour, level, cellX * side, cellY * side, side, side, colourScratch);
+            gpu.write(tintMask, level, cellX * side, cellY * side, side, side, tintScratch);
         }
-    }
-
-    private static void write(GpuTexture texture, ByteBuffer source, int level, int x, int y, int side) {
-        RenderSystem.getDevice().createCommandEncoder()
-                .writeToTexture(texture, source, level, 0, x, y, side, side);
     }
 
     private void fillColour(int[] texels) {

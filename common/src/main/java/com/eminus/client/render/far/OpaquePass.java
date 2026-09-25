@@ -1,21 +1,18 @@
 package com.eminus.client.render.far;
 
-import java.util.Optional;
 import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
 import com.eminus.client.render.arena.GeometryArena;
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.buffer.Buffer;
+import com.eminus.gpu.buffer.TexelView;
+import com.eminus.gpu.pass.Pass;
+import com.eminus.gpu.pass.PassSpec;
+import com.eminus.gpu.pipeline.Pipeline;
+import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.gpu.texture.Texture;
 import com.eminus.render.backend.DepthConvention;
-
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
-import com.mojang.renderpearl.api.pipeline.ColorTargetState;
-import com.mojang.renderpearl.api.pipeline.DepthStencilState;
-import com.mojang.renderpearl.api.pipeline.RenderPipeline;
-import com.mojang.renderpearl.api.commands.RenderPass;
-import com.mojang.renderpearl.api.commands.RenderPassDescriptor;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
 
 import net.minecraft.resources.Identifier;
 
@@ -29,45 +26,44 @@ public final class OpaquePass {
     private static final String PASS_LABEL = "eminus-far-opaque";
     private static final Vector4fc CLEAR_COLOUR = new Vector4f(0.0F, 0.0F, 0.0F, 0.0F);
 
-    private final RenderPipeline pipeline;
+    private final Gpu gpu;
+    private final Pipeline pipeline;
 
-    private OpaquePass(RenderPipeline pipeline) {
+    private OpaquePass(Gpu gpu, Pipeline pipeline) {
+        this.gpu = gpu;
         this.pipeline = pipeline;
     }
 
-    public static OpaquePass create(DepthConvention depth) {
-        RenderSystem.assertOnRenderThread();
-        return new OpaquePass(pipeline(depth));
+    public static OpaquePass create(Gpu gpu, DepthConvention depth) {
+        gpu.assertRenderThread();
+        return new OpaquePass(gpu, gpu.pipeline(pipeline(depth)));
     }
 
-    public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, GpuTextureView lightmap,
-            GpuBufferSlice commands, int drawCount, GpuBuffer frame, GpuBuffer nearSections) {
-        RenderSystem.assertOnRenderThread();
+    public Pipeline pipeline() {
+        return pipeline;
+    }
 
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(target))) {
-            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
+    public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer commands,
+            int firstCommand, int drawCount, Buffer frame, TexelView nearSections) {
+        gpu.assertRenderThread();
+
+        try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, target.colour(), CLEAR_COLOUR)
+                .withDepth(target.depth(), OptionalDouble.empty()))) {
+            pass.pipeline(pipeline);
             FarQuads.bind(pass, arena, models, lightmap, frame, nearSections);
 
             if (drawCount > 0) {
-                pass.drawIndexedIndirect(commands, drawCount);
+                pass.drawIndexedIndirect(commands, firstCommand, drawCount);
             }
         }
     }
 
-    private static RenderPassDescriptor descriptor(FarTarget target) {
-        return RenderPassDescriptor.builder(() -> PASS_LABEL)
-                .withColorAttachment(target.colourView(), Optional.of(CLEAR_COLOUR))
-                .withDepthAttachment(target.depthView(), OptionalDouble.empty())
-                .withRenderArea(new RenderPass.RenderArea(0, 0, target.width(), target.height()))
-                .build();
-    }
-
-    private static RenderPipeline pipeline(DepthConvention depth) {
+    private static PipelineSpec pipeline(DepthConvention depth) {
         return FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT)
-                .withShaderDefine("FULL_COVERAGE")
-                .withShaderDefine("NEAR_SECTIONS")
-                .withColorTargetState(new ColorTargetState(Optional.empty(), FarTarget.COLOUR_FORMAT, ColorTargetState.WRITE_ALL))
-                .withDepthStencilState(new DepthStencilState(depth.compare(), true))
+                .withDefine("FULL_COVERAGE")
+                .withDefine("NEAR_SECTIONS")
+                .withColourTarget(FarTarget.COLOUR_FORMAT, null, true)
+                .withDepthTest(depth.compare(), true)
                 .build();
     }
 }

@@ -3,32 +3,41 @@ package com.eminus.client.handoff;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.compat.sodium.SodiumDrawnSections;
 import com.eminus.compat.sodium.SodiumMixinPlugin;
+import com.eminus.gpu.Format;
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.buffer.Buffer;
+import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.buffer.TexelView;
 import com.eminus.handoff.NearSections;
 import com.eminus.mesh.MeshSummary;
-
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
 
 public final class NearSectionTable implements AutoCloseable {
-    private static final String LABEL = "eminus-near-sections";
-    private static final int USAGE = GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER | GpuBuffer.USAGE_COPY_DST;
+    public static final Format TEXEL_FORMAT = Format.R32_UINT;
 
+    private static final String LABEL = "eminus-near-sections";
+    private static final Set<BufferUsage> USAGE = EnumSet.of(BufferUsage.TEXEL, BufferUsage.COPY_DST);
+    private static final long START_OF_BUFFER = 0L;
+
+    private final Gpu gpu;
     private final NearSections sections = new NearSections();
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
     private final NearSections.SectionQuery query = this::owned;
     private final boolean sodium = SodiumMixinPlugin.sodiumPresent();
 
-    private GpuBuffer buffer;
+    private Buffer buffer;
+    private TexelView view;
     private ByteBuffer scratch;
     private IntBuffer texels;
     private LevelRenderer levelRenderer;
@@ -38,27 +47,28 @@ public final class NearSectionTable implements AutoCloseable {
     private int cameraSectionZ;
     private int viewDistance;
 
-    private NearSectionTable() {
+    private NearSectionTable(Gpu gpu) {
+        this.gpu = gpu;
         allocate(Integer.BYTES);
     }
 
-    public static NearSectionTable create() {
-        RenderSystem.assertOnRenderThread();
-        return new NearSectionTable();
+    public static NearSectionTable create(Gpu gpu) {
+        gpu.assertRenderThread();
+        return new NearSectionTable(gpu);
     }
 
     public NearSections sections() {
         return sections;
     }
 
-    public GpuBuffer buffer() {
-        return buffer;
+    public TexelView texels() {
+        return view;
     }
 
     public void fill(LevelRenderer renderer, long sectionFadeMillis, List<MeshSummary> meshes, CellFrame frame,
             int cameraSectionX, int cameraSectionY, int cameraSectionZ, int viewDistance, int radius, int minSectionY,
             int sectionCount) {
-        RenderSystem.assertOnRenderThread();
+        gpu.assertRenderThread();
         levelRenderer = renderer;
         this.sectionFadeMillis = sectionFadeMillis;
         this.cameraSectionX = cameraSectionX;
@@ -83,7 +93,7 @@ public final class NearSectionTable implements AutoCloseable {
 
     @Override
     public void close() {
-        buffer.close();
+        free();
     }
 
     private boolean owned(int sectionX, int sectionY, int sectionZ) {
@@ -104,19 +114,24 @@ public final class NearSectionTable implements AutoCloseable {
     private void upload() {
         int bytes = sections.texels() * Integer.BYTES;
         if (buffer.size() < bytes) {
-            buffer.close();
+            free();
             allocate(bytes);
         }
 
         texels.clear();
         texels.put(sections.owned(), 0, sections.texels());
-        RenderSystem.getDevice().createCommandEncoder()
-                .writeToBuffer(buffer.slice(0, bytes), scratch.clear().limit(bytes));
+        gpu.write(buffer, START_OF_BUFFER, scratch.clear().limit(bytes));
     }
 
     private void allocate(int bytes) {
-        buffer = RenderSystem.getDevice().createBuffer(() -> LABEL, USAGE, bytes);
+        buffer = gpu.buffer(LABEL, USAGE, bytes);
+        view = gpu.texelView(buffer, TEXEL_FORMAT);
         scratch = ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder());
         texels = scratch.asIntBuffer();
+    }
+
+    private void free() {
+        view.close();
+        buffer.close();
     }
 }

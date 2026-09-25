@@ -1,17 +1,16 @@
 package com.eminus.render.backend;
 
-import com.mojang.renderpearl.api.pipeline.CompareOp;
-import com.mojang.renderpearl.api.device.DeviceInfo;
+import com.eminus.gpu.pipeline.DepthCompare;
 
-public record DepthConvention(boolean zeroToOne, CompareOp compare, double farthest) {
+public record DepthConvention(boolean zeroToOne, DepthCompare compare, double farthest) {
     // The game reverses depth unconditionally: Projection swaps near and far, DepthStencilState.DEFAULT tests GREATER_THAN_OR_EQUAL.
-    public static final CompareOp REVERSED_COMPARE = CompareOp.GREATER_THAN_OR_EQUAL;
-    public static final CompareOp REVERSED_FARTHER_WINS = CompareOp.LESS_THAN_OR_EQUAL;
+    public static final DepthCompare REVERSED_COMPARE = DepthCompare.GREATER_OR_EQUAL;
+    public static final DepthCompare REVERSED_FARTHER_WINS = DepthCompare.LESS_OR_EQUAL;
     public static final double REVERSED_FARTHEST = 0.0;
     public static final double REVERSED_NEAREST = 1.0;
 
-    public static DepthConvention of(DeviceInfo info) {
-        return new DepthConvention(info.isZZeroToOne(), REVERSED_COMPARE, REVERSED_FARTHEST);
+    public static DepthConvention of(boolean zeroToOne) {
+        return new DepthConvention(zeroToOne, REVERSED_COMPARE, REVERSED_FARTHEST);
     }
 
     public String range() {

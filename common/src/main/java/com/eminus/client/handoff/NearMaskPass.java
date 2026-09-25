@@ -1,23 +1,18 @@
 package com.eminus.client.handoff;
 
-import java.util.Optional;
 import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
+import com.eminus.gpu.Format;
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.pass.Pass;
+import com.eminus.gpu.pass.PassSpec;
+import com.eminus.gpu.pipeline.Binding;
+import com.eminus.gpu.pipeline.Pipeline;
+import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.gpu.texture.Sampler;
+import com.eminus.gpu.texture.Texture;
 import com.eminus.render.backend.DepthConvention;
-
-import com.mojang.renderpearl.api.GpuFormat;
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
-import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
-import com.mojang.renderpearl.api.pipeline.ColorTargetState;
-import com.mojang.renderpearl.api.pipeline.DepthStencilState;
-import com.mojang.renderpearl.api.pipeline.RenderPipeline;
-import com.mojang.renderpearl.api.pipeline.UniformType;
-import com.mojang.renderpearl.api.commands.RenderPass;
-import com.mojang.renderpearl.api.commands.RenderPassDescriptor;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.textures.FilterMode;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
 
 import net.minecraft.resources.Identifier;
 
@@ -28,59 +23,45 @@ public final class NearMaskPass {
     private static final Identifier PIPELINE = Identifier.fromNamespaceAndPath(Eminus.MODID, "near_mask");
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/near_mask");
     private static final String PASS_LABEL = "eminus-near-mask";
+    private static final String GAME_DEPTH = "GameDepth";
     private static final int VERTICES = 3;
-    private static final int INSTANCES = 1;
 
-    private static final BindGroupLayout LAYOUT = BindGroupLayout.builder()
-            .withUniform("GameDepth", UniformType.COMBINED_IMAGE_SAMPLER)
-            .build();
+    private final Gpu gpu;
+    private final Pipeline pipeline;
 
-    private final RenderPipeline pipeline;
-
-    private NearMaskPass(RenderPipeline pipeline) {
+    private NearMaskPass(Gpu gpu, Pipeline pipeline) {
+        this.gpu = gpu;
         this.pipeline = pipeline;
     }
 
-    public static NearMaskPass create(GpuFormat colourFormat) {
-        RenderSystem.assertOnRenderThread();
-        return new NearMaskPass(pipeline(colourFormat));
-    }
-
-    public void draw(GpuTextureView farDepth, GpuTextureView colour, int width, int height,
-            GpuTextureView gameDepth) {
-        RenderSystem.assertOnRenderThread();
-
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()
-                .createRenderPass(descriptor(farDepth, colour, width, height))) {
-            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
-            pass.setUniform("GameDepth", gameDepth,
-                    RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.draw(VERTICES, INSTANCES, 0, 0);
-        }
+    public static NearMaskPass create(Gpu gpu, Format colourFormat) {
+        gpu.assertRenderThread();
+        return new NearMaskPass(gpu, gpu.pipeline(pipeline(colourFormat)));
     }
 
     // A GL render pass sizes its viewport from a colour attachment alone, so the far colour rides along unwritten.
-    private static RenderPassDescriptor descriptor(GpuTextureView farDepth, GpuTextureView colour, int width,
-            int height) {
-        return RenderPassDescriptor.builder(() -> PASS_LABEL)
-                .withColorAttachment(colour, Optional.empty())
-                .withDepthAttachment(farDepth, OptionalDouble.of(DepthConvention.REVERSED_FARTHEST))
-                .withRenderArea(new RenderPass.RenderArea(0, 0, width, height))
-                .build();
+    public Pipeline pipeline() {
+        return pipeline;
     }
 
-    private static RenderPipeline pipeline(GpuFormat colourFormat) {
-        return RenderPipeline.builder()
-                .withLocation(PIPELINE)
-                .withVertexShader(SHADER)
-                .withFragmentShader(SHADER)
-                .withBindGroupLayout(LAYOUT)
-                .withShaderDefine("GAME_DEPTH_CLEARED", GAME_DEPTH_CLEARED)
-                .withShaderDefine("MASKED", (float) DepthConvention.REVERSED_NEAREST)
-                .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
-                .withColorTargetState(new ColorTargetState(Optional.empty(), colourFormat, ColorTargetState.WRITE_NONE))
-                .withDepthStencilState(new DepthStencilState(DepthConvention.REVERSED_COMPARE, true))
-                .withCull(false)
+    public void draw(Texture farDepth, Texture colour, Texture gameDepth) {
+        gpu.assertRenderThread();
+
+        try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, colour, null)
+                .withDepth(farDepth, OptionalDouble.of(DepthConvention.REVERSED_FARTHEST)))) {
+            pass.pipeline(pipeline);
+            pass.bind(GAME_DEPTH, gameDepth, Sampler.NEAREST);
+            pass.draw(VERTICES);
+        }
+    }
+
+    private static PipelineSpec pipeline(Format colourFormat) {
+        return PipelineSpec.builder(PIPELINE, SHADER, SHADER)
+                .withBinding(Binding.sampled(GAME_DEPTH))
+                .withDefine("GAME_DEPTH_CLEARED", GAME_DEPTH_CLEARED)
+                .withDefine("MASKED", (float) DepthConvention.REVERSED_NEAREST)
+                .withColourTarget(colourFormat, null, false)
+                .withDepthTest(DepthConvention.REVERSED_COMPARE, true)
                 .build();
     }
 }

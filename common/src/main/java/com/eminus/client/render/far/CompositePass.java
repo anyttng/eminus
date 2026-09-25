@@ -1,28 +1,26 @@
 package com.eminus.client.render.far;
 
 import java.nio.ByteBuffer;
-import java.util.Optional;
+import java.util.EnumSet;
 import java.util.OptionalDouble;
+import java.util.Set;
 
 import com.eminus.Eminus;
+import com.eminus.gpu.Format;
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Std140;
+import com.eminus.gpu.buffer.Buffer;
+import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.pass.Pass;
+import com.eminus.gpu.pass.PassSpec;
+import com.eminus.gpu.pipeline.Binding;
+import com.eminus.gpu.pipeline.Blend;
+import com.eminus.gpu.pipeline.Pipeline;
+import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.gpu.texture.Sampler;
+import com.eminus.gpu.texture.Texture;
 import com.eminus.render.backend.DepthConvention;
 import com.eminus.render.far.CompositeFog;
-
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.Std140Builder;
-import com.mojang.blaze3d.buffers.Std140SizeCalculator;
-import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
-import com.mojang.renderpearl.api.pipeline.BlendFunction;
-import com.mojang.renderpearl.api.pipeline.ColorTargetState;
-import com.mojang.renderpearl.api.pipeline.DepthStencilState;
-import com.mojang.renderpearl.api.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.renderpearl.api.pipeline.UniformType;
-import com.mojang.renderpearl.api.commands.RenderPass;
-import com.mojang.renderpearl.api.commands.RenderPassDescriptor;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.textures.FilterMode;
 
 import net.minecraft.resources.Identifier;
 
@@ -38,50 +36,52 @@ public final class CompositePass implements AutoCloseable {
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/far_composite");
     private static final String PASS_LABEL = "eminus-far-composite";
     private static final String UNIFORM_LABEL = "eminus-composite";
-    private static final int UNIFORM_USAGE = GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST;
-    private static final int SIZE = new Std140SizeCalculator()
+    private static final String COMPOSITE = "Composite";
+    private static final String FAR_COLOUR = "FarColour";
+    private static final String FAR_DEPTH = "FarDepth";
+    private static final Set<BufferUsage> UNIFORM_USAGE = EnumSet.of(BufferUsage.UNIFORM, BufferUsage.COPY_DST);
+    private static final int SIZE = Std140.size()
             .putMat4f().putMat4f().putVec4()
             .putFloat().putFloat().putFloat()
             .putFloat().putFloat().putFloat().putFloat().putFloat()
             .get();
+    private static final long START_OF_BUFFER = 0L;
     private static final int VERTICES = 3;
-    private static final int INSTANCES = 1;
 
-    private static final BindGroupLayout LAYOUT = BindGroupLayout.builder()
-            .withUniform("Composite", UniformType.UNIFORM_BUFFER)
-            .withUniform("FarColour", UniformType.COMBINED_IMAGE_SAMPLER)
-            .withUniform("FarDepth", UniformType.COMBINED_IMAGE_SAMPLER)
-            .build();
-
-    private final RenderPipeline pipeline;
-    private final GpuBuffer uniform;
+    private final Gpu gpu;
+    private final Pipeline pipeline;
+    private final Buffer uniform;
     private final Matrix4f farInverse = new Matrix4f();
     private final Matrix4f reproject = new Matrix4f();
 
-    private CompositePass(RenderPipeline pipeline, GpuBuffer uniform) {
+    private CompositePass(Gpu gpu, Pipeline pipeline, Buffer uniform) {
+        this.gpu = gpu;
         this.pipeline = pipeline;
         this.uniform = uniform;
     }
 
-    public static CompositePass create(DepthConvention depth) {
-        RenderSystem.assertOnRenderThread();
-        GpuBuffer uniform = RenderSystem.getDevice().createBuffer(() -> UNIFORM_LABEL, UNIFORM_USAGE, SIZE);
-        return new CompositePass(pipeline(depth), uniform);
+    public static CompositePass create(Gpu gpu, DepthConvention depth) {
+        gpu.assertRenderThread();
+        return new CompositePass(gpu, gpu.pipeline(pipeline(depth, gpu.mainColour().format())),
+                gpu.buffer(UNIFORM_LABEL, UNIFORM_USAGE, SIZE));
     }
 
-    public void draw(FarTarget far, RenderTarget game, Matrix4fc farViewProjection, Matrix4fc gameViewProjection,
-            CompositeFog fog, Vector4fc fogColour) {
-        RenderSystem.assertOnRenderThread();
+    public Pipeline pipeline() {
+        return pipeline;
+    }
+
+    public void draw(FarTarget far, Texture gameColour, Texture gameDepth, Matrix4fc farViewProjection,
+            Matrix4fc gameViewProjection, CompositeFog fog, Vector4fc fogColour) {
+        gpu.assertRenderThread();
         write(gameViewProjection, farViewProjection, fog, fogColour);
 
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor(game))) {
-            pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
-            pass.setUniform("Composite", uniform);
-            pass.setUniform("FarColour", far.colourView(),
-                    RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.setUniform("FarDepth", far.depthView(),
-                    RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.draw(VERTICES, INSTANCES, 0, 0);
+        try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, gameColour, null)
+                .withDepth(gameDepth, OptionalDouble.empty()))) {
+            pass.pipeline(pipeline);
+            pass.bind(COMPOSITE, uniform);
+            pass.bind(FAR_COLOUR, far.colour(), Sampler.NEAREST);
+            pass.bind(FAR_DEPTH, far.depth(), Sampler.NEAREST);
+            pass.draw(VERTICES);
         }
     }
 
@@ -95,7 +95,7 @@ public final class CompositePass implements AutoCloseable {
         FarProjection.reproject(gameViewProjection, farViewProjection, farInverse, reproject);
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            ByteBuffer written = Std140Builder.onStack(stack, SIZE)
+            ByteBuffer written = Std140.into(stack.malloc(SIZE))
                     .putMat4f(reproject)
                     .putMat4f(farInverse)
                     .putVec4(fogColour)
@@ -108,31 +108,20 @@ public final class CompositePass implements AutoCloseable {
                     .putFloat(fog.fadeEnd())
                     .putFloat(DEPTH_BIAS)
                     .get();
-            RenderSystem.getDevice().createCommandEncoder().writeToBuffer(uniform.slice(), written);
+            gpu.write(uniform, START_OF_BUFFER, written);
         }
     }
 
-    private static RenderPassDescriptor descriptor(RenderTarget game) {
-        return RenderPassDescriptor.builder(() -> PASS_LABEL)
-                .withColorAttachment(game.getColorTextureView(), Optional.empty())
-                .withDepthAttachment(game.getDepthTextureView(), OptionalDouble.empty())
-                .withRenderArea(new RenderPass.RenderArea(0, 0, game.width, game.height))
-                .build();
-    }
+    private static PipelineSpec pipeline(DepthConvention depth, Format colourFormat) {
+        PipelineSpec.Builder builder = PipelineSpec.builder(PIPELINE, SHADER, SHADER)
+                .withBinding(Binding.uniform(COMPOSITE))
+                .withBinding(Binding.sampled(FAR_COLOUR))
+                .withBinding(Binding.sampled(FAR_DEPTH))
+                .withDefine("FARTHEST", (float) DepthConvention.REVERSED_FARTHEST)
+                .withDefine("NEAREST", (float) DepthConvention.REVERSED_NEAREST)
+                .withColourTarget(colourFormat, Blend.TRANSLUCENT_PREMULTIPLIED, true)
+                .withDepthTest(depth.compare(), true);
 
-    private static RenderPipeline pipeline(DepthConvention depth) {
-        RenderPipeline.Builder builder = RenderPipeline.builder()
-                .withLocation(PIPELINE)
-                .withVertexShader(SHADER)
-                .withFragmentShader(SHADER)
-                .withBindGroupLayout(LAYOUT)
-                .withShaderDefine("FARTHEST", (float) DepthConvention.REVERSED_FARTHEST)
-                .withShaderDefine("NEAREST", (float) DepthConvention.REVERSED_NEAREST)
-                .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
-                .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA))
-                .withDepthStencilState(new DepthStencilState(depth.compare(), true))
-                .withCull(false);
-
-        return depth.zeroToOne() ? builder.withShaderDefine("DEPTH_ZERO_TO_ONE").build() : builder.build();
+        return depth.zeroToOne() ? builder.withDefine("DEPTH_ZERO_TO_ONE").build() : builder.build();
     }
 }
