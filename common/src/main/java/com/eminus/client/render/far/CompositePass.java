@@ -66,6 +66,10 @@ public final class CompositePass implements AutoCloseable {
                 gpu.buffer(UNIFORM_LABEL, UNIFORM_USAGE, SIZE));
     }
 
+    public Pipeline pipeline() {
+        return pipeline;
+    }
+
     public void draw(FarTarget far, Texture gameColour, Texture gameDepth, Matrix4fc farViewProjection,
             Matrix4fc gameViewProjection, CompositeFog fog, Vector4fc fogColour) {
         gpu.assertRenderThread();

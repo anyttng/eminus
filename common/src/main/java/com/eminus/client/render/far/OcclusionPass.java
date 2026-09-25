@@ -69,6 +69,10 @@ public final class OcclusionPass implements AutoCloseable {
         return new OcclusionPass(gpu, gpu.pipeline(pipeline(depth)), gpu.buffer(UNIFORM_LABEL, UNIFORM_USAGE, SIZE));
     }
 
+    public Pipeline pipeline() {
+        return pipeline;
+    }
+
     public void draw(FarTarget far, Texture gameDepth, Matrix4fc farViewProjection, Matrix4fc gameViewProjection) {
         gpu.assertRenderThread();
         write(farViewProjection, gameViewProjection, far.height());
