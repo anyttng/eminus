@@ -10,6 +10,7 @@ import com.eminus.ingest.IngestTrigger;
 import com.eminus.mixin.BiomeManagerAccessor;
 import com.eminus.client.gpu.Gpus;
 import com.eminus.client.render.far.FarRenderer;
+import com.eminus.gpu.Gpu;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 import com.eminus.session.StoreFolders;
@@ -207,19 +208,27 @@ public final class ClientSession {
 
     private static void swapLevel(ClientLevel current) {
         level = current;
-        stopRenderer();
+        if (current == null) {
+            stopRenderer();
+            releaseRuntime();
+            heldChunksPending = false;
+            return;
+        }
 
+        Gpu next = Gpus.create();
+        long replacedArenaBytes = replacedArenaBytes();
+        stopRenderer();
+        releaseRuntime();
+        runtime = instance.acquire(identityOf(current), current.getMinY());
+        startRenderer(next, replacedArenaBytes);
+        heldChunksPending = true;
+    }
+
+    private static void releaseRuntime() {
         if (runtime != null) {
             instance.release(runtime);
             runtime = null;
         }
-
-        if (current != null) {
-            runtime = instance.acquire(identityOf(current), current.getMinY());
-            startRenderer();
-        }
-
-        heldChunksPending = current != null;
     }
 
     private static void submitHeldChunks() {
@@ -251,16 +260,23 @@ public final class ClientSession {
     }
 
     private static void restartRenderer() {
+        Gpu next = Gpus.create();
+        long replacedArenaBytes = replacedArenaBytes();
         stopRenderer();
-        startRenderer();
+        startRenderer(next, replacedArenaBytes);
     }
 
-    private static void startRenderer() {
+    private static long replacedArenaBytes() {
+        return renderer == null ? 0L : renderer.arenaBytes();
+    }
+
+    private static void startRenderer(Gpu gpu, long replacedArenaBytes) {
         Minecraft minecraft = Minecraft.getInstance();
         rendered = SettingsService.get().settings();
         renderedCutoutLeaves = minecraft.options.cutoutLeaves().get();
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
-        renderer = FarRenderer.start(minecraft, Gpus.create(), instance, runtime, level.getHeight(), rendered);
+        renderer = FarRenderer.start(minecraft, gpu, instance, runtime, level.getHeight(), rendered,
+                replacedArenaBytes);
     }
 
     private static void stopRenderer() {

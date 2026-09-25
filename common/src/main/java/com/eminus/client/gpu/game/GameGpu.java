@@ -1,6 +1,8 @@
 package com.eminus.client.gpu.game;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -33,6 +35,7 @@ public final class GameGpu implements Gpu {
 
     private final GpuDevice device;
     private final Capabilities capabilities;
+    private final List<GamePipeline> pipelines = new ArrayList<>();
 
     private GameGpu(GpuDevice device, Capabilities capabilities) {
         this.device = device;
@@ -122,7 +125,9 @@ public final class GameGpu implements Gpu {
 
     @Override
     public Pipeline pipeline(PipelineSpec spec) {
-        return GamePipeline.of(spec);
+        GamePipeline pipeline = GamePipeline.of(spec);
+        pipelines.add(pipeline);
+        return pipeline;
     }
 
     @Override
@@ -142,5 +147,7 @@ public final class GameGpu implements Gpu {
 
     @Override
     public void close() {
+        pipelines.forEach(GamePipeline::release);
+        pipelines.clear();
     }
 }

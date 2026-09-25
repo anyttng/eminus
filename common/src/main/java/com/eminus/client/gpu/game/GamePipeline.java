@@ -5,16 +5,22 @@ import java.util.Optional;
 import com.eminus.gpu.pipeline.Binding;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.mixin.PipelineCacheAccessor;
+import com.eminus.mixin.RenderSystemAccessor;
 
+import com.mojang.blaze3d.pipeline.PipelineCache;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
 import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 
 import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.resources.Identifier;
+
+import org.jspecify.annotations.Nullable;
 
 record GamePipeline(RenderPipeline pipeline) implements Pipeline {
     static GamePipeline of(PipelineSpec spec) {
@@ -77,5 +83,21 @@ record GamePipeline(RenderPipeline pipeline) implements Pipeline {
     @Override
     public boolean compiles() {
         return RenderSystem.getCompiledPipelineNullable(pipeline) != null;
+    }
+
+    void release() {
+        release(RenderSystemAccessor.eminus$currentPipelineCache());
+        release(RenderSystemAccessor.eminus$fallbackPipelineCache());
+    }
+
+    private void release(@Nullable PipelineCache cache) {
+        if (cache == null) {
+            return;
+        }
+
+        CompiledRenderPipeline compiled = ((PipelineCacheAccessor) cache).eminus$cache().remove(pipeline);
+        if (compiled != null) {
+            compiled.close();
+        }
     }
 }
