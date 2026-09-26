@@ -83,7 +83,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         return start(builds, extent, NodeTable.CAPACITY);
     }
 
-    static TreeManager start(TreeBuilds builds, TreeExtent extent, int capacity) {
+    public static TreeManager start(TreeBuilds builds, TreeExtent extent, int capacity) {
         TreeManager manager = new TreeManager(builds, extent, capacity);
         manager.thread.setDaemon(true);
         manager.thread.setPriority(THREAD_PRIORITY);
