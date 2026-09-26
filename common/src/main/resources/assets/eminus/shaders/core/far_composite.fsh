@@ -15,6 +15,8 @@ layout(std140) uniform Composite {
     float DepthBias;
 };
 
+#include <eminus:far_depth.glsl>
+
 uniform sampler2D FarColour;
 uniform sampler2D FarDepth;
 
@@ -35,7 +37,7 @@ float linear_fog_value(float vertexDistance, float start, float end) {
 
 void main() {
     float depth = texture(FarDepth, screenUV).r;
-    if (depth <= FARTHEST || depth >= NEAREST) {
+    if (!NEARER(depth, FARTHEST) || !NEARER(NEAREST, depth)) {
         discard;
     }
 
@@ -67,7 +69,7 @@ void main() {
             : linear_fog_value(distance, FogStart, FogEnd);
     vec4 far = texture(FarColour, screenUV);
 
-    gl_FragDepth = clamp(gameZ - DepthBias, 0.0, 1.0);
+    gl_FragDepth = clamp(FARTHER(gameZ, DepthBias), 0.0, 1.0);
     float coverage = far.a * (1.0 - fade);
     fragColor = vec4(mix(far.rgb, FogColour.rgb * far.a, fog * FogColour.a) * (1.0 - fade), coverage);
 }

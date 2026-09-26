@@ -54,7 +54,7 @@ public final class BackendCheck {
     public static BackendSupport run(Gpu gpu, long arenaBytes) {
         gpu.assertRenderThread();
         Capabilities capabilities = gpu.capabilities();
-        DepthConvention depth = DepthConvention.of(capabilities.depthZeroToOne());
+        DepthConvention depth = DepthConvention.of(capabilities.depthZeroToOne(), capabilities.depthReversed());
 
         if (arenaBytes <= 0 || arenaBytes > capabilities.maxAllocationBytes()) {
             return refuse(BackendLimitation.ARENA_MEMORY, depth);
@@ -69,11 +69,12 @@ public final class BackendCheck {
             return refuse(BackendLimitation.FRAGMENT_DEPTH, depth);
         }
 
-        if (!draws(gpu, probe, DEPTH_FORMAT)) {
+        if (!draws(gpu, probe, DEPTH_FORMAT, depth)) {
             return refuse(BackendLimitation.DEPTH_TARGET, depth);
         }
 
-        Eminus.LOGGER.info("Backend accepted: depth format {}, depth range {}", DEPTH_FORMAT, depth.range());
+        Eminus.LOGGER.info("Backend accepted: depth format {}, depth range {}, depth {}", DEPTH_FORMAT, depth.range(),
+                depth.direction());
         return BackendSupport.accepted(DEPTH_FORMAT, depth);
     }
 
@@ -82,13 +83,13 @@ public final class BackendCheck {
         return BackendSupport.refused(limitation, depth);
     }
 
-    private static boolean draws(Gpu gpu, Pipeline probe, Format format) {
+    private static boolean draws(Gpu gpu, Pipeline probe, Format format, DepthConvention convention) {
         try (Buffer uniform = probeUniform(gpu);
                 Texture colour = gpu.texture(COLOUR_LABEL, TARGET_USAGE, COLOUR_FORMAT, PROBE_SIDE, PROBE_SIDE,
                         PROBE_MIPS);
                 Texture depth = gpu.texture(DEPTH_LABEL, TARGET_USAGE, format, PROBE_SIDE, PROBE_SIDE, PROBE_MIPS);
                 Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, colour, CLEAR_COLOUR)
-                        .withDepth(depth, OptionalDouble.of(DepthConvention.REVERSED_FARTHEST)))) {
+                        .withDepth(depth, OptionalDouble.of(convention.farthest())))) {
             pass.pipeline(probe);
             pass.bind(PROBE_UNIFORM, uniform);
             pass.draw(PROBE_VERTICES);

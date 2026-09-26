@@ -138,7 +138,7 @@ public final class FarRenderer implements AutoCloseable {
             return null;
         }
 
-        NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOUR_FORMAT);
+        NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOUR_FORMAT, support.depth());
         OpaquePass opaque = OpaquePass.create(gpu, support.depth());
         OcclusionPass occlusion = OcclusionPass.create(gpu, support.depth());
         TranslucentPass translucent = TranslucentPass.create(gpu, support.depth());

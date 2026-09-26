@@ -25,6 +25,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.renderpearl.api.device.DeviceInfo;
 import com.mojang.renderpearl.api.device.GpuDevice;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import com.mojang.renderpearl.api.textures.GpuTexture;
 
 import net.minecraft.client.Minecraft;
@@ -49,6 +51,7 @@ public final class GameGpu implements Gpu {
         DeviceReading reading = DeviceReading.read(device);
 
         return new GameGpu(device, new Capabilities(info.backendName(), info.isZZeroToOne(),
+                DepthStencilState.DEFAULT.depthTest() == CompareOp.GREATER_THAN_OR_EQUAL,
                 info.features().drawIndirect(), info.features().multiDrawIndirect(),
                 info.features().persistentMapping(), info.limits().maxMemoryAllocationSize(),
                 reading.texelElements(), reading.freeBytes()));
