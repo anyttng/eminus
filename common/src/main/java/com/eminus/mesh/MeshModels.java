@@ -13,6 +13,10 @@ public interface MeshModels {
 
     int submergedModelId(int modelId);
 
+    int oneSidedModelId(int modelId);
+
+    int inwardModelId(int seabedModelId, int fluidModelId);
+
     int metadata(int modelId);
 
     int tintRow(int modelId);

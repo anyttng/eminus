@@ -13,6 +13,7 @@ struct FarVertex {
     int faceSlot;
     int variantStart;
     int variantCount;
+    bool culled;
 };
 
 const int FAR_CORNERS_PER_QUAD = 4;
@@ -107,6 +108,11 @@ float far_fluid_corner(vec4 surface, int face, vec2 unit) {
     return widthEnd ? surface.w : surface.y;
 }
 
+vec3 far_face_normal(int face) {
+    return vec3(face == 4 ? -1.0 : (face == 5 ? 1.0 : 0.0), face == 0 ? -1.0 : (face == 1 ? 1.0 : 0.0),
+                face == 2 ? -1.0 : (face == 3 ? 1.0 : 0.0));
+}
+
 vec2 far_slope(vec4 fifth, vec4 sixth, vec4 seventh, int face) {
     if (face == 0) {
         return fifth.xy;
@@ -159,7 +165,9 @@ FarVertex far_vertex(int vertexId) {
     vec3 boundsMin = vec3(second.z, second.w, third.x);
     vec3 boundsMax = vec3(third.y, third.z, third.w);
 
-    bool fluid = (floatBitsToInt(fourth.x) & FLUID_FLAG) != 0;
+    int flags = floatBitsToInt(fourth.x);
+    bool fluid = (flags & FLUID_FLAG) != 0;
+    bool inward = (flags & INWARD_FLAG) != 0;
     uint placement = 0u;
     vertex.tint = vec3(1.0);
     if (colourIndex != 0) {
@@ -209,7 +217,7 @@ FarVertex far_vertex(int vertexId) {
         float inset = far_inset(first, second, face) + dot(far_slope(fifth, sixth, seventh, face), extent);
         float placedHeight = vertical ? unit.y * float(height - 1) + mix(drawnBottom, drawnTop, unit.y) : extent.y;
         if (fluid && face != 0) {
-            float surface = far_fluid_corner(far_fluid_corners(corners, boundsMax.y), face, unit);
+            float surface = far_fluid_corner(far_fluid_corners(corners, boundsMax.y), inward ? face ^ 1 : face, unit);
             if (face == 1) {
                 inset = 1.0 - surface;
             } else {
@@ -223,6 +231,8 @@ FarVertex far_vertex(int vertexId) {
             depth = far_low(inset, lowGap, blocks);
         } else if (face == 1) {
             depth = far_high(1.0 - inset, highGap, blocks);
+        } else if (inward) {
+            depth = 1.0 - depth;
         }
 
         local = far_axis_add(local, normalAxis, depth);
@@ -233,6 +243,8 @@ FarVertex far_vertex(int vertexId) {
     int cellBlocks = VOXELS_PER_SIDE << level;
     ivec3 origin = ivec3(cellX * cellBlocks, cellY * cellBlocks + MinBlockY, cellZ * cellBlocks);
     vertex.position = vec3(origin - CameraBlockPos) + CameraOffset + local * float(1 << level);
+    vertex.culled = (flags & ONE_SIDED_FLAG) != 0 && face < FIRST_BLADE_FACE
+            && dot(far_face_normal(face), vertex.position) >= 0.0;
 
     vec3 faceLocal = local;
     if (face < FIRST_BLADE_FACE) {
