@@ -14,14 +14,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.eminus.VanillaBootstrap;
 
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
-import net.minecraft.client.resources.model.sprite.Material;
-import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.minecraft.util.random.Weighted;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -227,8 +222,8 @@ class ModelBakeryTest {
     @Test
     void aWeightedStatePublishesEveryVariantAndATableOfCumulativeWeights() throws InterruptedException {
         ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null, null,
-                List.of(new Weighted<>(BakedModel.solid(BLUE), LIGHT_WEIGHT),
-                        new Weighted<>(BakedModel.solid(GREEN), HEAVY_WEIGHT)),
+                List.of(new WeightedModel(BakedModel.solid(BLUE), LIGHT_WEIGHT),
+                        new WeightedModel(BakedModel.solid(GREEN), HEAVY_WEIGHT)),
                 false));
 
         try {
@@ -299,11 +294,11 @@ class ModelBakeryTest {
     }
 
     private static final class PartBaker implements StateBaker {
-        private final List<BlockStateModelPart> parts = new ArrayList<>();
+        private final List<Object> parts = new ArrayList<>();
 
         private PartBaker() {
             for (int part = 0; part < PART_COLOURS.length; part++) {
-                parts.add(new Part());
+                parts.add(new Object());
             }
         }
 
@@ -313,35 +308,13 @@ class ModelBakeryTest {
         }
 
         @Override
-        public void pick(BlockState state, RandomSource random, List<BlockStateModelPart> picked) {
+        public void pick(BlockState state, RandomSource random, List<Object> picked) {
             picked.add(parts.get(random.nextInt(parts.size())));
         }
 
         @Override
-        public BakedModel bakeParts(BlockState state, List<BlockStateModelPart> picked) {
+        public BakedModel bakeParts(BlockState state, List<Object> picked) {
             return BakedModel.solid(PART_COLOURS[parts.indexOf(picked.getFirst())]);
-        }
-    }
-
-    private static final class Part implements BlockStateModelPart {
-        @Override
-        public List<BakedQuad> getQuads(Direction direction) {
-            return List.of();
-        }
-
-        @Override
-        public boolean useAmbientOcclusion() {
-            return false;
-        }
-
-        @Override
-        public Material.Baked particleMaterial() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public int materialFlags() {
-            return 0;
         }
     }
 

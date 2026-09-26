@@ -1,7 +1,5 @@
 package com.eminus.model;
 
-import net.minecraft.util.ARGB;
-
 public record Tint(int row, int colour) {
     private static final int WHITE = 0xFFFF_FFFF;
 
@@ -24,10 +22,10 @@ public record Tint(int row, int colour) {
             return;
         }
 
-        int opaque = ARGB.opaque(colour);
+        int opaque = Argb.opaque(colour);
         for (int index = 0; index < faces.length; index++) {
             if (BakedModel.tinted(tintMask, index)) {
-                faces[index] = ARGB.multiply(faces[index], opaque);
+                faces[index] = Argb.multiply(faces[index], opaque);
                 BakedModel.mark(tintMask, index, false);
             }
         }

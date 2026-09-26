@@ -1,14 +1,15 @@
 package com.eminus.model;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import net.minecraft.client.color.block.BlockTintSource;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
-import net.minecraft.core.BlockPos;
+import com.eminus.model.port.TintBiome;
+import com.eminus.model.port.TintSource;
+
 import net.minecraft.world.level.block.state.BlockState;
 
 import org.jspecify.annotations.Nullable;
@@ -18,10 +19,10 @@ public final class BiomeColours {
     public static final int NO_ROW = -1;
     public static final int NO_BIOME = -1;
 
-    private static final BlockPos SAMPLE = BlockPos.ZERO;
+    private static final int SAMPLE_COLUMN = 0;
     private static final int RGB_MASK = 0x00FF_FFFF;
 
-    public record Colours(int[] values, BlockTintSource source, BlockState state) implements Comparable<Colours> {
+    public record Colours(int[] values, TintSource source, BlockState state) implements Comparable<Colours> {
         public boolean uniform() {
             return Arrays.stream(values).allMatch(value -> value == values[0]);
         }
@@ -43,38 +44,33 @@ public final class BiomeColours {
     }
 
     private final Map<String, Integer> biomeIndex = new HashMap<>();
-    private final List<BlockAndTintGetter> levels;
-    private final boolean[] positional;
+    private final List<TintBiome> biomes;
 
     private volatile List<Colours> rows = List.of();
     private volatile Map<Colours, Integer> rowByColours = Map.of();
 
-    public BiomeColours(Map<String, BlockAndTintGetter> levels, Set<String> positional) {
-        List<String> biomes = levels.keySet().stream().sorted().toList();
-        this.positional = new boolean[biomes.size()];
-        for (int index = 0; index < biomes.size(); index++) {
-            biomeIndex.put(biomes.get(index), index);
-            this.positional[index] = positional.contains(biomes.get(index));
+    public BiomeColours(Collection<TintBiome> biomes) {
+        this.biomes = biomes.stream().sorted(Comparator.comparing(TintBiome::name)).toList();
+        for (int index = 0; index < this.biomes.size(); index++) {
+            biomeIndex.put(this.biomes.get(index).name(), index);
         }
-
-        this.levels = biomes.stream().map(levels::get).toList();
     }
 
-    public Colours sample(BlockTintSource tint, BlockState state) {
-        int[] values = new int[levels.size()];
+    public Colours sample(TintSource tint, BlockState state) {
+        int[] values = new int[biomes.size()];
         for (int index = 0; index < values.length; index++) {
-            values[index] = tint.colorInWorld(state, levels.get(index), SAMPLE) & RGB_MASK;
+            values[index] = tint.colour(state, biomes.get(index), SAMPLE_COLUMN, SAMPLE_COLUMN) & RGB_MASK;
         }
 
         return new Colours(values, tint, state);
     }
 
-    public @Nullable Tint resolve(@Nullable BlockTintSource tint, BlockState state) {
+    public @Nullable Tint resolve(@Nullable TintSource tint, BlockState state) {
         if (tint == null) {
             return null;
         }
 
-        if (levels.isEmpty()) {
+        if (biomes.isEmpty()) {
             return Tint.UNTINTED;
         }
 
@@ -108,21 +104,21 @@ public final class BiomeColours {
     }
 
     public boolean positional(int biomeIndex) {
-        return positional[biomeIndex];
+        return biomes.get(biomeIndex).positional();
     }
 
     public int colourAt(int row, int biomeIndex, int blockX, int blockZ) {
         Colours colours = rows.get(row);
-        if (!positional[biomeIndex]) {
+        TintBiome biome = biomes.get(biomeIndex);
+        if (!biome.positional()) {
             return colours.values()[biomeIndex];
         }
 
-        BlockPos pos = new BlockPos(blockX, SAMPLE.getY(), blockZ);
-        return colours.source().colorInWorld(colours.state(), levels.get(biomeIndex), pos) & RGB_MASK;
+        return colours.source().colour(colours.state(), biome, blockX, blockZ) & RGB_MASK;
     }
 
     public int biomeCount() {
-        return levels.size();
+        return biomes.size();
     }
 
     public int rowCount() {

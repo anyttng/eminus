@@ -9,13 +9,12 @@ import java.util.function.IntFunction;
 
 import com.eminus.VanillaBootstrap;
 import com.eminus.cell.FaceMask;
+import com.eminus.model.port.ModelQuad;
 
-import net.minecraft.client.model.geom.builders.UVPair;
-import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.Direction;
 
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +24,6 @@ class ShapeDivergenceTest {
     private static final float HALF = 0.5F;
     private static final float BLADE_FROM = 0.8F * SIXTEENTH;
     private static final float BLADE_TO = 15.2F * SIXTEENTH;
-    private static final int NO_TINT_LAYER = -1;
     private static final IntFunction<Tint> NO_TINTS = layer -> null;
     private static final QuadTexels OPAQUE_WHITE = (quad, u, v) -> 0xFFFF_FFFF;
     private static final ShapeDivergence.SpriteColumns SIXTEEN_COLUMNS =
@@ -40,19 +38,16 @@ class ShapeDivergenceTest {
         {1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0}};
     private static final float[] FACE_UV = {0.0F, 0.0F, 1.0F, 0.0F, 1.0F, 1.0F, 0.0F, 1.0F};
 
-    private static BakedQuad.MaterialInfo material;
-
     private final FaceRasterizer rasterizer = new FaceRasterizer();
 
     @BeforeAll
     static void bootstrapVanilla() {
         VanillaBootstrap.ensure();
-        material = new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID, null, NO_TINT_LAYER, true, 0);
     }
 
     @Test
     void aSlabBakedFromItsOwnQuadsDivergesNowhere() {
-        List<BakedQuad> slab = box(0, 0, 0, 1, HALF, 1);
+        List<ModelQuad> slab = box(0, 0, 0, 1, HALF, 1);
 
         ShapeDivergence divergence = measure(slab, bake(slab));
 
@@ -65,7 +60,7 @@ class ShapeDivergenceTest {
 
     @Test
     void aFencePostWithAnArmFlattensThePostOntoTheArmsPlane() {
-        List<BakedQuad> fence = new ArrayList<>(
+        List<ModelQuad> fence = new ArrayList<>(
                 box(6 * SIXTEENTH, 0, 6 * SIXTEENTH, 10 * SIXTEENTH, 1, 10 * SIXTEENTH));
         fence.addAll(box(7 * SIXTEENTH, 12 * SIXTEENTH, 0, 9 * SIXTEENTH, 15 * SIXTEENTH, 6 * SIXTEENTH));
 
@@ -77,7 +72,7 @@ class ShapeDivergenceTest {
 
     @Test
     void aStairBakedAsItsBaseStandsHalfABlockAboveItsLowerStep() {
-        List<BakedQuad> stair = new ArrayList<>(box(0, 0, 0, 1, HALF, 1));
+        List<ModelQuad> stair = new ArrayList<>(box(0, 0, 0, 1, HALF, 1));
         stair.addAll(box(0, HALF, HALF, 1, 1, 1));
 
         ShapeDivergence divergence = measure(stair, bake(box(0, 0, 0, 1, 1, 1)));
@@ -87,7 +82,7 @@ class ShapeDivergenceTest {
 
     @Test
     void aFaceTheBakeDropsIsCountedAsLost() {
-        List<BakedQuad> slab = box(0, 0, 0, 1, HALF, 1);
+        List<ModelQuad> slab = box(0, 0, 0, 1, HALF, 1);
 
         ShapeDivergence divergence = measure(slab, BakedModel.empty());
 
@@ -96,7 +91,7 @@ class ShapeDivergenceTest {
 
     @Test
     void aCrossBladeKeepsOneImageTexelPerSpriteColumn() {
-        List<BakedQuad> cross = List.of(
+        List<ModelQuad> cross = List.of(
                 quad(new float[] {BLADE_TO, 0, BLADE_TO, BLADE_FROM, 0, BLADE_FROM, BLADE_FROM, 1, BLADE_FROM,
                         BLADE_TO, 1, BLADE_TO}),
                 quad(new float[] {BLADE_FROM, 0, BLADE_TO, BLADE_TO, 0, BLADE_FROM, BLADE_TO, 1, BLADE_FROM,
@@ -111,25 +106,25 @@ class ShapeDivergenceTest {
 
     @Test
     void aQuadNeitherOnAFaceNorOnADiagonalCountsAsTilted() {
-        BakedQuad ramp = quad(new float[] {0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0});
+        ModelQuad ramp = quad(new float[] {0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0});
 
         ShapeDivergence divergence = measure(List.of(ramp), bake(List.of(ramp)));
 
         assertEquals(1, divergence.tilted());
     }
 
-    private BakedModel bake(List<BakedQuad> quads) {
+    private BakedModel bake(List<ModelQuad> quads) {
         return rasterizer.rasterize(quads, OPAQUE_WHITE, NO_TINTS);
     }
 
-    private static ShapeDivergence measure(List<BakedQuad> quads, BakedModel baked) {
+    private static ShapeDivergence measure(List<ModelQuad> quads, BakedModel baked) {
         return ShapeDivergence.measure(quads, baked, SIXTEEN_COLUMNS);
     }
 
-    private static List<BakedQuad> box(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
+    private static List<ModelQuad> box(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
         float[] min = {minX, minY, minZ};
         float[] max = {maxX, maxY, maxZ};
-        List<BakedQuad> quads = new ArrayList<>();
+        List<ModelQuad> quads = new ArrayList<>();
 
         for (float[] unit : CUBE) {
             float[] positions = new float[unit.length];
@@ -144,17 +139,12 @@ class ShapeDivergenceTest {
         return quads;
     }
 
-    private static BakedQuad quad(float[] positions) {
-        return new BakedQuad(
-                new Vector3f(positions[0], positions[1], positions[2]),
-                new Vector3f(positions[3], positions[4], positions[5]),
-                new Vector3f(positions[6], positions[7], positions[8]),
-                new Vector3f(positions[9], positions[10], positions[11]),
-                UVPair.pack(FACE_UV[0], FACE_UV[1]),
-                UVPair.pack(FACE_UV[2], FACE_UV[3]),
-                UVPair.pack(FACE_UV[4], FACE_UV[5]),
-                UVPair.pack(FACE_UV[6], FACE_UV[7]),
-                Direction.UP,
-                material);
+    private static ModelQuad quad(float[] positions) {
+        return new ModelQuad(new Vector3fc[] {
+            new Vector3f(positions[0], positions[1], positions[2]),
+            new Vector3f(positions[3], positions[4], positions[5]),
+            new Vector3f(positions[6], positions[7], positions[8]),
+            new Vector3f(positions[9], positions[10], positions[11])},
+                FACE_UV.clone(), null, ModelQuad.NO_TINT, false, 0, Direction.UP);
     }
 }

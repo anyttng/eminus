@@ -9,8 +9,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
-import net.minecraft.client.color.block.BlockColors;
-import net.minecraft.client.color.block.BlockTintSource;
+import com.eminus.model.port.BlockTints;
+import com.eminus.model.port.TintSource;
+
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
@@ -21,19 +22,19 @@ public final class TintSweep {
     private TintSweep() {
     }
 
-    public static void sweep(Iterable<BlockState> states, BlockColors blockColors,
-            Function<FluidState, @Nullable BlockTintSource> fluidTints, UnaryOperator<BlockState> shapes,
+    public static void sweep(Iterable<BlockState> states, BlockTints blockTints,
+            Function<FluidState, @Nullable TintSource> fluidTints, UnaryOperator<BlockState> shapes,
             BiomeColours colours) {
         Map<BiomeColours.Colours, Set<Block>> users = new HashMap<>();
 
         for (BlockState state : states) {
             BlockState shape = shapes.apply(state);
-            for (BlockTintSource tint : blockColors.getTintSources(shape)) {
+            for (TintSource tint : blockTints.sources(shape)) {
                 count(users, colours, tint, shape, state.getBlock());
             }
 
             FluidState fluid = state.getFluidState();
-            BlockTintSource fluidTint = fluid.isEmpty() ? null : fluidTints.apply(fluid);
+            TintSource fluidTint = fluid.isEmpty() ? null : fluidTints.apply(fluid);
             if (fluidTint != null) {
                 count(users, colours, fluidTint, state, state.getBlock());
             }
@@ -47,7 +48,7 @@ public final class TintSweep {
     }
 
     private static void count(Map<BiomeColours.Colours, Set<Block>> users, BiomeColours colours,
-            BlockTintSource tint, BlockState state, Block block) {
+            TintSource tint, BlockState state, Block block) {
         BiomeColours.Colours sampled;
         try {
             sampled = colours.sample(tint, state);

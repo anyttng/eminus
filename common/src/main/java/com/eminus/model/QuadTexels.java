@@ -1,8 +1,8 @@
 package com.eminus.model;
 
-import net.minecraft.client.resources.model.geometry.BakedQuad;
+import com.eminus.model.port.ModelQuad;
 
 @FunctionalInterface
 public interface QuadTexels {
-    int argb(BakedQuad quad, float u, float v);
+    int argb(ModelQuad quad, float u, float v);
 }

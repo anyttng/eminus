@@ -1,8 +1,10 @@
-package com.eminus.model;
+package com.eminus.client.model.game;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+
+import com.eminus.model.BakedModel;
 
 import com.mojang.blaze3d.platform.NativeImage;
 
