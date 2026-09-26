@@ -14,9 +14,7 @@ import java.util.function.IntSupplier;
 import com.eminus.Eminus;
 import com.eminus.cell.Dictionary;
 
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.random.Weighted;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.SingleThreadedRandomSource;
 
@@ -31,13 +29,13 @@ public final class ModelBakery implements ModelSource {
 
     private static final int THREAD_PRIORITY = Thread.NORM_PRIORITY - 1;
 
-    private record Request(BlockState state, @Nullable List<BlockStateModelPart> parts) {
+    private record Request(BlockState state, @Nullable List<Object> parts) {
     }
 
     private static final class Picker {
         private final SingleThreadedRandomSource random = new SingleThreadedRandomSource(0L);
         private final BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos();
-        private final List<BlockStateModelPart> parts = new ArrayList<>();
+        private final List<Object> parts = new ArrayList<>();
     }
 
     private final StateBaker baker;
@@ -222,18 +220,18 @@ public final class ModelBakery implements ModelSource {
     }
 
     private int registerVariants(BakedState baked) {
-        List<Weighted<BakedModel>> variants = baked.variants();
+        List<WeightedModel> variants = baked.variants();
         int[] table = new int[variants.size() * BakedModel.VARIANT_WORDS];
         int upperBound = 0;
 
         for (int entry = 0; entry < variants.size(); entry++) {
-            Weighted<BakedModel> variant = variants.get(entry);
+            WeightedModel variant = variants.get(entry);
             upperBound += variant.weight();
             table[entry * BakedModel.VARIANT_WORDS] = upperBound;
-            table[entry * BakedModel.VARIANT_WORDS + 1] = models.register(variant.value());
+            table[entry * BakedModel.VARIANT_WORDS + 1] = models.register(variant.model());
         }
 
-        return models.register(variants.getFirst().value().withVariants(table));
+        return models.register(variants.getFirst().model().withVariants(table));
     }
 
     private void answer(Request request) {

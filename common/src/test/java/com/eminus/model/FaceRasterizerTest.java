@@ -11,13 +11,12 @@ import java.util.function.IntFunction;
 
 import com.eminus.VanillaBootstrap;
 import com.eminus.cell.FaceMask;
+import com.eminus.model.port.ModelQuad;
 
-import net.minecraft.client.model.geom.builders.UVPair;
-import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.Direction;
 
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -46,7 +45,6 @@ class FaceRasterizerTest {
     private static final float RAIL_HIGH = 17.0F / 16.0F;
     private static final float SLOPE_TOLERANCE = 1.0E-4F;
     private static final int BAND_ROWS = 8;
-    private static final int NO_TINT_LAYER = -1;
     private static final int TINT_LAYER = 0;
     private static final int TINT_COLOUR = 0x0033_6699;
     private static final int TINTED_WHITE = 0xFF33_6699;
@@ -59,8 +57,8 @@ class FaceRasterizerTest {
     private static final QuadTexels OPAQUE_WHITE = (quad, u, v) -> WHITE;
     private static final QuadTexels FULLY_TRANSPARENT = (quad, u, v) -> TRANSPARENT;
     private static final QuadTexels GREEN_WHERE_TINTED =
-            (quad, u, v) -> quad.materialInfo().isTinted() ? GREEN : WHITE;
-    private static final QuadTexels HEAD_FRONT_YELLOW_BACK_GREEN = (quad, u, v) -> switch (quad.direction()) {
+            (quad, u, v) -> quad.tinted() ? GREEN : WHITE;
+    private static final QuadTexels HEAD_FRONT_YELLOW_BACK_GREEN = (quad, u, v) -> switch (quad.face()) {
         case EAST -> YELLOW;
         case WEST -> GREEN;
         default -> WHITE;
@@ -68,16 +66,12 @@ class FaceRasterizerTest {
     private static final QuadTexels COORDINATES = (quad, u, v) ->
             0xFF00_0000 | (int) (u * BakedModel.FACE_SIDE) << 8 | (int) (v * BakedModel.FACE_SIDE);
 
-    private static BakedQuad.MaterialInfo material;
-    private static BakedQuad.MaterialInfo tintedMaterial;
 
     private final FaceRasterizer rasterizer = new FaceRasterizer();
 
     @BeforeAll
     static void bootstrapVanilla() {
         VanillaBootstrap.ensure();
-        material = new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID, null, NO_TINT_LAYER, true, 0);
-        tintedMaterial = new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID, null, TINT_LAYER, true, 0);
     }
 
     @Test
@@ -161,7 +155,7 @@ class FaceRasterizerTest {
 
     @Test
     void aFullCubeAndABottomSlabAreNotSloped() {
-        for (List<BakedQuad> quads : List.of(cube(), bottomSlab())) {
+        for (List<ModelQuad> quads : List.of(cube(), bottomSlab())) {
             BakedModel model = rasterizer.rasterize(quads, OPAQUE_WHITE, NO_TINTS);
 
             assertFalse(ModelMetadata.has(model.metadata(), ModelMetadata.SLOPED));
@@ -171,7 +165,7 @@ class FaceRasterizerTest {
 
     @Test
     void aFaceWhoseQuadsLieInTwoPlanesIsNotSloped() {
-        List<BakedQuad> quads = List.of(ramp(),
+        List<ModelQuad> quads = List.of(ramp(),
                 quad(Direction.UP, new float[] {0, FLOOR, 1, 1, FLOOR, 1, 1, FLOOR, 0, 0, FLOOR, 0}, NO_UV));
         BakedModel model = rasterizer.rasterize(quads, OPAQUE_WHITE, NO_TINTS);
         int up = Direction.UP.ordinal();
@@ -257,7 +251,7 @@ class FaceRasterizerTest {
 
     @Test
     void anUprightPlaneBesideACrossIsNotSloped() {
-        List<BakedQuad> quads = new ArrayList<>(cross());
+        List<ModelQuad> quads = new ArrayList<>(cross());
         quads.add(quad(Direction.NORTH, new float[] {1, 1, CENTRE, 1, 0, CENTRE, 0, 0, CENTRE, 0, 1, CENTRE}, FACE_UV));
         quads.add(quad(Direction.SOUTH, new float[] {0, 1, CENTRE, 0, 0, CENTRE, 1, 0, CENTRE, 1, 1, CENTRE}, FACE_UV));
 
@@ -271,7 +265,7 @@ class FaceRasterizerTest {
 
     @Test
     void aCrossWithAFlatPlaneStaysABox() {
-        List<BakedQuad> quads = new ArrayList<>(cross());
+        List<ModelQuad> quads = new ArrayList<>(cross());
         quads.add(quad(Direction.UP, new float[] {0, FLOOR, 1, 1, FLOOR, 1, 1, FLOOR, 0, 0, FLOOR, 0}, NO_UV));
 
         assertFalse(ModelMetadata.has(rasterizer.rasterize(quads, OPAQUE_WHITE, NO_TINTS).metadata(),
@@ -362,11 +356,11 @@ class FaceRasterizerTest {
         }
     }
 
-    private static List<BakedQuad> cross() {
+    private static List<ModelQuad> cross() {
         return cross(1.0F);
     }
 
-    private static List<BakedQuad> cross(float top) {
+    private static List<ModelQuad> cross(float top) {
         return List.of(
                 quad(Direction.NORTH, new float[] {1, 0, 1, 0, 0, 0, 0, top, 0, 1, top, 1}, FACE_UV),
                 quad(Direction.SOUTH, new float[] {0, 0, 0, 1, 0, 1, 1, top, 1, 0, top, 0}, FACE_UV),
@@ -374,13 +368,13 @@ class FaceRasterizerTest {
                 quad(Direction.NORTH, new float[] {1, 0, 0, 0, 0, 1, 0, top, 1, 1, top, 0}, FACE_UV));
     }
 
-    private static BakedQuad blade(float from, float to, float shift, float bottom, float top) {
+    private static ModelQuad blade(float from, float to, float shift, float bottom, float top) {
         return quad(Direction.NORTH, new float[] {
             to, bottom, to + shift, from, bottom, from + shift, from, top, from + shift, to, top, to + shift},
                 FACE_UV);
     }
 
-    private void assertSpriteFillsBladeImage(List<BakedQuad> quads) {
+    private void assertSpriteFillsBladeImage(List<ModelQuad> quads) {
         BakedModel model = rasterizer.rasterize(quads, COORDINATES, NO_TINTS);
 
         assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.BLADED));
@@ -393,9 +387,9 @@ class FaceRasterizerTest {
         }
     }
 
-    private static List<BakedQuad> sunflowerTop() {
+    private static List<ModelQuad> sunflowerTop() {
         float x = HEAD_PLANE;
-        List<BakedQuad> quads = new ArrayList<>(cross(BAND_TOP));
+        List<ModelQuad> quads = new ArrayList<>(cross(BAND_TOP));
         quads.add(quad(Direction.EAST, tilted(new float[] {
             x, HEAD_TOP, HEAD_NEAR, x, HEAD_TOP, HEAD_FAR, x, HEAD_BOTTOM, HEAD_FAR, x, HEAD_BOTTOM, HEAD_NEAR}),
                 FACE_UV));
@@ -429,7 +423,7 @@ class FaceRasterizerTest {
         return false;
     }
 
-    private static List<BakedQuad> raisedRail() {
+    private static List<ModelQuad> raisedRail() {
         return List.of(
                 quad(Direction.UP, new float[] {
                     0, RAIL_LOW, 1, 1, RAIL_LOW, 1, 1, RAIL_HIGH, 0, 0, RAIL_HIGH, 0}, FACE_UV),
@@ -437,11 +431,11 @@ class FaceRasterizerTest {
                     0, RAIL_HIGH, 0, 1, RAIL_HIGH, 0, 1, RAIL_LOW, 1, 0, RAIL_LOW, 1}, FACE_UV));
     }
 
-    private static BakedQuad ramp() {
+    private static ModelQuad ramp() {
         return quad(Direction.UP, new float[] {0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0}, FACE_UV);
     }
 
-    private static List<BakedQuad> cube() {
+    private static List<ModelQuad> cube() {
         return List.of(
                 quad(Direction.DOWN, new float[] {0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1}, NO_UV),
                 quad(Direction.UP, new float[] {0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0}, NO_UV),
@@ -451,7 +445,7 @@ class FaceRasterizerTest {
                 quad(Direction.EAST, new float[] {1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0}, NO_UV));
     }
 
-    private static List<BakedQuad> bottomSlab() {
+    private static List<ModelQuad> bottomSlab() {
         float top = BAND_TOP;
         return List.of(
                 quad(Direction.DOWN, new float[] {0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1}, NO_UV),
@@ -462,30 +456,24 @@ class FaceRasterizerTest {
                 quad(Direction.EAST, new float[] {1, top, 0, 1, top, 1, 1, 0, 1, 1, 0, 0}, NO_UV));
     }
 
-    private static List<BakedQuad> cubeWithTintedOverlay() {
+    private static List<ModelQuad> cubeWithTintedOverlay() {
         float bottom = BAND_TOP;
-        List<BakedQuad> quads = new ArrayList<>(cube());
+        List<ModelQuad> quads = new ArrayList<>(cube());
         quads.add(quad(Direction.SOUTH,
-                new float[] {0, bottom, 1, 1, bottom, 1, 1, 1, 1, 0, 1, 1}, FACE_UV, tintedMaterial));
+                new float[] {0, bottom, 1, 1, bottom, 1, 1, 1, 1, 0, 1, 1}, FACE_UV, TINT_LAYER));
         return quads;
     }
 
-    private static BakedQuad quad(Direction direction, float[] positions, float[] uvs) {
-        return quad(direction, positions, uvs, material);
+    private static ModelQuad quad(Direction direction, float[] positions, float[] uvs) {
+        return quad(direction, positions, uvs, ModelQuad.NO_TINT);
     }
 
-    private static BakedQuad quad(Direction direction, float[] positions, float[] uvs,
-            BakedQuad.MaterialInfo materialInfo) {
-        return new BakedQuad(
-                new Vector3f(positions[0], positions[1], positions[2]),
-                new Vector3f(positions[3], positions[4], positions[5]),
-                new Vector3f(positions[6], positions[7], positions[8]),
-                new Vector3f(positions[9], positions[10], positions[11]),
-                UVPair.pack(uvs[0], uvs[1]),
-                UVPair.pack(uvs[2], uvs[3]),
-                UVPair.pack(uvs[4], uvs[5]),
-                UVPair.pack(uvs[6], uvs[7]),
-                direction,
-                materialInfo);
+    private static ModelQuad quad(Direction direction, float[] positions, float[] uvs, int tintLayer) {
+        return new ModelQuad(new Vector3fc[] {
+            new Vector3f(positions[0], positions[1], positions[2]),
+            new Vector3f(positions[3], positions[4], positions[5]),
+            new Vector3f(positions[6], positions[7], positions[8]),
+            new Vector3f(positions[9], positions[10], positions[11])},
+                uvs.clone(), null, tintLayer, false, 0, direction);
     }
 }

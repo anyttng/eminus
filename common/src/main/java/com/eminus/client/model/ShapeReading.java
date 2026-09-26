@@ -15,16 +15,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import com.eminus.client.model.game.GameModels;
 import com.eminus.model.BakedModel;
-import com.eminus.model.ModelBaker;
 import com.eminus.model.ModelBakery;
 import com.eminus.model.ShapeDivergence;
+import com.eminus.model.port.BlockModels;
+import com.eminus.model.port.ModelQuad;
+import com.eminus.model.port.Sprite;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.block.BlockStateModelSet;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -72,7 +71,7 @@ public final class ShapeReading {
     public static CompletableFuture<List<long[]>> start() {
         Minecraft client = Minecraft.getInstance();
         ClientBakery baking = ClientBakery.start(client);
-        BlockStateModelSet models = client.getModelManager().getBlockStateModelSet();
+        BlockModels models = GameModels.of(client, baking.cutoutLeaves()).blocks();
         Path directory = client.gameDirectory.toPath();
 
         CompletableFuture<List<long[]>> result = new CompletableFuture<>();
@@ -90,14 +89,13 @@ public final class ShapeReading {
         return result;
     }
 
-    private static List<long[]> run(ModelBakery bakery, BlockStateModelSet models, Path directory) {
+    private static List<long[]> run(ModelBakery bakery, BlockModels models, Path directory) {
         List<BlockState> states = ModelReading.everyState();
         ModelReading.bake(bakery, states, ALL_MODELS);
 
         long[] summary = new long[SUMMARY_WIDTH];
         Map<String, ClassRow> classes = new TreeMap<>();
-        List<BlockStateModelPart> parts = new ArrayList<>();
-        List<BakedQuad> quads = new ArrayList<>();
+        List<ModelQuad> quads = new ArrayList<>();
 
         try (BufferedWriter writer = Files.newBufferedWriter(directory.resolve(FILE_NAME))) {
             writer.write(STATE_HEADER);
@@ -106,9 +104,7 @@ public final class ShapeReading {
             for (BlockState state : states) {
                 quads.clear();
                 if (state.getRenderShape() != RenderShape.INVISIBLE) {
-                    parts.clear();
-                    models.get(state).collectParts(RandomSource.create(state.getSeed(BlockPos.ZERO)), parts);
-                    ModelBaker.gather(parts, quads);
+                    models.model(state).quads(RandomSource.create(state.getSeed(BlockPos.ZERO)), quads);
                 }
 
                 boolean positional = bakery.positional(state);
@@ -163,10 +159,10 @@ public final class ShapeReading {
         return bakery.positionalModelId(state, 0, 0, 0, () -> { });
     }
 
-    private static float spriteColumns(BakedQuad quad, float uSpan) {
-        TextureAtlasSprite sprite = quad.materialInfo().sprite();
-        float spriteSpan = sprite.getU1() - sprite.getU0();
-        return spriteSpan <= 0.0F ? 0.0F : uSpan / spriteSpan * sprite.contents().width();
+    private static float spriteColumns(ModelQuad quad, float uSpan) {
+        Sprite sprite = quad.sprite();
+        float spriteSpan = sprite.u1() - sprite.u0();
+        return spriteSpan <= 0.0F ? 0.0F : uSpan / spriteSpan * sprite.width();
     }
 
     private static void count(long[] summary, BlockState state, ShapeDivergence divergence, float fluidHeight,
