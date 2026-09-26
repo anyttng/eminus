@@ -4,6 +4,7 @@ import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
 import com.eminus.client.render.arena.GeometryArena;
+import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.TexelView;
@@ -36,7 +37,7 @@ public final class OpaquePass {
 
     public static OpaquePass create(Gpu gpu, DepthConvention depth) {
         gpu.assertRenderThread();
-        return new OpaquePass(gpu, gpu.pipeline(pipeline(depth)));
+        return new OpaquePass(gpu, gpu.pipeline(pipeline(depth, gpu.capabilities())));
     }
 
     public Pipeline pipeline() {
@@ -58,8 +59,8 @@ public final class OpaquePass {
         }
     }
 
-    private static PipelineSpec pipeline(DepthConvention depth) {
-        return FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT)
+    private static PipelineSpec pipeline(DepthConvention depth, Capabilities capabilities) {
+        return FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT, capabilities)
                 .withDefine("FULL_COVERAGE")
                 .withDefine("NEAR_SECTIONS")
                 .withColourTarget(FarTarget.COLOUR_FORMAT, null, true)

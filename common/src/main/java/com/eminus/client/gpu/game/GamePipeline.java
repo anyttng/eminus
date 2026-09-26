@@ -20,7 +20,6 @@ import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 
-import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.resources.Identifier;
 
 record GamePipeline(RenderPipeline pipeline) implements Pipeline {
@@ -29,10 +28,6 @@ record GamePipeline(RenderPipeline pipeline) implements Pipeline {
                 .withLocation(spec.location())
                 .withVertexShader(spec.vertexShader())
                 .withFragmentShader(spec.fragmentShader());
-
-        if (spec.gameGlobals()) {
-            builder.withBindGroupLayout(BindGroupLayouts.GLOBALS);
-        }
 
         if (!spec.bindings().isEmpty()) {
             builder.withBindGroupLayout(layout(spec));

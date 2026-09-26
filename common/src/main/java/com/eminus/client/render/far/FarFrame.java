@@ -10,6 +10,7 @@ import com.eminus.gpu.Std140;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.handoff.NearSections;
+import com.eminus.render.far.CameraOrigin;
 
 import org.joml.Matrix4fc;
 import org.lwjgl.system.MemoryStack;
@@ -19,6 +20,7 @@ public final class FarFrame implements AutoCloseable {
             .putMat4f().putInt().putInt()
             .putInt().putInt().putIVec3()
             .putFloat().putFloat().putFloat().putFloat().putFloat().putFloat()
+            .putIVec3().putVec3()
             .get();
 
     private static final String LABEL = "eminus-far-frame";
@@ -43,17 +45,17 @@ public final class FarFrame implements AutoCloseable {
     }
 
     public void write(Matrix4fc viewProjection, int minBlockY, int atlasCells, NearSections near,
-            FaceShade shade) {
+            FaceShade shade, CameraOrigin camera) {
         gpu.assertRenderThread();
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
             gpu.write(buffer, START_OF_BUFFER, layout(Std140.into(stack.malloc(SIZE)), viewProjection, minBlockY,
-                    atlasCells, near, shade));
+                    atlasCells, near, shade, camera));
         }
     }
 
     static ByteBuffer layout(Std140 builder, Matrix4fc viewProjection, int minBlockY, int atlasCells,
-            NearSections near, FaceShade shade) {
+            NearSections near, FaceShade shade, CameraOrigin camera) {
         return builder
                 .putMat4f(viewProjection)
                 .putInt(minBlockY)
@@ -67,6 +69,8 @@ public final class FarFrame implements AutoCloseable {
                 .putFloat(shade.south())
                 .putFloat(shade.west())
                 .putFloat(shade.east())
+                .putIVec3(camera.blockX(), camera.blockY(), camera.blockZ())
+                .putVec3(camera.offsetX(), camera.offsetY(), camera.offsetZ())
                 .get();
     }
 

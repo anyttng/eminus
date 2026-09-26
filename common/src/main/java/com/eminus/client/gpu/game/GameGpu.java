@@ -37,6 +37,7 @@ import net.minecraft.client.Minecraft;
 public final class GameGpu implements Gpu {
     private static final int LAYERS = 1;
     private static final int BASE_LAYER = 0;
+    private static final boolean LIGHTMAP_HALF_TEXEL = true;
 
     private final GpuDevice device;
     private final Capabilities capabilities;
@@ -54,7 +55,7 @@ public final class GameGpu implements Gpu {
         DeviceReading reading = DeviceReading.read(device);
 
         return new GameGpu(device, new Capabilities(info.backendName(), info.isZZeroToOne(),
-                DepthStencilState.DEFAULT.depthTest() == CompareOp.GREATER_THAN_OR_EQUAL,
+                DepthStencilState.DEFAULT.depthTest() == CompareOp.GREATER_THAN_OR_EQUAL, LIGHTMAP_HALF_TEXEL,
                 info.features().drawIndirect(), info.features().multiDrawIndirect(),
                 info.features().persistentMapping(), info.limits().maxMemoryAllocationSize(),
                 reading.texelElements(), reading.freeBytes()));
