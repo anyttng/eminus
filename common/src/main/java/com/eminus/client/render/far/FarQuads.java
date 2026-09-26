@@ -9,6 +9,7 @@ import com.eminus.mesh.MeshBuffer;
 import com.eminus.mesh.Quad;
 import com.eminus.model.BakedModel;
 import com.eminus.model.ModelMetadata;
+import com.eminus.model.port.VariantDraw;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.far.DrawCommands;
 import com.eminus.client.gpu.game.GameGpu;
@@ -43,8 +44,10 @@ final class FarQuads {
     private static final String ATLAS = "Atlas";
     private static final String TINT_MASK = "TintMask";
     private static final String LIGHTMAP = "Lightmap";
+    private static final String NEXT_LONG_MODULO = "VARIANT_NEXT_LONG_MODULO";
 
-    static PipelineSpec.Builder pipeline(Identifier location, float alphaCutout, Capabilities capabilities) {
+    static PipelineSpec.Builder pipeline(Identifier location, float alphaCutout, Capabilities capabilities,
+            VariantDraw variantDraw) {
         PipelineSpec.Builder builder = PipelineSpec.builder(location, SHADER, SHADER)
                 .withBinding(Binding.uniform(FRAME))
                 .withBinding(Binding.texel(QUADS, GeometryArena.QUAD_FORMAT))
@@ -71,6 +74,10 @@ final class FarQuads {
                 .withDefine("NEAR_SECTION_BLOCKS", NearSections.SECTION_BLOCKS)
                 .withDefine("NEAR_TEXEL_BITS", NearSections.BITS_PER_TEXEL)
                 .withDefine("NEAR_TEXEL_SHIFT", NearSections.TEXEL_SHIFT);
+        if (variantDraw == VariantDraw.NEXT_LONG_MODULO) {
+            builder.withDefine(NEXT_LONG_MODULO);
+        }
+
         return capabilities.lightmapHalfTexel() ? builder.withDefine("LIGHTMAP_HALF_TEXEL") : builder;
     }
 

@@ -5,6 +5,7 @@ import java.util.List;
 import com.eminus.model.port.BlockModel;
 import com.eminus.model.port.BlockModels;
 import com.eminus.model.port.ModelQuad;
+import com.eminus.model.port.VariantDraw;
 
 import net.minecraft.client.renderer.block.BlockStateModelSet;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
@@ -32,5 +33,10 @@ public record GameBlockModels(BlockStateModelSet models, boolean cutoutLeaves) i
     @Override
     public boolean forceOpaque(BlockState state) {
         return ModelBlockRenderer.forceOpaque(cutoutLeaves, state);
+    }
+
+    @Override
+    public VariantDraw variantDraw() {
+        return GameBlockModel.VARIANT_DRAW;
     }
 }
