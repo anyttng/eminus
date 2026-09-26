@@ -3,9 +3,8 @@ package com.eminus.model;
 import java.util.List;
 
 import com.eminus.cell.FaceMask;
+import com.eminus.model.port.ModelQuad;
 
-import net.minecraft.client.model.geom.builders.UVPair;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.Direction;
 
 import it.unimi.dsi.fastutil.floats.FloatOpenHashSet;
@@ -27,10 +26,10 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
 
     @FunctionalInterface
     public interface SpriteColumns {
-        float columns(BakedQuad quad, float uSpan);
+        float columns(ModelQuad quad, float uSpan);
     }
 
-    public static ShapeDivergence measure(List<BakedQuad> quads, BakedModel baked, SpriteColumns sprites) {
+    public static ShapeDivergence measure(List<ModelQuad> quads, BakedModel baked, SpriteColumns sprites) {
         float[] depth = new float[BakedModel.FACE_COUNT];
         float[] bounds = new float[AXES];
         int tilted = 0;
@@ -46,8 +45,8 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
         }
 
         Vector3f normal = new Vector3f();
-        for (BakedQuad quad : quads) {
-            GeometryUtils.normal(quad.position(0), quad.position(1), quad.position(2), normal);
+        for (ModelQuad quad : quads) {
+            GeometryUtils.normal(quad.corner(0), quad.corner(1), quad.corner(2), normal);
             int face = alignedFace(normal);
 
             if (face != NOT_ALIGNED) {
@@ -101,7 +100,7 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
 
     private static int alignedFace(Vector3fc normal) {
         for (int face = 0; face < BakedModel.FACE_COUNT; face++) {
-            if (normal.dot(FACES[face].getUnitVec3f()) > ALIGNED) {
+            if (normal.dot(FaceNormals.of(FACES[face])) > ALIGNED) {
                 return face;
             }
         }
@@ -114,22 +113,22 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
                 && Math.abs(Math.abs(normal.x()) - Math.abs(normal.z())) <= MIN_FACING;
     }
 
-    private static float depthOf(BakedQuad quad, Direction face) {
-        Vector3fc corner = quad.position(0);
+    private static float depthOf(ModelQuad quad, Direction face) {
+        Vector3fc corner = quad.corner(0);
         float along = (float) face.getAxis().choose(corner.x(), corner.y(), corner.z());
         return face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1.0F - along : along;
     }
 
-    private static float bladeScale(BakedQuad quad, float[] bakedBounds, SpriteColumns sprites) {
+    private static float bladeScale(ModelQuad quad, float[] bakedBounds, SpriteColumns sprites) {
         float minX = Float.MAX_VALUE;
         float maxX = -Float.MAX_VALUE;
         float minU = Float.MAX_VALUE;
         float maxU = -Float.MAX_VALUE;
 
-        for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
-            minX = Math.min(minX, quad.position(vertex).x());
-            maxX = Math.max(maxX, quad.position(vertex).x());
-            float u = UVPair.unpackU(quad.packedUV(vertex));
+        for (int vertex = 0; vertex < ModelQuad.CORNERS; vertex++) {
+            minX = Math.min(minX, quad.corner(vertex).x());
+            maxX = Math.max(maxX, quad.corner(vertex).x());
+            float u = quad.u(vertex);
             minU = Math.min(minU, u);
             maxU = Math.max(maxU, u);
         }
@@ -140,13 +139,13 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
                 : (maxX - minX) / imageSpan * BakedModel.FACE_SIDE / spriteColumns;
     }
 
-    private static float[] boundsOf(List<BakedQuad> quads) {
+    private static float[] boundsOf(List<ModelQuad> quads) {
         float[] bounds = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE,
                 -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
 
-        for (BakedQuad quad : quads) {
-            for (int vertex = 0; vertex < BakedQuad.VERTEX_COUNT; vertex++) {
-                Vector3fc position = quad.position(vertex);
+        for (ModelQuad quad : quads) {
+            for (int vertex = 0; vertex < ModelQuad.CORNERS; vertex++) {
+                Vector3fc position = quad.corner(vertex);
                 for (int axis = 0; axis < AXES; axis++) {
                     float value = axis == 0 ? position.x() : axis == 1 ? position.y() : position.z();
                     bounds[axis] = Math.min(bounds[axis], value);
