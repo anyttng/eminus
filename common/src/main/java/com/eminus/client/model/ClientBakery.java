@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.eminus.cell.StateTable;
+import com.eminus.client.frame.GameFrames;
 import com.eminus.mesh.MeshOpacity;
 import com.eminus.model.BakeLevel;
 import com.eminus.model.BiomeColours;
@@ -23,7 +24,7 @@ import net.minecraft.world.level.biome.BiomeSpecialEffects;
 
 public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cutoutLeaves) {
     public static ClientBakery start(Minecraft client) {
-        return start(client, client.options.cutoutLeaves().get());
+        return start(client, GameFrames.cutoutLeaves(client));
     }
 
     public static ClientBakery start(Minecraft client, boolean cutoutLeaves) {

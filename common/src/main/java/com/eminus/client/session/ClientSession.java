@@ -152,7 +152,7 @@ public final class ClientSession {
             swapLevel(current);
         }
 
-        if (renderer != null && (minecraft.options.cutoutLeaves().get() != renderedCutoutLeaves
+        if (renderer != null && (GameFrames.cutoutLeaves(minecraft) != renderedCutoutLeaves
                 || minecraft.options.biomeBlendRadius().get() != renderedBiomeBlend)) {
             restartRenderer();
         }
@@ -271,7 +271,7 @@ public final class ClientSession {
     private static void startRenderer(Gpu gpu, long replacedArenaBytes) {
         Minecraft minecraft = Minecraft.getInstance();
         rendered = SettingsService.get().settings();
-        renderedCutoutLeaves = minecraft.options.cutoutLeaves().get();
+        renderedCutoutLeaves = GameFrames.cutoutLeaves(minecraft);
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
         renderer = FarRenderer.start(minecraft, gpu, instance, runtime, level.getHeight(), rendered,
                 replacedArenaBytes);
