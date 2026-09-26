@@ -10,7 +10,6 @@
     "ClientLevelMixin",
     "ClientPacketListenerMixin",
     "GameRendererMixin",
-    "GlBufferAccessor",
     "LevelRendererMixin",
     "SpriteContentsAccessor",
     "StairBlockAccessor",
