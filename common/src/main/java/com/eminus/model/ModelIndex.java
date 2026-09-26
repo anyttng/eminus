@@ -46,6 +46,14 @@ public final class ModelIndex {
         return bakery.submergedModelId(modelId);
     }
 
+    public int oneSidedModelId(int modelId) {
+        return bakery.oneSidedModelId(modelId);
+    }
+
+    public int inwardModelId(int seabedModelId, int fluidModelId) {
+        return bakery.inwardModelId(seabedModelId, fluidModelId);
+    }
+
     public BlockState state(int stateId) {
         return states.state(stateId);
     }

@@ -32,6 +32,9 @@ public final class CellVoxels {
     private final long[] aboveCorners = new long[DIAGONALS];
     private final boolean[] covered = new boolean[ColumnCoverage.GRID_SIDE * ColumnCoverage.GRID_SIDE];
     private final int[] biomes = new int[BIOME_WINDOW * BIOME_WINDOW * SIDE];
+    private final long[] below = new long[DetailLevel.VOXELS_PER_CELL];
+
+    private boolean belowLoaded;
 
     public CellVoxels() {
         Arrays.fill(covered, true);
@@ -39,6 +42,7 @@ public final class CellVoxels {
 
     public void load(Cell cell) {
         cell.expand(voxels);
+        belowLoaded = false;
         Arrays.fill(biomes, VoxelEntry.UNKNOWN_BIOME);
         for (long[] edge : edges) {
             Arrays.fill(edge, VoxelEntry.AIR);
@@ -115,6 +119,19 @@ public final class CellVoxels {
                 }
             }
         }
+    }
+
+    public void loadBelow(Cell neighbour) {
+        neighbour.expand(below);
+        belowLoaded = true;
+    }
+
+    public boolean belowLoaded() {
+        return belowLoaded;
+    }
+
+    public long below(int x, int y, int z) {
+        return below[DetailLevel.voxelIndex(x, y, z)];
     }
 
     public void loadDiagonal(int cellX, int cellZ, Cell neighbour) {

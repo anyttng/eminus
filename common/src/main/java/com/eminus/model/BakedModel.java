@@ -116,6 +116,17 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
         return new BakedModel(faces, tintMask, insets, slopes, bounds, word, tintRow, variants);
     }
 
+    public BakedModel oneSided() {
+        return withMetadata(metadata | ModelMetadata.ONE_SIDED);
+    }
+
+    public BakedModel inward(BakedModel fluid) {
+        int word = ModelMetadata.pack(FaceMask.ALL, FaceMask.NONE, FaceMask.NONE, ModelMetadata.emission(metadata),
+                metadata & ModelMetadata.TINTED | ModelMetadata.FLUID | ModelMetadata.ONE_SIDED
+                        | ModelMetadata.INWARD);
+        return new BakedModel(faces, tintMask, fluid.insets, fluid.bounds, word, tintRow);
+    }
+
     public boolean sameGeometry(BakedModel other) {
         return metadata == other.metadata
                 && tintRow == other.tintRow

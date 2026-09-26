@@ -39,10 +39,11 @@ out vec3 nearPoint;
 #endif
 
 const int LIGHT_STEP = 16;
+const vec4 CULLED_POSITION = vec4(2.0, 2.0, 2.0, 1.0);
 
 void main() {
     FarVertex vertex = far_vertex(gl_VertexID);
-    gl_Position = FarProjView * vec4(vertex.position, 1.0);
+    gl_Position = vertex.culled ? CULLED_POSITION : FarProjView * vec4(vertex.position, 1.0);
 
 #ifdef NEAR_SECTIONS
     nearPoint = vertex.facePoint;
