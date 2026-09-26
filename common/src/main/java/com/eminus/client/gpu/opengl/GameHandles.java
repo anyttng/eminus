@@ -1,13 +1,10 @@
 package com.eminus.client.gpu.opengl;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.renderpearl.api.pipeline.CompareOp;
 import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import com.mojang.renderpearl.api.textures.GpuTextureView;
 import com.mojang.renderpearl.backend.opengl.FrameBufferAttachment;
-import com.mojang.renderpearl.backend.opengl.GlBuffer;
 import com.mojang.renderpearl.backend.opengl.GlStateManager;
 
 import net.minecraft.client.Minecraft;
@@ -18,6 +15,8 @@ import org.lwjgl.opengl.GL14C;
 import org.lwjgl.opengl.GL30C;
 
 final class GameHandles {
+    private static final boolean LIGHTMAP_HALF_TEXEL = true;
+
     private GameHandles() {
     }
 
@@ -36,16 +35,12 @@ final class GameHandles {
         return handle(Minecraft.getInstance().gameRenderer.lightmap());
     }
 
-    static int globals() {
-        GpuBuffer globals = RenderSystem.getGlobalSettingsUniform();
-        if (globals == null) {
-            throw new IllegalStateException("The game's globals uniform is not set");
-        }
-        return ((GlBuffer) globals).handle();
-    }
-
     static boolean depthReversed() {
         return DepthStencilState.DEFAULT.depthTest() == CompareOp.GREATER_THAN_OR_EQUAL;
+    }
+
+    static boolean lightmapHalfTexel() {
+        return LIGHTMAP_HALF_TEXEL;
     }
 
     private static RenderTarget target() {

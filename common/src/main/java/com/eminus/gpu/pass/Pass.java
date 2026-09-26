@@ -8,8 +8,6 @@ public interface Pass extends Bindings, AutoCloseable {
 
     void pipeline(Pipeline pipeline);
 
-    void bindGameGlobals();
-
     void quadIndices(int maxIndices);
 
     void draw(int vertices);

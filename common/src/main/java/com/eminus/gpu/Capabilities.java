@@ -6,6 +6,7 @@ public record Capabilities(
         String backend,
         boolean depthZeroToOne,
         boolean depthReversed,
+        boolean lightmapHalfTexel,
         boolean drawIndirect,
         boolean multiDrawIndirect,
         boolean persistentMapping,

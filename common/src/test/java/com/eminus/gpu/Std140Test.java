@@ -19,16 +19,16 @@ class Std140Test {
     @Test
     void theFarFrameLayoutMatchesTheGame() {
         int size = Std140.size().putMat4f().putInt().putInt().putInt().putInt().putIVec3()
-                .putFloat().putFloat().putFloat().putFloat().putFloat().putFloat().get();
+                .putFloat().putFloat().putFloat().putFloat().putFloat().putFloat().putIVec3().putVec3().get();
         assertEquals(new Std140SizeCalculator().putMat4f().putInt().putInt().putInt().putInt().putIVec3()
-                .putFloat().putFloat().putFloat().putFloat().putFloat().putFloat().get(), size);
+                .putFloat().putFloat().putFloat().putFloat().putFloat().putFloat().putIVec3().putVec3().get(), size);
 
         ByteBuffer ours = Std140.into(direct(size)).putMat4f(MATRIX).putInt(-64).putInt(8).putInt(33).putInt(24)
                 .putIVec3(-512, -64, 256).putFloat(0.5F).putFloat(1.0F).putFloat(0.8F).putFloat(0.8F)
-                .putFloat(0.6F).putFloat(0.6F).get();
+                .putFloat(0.6F).putFloat(0.6F).putIVec3(-1, 70, 12).putVec3(-0.75F, -0.5F, -0.25F).get();
         ByteBuffer game = Std140Builder.intoBuffer(direct(size)).putMat4f(MATRIX).putInt(-64).putInt(8).putInt(33)
                 .putInt(24).putIVec3(-512, -64, 256).putFloat(0.5F).putFloat(1.0F).putFloat(0.8F).putFloat(0.8F)
-                .putFloat(0.6F).putFloat(0.6F).get();
+                .putFloat(0.6F).putFloat(0.6F).putIVec3(-1, 70, 12).putVec3(-0.75F, -0.5F, -0.25F).get();
         assertEquals(game, ours);
     }
 

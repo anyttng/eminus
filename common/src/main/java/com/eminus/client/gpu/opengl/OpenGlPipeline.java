@@ -26,10 +26,9 @@ final class OpenGlPipeline implements Pipeline {
     private static final String FRAGMENT_EXTENSION = ".fsh";
     private static final int NO_PROGRAM = 0;
     private static final int NO_SHADER = 0;
-    static final int NOT_ACTIVE = -1;
+    private static final int NOT_ACTIVE = -1;
     private static final int LOG_LENGTH = 32768;
     private static final String INACTIVE = "inactive";
-    private static final String GLOBALS_BLOCK = "Globals";
 
     record Slot(Binding.Kind kind, int index) {
     }
@@ -37,13 +36,11 @@ final class OpenGlPipeline implements Pipeline {
     private final PipelineSpec spec;
     private final int program;
     private final Map<String, @Nullable Slot> slots;
-    private final int globalsBinding;
 
-    private OpenGlPipeline(PipelineSpec spec, int program, Map<String, @Nullable Slot> slots, int globalsBinding) {
+    private OpenGlPipeline(PipelineSpec spec, int program, Map<String, @Nullable Slot> slots) {
         this.spec = spec;
         this.program = program;
         this.slots = slots;
-        this.globalsBinding = globalsBinding;
     }
 
     static OpenGlPipeline of(OpenGlObjects objects, ResourceProvider resources, PipelineSpec spec) {
@@ -53,7 +50,7 @@ final class OpenGlPipeline implements Pipeline {
         if (vertex == NO_SHADER || fragment == NO_SHADER) {
             GL20C.glDeleteShader(vertex);
             GL20C.glDeleteShader(fragment);
-            return new OpenGlPipeline(spec, NO_PROGRAM, Map.of(), NOT_ACTIVE);
+            return new OpenGlPipeline(spec, NO_PROGRAM, Map.of());
         }
 
         int program = GL20C.glCreateProgram();
@@ -67,13 +64,13 @@ final class OpenGlPipeline implements Pipeline {
         if (GL20C.glGetProgrami(program, GL20C.GL_LINK_STATUS) == GL11C.GL_FALSE) {
             Eminus.LOGGER.error("Program {} did not link: {}", name, GL20C.glGetProgramInfoLog(program, LOG_LENGTH).strip());
             GL20C.glDeleteProgram(program);
-            return new OpenGlPipeline(spec, NO_PROGRAM, Map.of(), NOT_ACTIVE);
+            return new OpenGlPipeline(spec, NO_PROGRAM, Map.of());
         }
 
         objects.created(OpenGlObjects.Kind.PROGRAM, program, name);
         Map<String, @Nullable Slot> slots = new HashMap<>();
-        int globalsBinding = resolve(program, spec, slots);
-        return new OpenGlPipeline(spec, program, slots, globalsBinding);
+        resolve(program, spec, slots);
+        return new OpenGlPipeline(spec, program, slots);
     }
 
     private static int compile(ResourceProvider resources, PipelineSpec spec, Identifier shader, String extension,
@@ -114,19 +111,10 @@ final class OpenGlPipeline implements Pipeline {
         return resource.readAllAsString();
     }
 
-    private static int resolve(int program, PipelineSpec spec, Map<String, @Nullable Slot> slots) {
+    private static void resolve(int program, PipelineSpec spec, Map<String, @Nullable Slot> slots) {
         int nextBlock = 0;
         int nextUnit = 0;
-        int globalsBinding = NOT_ACTIVE;
         GL20C.glUseProgram(program);
-        if (spec.gameGlobals()) {
-            int index = GL31C.glGetUniformBlockIndex(program, GLOBALS_BLOCK);
-            if (index != GL31C.GL_INVALID_INDEX) {
-                globalsBinding = nextBlock++;
-                GL31C.glUniformBlockBinding(program, index, globalsBinding);
-            }
-        }
-
         for (Binding binding : spec.bindings()) {
             switch (binding.kind()) {
                 case UNIFORM -> {
@@ -157,13 +145,8 @@ final class OpenGlPipeline implements Pipeline {
             resolved.append(' ').append(slot.getKey()).append(':')
                     .append(slot.getValue() == null ? INACTIVE : slot.getValue().kind() + "" + slot.getValue().index());
         }
-        Eminus.LOGGER.info("[eminus-gl] program name={} blocks={} units={} globals={} text={}", spec.location(),
-                nextBlock, nextUnit, globalsBinding, resolved.toString().strip());
-        return globalsBinding;
-    }
-
-    int globalsBinding() {
-        return globalsBinding;
+        Eminus.LOGGER.info("[eminus-gl] program name={} blocks={} units={} text={}", spec.location(),
+                nextBlock, nextUnit, resolved.toString().strip());
     }
 
     PipelineSpec spec() {

@@ -16,7 +16,6 @@ import com.mojang.renderpearl.api.commands.RenderPassDescriptor;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 
 final class GamePass implements Pass {
-    private static final String GLOBALS_UNIFORM = "Globals";
     private static final int INSTANCES = 1;
     private static final int FIRST_VERTEX = 0;
     private static final int FIRST_INSTANCE = 0;
@@ -57,11 +56,6 @@ final class GamePass implements Pass {
     @Override
     public void bind(String name, Texture texture, Sampler sampler) {
         pass.setUniform(name, ((GameTexture) texture).view(), GameTypes.sampler(sampler));
-    }
-
-    @Override
-    public void bindGameGlobals() {
-        pass.setUniform(GLOBALS_UNIFORM, RenderSystem.getGlobalSettingsUniform());
     }
 
     @Override

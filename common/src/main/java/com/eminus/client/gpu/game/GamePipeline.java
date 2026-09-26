@@ -17,7 +17,6 @@ import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 
-import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.resources.Identifier;
 
 import org.jspecify.annotations.Nullable;
@@ -28,10 +27,6 @@ record GamePipeline(RenderPipeline pipeline) implements Pipeline {
                 .withLocation(spec.location())
                 .withVertexShader(spec.vertexShader())
                 .withFragmentShader(spec.fragmentShader());
-
-        if (spec.gameGlobals()) {
-            builder.withBindGroupLayout(BindGroupLayouts.GLOBALS);
-        }
 
         if (!spec.bindings().isEmpty()) {
             builder.withBindGroupLayout(layout(spec));

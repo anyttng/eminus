@@ -124,18 +124,6 @@ final class OpenGlPass implements Pass {
     }
 
     @Override
-    public void bindGameGlobals() {
-        if (pipeline == null) {
-            throw new IllegalStateException("Binding the game's globals before a pipeline was set");
-        }
-
-        int binding = pipeline.globalsBinding();
-        if (binding != OpenGlPipeline.NOT_ACTIVE) {
-            GL30C.glBindBufferBase(GL31C.GL_UNIFORM_BUFFER, binding, GameHandles.globals());
-        }
-    }
-
-    @Override
     public void quadIndices(int maxIndices) {
         gpu.bindQuadIndices(maxIndices);
     }

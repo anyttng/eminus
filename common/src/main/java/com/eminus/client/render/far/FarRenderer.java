@@ -35,6 +35,7 @@ import com.eminus.render.arena.MeshSlot;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.render.backend.BackendSupport;
 import com.eminus.client.render.backend.BackendCheck;
+import com.eminus.render.far.CameraOrigin;
 import com.eminus.render.far.CompositeFog;
 import com.eminus.render.far.DrawCommands;
 import com.eminus.render.far.MeshOrder;
@@ -305,7 +306,7 @@ public final class FarRenderer implements AutoCloseable {
             fillNearSections(client, game);
 
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
-                    nearSections.sections(), game.shade());
+                    nearSections.sections(), game.shade(), CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
             Texture mainDepth = gpu.mainDepth();
             Texture lightmap = gpu.lightmap();
             mask.draw(target.depth(), target.colour(), mainDepth);
