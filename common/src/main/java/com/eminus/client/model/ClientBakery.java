@@ -9,10 +9,11 @@ import com.eminus.model.FluidBaker;
 import com.eminus.model.ModelBaker;
 import com.eminus.model.ModelBakery;
 import com.eminus.model.SolidSprites;
+import com.eminus.model.port.VariantDraw;
 
 import net.minecraft.client.Minecraft;
 
-public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cutoutLeaves) {
+public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cutoutLeaves, VariantDraw variantDraw) {
     public static ClientBakery start(Minecraft client) {
         return start(client, GameFrames.cutoutLeaves(client));
     }
@@ -23,7 +24,7 @@ public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cut
         BiomeColours colours = new BiomeColours(game.biomes());
         ModelBakery bakery = ModelBakery.start(new ModelBaker(game.blocks(), game.tints(),
                 new FluidBaker(game.fluids(), sprites), sprites, colours));
-        return new ClientBakery(bakery, colours, cutoutLeaves);
+        return new ClientBakery(bakery, colours, cutoutLeaves, game.blocks().variantDraw());
     }
 
     public MeshOpacity opacity(StateTable states) {

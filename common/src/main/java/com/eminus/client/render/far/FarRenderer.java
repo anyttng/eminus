@@ -137,15 +137,17 @@ public final class FarRenderer implements AutoCloseable {
             return null;
         }
 
+        ClientBakery baking = ClientBakery.start(client);
         NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOUR_FORMAT, support.depth());
-        OpaquePass opaque = OpaquePass.create(gpu, support.depth());
+        OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw());
         OcclusionPass occlusion = OcclusionPass.create(gpu, support.depth());
-        TranslucentPass translucent = TranslucentPass.create(gpu, support.depth());
+        TranslucentPass translucent = TranslucentPass.create(gpu, support.depth(), baking.variantDraw());
         CompositePass composite = CompositePass.create(gpu, support.depth());
         Identifier refused = refusedProgram(List.of(mask.pipeline(), opaque.pipeline(), occlusion.pipeline(),
                 translucent.pipeline(), composite.pipeline()));
         if (refused != null) {
             Eminus.LOGGER.warn("Renderer disabled: program {} did not compile", refused);
+            baking.stop();
             composite.close();
             occlusion.close();
             arena.close();
@@ -153,7 +155,6 @@ public final class FarRenderer implements AutoCloseable {
             return null;
         }
 
-        ClientBakery baking = ClientBakery.start(client);
         FarRenderer renderer = new FarRenderer(gpu, runtime, baking,
                 ModelPublisher.start(gpu, baking.bakery()), arena,
                 FarTarget.create(gpu, support.depthFormat(), main.width(), main.height()), FarFrame.create(gpu),

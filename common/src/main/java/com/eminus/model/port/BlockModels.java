@@ -13,4 +13,6 @@ public interface BlockModels {
     void quads(List<Object> parts, List<ModelQuad> into);
 
     boolean forceOpaque(BlockState state);
+
+    VariantDraw variantDraw();
 }

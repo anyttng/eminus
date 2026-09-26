@@ -7,6 +7,7 @@ import com.eminus.mixin.WeightedVariantsAccessor;
 import com.eminus.model.port.BlockModel;
 import com.eminus.model.port.ModelQuad;
 import com.eminus.model.port.Variant;
+import com.eminus.model.port.VariantDraw;
 
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
@@ -15,6 +16,8 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.util.random.Weighted;
 
 record GameBlockModel(BlockStateModel model) implements BlockModel {
+    static final VariantDraw VARIANT_DRAW = VariantDraw.NEXT_INT;
+
     @Override
     public void quads(RandomSource random, List<ModelQuad> into) {
         List<BlockStateModelPart> parts = new ArrayList<>();

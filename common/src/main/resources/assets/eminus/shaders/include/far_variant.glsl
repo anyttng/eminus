@@ -61,13 +61,33 @@ FarLong far_block_random(ivec3 block) {
     return FarLong(low ^ FAR_LCG_MULTIPLIER.low, (high ^ FAR_LCG_MULTIPLIER.high) & FAR_STATE_HIGH_MASK);
 }
 
-int far_next31(inout FarLong state) {
+void far_advance(inout FarLong state) {
     state = far_add(far_multiply(state, FAR_LCG_MULTIPLIER), FAR_LCG_INCREMENT);
     state.high &= FAR_STATE_HIGH_MASK;
+}
+
+#ifdef VARIANT_NEXT_LONG_MODULO
+const uint FAR_SIGN_BIT = 0x80000000u;
+
+int far_next32(inout FarLong state) {
+    far_advance(state);
+    return int((state.low >> FAR_HALF_BITS) | (state.high << FAR_HALF_BITS));
+}
+
+int far_pick(inout FarLong state, int bound) {
+    far_next32(state);
+    int low = far_next32(state);
+    uint magnitude = low < 0 ? 0u - uint(low) : uint(low);
+    int modulo = int(magnitude % uint(bound));
+    return uint(low) == FAR_SIGN_BIT ? -modulo : modulo;
+}
+#else
+int far_next31(inout FarLong state) {
+    far_advance(state);
     return int(((state.low >> 17u) | (state.high << 15u)) & FAR_POSITIVE_MASK);
 }
 
-int far_next_int(inout FarLong state, int bound) {
+int far_pick(inout FarLong state, int bound) {
     if ((bound & (bound - 1)) == 0) {
         FarLong product = far_multiply_words(uint(bound), uint(far_next31(state)));
         return int((product.low >> 31u) | (product.high << 1u));
@@ -83,11 +103,12 @@ int far_next_int(inout FarLong state, int bound) {
 
     return modulo;
 }
+#endif
 
 int far_variant_model(int start, int count, ivec3 block) {
     int total = int(texelFetch(ModelVariants, start + count - 1).r);
     FarLong state = far_block_random(block);
-    int selection = far_next_int(state, total);
+    int selection = far_pick(state, total);
 
     for (int entry = 0; entry < count; entry++) {
         uvec4 variant = texelFetch(ModelVariants, start + entry);
