@@ -5,6 +5,7 @@ import com.eminus.ingest.IngestTrigger;
 import com.eminus.settings.SettingsService;
 
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -33,8 +34,8 @@ public final class NeoForgeSessionHooks {
     }
 
     private static void onChunkUnload(ChunkEvent.Unload event) {
-        if (event.getLevel().isClientSide()) {
-            ClientSession.submitChunk(event.getChunk(), IngestTrigger.UNLOAD);
+        if (event.getLevel().isClientSide() && event.getChunk() instanceof LevelChunk chunk) {
+            ClientSession.submitChunk(chunk, IngestTrigger.UNLOAD);
         }
     }
 

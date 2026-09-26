@@ -22,7 +22,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
-import net.minecraft.world.level.chunk.Strategy;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -150,8 +149,8 @@ class SectionConverterTest {
         CrudeIncrementalIntIdentityHashBiMap<Holder<Biome>> biomeIds = CrudeIncrementalIntIdentityHashBiMap.create(1);
         biomeIds.add(biome);
         return new LevelChunkSection(
-                new PalettedContainer<>(Blocks.AIR.defaultBlockState(),
-                        Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY)),
-                new PalettedContainer<>(biome, Strategy.createForBiomes(biomeIds)));
+                new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY, Blocks.AIR.defaultBlockState(),
+                        PalettedContainer.Strategy.SECTION_STATES),
+                new PalettedContainer<>(biomeIds, biome, PalettedContainer.Strategy.SECTION_BIOMES));
     }
 }

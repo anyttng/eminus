@@ -1,73 +1,99 @@
 package com.eminus.client.frame;
 
 import com.eminus.handoff.NearFieldOverride;
+import com.eminus.mixin.LevelRendererAccessor;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+
+import it.unimi.dsi.fastutil.longs.LongSet;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.fog.FogData;
-import net.minecraft.client.renderer.state.GameRenderState;
+import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.CardinalLighting;
+import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.Vec3;
 
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector4f;
+import org.joml.Vector4fc;
 
 public final class GameFrames {
     public static final float NO_FOG = Float.MAX_VALUE;
     public static final double NO_FADE_IN = 0.0;
 
-    private static final double MILLIS_PER_SECOND = 1000.0;
+    private static final boolean SHADED = true;
+
+    private static float fov;
+    private static boolean renderDistanceFog;
 
     public static GameFrame read(Minecraft client) {
-        GameRenderState state = client.gameRenderer.getGameRenderState();
         Camera camera = client.gameRenderer.getMainCamera();
-        Vec3 eye = camera.position();
-        CardinalLighting shade = client.level.cardinalLighting();
+        Vec3 eye = camera.getPosition();
+        ClientLevel level = client.level;
 
-        return new GameFrame(eye.x, eye.y, eye.z, camera.getViewRotationMatrix(new Matrix4f()), camera.getFov(),
-                camera.getFluidInCamera() == FogType.NONE, fog(state), state.optionsRenderState.renderDistance,
-                Mth.floor(sectionFadeInSeconds(client.options.chunkSectionFadeInTime().get()) * MILLIS_PER_SECOND),
-                new FaceShade(shade.down(), shade.up(), shade.north(), shade.south(), shade.west(), shade.east()));
+        return new GameFrame(eye.x, eye.y, eye.z,
+                new Matrix4f().rotation(camera.rotation().conjugate(new Quaternionf())), fov,
+                camera.getFluidInCamera() == FogType.NONE, fog(), client.options.getEffectiveRenderDistance(),
+                new FaceShade(level.getShade(Direction.DOWN, SHADED), level.getShade(Direction.UP, SHADED),
+                        level.getShade(Direction.NORTH, SHADED), level.getShade(Direction.SOUTH, SHADED),
+                        level.getShade(Direction.WEST, SHADED), level.getShade(Direction.EAST, SHADED)));
+    }
+
+    public static void captureFov(double levelFov) {
+        fov = (float) levelFov;
+    }
+
+    public static void markRenderDistanceFog(boolean marked) {
+        renderDistanceFog = marked;
     }
 
     public static GameFog fog() {
-        return fog(Minecraft.getInstance().gameRenderer.getGameRenderState());
+        return fog(RenderSystem.getShaderFogStart(), RenderSystem.getShaderFogEnd(), renderDistanceFog,
+                new Vector4f(RenderSystem.getShaderFogColor()));
     }
 
     public static double sectionFadeInSeconds(double option) {
         return NearFieldOverride.applied() ? NO_FADE_IN : option;
     }
 
-    public static boolean cutoutLeaves(Minecraft client) {
-        return client.options.cutoutLeaves().get();
+    public static boolean cutoutLeaves() {
+        return Minecraft.useFancyGraphics();
     }
 
-    public static boolean sectionDrawn(LevelRenderer renderer, BlockPos pos, long fadeMillis) {
-        return renderer.isSectionCompiledAndVisible(pos);
+    public static boolean sectionCompiled(LevelRenderer renderer, BlockPos pos) {
+        return renderer.isSectionCompiled(pos);
     }
 
-    public static void overrideNearField(Minecraft client, boolean clearAtmosphericFog) {
-        override(client.gameRenderer.getGameRenderState().levelRenderState.cameraRenderState.fogData,
-                clearAtmosphericFog);
-    }
-
-    static void override(FogData fog, boolean clearAtmosphericFog) {
-        fog.renderDistanceStart = NO_FOG;
-        fog.renderDistanceEnd = NO_FOG;
-        if (clearAtmosphericFog) {
-            fog.environmentalStart = NO_FOG;
-            fog.environmentalEnd = NO_FOG;
+    public static void drawnSections(LevelRenderer renderer, LongSet into) {
+        into.clear();
+        for (SectionRenderDispatcher.RenderSection section : ((LevelRendererAccessor) renderer).eminus$visibleSections()) {
+            if (section.getCompiled() != SectionRenderDispatcher.CompiledSection.UNCOMPILED) {
+                into.add(SectionPos.asLong(section.getOrigin()));
+            }
         }
     }
 
-    private static GameFog fog(GameRenderState state) {
-        FogData fog = state.levelRenderState.cameraRenderState.fogData;
-        return new GameFog(fog.environmentalStart, fog.environmentalEnd, fog.renderDistanceStart,
-                fog.renderDistanceEnd, new Vector4f(fog.color));
+    public static void overrideNearField(boolean clearAtmosphericFog) {
+        if (clears(renderDistanceFog, clearAtmosphericFog)) {
+            RenderSystem.setShaderFogStart(NO_FOG);
+            RenderSystem.setShaderFogEnd(NO_FOG);
+        }
+    }
+
+    static GameFog fog(float start, float end, boolean renderDistance, Vector4fc colour) {
+        return renderDistance
+                ? new GameFog(NO_FOG, NO_FOG, start, end, colour)
+                : new GameFog(start, end, NO_FOG, NO_FOG, colour);
+    }
+
+    static boolean clears(boolean renderDistance, boolean clearAtmosphericFog) {
+        return renderDistance || clearAtmosphericFog;
     }
 
     private GameFrames() {

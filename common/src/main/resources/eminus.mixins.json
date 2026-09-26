@@ -5,12 +5,15 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "BiomeManagerAccessor",
-    "ChunkSectionsToRenderMixin",
     "ClientChunkCacheMixin",
     "ClientLevelMixin",
     "ClientPacketListenerMixin",
+    "FogRendererMixin",
     "GameRendererMixin",
+    "LevelRendererAccessor",
     "LevelRendererMixin",
+    "LightTextureAccessor",
+    "RenderTargetMixin",
     "SpriteContentsAccessor",
     "StairBlockAccessor",
     "WeightedVariantsAccessor"

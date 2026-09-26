@@ -122,7 +122,7 @@ public final class ClientSession {
 
         GameFrame game = GameFrames.read(client);
         if (renderer.covers(game.fog(), game.renderDistance())) {
-            GameFrames.overrideNearField(client, game.cameraInAir() && !SettingsService.get().settings().fog());
+            GameFrames.overrideNearField(game.cameraInAir() && !SettingsService.get().settings().fog());
             NearFieldOverride.apply();
         } else {
             NearFieldOverride.skip();
@@ -152,7 +152,7 @@ public final class ClientSession {
             swapLevel(current);
         }
 
-        if (renderer != null && (GameFrames.cutoutLeaves(minecraft) != renderedCutoutLeaves
+        if (renderer != null && (GameFrames.cutoutLeaves() != renderedCutoutLeaves
                 || minecraft.options.biomeBlendRadius().get() != renderedBiomeBlend)) {
             restartRenderer();
         }
@@ -271,7 +271,7 @@ public final class ClientSession {
     private static void startRenderer(Gpu gpu, long replacedArenaBytes) {
         Minecraft minecraft = Minecraft.getInstance();
         rendered = SettingsService.get().settings();
-        renderedCutoutLeaves = GameFrames.cutoutLeaves(minecraft);
+        renderedCutoutLeaves = GameFrames.cutoutLeaves();
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
         renderer = FarRenderer.start(minecraft, gpu, instance, runtime, level.getHeight(), rendered,
                 replacedArenaBytes);

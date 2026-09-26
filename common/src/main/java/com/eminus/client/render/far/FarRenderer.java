@@ -401,7 +401,7 @@ public final class FarRenderer implements AutoCloseable {
     private void fillNearSections(Minecraft client, GameFrame game) {
         ClientLevel level = client.level;
         int renderDistance = game.renderDistance();
-        nearSections.fill(client.levelRenderer, game.sectionFadeMillis(), order.meshes(), runtime.frame(),
+        nearSections.fill(client.levelRenderer, order.meshes(), runtime.frame(),
                 NearSections.section(Mth.floor(game.eyeX())), NearSections.section(Mth.floor(game.eyeY())),
                 NearSections.section(Mth.floor(game.eyeZ())), renderDistance,
                 renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSection(), level.getSectionsCount());

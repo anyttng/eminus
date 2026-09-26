@@ -15,7 +15,7 @@ import net.minecraft.client.Minecraft;
 
 public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cutoutLeaves, VariantDraw variantDraw) {
     public static ClientBakery start(Minecraft client) {
-        return start(client, GameFrames.cutoutLeaves(client));
+        return start(client, GameFrames.cutoutLeaves());
     }
 
     public static ClientBakery start(Minecraft client, boolean cutoutLeaves) {

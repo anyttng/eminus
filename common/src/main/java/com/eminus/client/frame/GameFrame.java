@@ -11,6 +11,5 @@ public record GameFrame(
         boolean cameraInAir,
         GameFog fog,
         int renderDistance,
-        long sectionFadeMillis,
         FaceShade shade) {
 }

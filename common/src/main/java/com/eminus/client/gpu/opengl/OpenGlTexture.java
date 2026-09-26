@@ -48,10 +48,9 @@ final class OpenGlTexture implements Texture {
 
     static OpenGlTexture borrowed(OpenGlGpu gpu, GameHandles.Handle handle) {
         GameHandles.bindTexture(handle.id());
-        int internalFormat = GL11C.glGetTexLevelParameteri(GL11C.GL_TEXTURE_2D, BASE_MIP, GL11C.GL_TEXTURE_INTERNAL_FORMAT);
         int width = GL11C.glGetTexLevelParameteri(GL11C.GL_TEXTURE_2D, BASE_MIP, GL11C.GL_TEXTURE_WIDTH);
         int height = GL11C.glGetTexLevelParameteri(GL11C.GL_TEXTURE_2D, BASE_MIP, GL11C.GL_TEXTURE_HEIGHT);
-        return new OpenGlTexture(gpu, handle.id(), OpenGlTypes.format(internalFormat), width, height, handle.owner());
+        return new OpenGlTexture(gpu, handle.id(), handle.format(), width, height, handle.owner());
     }
 
     int id() {
@@ -59,7 +58,7 @@ final class OpenGlTexture implements Texture {
     }
 
     boolean borrowedFrom(GameHandles.Handle handle) {
-        return owner == handle.owner();
+        return handle.owner().equals(owner);
     }
 
     void write(int mip, int x, int y, int regionWidth, int regionHeight, ByteBuffer data) {

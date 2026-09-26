@@ -118,7 +118,8 @@ final class OpenGlPipeline implements Pipeline {
     private static void resolve(int program, PipelineSpec spec, Map<String, @Nullable Slot> slots) {
         int nextBlock = 0;
         int nextUnit = 0;
-        GL20C.glUseProgram(program);
+        int gameProgram = GameHandles.program();
+        GameHandles.useProgram(program);
         for (Binding binding : spec.bindings()) {
             switch (binding.kind()) {
                 case UNIFORM -> {
@@ -142,7 +143,7 @@ final class OpenGlPipeline implements Pipeline {
                 case STORAGE -> throw new IllegalArgumentException("Own OpenGL binds no storage buffers");
             }
         }
-        GL20C.glUseProgram(NO_PROGRAM);
+        GameHandles.useProgram(gameProgram);
 
         StringBuilder resolved = new StringBuilder();
         for (Map.Entry<String, @Nullable Slot> slot : slots.entrySet()) {

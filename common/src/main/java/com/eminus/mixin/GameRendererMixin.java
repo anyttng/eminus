@@ -2,35 +2,36 @@ package com.eminus.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import com.eminus.client.frame.GameFrames;
 import com.eminus.client.session.ClientSession;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 
+import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.LightTexture;
 
 import org.joml.Matrix4f;
 
 @Mixin(GameRenderer.class)
 public class GameRendererMixin {
     private static final String LEVEL_RENDER = "Lnet/minecraft/client/renderer/LevelRenderer;renderLevel("
-            + "Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;Lnet/minecraft/client/DeltaTracker;Z"
-            + "Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lorg/joml/Matrix4fc;"
-            + "Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;Z"
-            + "Lnet/minecraft/client/renderer/chunk/ChunkSectionsToRender;)V";
+            + "Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/Camera;"
+            + "Lnet/minecraft/client/renderer/GameRenderer;Lnet/minecraft/client/renderer/LightTexture;"
+            + "Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V";
 
-    @Inject(method = "extract", at = @At("RETURN"))
-    private void eminus$overrideNearField(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo callback) {
-        ClientSession.overrideNearField();
-    }
-
-    @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = LEVEL_RENDER))
-    private void eminus$captureLevelProjection(DeltaTracker deltaTracker, CallbackInfo callback,
-            @Local Matrix4f levelProjection, @Local CameraRenderState cameraState) {
-        ClientSession.captureLevelProjection(levelProjection, cameraState.projectionMatrix);
+    @WrapOperation(method = "renderLevel", at = @At(value = "INVOKE", target = LEVEL_RENDER))
+    private void eminus$captureLevelProjection(LevelRenderer renderer, DeltaTracker deltaTracker,
+            boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightTexture lightTexture,
+            Matrix4f viewRotation, Matrix4f levelProjection, Operation<Void> original, @Local double fov) {
+        GameFrames.captureFov(fov);
+        ClientSession.captureLevelProjection(levelProjection, gameRenderer.getProjectionMatrix(fov));
+        original.call(renderer, deltaTracker, renderBlockOutline, camera, gameRenderer, lightTexture, viewRotation,
+                levelProjection);
     }
 }

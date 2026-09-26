@@ -1,13 +1,13 @@
 package com.eminus.client.gpu.opengl;
 
+import com.eminus.gpu.Format;
+import com.eminus.mixin.LightTextureAccessor;
+
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.pipeline.DepthStencilState;
-import com.mojang.blaze3d.platform.CompareOp;
-import com.mojang.blaze3d.textures.GpuTextureView;
-import com.mojang.blaze3d.opengl.GlStateManager;
-import com.mojang.blaze3d.opengl.GlTextureView;
+import com.mojang.blaze3d.platform.GlStateManager;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.DynamicTexture;
 
 import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL13C;
@@ -16,28 +16,52 @@ import org.lwjgl.opengl.GL20C;
 import org.lwjgl.opengl.GL30C;
 
 final class GameHandles {
-    private static final boolean LIGHTMAP_HALF_TEXEL = true;
+    private static final boolean DEPTH_REVERSED = false;
+    private static final boolean LIGHTMAP_HALF_TEXEL = false;
+    private static final Format COLOUR_FORMAT = Format.RGBA8_UNORM;
+    private static final Format DEPTH_FORMAT = Format.D32_FLOAT;
+    private static final Format LIGHTMAP_FORMAT = Format.RGBA8_UNORM;
+    private static final int RED_BIT = 0b0001;
+    private static final int GREEN_BIT = 0b0010;
+    private static final int BLUE_BIT = 0b0100;
+    private static final int ALPHA_BIT = 0b1000;
+    private static final int RECTANGLE_INTS = 4;
+    private static final int X = 0;
+    private static final int Y = 1;
+    private static final int WIDTH = 2;
+    private static final int HEIGHT = 3;
 
     private GameHandles() {
     }
 
-    record Handle(Object owner, int id) {
+    record Handle(Object owner, int id, Format format) {
+    }
+
+    record Bindings(int drawFramebuffer, int readFramebuffer, int program, int vertexArray, int[] viewport,
+            boolean scissor, int[] scissorBox) {
+    }
+
+    private record Allocation(RenderTarget target, int generation) {
     }
 
     static Handle mainColour() {
-        return handle(target().getColorTextureView());
+        RenderTarget target = target();
+        return new Handle(allocation(target), target.getColorTextureId(), COLOUR_FORMAT);
     }
 
     static Handle mainDepth() {
-        return handle(target().getDepthTextureView());
+        RenderTarget target = target();
+        return new Handle(allocation(target), target.getDepthTextureId(), DEPTH_FORMAT);
     }
 
     static Handle lightmap() {
-        return handle(Minecraft.getInstance().gameRenderer.lightmap());
+        DynamicTexture texture =
+                ((LightTextureAccessor) Minecraft.getInstance().gameRenderer.lightTexture()).eminus$texture();
+        return new Handle(texture, texture.getId(), LIGHTMAP_FORMAT);
     }
 
     static boolean depthReversed() {
-        return DepthStencilState.DEFAULT.depthTest() == CompareOp.GREATER_THAN_OR_EQUAL;
+        return DEPTH_REVERSED;
     }
 
     static boolean lightmapHalfTexel() {
@@ -48,8 +72,50 @@ final class GameHandles {
         return Minecraft.getInstance().getMainRenderTarget();
     }
 
-    private static Handle handle(GpuTextureView view) {
-        return new Handle(view, ((GlTextureView) view).texture().glId());
+    private static Allocation allocation(RenderTarget target) {
+        return new Allocation(target, ((RenderTargetGeneration) target).eminus$generation());
+    }
+
+    static Bindings bindings() {
+        int[] viewport = new int[RECTANGLE_INTS];
+        int[] scissorBox = new int[RECTANGLE_INTS];
+        GL11C.glGetIntegerv(GL11C.GL_VIEWPORT, viewport);
+        GL11C.glGetIntegerv(GL11C.GL_SCISSOR_BOX, scissorBox);
+        return new Bindings(GL11C.glGetInteger(GL30C.GL_DRAW_FRAMEBUFFER_BINDING),
+                GL11C.glGetInteger(GL30C.GL_READ_FRAMEBUFFER_BINDING), program(), vertexArray(), viewport,
+                GL11C.glIsEnabled(GL11C.GL_SCISSOR_TEST), scissorBox);
+    }
+
+    static void restore(Bindings bindings) {
+        GlStateManager._glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, bindings.drawFramebuffer());
+        GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, bindings.readFramebuffer());
+        useProgram(bindings.program());
+        bindVertexArray(bindings.vertexArray());
+        int[] viewport = bindings.viewport();
+        GlStateManager._viewport(viewport[X], viewport[Y], viewport[WIDTH], viewport[HEIGHT]);
+        int[] box = bindings.scissorBox();
+        GlStateManager._scissorBox(box[X], box[Y], box[WIDTH], box[HEIGHT]);
+        if (bindings.scissor()) {
+            GlStateManager._enableScissorTest();
+        } else {
+            GlStateManager._disableScissorTest();
+        }
+    }
+
+    static int program() {
+        return GL11C.glGetInteger(GL20C.GL_CURRENT_PROGRAM);
+    }
+
+    static void useProgram(int program) {
+        GlStateManager._glUseProgram(program);
+    }
+
+    static int vertexArray() {
+        return GL11C.glGetInteger(GL30C.GL_VERTEX_ARRAY_BINDING);
+    }
+
+    static void bindVertexArray(int vertexArray) {
+        GlStateManager._glBindVertexArray(vertexArray);
     }
 
     static int genTexture() {
@@ -86,7 +152,8 @@ final class GameHandles {
     }
 
     static void colourMask(int index, int mask) {
-        GlStateManager._colorMask(mask);
+        GlStateManager._colorMask((mask & RED_BIT) != 0, (mask & GREEN_BIT) != 0, (mask & BLUE_BIT) != 0,
+                (mask & ALPHA_BIT) != 0);
     }
 
     static void depthTest(int function, boolean writes) {

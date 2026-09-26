@@ -82,8 +82,9 @@ public final class OpenGlGpu implements Gpu {
     private OpenGlGpu(Capabilities capabilities) {
         this.capabilities = capabilities;
         this.vertexArray = GL30C.glGenVertexArrays();
-        GL30C.glBindVertexArray(vertexArray);
-        GL30C.glBindVertexArray(UNBOUND);
+        int gameVertexArray = GameHandles.vertexArray();
+        GameHandles.bindVertexArray(vertexArray);
+        GameHandles.bindVertexArray(gameVertexArray);
         objects.created(OpenGlObjects.Kind.VERTEX_ARRAY, vertexArray, VERTEX_ARRAY_LABEL);
     }
 

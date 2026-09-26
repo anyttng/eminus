@@ -30,13 +30,27 @@ final class OpenGlPass implements Pass {
     private static final int VECTOR_COMPONENTS = 4;
 
     private final OpenGlGpu gpu;
+    private final GameHandles.Bindings gameBindings;
     private @Nullable OpenGlPipeline pipeline;
+    private int sampledUnits;
 
-    private OpenGlPass(OpenGlGpu gpu) {
+    private OpenGlPass(OpenGlGpu gpu, GameHandles.Bindings gameBindings) {
         this.gpu = gpu;
+        this.gameBindings = gameBindings;
     }
 
     static OpenGlPass open(OpenGlGpu gpu, PassSpec spec) {
+        GameHandles.Bindings gameBindings = GameHandles.bindings();
+        try {
+            clear(gpu, spec);
+        } catch (RuntimeException refused) {
+            GameHandles.restore(gameBindings);
+            throw refused;
+        }
+        return new OpenGlPass(gpu, gameBindings);
+    }
+
+    private static void clear(OpenGlGpu gpu, PassSpec spec) {
         OpenGlTexture colour = (OpenGlTexture) spec.colour();
         OpenGlTexture depth = (OpenGlTexture) spec.depth();
         int framebuffer = gpu.framebuffer(colour, depth);
@@ -58,16 +72,14 @@ final class OpenGlPass implements Pass {
                         stack.floats((float) spec.clearDepth().getAsDouble()));
             }
         }
-
-        return new OpenGlPass(gpu);
     }
 
     @Override
     public void pipeline(Pipeline pipeline) {
         OpenGlPipeline own = (OpenGlPipeline) pipeline;
         this.pipeline = own;
-        GL20C.glUseProgram(own.program());
-        GL30C.glBindVertexArray(gpu.vertexArray());
+        GameHandles.useProgram(own.program());
+        GameHandles.bindVertexArray(gpu.vertexArray());
 
         PipelineSpec spec = own.spec();
         PipelineSpec.DepthTest depth = spec.depth();
@@ -113,6 +125,7 @@ final class OpenGlPass implements Pass {
             GameHandles.activeTexture(slot.index());
             GameHandles.bindTexture(((OpenGlTexture) texture).id());
             GL33C.glBindSampler(slot.index(), gpu.sampler(sampler));
+            sampledUnits |= 1 << slot.index();
         }
     }
 
@@ -143,8 +156,9 @@ final class OpenGlPass implements Pass {
 
     @Override
     public void close() {
-        GL30C.glBindVertexArray(UNBOUND);
-        GL20C.glUseProgram(UNBOUND);
-        GameHandles.bindFramebuffer(UNBOUND);
+        for (int units = sampledUnits; units != 0; units &= units - 1) {
+            GL33C.glBindSampler(Integer.numberOfTrailingZeros(units), UNBOUND);
+        }
+        GameHandles.restore(gameBindings);
     }
 }
