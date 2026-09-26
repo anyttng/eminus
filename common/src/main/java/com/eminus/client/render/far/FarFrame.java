@@ -4,13 +4,12 @@ import java.nio.ByteBuffer;
 import java.util.EnumSet;
 import java.util.Set;
 
+import com.eminus.client.frame.FaceShade;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.Std140;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.handoff.NearSections;
-
-import net.minecraft.world.level.CardinalLighting;
 
 import org.joml.Matrix4fc;
 import org.lwjgl.system.MemoryStack;
@@ -44,7 +43,7 @@ public final class FarFrame implements AutoCloseable {
     }
 
     public void write(Matrix4fc viewProjection, int minBlockY, int atlasCells, NearSections near,
-            CardinalLighting shade) {
+            FaceShade shade) {
         gpu.assertRenderThread();
 
         try (MemoryStack stack = MemoryStack.stackPush()) {

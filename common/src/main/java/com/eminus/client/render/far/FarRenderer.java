@@ -23,6 +23,9 @@ import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
 import com.eminus.model.ModelIndex;
 import com.eminus.client.model.ClientBakery;
+import com.eminus.client.frame.GameFog;
+import com.eminus.client.frame.GameFrame;
+import com.eminus.client.frame.GameFrames;
 import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.pipeline.Pipeline;
@@ -49,14 +52,10 @@ import com.eminus.settings.FarDistance;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
 
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
-import net.minecraft.util.Util;
-import net.minecraft.world.phys.Vec3;
 
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -88,7 +87,6 @@ public final class FarRenderer implements AutoCloseable {
     private final LevelProjection levelProjection = new LevelProjection();
     private final Matrix4f farViewProjection = new Matrix4f();
     private final Matrix4f gameViewProjection = new Matrix4f();
-    private final Matrix4f viewRotation = new Matrix4f();
     private final TreeManager tree;
 
     private IndirectCommands indirect;
@@ -246,12 +244,12 @@ public final class FarRenderer implements AutoCloseable {
         return !stopped && arena.pressure();
     }
 
-    public boolean covers(FogData gameFog, int renderDistanceChunks) {
+    public boolean covers(GameFog gameFog, int renderDistanceChunks) {
         if (stopped) {
             return false;
         }
 
-        return !CompositeFog.skipped(gameFog.environmentalEnd, renderDistanceChunks * FarDistance.BLOCKS_PER_CHUNK);
+        return !CompositeFog.skipped(gameFog.environmentalEnd(), renderDistanceChunks * FarDistance.BLOCKS_PER_CHUNK);
     }
 
     public void frame(Minecraft client) {
@@ -270,34 +268,32 @@ public final class FarRenderer implements AutoCloseable {
         Texture main = gpu.mainColour();
         target.resize(main.width(), main.height());
 
-        int renderDistance = client.options.getEffectiveRenderDistance();
-        Camera camera = client.gameRenderer.mainCamera();
-        Vec3 eye = camera.position();
-        camera.getViewRotationMatrix(viewRotation);
-        projection.viewProjection(NearPlane.blocks(renderDistance), camera.getFov(), levelProjection.fold(),
-                viewRotation, main.width(), main.height(), farViewProjection);
-        FarProjection.gameViewProjection(levelProjection.projection(), viewRotation, gameViewProjection);
+        GameFrame game = GameFrames.read(client);
+        int renderDistance = game.renderDistance();
+        projection.viewProjection(NearPlane.blocks(renderDistance), game.fov(), levelProjection.fold(),
+                game.viewRotation(), main.width(), main.height(), farViewProjection);
+        FarProjection.gameViewProjection(levelProjection.projection(), game.viewRotation(), gameViewProjection);
 
         Settings settings = SettingsService.get().settings();
-        tree.frame(new CameraFrame(eye.x, eye.y, eye.z, new Matrix4f(farViewProjection),
+        tree.frame(new CameraFrame(game.eyeX(), game.eyeY(), game.eyeZ(), new Matrix4f(farViewProjection),
                 FarProjection.focalPixels(client.options.fov().get(), main.height()),
-                FarProjection.focalPixels(camera.getFov(), main.height()), settings.farRenderCells(),
+                FarProjection.focalPixels(game.fov(), main.height()), settings.farRenderCells(),
                 settings.detailDistance().pixels(), arena.pressure()));
 
-        FogData gameFog = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData;
+        GameFog gameFog = game.fog();
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
         ClientLevel level = client.level;
-        float reachBlocks = NearReach.blocks(renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, eye.y,
+        float reachBlocks = NearReach.blocks(renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, game.eyeY(),
                 level.getMinY(), level.getMinY() + level.getHeight());
-        CompositeFog fog = CompositeFog.of(settings.fog(), settings.fade(), gameFog.environmentalStart,
-                gameFog.environmentalEnd, nearBlocks, reachBlocks, settings.farRenderCells());
+        CompositeFog fog = CompositeFog.of(settings.fog(), settings.fade(), gameFog.environmentalStart(),
+                gameFog.environmentalEnd(), nearBlocks, reachBlocks, settings.farRenderCells());
         if (fog.skip()) {
             return;
         }
 
-        order.update(renderList, runtime.frame(), eye.x, eye.y, eye.z);
-        commands.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(), eye.x,
-                eye.y, eye.z);
+        order.update(renderList, runtime.frame(), game.eyeX(), game.eyeY(), game.eyeZ());
+        commands.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(),
+                game.eyeX(), game.eyeY(), game.eyeZ());
 
         if (commands.count() > 0) {
             if (indirect.capacity() < commands.capacity()) {
@@ -306,10 +302,10 @@ public final class FarRenderer implements AutoCloseable {
             }
 
             indirect.write(commands);
-            fillNearSections(client, renderDistance, eye);
+            fillNearSections(client, game);
 
             frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
-                    nearSections.sections(), level.cardinalLighting());
+                    nearSections.sections(), game.shade());
             Texture mainDepth = gpu.mainDepth();
             Texture lightmap = gpu.lightmap();
             mask.draw(target.depth(), target.colour(), mainDepth);
@@ -320,7 +316,7 @@ public final class FarRenderer implements AutoCloseable {
             }
             translucent.draw(target, arena, models, lightmap, indirect.buffer(), commands.opaqueCount(),
                     commands.translucentCount(), frame.buffer(), nearSections.texels());
-            composite.draw(target, main, mainDepth, farViewProjection, gameViewProjection, fog, gameFog.color);
+            composite.draw(target, main, mainDepth, farViewProjection, gameViewProjection, fog, gameFog.colour());
         }
     }
 
@@ -400,13 +396,12 @@ public final class FarRenderer implements AutoCloseable {
         Eminus.LOGGER.info("Far renderer stopped for {}", runtime.identity().dimension());
     }
 
-    private void fillNearSections(Minecraft client, int renderDistance, Vec3 eye) {
+    private void fillNearSections(Minecraft client, GameFrame game) {
         ClientLevel level = client.level;
-        nearSections.fill(client.levelRenderer,
-                Util.toMillis(client.gameRenderer.gameRenderState().optionsRenderState.chunkSectionFadeInTime),
-                order.meshes(), runtime.frame(),
-                NearSections.section(Mth.floor(eye.x)), NearSections.section(Mth.floor(eye.y)),
-                NearSections.section(Mth.floor(eye.z)), renderDistance,
+        int renderDistance = game.renderDistance();
+        nearSections.fill(client.levelRenderer, game.sectionFadeMillis(), order.meshes(), runtime.frame(),
+                NearSections.section(Mth.floor(game.eyeX())), NearSections.section(Mth.floor(game.eyeY())),
+                NearSections.section(Mth.floor(game.eyeZ())), renderDistance,
                 renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSectionY(), level.getSectionsCount());
     }
 

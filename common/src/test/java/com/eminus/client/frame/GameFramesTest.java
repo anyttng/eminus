@@ -1,4 +1,4 @@
-package com.eminus.handoff;
+package com.eminus.client.frame;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -7,7 +7,7 @@ import net.minecraft.client.renderer.state.OptionsRenderState;
 
 import org.junit.jupiter.api.Test;
 
-class NearFieldOverrideTest {
+class GameFramesTest {
     private static final boolean CLEAR_ATMOSPHERIC_FOG = true;
     private static final boolean KEEP_ATMOSPHERIC_FOG = false;
     private static final float ENVIRONMENTAL_START = 10.0F;
@@ -24,11 +24,11 @@ class NearFieldOverrideTest {
         FogData fog = fogData();
         OptionsRenderState options = options();
 
-        NearFieldOverride.apply(fog, options, KEEP_ATMOSPHERIC_FOG);
+        GameFrames.override(fog, options, KEEP_ATMOSPHERIC_FOG);
 
-        assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceStart);
-        assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceEnd);
-        assertEquals(NearFieldOverride.NO_FADE_IN, options.chunkSectionFadeInTime);
+        assertEquals(GameFrames.NO_FOG, fog.renderDistanceStart);
+        assertEquals(GameFrames.NO_FOG, fog.renderDistanceEnd);
+        assertEquals(GameFrames.NO_FADE_IN, options.chunkSectionFadeInTime);
     }
 
     @Test
@@ -36,7 +36,7 @@ class NearFieldOverrideTest {
         FogData fog = fogData();
         OptionsRenderState options = options();
 
-        NearFieldOverride.apply(fog, options, KEEP_ATMOSPHERIC_FOG);
+        GameFrames.override(fog, options, KEEP_ATMOSPHERIC_FOG);
 
         assertEquals(ENVIRONMENTAL_START, fog.environmentalStart);
         assertEquals(ENVIRONMENTAL_END, fog.environmentalEnd);
@@ -50,12 +50,12 @@ class NearFieldOverrideTest {
         FogData fog = fogData();
         OptionsRenderState options = options();
 
-        NearFieldOverride.apply(fog, options, CLEAR_ATMOSPHERIC_FOG);
+        GameFrames.override(fog, options, CLEAR_ATMOSPHERIC_FOG);
 
-        assertEquals(NearFieldOverride.NO_FOG, fog.environmentalStart);
-        assertEquals(NearFieldOverride.NO_FOG, fog.environmentalEnd);
-        assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceStart);
-        assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceEnd);
+        assertEquals(GameFrames.NO_FOG, fog.environmentalStart);
+        assertEquals(GameFrames.NO_FOG, fog.environmentalEnd);
+        assertEquals(GameFrames.NO_FOG, fog.renderDistanceStart);
+        assertEquals(GameFrames.NO_FOG, fog.renderDistanceEnd);
         assertEquals(SKY_END, fog.skyEnd);
         assertEquals(CLOUD_END, fog.cloudEnd);
     }
