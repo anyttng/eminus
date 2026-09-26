@@ -14,13 +14,8 @@ public class SectionCollectorMixin {
     private static final String VISIT_WITH_FLAGS =
             "visit(Lnet/caffeinemc/mods/sodium/client/render/chunk/RenderSection;I)V";
 
-    @Inject(method = "<init>", at = @At("RETURN"))
-    private void eminus$beginTraversal(CallbackInfo callback) {
-        SodiumDrawnSections.beginTraversal();
-    }
-
     @Inject(method = VISIT_WITH_FLAGS, at = @At("HEAD"))
     private void eminus$recordVisit(RenderSection section, int flags, CallbackInfo callback) {
-        SodiumDrawnSections.visited(section.getChunkX(), section.getChunkY(), section.getChunkZ());
+        SodiumDrawnSections.visited(section.getChunkX(), section.getChunkY(), section.getChunkZ(), section.isBuilt());
     }
 }
