@@ -41,6 +41,7 @@ import com.eminus.render.far.DrawCommands;
 import com.eminus.render.far.MeshOrder;
 import com.eminus.render.tree.CameraFrame;
 import com.eminus.render.tree.NodeRow;
+import com.eminus.render.tree.NodeTable;
 import com.eminus.render.tree.RenderList;
 import com.eminus.render.tree.TreeBatch;
 import com.eminus.render.tree.TreeBuilds;
@@ -100,7 +101,7 @@ public final class FarRenderer implements AutoCloseable {
     private FarRenderer(Gpu gpu, DimensionRuntime runtime, ClientBakery baking, ModelPublisher models,
             GeometryArena arena, FarTarget target, FarFrame frame, NearMaskPass mask, NearSectionTable nearSections,
             OpaquePass opaque, OcclusionPass occlusion, TranslucentPass translucent, CompositePass composite,
-            IndirectCommands indirect, int heightCells) {
+            IndirectCommands indirect, int heightCells, int nodeCapacity) {
         this.gpu = gpu;
         this.runtime = runtime;
         this.baking = baking;
@@ -116,7 +117,7 @@ public final class FarRenderer implements AutoCloseable {
         this.composite = composite;
         this.indirect = indirect;
         tree = TreeManager.start(new Builds(),
-                new TreeExtent(runtime.frame(), heightCells, runtime.lowestStoredLevel()));
+                new TreeExtent(runtime.frame(), heightCells, runtime.lowestStoredLevel()), nodeCapacity);
     }
 
     public static @Nullable FarRenderer start(Minecraft client, Gpu gpu, EminusInstance instance,
@@ -125,9 +126,9 @@ public final class FarRenderer implements AutoCloseable {
 
         Texture main = gpu.mainColour();
         long ceiling = ceiling(gpu.capabilities(), replacedArenaBytes);
+        float focal = FarProjection.focalPixels(client.options.fov().get(), main.height());
         long bytes = ArenaSizing.fitted(
-                bounded(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
-                        FarProjection.focalPixels(client.options.fov().get(), main.height()),
+                bounded(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(), focal,
                         runtime.lowestStoredLevel()), ceiling),
                 ceiling);
         BackendSupport support = BackendCheck.run(gpu, bytes);
@@ -160,7 +161,9 @@ public final class FarRenderer implements AutoCloseable {
                 FarTarget.create(gpu, support.depthFormat(), main.width(), main.height()), FarFrame.create(gpu),
                 mask, NearSectionTable.create(gpu), opaque, occlusion, translucent, composite,
                 IndirectCommands.create(gpu, START_COMMANDS),
-                Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL));
+                Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL),
+                NodeTable.capacity(runtime.lowestStoredLevel(), focal, settings.detailDistance().pixels(),
+                        settings.farRenderCells(), levelHeight));
 
         renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(), runtime.frame(),
                 new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),

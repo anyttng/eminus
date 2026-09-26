@@ -4,7 +4,9 @@ import java.util.Collection;
 import java.util.function.Consumer;
 
 import com.eminus.cell.CellKey;
+import com.eminus.cell.DetailLevel;
 import com.eminus.cell.OccupancyMask;
+import com.eminus.render.arena.ArenaDemand;
 import com.eminus.render.arena.ArenaPressure;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -14,6 +16,8 @@ import org.jspecify.annotations.Nullable;
 public final class NodeTable {
     public static final int CAPACITY = 1 << 16;
 
+    private static final long WHOLE_PERCENT = 100L;
+
     private final int capacity;
     private final Long2ObjectOpenHashMap<TreeNode> nodes = new Long2ObjectOpenHashMap<>();
     private final Long2ObjectOpenHashMap<TreeNode> roots = new Long2ObjectOpenHashMap<>();
@@ -21,6 +25,18 @@ public final class NodeTable {
 
     public NodeTable(int capacity) {
         this.capacity = capacity;
+    }
+
+    public static int capacity(int lowestLevel, float focalPixels, int subdivisionPixels, int farRenderCells,
+            int levelHeight) {
+        long cells = 0;
+        for (int level = Math.max(lowestLevel, DetailLevel.MIN); level <= DetailLevel.MAX; level++) {
+            cells += (long) ArenaDemand.columns(level, focalPixels, subdivisionPixels, farRenderCells)
+                    * Math.ceilDiv(levelHeight, DetailLevel.blocksPerCell(level));
+        }
+
+        long wanted = Math.ceilDiv(cells * WHOLE_PERCENT, ArenaPressure.HIGH_WATER_PERCENT);
+        return Math.clamp(wanted, CAPACITY, Integer.MAX_VALUE);
     }
 
     public int size() {

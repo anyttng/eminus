@@ -15,8 +15,9 @@ import java.util.List;
  * @param starved           whether the last traversal left children unrequested for want of budget or node room
  * @param walkPending       whether a change since the last traversal still waits for the next one
  * @param batchWaiting      whether meshes or evictions wait to reach the render thread
- * @param pressureEvictions the nodes evicted by traversals run while the arena was under pressure, since the renderer
- *                          started — the arena holding less than the view asks for, before any mesh is refused
+ * @param pressureEvictions the nodes evicted by traversals run under pressure, since the renderer started — the arena
+ *                          or the node table past its high-water mark, holding less than the view asks for, before any
+ *                          mesh or node is refused
  * @param settled           whether no build is queued or running, the last traversal requested nothing and was not
  *                          starved, no walk is pending and no batch is waiting
  * @param levels            one entry per detail level, finest first
