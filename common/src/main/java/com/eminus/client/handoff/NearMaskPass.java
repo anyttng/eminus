@@ -17,9 +17,6 @@ import com.eminus.render.backend.DepthConvention;
 import net.minecraft.resources.Identifier;
 
 public final class NearMaskPass {
-    // The game clears its level depth to this before the sky, which writes none, so anything above it the near field drew.
-    public static final float GAME_DEPTH_CLEARED = 0.0F;
-
     private static final Identifier PIPELINE = Identifier.fromNamespaceAndPath(Eminus.MODID, "near_mask");
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/near_mask");
     private static final String PASS_LABEL = "eminus-near-mask";
@@ -28,15 +25,17 @@ public final class NearMaskPass {
 
     private final Gpu gpu;
     private final Pipeline pipeline;
+    private final DepthConvention depth;
 
-    private NearMaskPass(Gpu gpu, Pipeline pipeline) {
+    private NearMaskPass(Gpu gpu, Pipeline pipeline, DepthConvention depth) {
         this.gpu = gpu;
         this.pipeline = pipeline;
+        this.depth = depth;
     }
 
-    public static NearMaskPass create(Gpu gpu, Format colourFormat) {
+    public static NearMaskPass create(Gpu gpu, Format colourFormat, DepthConvention depth) {
         gpu.assertRenderThread();
-        return new NearMaskPass(gpu, gpu.pipeline(pipeline(colourFormat)));
+        return new NearMaskPass(gpu, gpu.pipeline(pipeline(colourFormat, depth)), depth);
     }
 
     // A GL render pass sizes its viewport from a colour attachment alone, so the far colour rides along unwritten.
@@ -48,20 +47,18 @@ public final class NearMaskPass {
         gpu.assertRenderThread();
 
         try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, colour, null)
-                .withDepth(farDepth, OptionalDouble.of(DepthConvention.REVERSED_FARTHEST)))) {
+                .withDepth(farDepth, OptionalDouble.of(depth.farthest())))) {
             pass.pipeline(pipeline);
             pass.bind(GAME_DEPTH, gameDepth, Sampler.NEAREST);
             pass.draw(VERTICES);
         }
     }
 
-    private static PipelineSpec pipeline(Format colourFormat) {
-        return PipelineSpec.builder(PIPELINE, SHADER, SHADER)
-                .withBinding(Binding.sampled(GAME_DEPTH))
-                .withDefine("GAME_DEPTH_CLEARED", GAME_DEPTH_CLEARED)
-                .withDefine("MASKED", (float) DepthConvention.REVERSED_NEAREST)
+    private static PipelineSpec pipeline(Format colourFormat, DepthConvention depth) {
+        return depth.define(PipelineSpec.builder(PIPELINE, SHADER, SHADER)
+                        .withBinding(Binding.sampled(GAME_DEPTH)))
                 .withColourTarget(colourFormat, null, false)
-                .withDepthTest(DepthConvention.REVERSED_COMPARE, true)
+                .withDepthTest(depth.compare(), true)
                 .build();
     }
 }

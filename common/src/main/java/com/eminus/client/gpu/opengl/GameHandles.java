@@ -5,6 +5,8 @@ import com.eminus.mixin.GlBufferAccessor;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.opengl.GlTextureView;
@@ -42,6 +44,10 @@ final class GameHandles {
             throw new IllegalStateException("The game's globals uniform is not set");
         }
         return ((GlBufferAccessor) globals).eminus$handle();
+    }
+
+    static boolean depthReversed() {
+        return DepthStencilState.DEFAULT.depthTest() == CompareOp.GREATER_THAN_OR_EQUAL;
     }
 
     private static RenderTarget target() {

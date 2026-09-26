@@ -5,6 +5,7 @@ import java.util.OptionalLong;
 public record Capabilities(
         String backend,
         boolean depthZeroToOne,
+        boolean depthReversed,
         boolean drawIndirect,
         boolean multiDrawIndirect,
         boolean persistentMapping,
