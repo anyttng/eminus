@@ -41,6 +41,10 @@ public final class GameFrames {
         return Minecraft.getInstance().gameRenderer.gameRenderState().optionsRenderState.chunkSectionFadeInTime;
     }
 
+    public static boolean cutoutLeaves(Minecraft client) {
+        return client.options.cutoutLeaves().get();
+    }
+
     public static boolean sectionDrawn(LevelRenderer renderer, BlockPos pos, long fadeMillis) {
         return renderer.isSectionCompiledAndVisible(pos);
     }
