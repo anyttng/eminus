@@ -75,6 +75,14 @@ class CellMesherTest {
     private static final int HEADED_MODEL = 36;
     private static final int SLAB = 37;
     private static final int SLAB_MODEL = 38;
+    private static final int SEA = 39;
+    private static final int SEA_MODEL = 40;
+    private static final int SEA_SUBMERGED_MODEL = 41;
+    private static final int SEA_FLUID = 2;
+    private static final int SEABED_Y = 10;
+    private static final int SEA_TOP_Y = 14;
+    private static final int SHALLOW_TOP_Y = 3;
+    private static final int DEEP_SEABED_Y = 20;
     private static final int HEAD_FACES = 2;
     private static final int HEADED_VOXELS = 3;
     private static final int VARIED_ROW = 4;
@@ -94,6 +102,7 @@ class CellMesherTest {
     private static final int GRADIENT_SPAN = 4;
     private static final int TORCH_BLOCK_LIGHT = 14;
     private static final int BORDER_SKY = 9;
+    private static final int SEABED_LIGHT = VoxelEntry.light(BORDER_SKY, NO_BLOCK_LIGHT);
     private static final int FLOOR_BOTTOM_QUADS = 4;
     private static final int FLOOR_EDGE_QUADS = 2;
     private static final int GLASS_FACES_IN_AIR = 5;
@@ -434,8 +443,9 @@ class CellMesherTest {
 
         assertEquals(VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT),
                 lightAt(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
-        assertEquals(VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT),
-                lightAt(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
+        assertEquals(VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT), lightAt(uncovered, Direction.EAST,
+                LAST_IN_FIRST_CHUNK, 16, 9, models.oneSidedModelId(WATER_MODEL)));
+        assertFalse(has(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
         assertEquals(VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT),
                 lightAt(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 13, GLASS_MODEL));
 
@@ -445,7 +455,65 @@ class CellMesherTest {
 
         assertFalse(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 5, STONE_MODEL));
         assertFalse(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, WATER_MODEL));
+        assertFalse(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 9, models.oneSidedModelId(WATER_MODEL)));
         assertTrue(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, 16, 13, GLASS_MODEL));
+    }
+
+    @Test
+    void aSeaOnTheCutFacesBackIntoItselfWithTheLookAndLightOfItsSeabed() {
+        defineSea();
+        Cell cell = blank();
+        cell.set(LAST_IN_FIRST_CHUNK, SEABED_Y, 5, block(STONE));
+        cell.set(LAST_IN_FIRST_CHUNK, SEABED_Y + 1, 5, VoxelEntry.pack(SEA, BIOME, SEABED_LIGHT));
+        for (int y = SEABED_Y + 2; y <= SEA_TOP_Y; y++) {
+            cell.set(LAST_IN_FIRST_CHUNK, y, 5, block(SEA));
+        }
+
+        CellMesh uncovered = mesh(cell, airAround(), coverage(FIRST_CHUNK));
+
+        assertTrue(has(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, SEA_TOP_Y, 5,
+                models.oneSidedModelId(SEA_MODEL)));
+        assertTrue(has(uncovered, Direction.EAST, LAST_IN_FIRST_CHUNK, SEABED_Y + 1, 5,
+                models.oneSidedModelId(SEA_SUBMERGED_MODEL)));
+        int submergedInward = models.inwardModelId(STONE_MODEL, SEA_SUBMERGED_MODEL);
+        int surfaceInward = models.inwardModelId(STONE_MODEL, SEA_MODEL);
+        assertEquals(SEABED_LIGHT, lightAt(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, SEABED_Y + 1, 5,
+                submergedInward));
+        assertEquals(SEABED_LIGHT, lightAt(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, SEA_TOP_Y, 5,
+                surfaceInward));
+        assertEquals(Direction.WEST.ordinal(),
+                groupOf(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, SEABED_Y + 1, 5, submergedInward));
+
+        CellMesh covered = mesh(cell, airAround(), coverage(FIRST_CHUNK, SECOND_CHUNK));
+
+        assertTrue(has(covered, Direction.EAST, LAST_IN_FIRST_CHUNK, SEA_TOP_Y, 5, SEA_MODEL));
+        assertFalse(has(covered, Direction.WEST, LAST_IN_FIRST_CHUNK, SEABED_Y + 1, 5, submergedInward));
+        assertFalse(has(covered, Direction.WEST, LAST_IN_FIRST_CHUNK, SEA_TOP_Y, 5, surfaceInward));
+    }
+
+    @Test
+    void aSeaDeeperThanItsCellFindsItsSeabedInTheCellBelow() {
+        defineSea();
+        Cell cell = blank();
+        for (int y = 0; y <= SHALLOW_TOP_Y; y++) {
+            cell.set(LAST_IN_FIRST_CHUNK, y, 5, block(SEA));
+        }
+
+        Map<Direction, Cell> around = airAround();
+        Cell below = blank();
+        below.set(LAST_IN_FIRST_CHUNK, DEEP_SEABED_Y, 5, block(STONE));
+        below.set(LAST_IN_FIRST_CHUNK, DEEP_SEABED_Y + 1, 5, VoxelEntry.pack(SEA, BIOME, SEABED_LIGHT));
+        for (int y = DEEP_SEABED_Y + 2; y < SIDE; y++) {
+            below.set(LAST_IN_FIRST_CHUNK, y, 5, block(SEA));
+        }
+        around.put(Direction.DOWN, below);
+
+        CellMesh mesh = mesh(cell, around, coverage(FIRST_CHUNK));
+
+        assertEquals(SEABED_LIGHT, lightAt(mesh, Direction.WEST, LAST_IN_FIRST_CHUNK, 0, 5,
+                models.inwardModelId(STONE_MODEL, SEA_SUBMERGED_MODEL)));
+        assertEquals(SEABED_LIGHT, lightAt(mesh, Direction.WEST, LAST_IN_FIRST_CHUNK, SHALLOW_TOP_Y, 5,
+                models.inwardModelId(STONE_MODEL, SEA_MODEL)));
     }
 
     @Test
@@ -1035,6 +1103,23 @@ class CellMesherTest {
         models.makeSolid(STONE);
     }
 
+    private void defineSea() {
+        defineBlocks();
+        int surface = ModelMetadata.pack(FaceMask.ALL, FaceMask.NONE, FaceMask.ALL & ~FaceMask.UP, 0,
+                ModelMetadata.FLUID | ModelMetadata.TRANSLUCENT);
+        int submerged = ModelMetadata.pack(FaceMask.ALL, FaceMask.NONE, FaceMask.ALL, 0,
+                ModelMetadata.FLUID | ModelMetadata.TRANSLUCENT);
+
+        models.define(SEA, SEA_MODEL, surface);
+        models.submerge(SEA_MODEL, SEA_SUBMERGED_MODEL);
+        models.describe(SEA_SUBMERGED_MODEL, submerged);
+        models.partialHeight(SEA_MODEL);
+
+        opacities.put(SEA, SEE_THROUGH_DAMPENING);
+        models.holds(SEA, SEA_FLUID, SOURCE_HEIGHT);
+        models.makeSolid(STONE);
+    }
+
     private static int cornersOf(CellMesh mesh, Direction face, int x, int y, int z) {
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
@@ -1052,6 +1137,7 @@ class CellMesherTest {
         scratch.voxels().load(centre);
         around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
         scratch.voxels().loadCoverage(coverage, key);
+        scratch.voxels().loadBelow(around.get(Direction.DOWN));
         scratch.blend().begin(scratch.voxels(), tints, key, NO_BLEND);
 
         return new CellMesher(scratch, models, FRAME)

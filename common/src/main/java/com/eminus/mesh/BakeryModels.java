@@ -43,6 +43,16 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     }
 
     @Override
+    public int oneSidedModelId(int modelId) {
+        return index.oneSidedModelId(modelId);
+    }
+
+    @Override
+    public int inwardModelId(int seabedModelId, int fluidModelId) {
+        return index.inwardModelId(seabedModelId, fluidModelId);
+    }
+
+    @Override
     public int metadata(int modelId) {
         BakedModel model = models.model(modelId);
         return model == null ? NO_METADATA : model.metadata();

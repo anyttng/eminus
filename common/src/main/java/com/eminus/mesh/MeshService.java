@@ -105,6 +105,10 @@ public final class MeshService {
                 handles[face.ordinal() + 1] = handle;
                 handle.withCell(cell -> {
                     scratch.voxels().loadNeighbour(face, cell);
+                    if (face == Direction.DOWN && edgeFluidReachesBottom(scratch.voxels())) {
+                        scratch.voxels().loadBelow(cell);
+                    }
+
                     if (radius > 0 && face.getAxis().isHorizontal()) {
                         scratch.voxels().loadBiomes(cell, face.getStepX(), face.getStepZ(), radius);
                     }
@@ -192,6 +196,28 @@ public final class MeshService {
         }
 
         return false;
+    }
+
+    private boolean edgeFluidReachesBottom(CellVoxels voxels) {
+        for (int z = 0; z <= LAST; z++) {
+            for (int x = 0; x <= LAST; x++) {
+                if (!voxels.covered(x, z) || !besideUncovered(voxels, x, z)) {
+                    continue;
+                }
+
+                long entry = voxels.inside(x, 0, z);
+                if (!VoxelEntry.isAir(entry) && models.holdsFluid(VoxelEntry.state(entry))) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean besideUncovered(CellVoxels voxels, int x, int z) {
+        return !voxels.covered(x - 1, z) || !voxels.covered(x + 1, z) || !voxels.covered(x, z - 1)
+                || !voxels.covered(x, z + 1);
     }
 
     private void releaseCarried(@Nullable CellHandle held, int references) {
