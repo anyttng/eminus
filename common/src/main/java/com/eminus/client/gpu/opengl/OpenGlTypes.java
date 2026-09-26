@@ -5,6 +5,7 @@ import com.eminus.gpu.pipeline.Blend;
 import com.eminus.gpu.pipeline.DepthCompare;
 
 import org.lwjgl.opengl.GL11C;
+import org.lwjgl.opengl.GL14C;
 import org.lwjgl.opengl.GL30C;
 
 final class OpenGlTypes {
@@ -22,6 +23,7 @@ final class OpenGlTypes {
             case RGBA8_UNORM -> GL11C.GL_RGBA8;
             case R8_UNORM -> GL30C.GL_R8;
             case D32_FLOAT -> GL30C.GL_DEPTH_COMPONENT32F;
+            case D32_UNORM -> GL14C.GL_DEPTH_COMPONENT32;
             case R32_UINT -> GL30C.GL_R32UI;
             case RG32_UINT -> GL30C.GL_RG32UI;
             case RGBA32_UINT -> GL30C.GL_RGBA32UI;
@@ -42,7 +44,7 @@ final class OpenGlTypes {
         return switch (format) {
             case RGBA8_UNORM, RGBA32_FLOAT -> GL11C.GL_RGBA;
             case R8_UNORM -> GL11C.GL_RED;
-            case D32_FLOAT -> GL11C.GL_DEPTH_COMPONENT;
+            case D32_FLOAT, D32_UNORM -> GL11C.GL_DEPTH_COMPONENT;
             case R32_UINT -> GL30C.GL_RED_INTEGER;
             case RG32_UINT -> GL30C.GL_RG_INTEGER;
             case RGBA32_UINT -> GL30C.GL_RGBA_INTEGER;
@@ -52,7 +54,7 @@ final class OpenGlTypes {
     static int componentType(Format format) {
         return switch (format) {
             case RGBA8_UNORM, R8_UNORM -> GL11C.GL_UNSIGNED_BYTE;
-            case R32_UINT, RG32_UINT, RGBA32_UINT -> GL11C.GL_UNSIGNED_INT;
+            case R32_UINT, RG32_UINT, RGBA32_UINT, D32_UNORM -> GL11C.GL_UNSIGNED_INT;
             case D32_FLOAT, RGBA32_FLOAT -> GL11C.GL_FLOAT;
         };
     }
@@ -60,7 +62,7 @@ final class OpenGlTypes {
     static int unpackAlignment(Format format) {
         return switch (format) {
             case RGBA8_UNORM, R8_UNORM -> BYTE_COMPONENT;
-            case R32_UINT, RG32_UINT, RGBA32_UINT, D32_FLOAT, RGBA32_FLOAT -> WORD_COMPONENT;
+            case R32_UINT, RG32_UINT, RGBA32_UINT, D32_FLOAT, D32_UNORM, RGBA32_FLOAT -> WORD_COMPONENT;
         };
     }
 
