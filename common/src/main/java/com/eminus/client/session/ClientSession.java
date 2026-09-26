@@ -8,6 +8,8 @@ import com.eminus.handoff.NearFieldOverride;
 import com.eminus.ingest.IngestService;
 import com.eminus.ingest.IngestTrigger;
 import com.eminus.mixin.BiomeManagerAccessor;
+import com.eminus.client.frame.GameFrame;
+import com.eminus.client.frame.GameFrames;
 import com.eminus.client.gpu.Gpus;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.gpu.Gpu;
@@ -21,15 +23,12 @@ import com.eminus.settings.SettingsService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.client.renderer.fog.FogData;
-import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.level.storage.LevelResource;
 
 import org.joml.Matrix4fc;
@@ -115,17 +114,16 @@ public final class ClientSession {
     }
 
     public static void overrideNearField() {
-        if (renderer == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (renderer == null || client.level == null) {
             NearFieldOverride.skip();
             return;
         }
 
-        Minecraft client = Minecraft.getInstance();
-        GameRenderState state = client.gameRenderer.getGameRenderState();
-        FogData fog = state.levelRenderState.cameraRenderState.fogData;
-        if (renderer.covers(fog, state.optionsRenderState.renderDistance)) {
-            boolean inAir = client.gameRenderer.getMainCamera().getFluidInCamera() == FogType.NONE;
-            NearFieldOverride.apply(fog, inAir && !SettingsService.get().settings().fog());
+        GameFrame game = GameFrames.read(client);
+        if (renderer.covers(game.fog(), game.renderDistance())) {
+            GameFrames.overrideNearField(client, game.cameraInAir() && !SettingsService.get().settings().fog());
+            NearFieldOverride.apply();
         } else {
             NearFieldOverride.skip();
         }

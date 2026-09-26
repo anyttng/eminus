@@ -5,10 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import com.eminus.client.frame.FaceShade;
 import com.eminus.gpu.Std140;
 import com.eminus.handoff.NearSections;
-
-import net.minecraft.world.level.CardinalLighting;
 
 import org.joml.Matrix4f;
 import org.junit.jupiter.api.Test;
@@ -22,7 +21,7 @@ class FarFrameLayoutTest {
     private static final int SHADE_DOWN_OFFSET = NEAR_ORIGIN_OFFSET + 3 * INT_BYTES;
     private static final float DELTA = 0.0F;
 
-    private static final CardinalLighting SHADE = new CardinalLighting(0.1F, 0.2F, 0.3F, 0.4F, 0.5F, 0.6F);
+    private static final FaceShade SHADE = new FaceShade(0.1F, 0.2F, 0.3F, 0.4F, 0.5F, 0.6F);
 
     @Test
     void theShadeFloatsStartInTheTailOfTheNearOrigin() {

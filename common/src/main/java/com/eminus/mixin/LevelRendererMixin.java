@@ -5,7 +5,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Slice;
 
 import com.eminus.InjectionTargets;
-import com.eminus.handoff.NearFieldOverride;
+import com.eminus.client.frame.GameFrames;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 
@@ -20,6 +20,6 @@ public class LevelRendererMixin {
             slice = @Slice(from = @At(value = "INVOKE", target = InjectionTargets.FADE_IN_OPTION),
                     to = @At(value = "INVOKE", target = PRIORITIZE_CHUNK_UPDATES_OPTION)))
     private Object eminus$cancelSectionFadeIn(Object option) {
-        return NearFieldOverride.fadeInTime((Double) option);
+        return GameFrames.sectionFadeInSeconds((Double) option);
     }
 }

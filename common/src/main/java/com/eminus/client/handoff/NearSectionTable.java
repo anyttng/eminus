@@ -10,6 +10,7 @@ import java.util.Set;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
+import com.eminus.client.frame.GameFrames;
 import com.eminus.compat.sodium.SodiumDrawnSections;
 import com.eminus.compat.sodium.SodiumMixinPlugin;
 import com.eminus.gpu.Format;
@@ -41,6 +42,7 @@ public final class NearSectionTable implements AutoCloseable {
     private ByteBuffer scratch;
     private IntBuffer texels;
     private LevelRenderer levelRenderer;
+    private long sectionFadeMillis;
     private int cameraSectionX;
     private int cameraSectionY;
     private int cameraSectionZ;
@@ -64,10 +66,12 @@ public final class NearSectionTable implements AutoCloseable {
         return view;
     }
 
-    public void fill(LevelRenderer renderer, List<MeshSummary> meshes, CellFrame frame, int cameraSectionX,
-            int cameraSectionY, int cameraSectionZ, int viewDistance, int radius, int minSectionY, int sectionCount) {
+    public void fill(LevelRenderer renderer, long sectionFadeMillis, List<MeshSummary> meshes, CellFrame frame,
+            int cameraSectionX, int cameraSectionY, int cameraSectionZ, int viewDistance, int radius, int minSectionY,
+            int sectionCount) {
         gpu.assertRenderThread();
         levelRenderer = renderer;
+        this.sectionFadeMillis = sectionFadeMillis;
         this.cameraSectionX = cameraSectionX;
         this.cameraSectionY = cameraSectionY;
         this.cameraSectionZ = cameraSectionZ;
@@ -94,8 +98,8 @@ public final class NearSectionTable implements AutoCloseable {
     }
 
     private boolean owned(int sectionX, int sectionY, int sectionZ) {
-        return levelRenderer.isSectionCompiledAndVisible(pos.set(sectionX * NearSections.SECTION_BLOCKS,
-                sectionY * NearSections.SECTION_BLOCKS, sectionZ * NearSections.SECTION_BLOCKS))
+        return GameFrames.sectionDrawn(levelRenderer, pos.set(sectionX * NearSections.SECTION_BLOCKS,
+                sectionY * NearSections.SECTION_BLOCKS, sectionZ * NearSections.SECTION_BLOCKS), sectionFadeMillis)
                 && drawn(sectionX, sectionY, sectionZ);
     }
 

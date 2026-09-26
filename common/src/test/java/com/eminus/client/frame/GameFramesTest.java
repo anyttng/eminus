@@ -1,12 +1,14 @@
-package com.eminus.handoff;
+package com.eminus.client.frame;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import com.eminus.handoff.NearFieldOverride;
 
 import net.minecraft.client.renderer.fog.FogData;
 
 import org.junit.jupiter.api.Test;
 
-class NearFieldOverrideTest {
+class GameFramesTest {
     private static final boolean CLEAR_ATMOSPHERIC_FOG = true;
     private static final boolean KEEP_ATMOSPHERIC_FOG = false;
     private static final float ENVIRONMENTAL_START = 10.0F;
@@ -21,27 +23,28 @@ class NearFieldOverrideTest {
     void theRenderDistanceFogGoesToInfinityAndTheFadeInToZero() {
         FogData fog = fogData();
 
-        NearFieldOverride.apply(fog, KEEP_ATMOSPHERIC_FOG);
+        GameFrames.override(fog, KEEP_ATMOSPHERIC_FOG);
+        NearFieldOverride.apply();
 
-        assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceStart);
-        assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceEnd);
-        assertEquals(NearFieldOverride.NO_FADE_IN, NearFieldOverride.fadeInTime(FADE_IN_SECONDS));
+        assertEquals(GameFrames.NO_FOG, fog.renderDistanceStart);
+        assertEquals(GameFrames.NO_FOG, fog.renderDistanceEnd);
+        assertEquals(GameFrames.NO_FADE_IN, GameFrames.sectionFadeInSeconds(FADE_IN_SECONDS));
     }
 
     @Test
     void aSkippedOverrideLeavesTheFadeInAtTheOption() {
-        NearFieldOverride.apply(fogData(), KEEP_ATMOSPHERIC_FOG);
+        NearFieldOverride.apply();
 
         NearFieldOverride.skip();
 
-        assertEquals(FADE_IN_SECONDS, NearFieldOverride.fadeInTime(FADE_IN_SECONDS));
+        assertEquals(FADE_IN_SECONDS, GameFrames.sectionFadeInSeconds(FADE_IN_SECONDS));
     }
 
     @Test
     void keptAtmosphericFogLeavesTheEnvironmentalFogTheSkyAndTheCloudsAlone() {
         FogData fog = fogData();
 
-        NearFieldOverride.apply(fog, KEEP_ATMOSPHERIC_FOG);
+        GameFrames.override(fog, KEEP_ATMOSPHERIC_FOG);
 
         assertEquals(ENVIRONMENTAL_START, fog.environmentalStart);
         assertEquals(ENVIRONMENTAL_END, fog.environmentalEnd);
@@ -53,12 +56,12 @@ class NearFieldOverrideTest {
     void clearedAtmosphericFogSendsTheEnvironmentalFogToInfinityAndLeavesTheSkyAndCloudsAlone() {
         FogData fog = fogData();
 
-        NearFieldOverride.apply(fog, CLEAR_ATMOSPHERIC_FOG);
+        GameFrames.override(fog, CLEAR_ATMOSPHERIC_FOG);
 
-        assertEquals(NearFieldOverride.NO_FOG, fog.environmentalStart);
-        assertEquals(NearFieldOverride.NO_FOG, fog.environmentalEnd);
-        assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceStart);
-        assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceEnd);
+        assertEquals(GameFrames.NO_FOG, fog.environmentalStart);
+        assertEquals(GameFrames.NO_FOG, fog.environmentalEnd);
+        assertEquals(GameFrames.NO_FOG, fog.renderDistanceStart);
+        assertEquals(GameFrames.NO_FOG, fog.renderDistanceEnd);
         assertEquals(SKY_END, fog.skyEnd);
         assertEquals(CLOUD_END, fog.cloudEnd);
     }
