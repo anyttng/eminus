@@ -14,11 +14,11 @@ import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.render.backend.DepthConvention;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 public final class NearMaskPass {
-    private static final Identifier PIPELINE = Identifier.fromNamespaceAndPath(Eminus.MODID, "near_mask");
-    private static final Identifier SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/near_mask");
+    private static final ResourceLocation PIPELINE = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "near_mask");
+    private static final ResourceLocation SHADER = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "core/near_mask");
     private static final String PASS_LABEL = "eminus-near-mask";
     private static final String GAME_DEPTH = "GameDepth";
     private static final int VERTICES = 3;

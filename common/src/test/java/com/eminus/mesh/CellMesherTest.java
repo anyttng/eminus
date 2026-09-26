@@ -24,6 +24,7 @@ import com.eminus.model.ModelMetadata;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -860,8 +861,8 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, airAround(), 0);
 
-        Vec3 first = grass.getOffset(new BlockPos(5, MIN_BLOCK_Y + 6, 7));
-        Vec3 second = grass.getOffset(new BlockPos(6, MIN_BLOCK_Y + 6, 7));
+        Vec3 first = grass.getOffset(EmptyBlockGetter.INSTANCE, new BlockPos(5, MIN_BLOCK_Y + 6, 7));
+        Vec3 second = grass.getOffset(EmptyBlockGetter.INSTANCE, new BlockPos(6, MIN_BLOCK_Y + 6, 7));
         assertNotEquals(first, second);
         assertBladesOffset(mesh, 5, 6, 7, first);
         assertBladesOffset(mesh, 6, 6, 7, second);

@@ -5,8 +5,8 @@ import java.util.List;
 import com.eminus.gpu.pipeline.Binding;
 import com.eminus.gpu.pipeline.PipelineSpec;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
-public record ComputeSpec(Identifier location, Identifier shader, List<Binding> bindings,
+public record ComputeSpec(ResourceLocation location, ResourceLocation shader, List<Binding> bindings,
         List<PipelineSpec.Define> defines) {
 }

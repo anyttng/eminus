@@ -19,7 +19,7 @@ import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.render.backend.DepthConvention;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -33,9 +33,9 @@ public final class OcclusionPass implements AutoCloseable {
     public static final float MIN_BIAS = 0.02F;
     public static final float BIAS_PER_SQUARED_BLOCK = 6.0E-8F;
 
-    private static final Identifier PIPELINE = Identifier.fromNamespaceAndPath(Eminus.MODID, "far_occlusion");
-    private static final Identifier VERTEX_SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/far_composite");
-    private static final Identifier FRAGMENT_SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID,
+    private static final ResourceLocation PIPELINE = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "far_occlusion");
+    private static final ResourceLocation VERTEX_SHADER = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "core/far_composite");
+    private static final ResourceLocation FRAGMENT_SHADER = ResourceLocation.fromNamespaceAndPath(Eminus.MODID,
             "core/far_occlusion");
     private static final String PASS_LABEL = "eminus-far-occlusion";
     private static final String UNIFORM_LABEL = "eminus-occlusion";

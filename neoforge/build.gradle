@@ -40,8 +40,8 @@ tasks.named('assemble') {
     dependsOn ':modJar'
 }
 
-// Mojang ships Java 25 to end users, so mods should target Java 25.
-java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+// 1.21.1 runs on Java 21 — that is what NeoForge 21.1.x and its Fabric contemporaries are built against.
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 neoForge {
     version = project.neo_version
@@ -76,20 +76,9 @@ neoForge {
 dependencies {
     implementation project(':common')
 
-    // The cell store's fixed stack, bundled into the jar. The open range is a floor, not a pin — where another mod
-    // already carries a newer copy, JarJar keeps that one and ours is dropped.
-    jarJar(implementation("org.xerial:sqlite-jdbc")) {
-        version {
-            require "[${sqlite_jdbc_version},)"
-            prefer "${sqlite_jdbc_version}"
-        }
-    }
-    jarJar(implementation("io.airlift:aircompressor")) {
-        version {
-            require "[${aircompressor_version},)"
-            prefer "${aircompressor_version}"
-        }
-    }
+    // The cell store's fixed stack. Not nested here: the shipped jar's shell carries the one copy both loaders open.
+    implementation "org.xerial:sqlite-jdbc:${sqlite_jdbc_version}"
+    implementation "io.airlift:aircompressor:${aircompressor_version}"
 
     testImplementation platform("org.junit:junit-bom:${junit_version}")
     testImplementation 'org.junit.jupiter:junit-jupiter'

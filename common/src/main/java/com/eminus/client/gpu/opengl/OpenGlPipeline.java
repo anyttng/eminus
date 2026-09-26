@@ -1,7 +1,8 @@
 package com.eminus.client.gpu.opengl;
 
 import java.io.IOException;
-import java.io.Reader;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -11,7 +12,7 @@ import com.eminus.gpu.pipeline.Binding;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.pipeline.PipelineSpec;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceProvider;
 
@@ -74,7 +75,7 @@ final class OpenGlPipeline implements Pipeline {
         return new OpenGlPipeline(spec, program, slots);
     }
 
-    private static int compile(ResourceProvider resources, PipelineSpec spec, Identifier shader, String extension,
+    private static int compile(ResourceProvider resources, PipelineSpec spec, ResourceLocation shader, String extension,
             int type) {
         String name = spec.location() + " " + shader + extension;
         String source;
@@ -98,7 +99,7 @@ final class OpenGlPipeline implements Pipeline {
         return id;
     }
 
-    private static Optional<String> includeSource(ResourceProvider resources, Identifier include) {
+    private static Optional<String> includeSource(ResourceProvider resources, ResourceLocation include) {
         try {
             return Optional.of(read(resources, include.withPrefix(INCLUDE_FOLDER)));
         } catch (IOException missing) {
@@ -106,11 +107,11 @@ final class OpenGlPipeline implements Pipeline {
         }
     }
 
-    private static String read(ResourceProvider resources, Identifier file) throws IOException {
+    private static String read(ResourceProvider resources, ResourceLocation file) throws IOException {
         Resource resource = resources.getResource(file)
                 .orElseThrow(() -> new IOException("No resource " + file));
-        try (Reader reader = resource.openAsReader()) {
-            return reader.readAllAsString();
+        try (InputStream stream = resource.open()) {
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 
@@ -175,7 +176,7 @@ final class OpenGlPipeline implements Pipeline {
     }
 
     @Override
-    public Identifier location() {
+    public ResourceLocation location() {
         return spec.location();
     }
 

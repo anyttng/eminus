@@ -7,8 +7,8 @@ plugins {
 version = eminus_version
 group = mod_group_id
 
-// Mojang ships Java 25 to end users, so mods should target Java 25.
-java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+// 1.21.1 runs on Java 21 — that is what NeoForge 21.1.x and its Fabric contemporaries are built against.
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 // NeoForm mode: plain vanilla (Mojmap) on the classpath, no loader — the compile-time proof that this module is
 // loader-free.
@@ -22,10 +22,13 @@ neoForge {
 dependencies {
     compileOnly "net.fabricmc:sponge-mixin:${mixin_version}"
     compileOnly "io.github.llamalad7:mixinextras-common:${mixinextras_version}"
+    compileOnly "org.jspecify:jspecify:${jspecify_version}"
+    testCompileOnly "org.jspecify:jspecify:${jspecify_version}"
 }
 
-// Sodium's config API for the page in its options screen. The Fabric artifact is taken because the NeoForge one
-// nests its classes in an inner jar; the API types name vanilla alone. compileOnly — Sodium asks for the class itself.
+// Sodium's config API for the page in its options screen. On 1.21.1 the Fabric artifact is in intermediary, so the
+// NeoForge one is taken — Mojmap, as this module compiles — and its classes ride an inner jar, unpacked here.
+// compileOnly — Sodium asks for the class itself.
 repositories {
     maven {
         name = 'Modrinth'
@@ -36,10 +39,25 @@ repositories {
     }
 }
 
+configurations {
+    sodiumModJar
+}
+
 dependencies {
-    compileOnly("maven.modrinth:sodium:${sodium_version}") {
-        transitive = false
+    sodiumModJar "maven.modrinth:sodium:${sodium_version}"
+}
+
+var sodiumModJars = tasks.register('unpackSodiumMod', Sync) {
+    from(zipTree(configurations.sodiumModJar.singleFile)) {
+        include 'META-INF/jarjar/net.caffeinemc.sodium-neoforge-*-mod.jar'
+        eachFile { it.relativePath = new RelativePath(true, it.name) }
     }
+    includeEmptyDirs = false
+    into layout.buildDirectory.dir('sodium-mod')
+}
+
+dependencies {
+    compileOnly files(sodiumModJars).asFileTree.matching { include '*.jar' }
 }
 
 // The cell store's fixed stack. This module compiles and tests against them; the loader modules bundle them.

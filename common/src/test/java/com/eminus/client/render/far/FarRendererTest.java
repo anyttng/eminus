@@ -11,17 +11,17 @@ import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.settings.DetailDistance;
 import com.eminus.settings.Settings;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import org.junit.jupiter.api.Test;
 
 class FarRendererTest {
     private static final Settings BUILT = new Settings(true, 0, 16, 4, DetailDistance.MEDIUM, true, true);
-    private static final Identifier MASK = Identifier.fromNamespaceAndPath("eminus", "near_mask");
-    private static final Identifier OPAQUE = Identifier.fromNamespaceAndPath("eminus", "far_opaque");
-    private static final Identifier TRANSLUCENT = Identifier.fromNamespaceAndPath("eminus", "far_translucent");
+    private static final ResourceLocation MASK = ResourceLocation.fromNamespaceAndPath("eminus", "near_mask");
+    private static final ResourceLocation OPAQUE = ResourceLocation.fromNamespaceAndPath("eminus", "far_opaque");
+    private static final ResourceLocation TRANSLUCENT = ResourceLocation.fromNamespaceAndPath("eminus", "far_translucent");
 
-    private record FakePipeline(Identifier location, boolean compiles) implements Pipeline {
+    private record FakePipeline(ResourceLocation location, boolean compiles) implements Pipeline {
     }
 
     @Test

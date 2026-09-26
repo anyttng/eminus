@@ -25,7 +25,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -35,7 +35,7 @@ import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 
 public final class ClientSession {
-    public static final Identifier RELOAD_ID = Identifier.fromNamespaceAndPath(Eminus.MODID, "far_renderer");
+    public static final ResourceLocation RELOAD_ID = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "far_renderer");
 
     public static final int CLIENT_EXTRA_CHUNKS = 3;
 
@@ -217,7 +217,7 @@ public final class ClientSession {
         long replacedArenaBytes = replacedArenaBytes();
         stopRenderer();
         releaseRuntime();
-        runtime = instance.acquire(identityOf(current), current.getMinY());
+        runtime = instance.acquire(identityOf(current), current.getMinBuildHeight());
         startRenderer(next, replacedArenaBytes);
         heldChunksPending = true;
     }
@@ -242,8 +242,8 @@ public final class ClientSession {
 
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
-                int chunkX = centre.x() + dx;
-                int chunkZ = centre.z() + dz;
+                int chunkX = centre.x + dx;
+                int chunkZ = centre.z + dz;
                 LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
                 if (chunk != null) {
                     ingest.submitChunk(chunk, IngestTrigger.HELD);
@@ -286,7 +286,7 @@ public final class ClientSession {
 
     private static WorldIdentity identityOf(ClientLevel current) {
         long seed = ((BiomeManagerAccessor) current.getBiomeManager()).eminus$biomeZoomSeed();
-        return new WorldIdentity(world, seed, current.dimension().identifier().toString());
+        return new WorldIdentity(world, seed, current.dimension().location().toString());
     }
 
     private static Path storeBase(Minecraft minecraft) {

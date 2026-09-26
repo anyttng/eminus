@@ -9,7 +9,9 @@ import com.eminus.Eminus;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -83,7 +85,7 @@ public final class StateTable implements StateOpacity {
             return snapshot[stateId];
         }
 
-        return resolve(stateId).getLightDampening();
+        return dampeningOf(resolve(stateId));
     }
 
     private int register(BlockState state) {
@@ -122,7 +124,7 @@ public final class StateTable implements StateOpacity {
 
         currentStates[id] = state;
         currentOpacities[id] = opacityOf(state);
-        currentDampenings[id] = state.getLightDampening();
+        currentDampenings[id] = dampeningOf(state);
         states = currentStates;
         opacities = currentOpacities;
         dampenings = currentDampenings;
@@ -134,7 +136,7 @@ public final class StateTable implements StateOpacity {
         }
 
         try {
-            return BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK, value, false).blockState();
+            return BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK.asLookup(), value, false).blockState();
         } catch (CommandSyntaxException | RuntimeException failure) {
             Eminus.LOGGER.warn("The stored block state {} does not resolve; the placeholder stands in.", value);
             return PLACEHOLDER;
@@ -142,7 +144,11 @@ public final class StateTable implements StateOpacity {
     }
 
     private static int opacityOf(BlockState state) {
-        return state.getBlock() instanceof LeavesBlock ? FULL_OPACITY : state.getLightDampening();
+        return state.getBlock() instanceof LeavesBlock ? FULL_OPACITY : dampeningOf(state);
+    }
+
+    private static int dampeningOf(BlockState state) {
+        return state.getLightBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
     }
 
     private static int[] grown(int[] values, int size) {

@@ -70,7 +70,7 @@ public final class IngestService {
 
     public void submitChunk(LevelChunk chunk, IngestTrigger trigger) {
         ChunkPos chunkPos = chunk.getPos();
-        retryDeferred(chunk.getLevel(), chunkPos.x(), chunkPos.z());
+        retryDeferred(chunk.getLevel(), chunkPos.x, chunkPos.z);
         ingestChunk(chunk, trigger);
     }
 
@@ -92,7 +92,7 @@ public final class IngestService {
         ChunkPos chunkPos = chunk.getPos();
         LevelChunkSection[] sections = chunk.getSections();
 
-        if (!lightOn(light, chunkPos.x(), chunkPos.z())) {
+        if (!lightOn(light, chunkPos.x, chunkPos.z)) {
             Eminus.LOGGER.debug("Chunk {} has no light applied yet; it waits for its light trigger.", chunkPos);
             return;
         }
@@ -102,8 +102,8 @@ public final class IngestService {
             return;
         }
 
-        int chunkX = chunkPos.x();
-        int chunkZ = chunkPos.z();
+        int chunkX = chunkPos.x;
+        int chunkZ = chunkPos.z;
         if (!neighboursLoaded(chunk.getLevel(), chunkX, chunkZ)) {
             deferred.add(column(chunkX, chunkZ));
             return;
@@ -241,9 +241,9 @@ public final class IngestService {
     private void submit(LevelLightEngine light, LevelChunk chunk, int index, @Nullable AtomicInteger remaining,
             IngestTrigger trigger) {
         LevelChunkSection section = chunk.getSections()[index];
-        int sectionX = chunk.getPos().x();
+        int sectionX = chunk.getPos().x;
         int sectionY = chunk.getSectionYFromSectionIndex(index);
-        int sectionZ = chunk.getPos().z();
+        int sectionZ = chunk.getPos().z;
         SectionPos sectionPos = SectionPos.of(sectionX, sectionY, sectionZ);
         DataLayer skyLight = Objects.requireNonNullElseGet(sky(light, sectionPos), () -> openSky(light));
         DataLayer blockLight = layer(light, LightLayer.BLOCK, sectionPos);
@@ -288,19 +288,19 @@ public final class IngestService {
             for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
                 around[neighbourIndex(dx, dz)] = dx == 0 && dz == 0
                         ? chunk
-                        : level.getChunkSource().getChunkNow(pos.x() + dx, pos.z() + dz);
+                        : level.getChunkSource().getChunkNow(pos.x + dx, pos.z + dz);
             }
         }
 
         long seed = ((BiomeManagerAccessor) level.getBiomeManager()).eminus$biomeZoomSeed();
         return BiomeWindow.capture((quartX, quartY, quartZ) -> noiseBiome(pos, around, quartX, quartY, quartZ),
-                pos.x(), sectionY, pos.z(), seed);
+                pos.x, sectionY, pos.z, seed);
     }
 
     private static @Nullable Holder<Biome> noiseBiome(ChunkPos pos, LevelChunk[] around, int quartX, int quartY,
             int quartZ) {
-        LevelChunk neighbour = around[neighbourIndex(QuartPos.toSection(quartX) - pos.x(),
-                QuartPos.toSection(quartZ) - pos.z())];
+        LevelChunk neighbour = around[neighbourIndex(QuartPos.toSection(quartX) - pos.x,
+                QuartPos.toSection(quartZ) - pos.z)];
         return neighbour == null ? null : neighbour.getNoiseBiome(quartX, quartY, quartZ);
     }
 
@@ -367,7 +367,7 @@ public final class IngestService {
     }
 
     private static boolean lightOn(LevelLightEngine light, int chunkX, int chunkZ) {
-        return light.lightOnInColumn(SectionPos.getZeroNode(chunkX, chunkZ));
+        return light.lightOnInSection(SectionPos.of(chunkX, 0, chunkZ));
     }
 
     private static boolean hasLightData(LevelLightEngine light, LevelChunk chunk, ChunkPos chunkPos, int sectionCount) {

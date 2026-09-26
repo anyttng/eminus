@@ -16,7 +16,7 @@ import com.eminus.gpu.texture.Texture;
 import com.eminus.model.port.VariantDraw;
 import com.eminus.render.backend.DepthConvention;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import org.joml.Vector4f;
 import org.joml.Vector4fc;
@@ -24,7 +24,7 @@ import org.joml.Vector4fc;
 public final class OpaquePass {
     public static final float ALPHA_CUTOUT = 0.5F;
 
-    private static final Identifier PIPELINE = Identifier.fromNamespaceAndPath(Eminus.MODID, "far_opaque");
+    private static final ResourceLocation PIPELINE = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "far_opaque");
     private static final String PASS_LABEL = "eminus-far-opaque";
     private static final Vector4fc CLEAR_COLOUR = new Vector4f(0.0F, 0.0F, 0.0F, 0.0F);
 

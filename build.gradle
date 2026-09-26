@@ -1,5 +1,5 @@
 // Aggregator: the mod is built by the loader subprojects — 'common' (vanilla-only code and resources),
-// 'neoforge' and 'fabric' (entrypoint, platform glue, loader jar) — and merged here into the one jar that ships.
+// 'neoforge' and 'fabric' (entrypoint, platform glue, loader jar) — and packed here into the one jar that ships.
 plugins {
     id 'base'
     id 'idea'
@@ -9,56 +9,139 @@ plugins {
 evaluationDependsOnChildren()
 
 def modId = 'eminus'
+def shellId = "${modId}_bundle"
+def modVersion = eminus_version
 def buildSuffix = findProperty("${modId}_build")
 def withBuildSuffix = { baseVersion -> buildSuffix ? "${baseVersion}-${buildSuffix}" : baseVersion }
+def shellVersion = withBuildSuffix(modVersion)
+def modLicense = mod_license
 
 def neoforgeJar = project(':neoforge').tasks.named('jar', Jar)
-def fabricJar = project(':fabric').tasks.named('jar', Jar)
+def fabricJar = project(':fabric').tasks.named('remapJar', AbstractArchiveTask)
+def neoforgeJarName = neoforgeJar.get().archiveFileName.get()
+def fabricJarName = fabricJar.get().archiveFileName.get()
+def fabricFile = fabricJar.flatMap { it.archiveFile }
 
-// The one file that ships, for both loaders: 26.x is unobfuscated, so one set of classes serves either, and each loader
-// reads only its own metadata. The manifest is the Fabric build's, whose Fabric-Mixin attributes Fabric Loader reads;
-// shared classes are the NeoForge build's, which are common's own output.
-tasks.register('modJar', Zip) {
-    archiveFileName = "${modId}-${withBuildSuffix("${eminus_version}+mc${minecraft_version}")}.jar"
+def jarJarDir = 'META-INF/jarjar/'
+def fabricNestedDir = 'META-INF/jars/'
+def fabricMetadataPath = 'fabric.mod.json'
+
+// The cell store's fixed stack, carried once by the shell for both loaders: Loom's wrapped copies, which FML opens as
+// plain libraries. The open range is a floor, not a pin — where another mod carries a newer copy, it wins.
+def libraries = [
+        [group: 'org.xerial', artifact: 'sqlite-jdbc', version: sqlite_jdbc_version],
+        [group: 'io.airlift', artifact: 'aircompressor', version: aircompressor_version],
+].collect { it + [path: "${fabricNestedDir}${it.artifact}-${it.version}.jar".toString()] }
+
+// The Fabric build with its nested libraries lifted out, since the shell carries them; its metadata stops naming them.
+def fabricLoaderJar = tasks.register('fabricLoaderJar') {
+    def output = layout.buildDirectory.file("shell-parts/${fabricJarName}")
+    def libraryPaths = libraries.collect { it.path }
+    inputs.file(fabricFile)
+    inputs.property('libraryPaths', libraryPaths)
+    outputs.file(output)
+
+    doLast {
+        def nested = []
+        new java.util.zip.ZipFile(fabricFile.get().asFile).withCloseable { zip ->
+            new java.util.zip.ZipOutputStream(output.get().asFile.newOutputStream()).withCloseable { out ->
+                zip.entries().each { entry ->
+                    if (entry.name.startsWith(fabricNestedDir)) {
+                        if (entry.name.endsWith('.jar')) {
+                            nested << entry.name
+                        }
+                        return
+                    }
+                    out.putNextEntry(new java.util.zip.ZipEntry(entry.name))
+                    if (entry.name == fabricMetadataPath) {
+                        def metadata = new groovy.json.JsonSlurper().parse(zip.getInputStream(entry))
+                        metadata.remove('jars')
+                        out << groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))
+                                .getBytes('UTF-8')
+                    } else {
+                        zip.getInputStream(entry).withCloseable { out << it }
+                    }
+                    out.closeEntry()
+                }
+            }
+        }
+        // A library the Fabric build nests and the shell does not name would reach neither loader.
+        if (nested.toSet() != libraryPaths.toSet()) {
+            throw new GradleException("The Fabric build nests ${nested}, the shell carries ${libraryPaths}")
+        }
+    }
+}
+
+// 1.21.1 is obfuscated: the Fabric build names the game in intermediary and the NeoForge build in Mojmap, so the two
+// class sets cannot share one jar's root the way the 26.x merge does. The jar that ships is a shell instead — no
+// classes of its own, both loader jars nested whole beside one copy of the libraries, and each loader reads only its
+// own metadata and opens only the jars that metadata names. The shell carries its own mod id: the nested jar is the one
+// that is eminus.
+def shellMetadata = tasks.register('shellMetadata') {
+    def outputDir = layout.buildDirectory.dir('shell')
+    def neoforgePath = "${jarJarDir}${neoforgeJarName}"
+    def fabricPath = "${fabricNestedDir}${fabricJarName}"
+    inputs.property('version', shellVersion)
+    inputs.property('neoforgePath', neoforgePath)
+    inputs.property('fabricPath', fabricPath)
+    inputs.property('libraries', libraries)
+    outputs.dir(outputDir)
+
+    doLast {
+        def root = outputDir.get().asFile
+
+        // FML 4 refuses a mods.toml without modLoader; lowcodefml is its loader for a mod that runs no code.
+        new File(root, 'META-INF').mkdirs()
+        new File(root, 'META-INF/neoforge.mods.toml').text = """\
+modLoader="lowcodefml"
+loaderVersion="[4,)"
+license="${modLicense}"
+
+[[mods]]
+modId="${shellId}"
+version="${shellVersion}"
+displayName="Eminus (NeoForge and Fabric)"
+description='''Carries the NeoForge and Fabric builds of Eminus; each loader loads its own.'''
+"""
+
+        def nestedJars = [[
+                identifier  : [group: 'com.eminus', artifact: "${modId}-neoforge"],
+                version     : [range: "[${shellVersion},)", artifactVersion: shellVersion],
+                path        : neoforgePath,
+                isObfuscated: false]]
+        libraries.each { library ->
+            nestedJars << [
+                    identifier  : [group: library.group, artifact: library.artifact],
+                    version     : [range: "[${library.version},)", artifactVersion: library.version],
+                    path        : library.path,
+                    isObfuscated: false]
+        }
+        new File(root, jarJarDir).mkdirs()
+        new File(root, "${jarJarDir}metadata.json").text =
+                groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson([jars: nestedJars]))
+
+        new File(root, fabricMetadataPath).text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson([
+                schemaVersion: 1,
+                id           : shellId,
+                version      : shellVersion,
+                name         : 'Eminus (NeoForge and Fabric)',
+                description  : 'Carries the NeoForge and Fabric builds of Eminus; each loader loads its own.',
+                license      : modLicense,
+                environment  : 'client',
+                jars         : [[file: fabricPath]] + libraries.collect { [file: it.path] }]))
+    }
+}
+
+tasks.register('modJar', Jar) {
+    archiveFileName = "${modId}-${withBuildSuffix("${modVersion}+mc${minecraft_version}")}.jar"
     destinationDirectory = layout.buildDirectory.dir('libs')
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    // FML names the shell's module after this; left to the file name it would be derived from the version string.
+    manifest.attributes('Automatic-Module-Name': shellId)
 
-    def manifestPath = 'META-INF/MANIFEST.MF'
-    def jarJarDir = 'META-INF/jarjar/'
-    def fabricNestedDir = 'META-INF/jars/'
-    def neoforgeFile = neoforgeJar.flatMap { it.archiveFile }
-    def fabricFile = fabricJar.flatMap { it.archiveFile }
-    def entriesOf = { jar ->
-        new java.util.zip.ZipFile(jar.asFile).withCloseable { zip -> zip.entries().collect { it.name }.toSet() }
-    }
-    // Which build a shared path comes from is stated, never left to the order the specs are walked in.
-    def neoforgeEntries = neoforgeFile.map(entriesOf)
-    def fabricEntries = fabricFile.map(entriesOf)
-
-    // Both builds nest the same libraries, 12 MB of sqlite-jdbc among them, and the file carries one copy: the Fabric
-    // build's, because Fabric Loader wants the fabric.mod.json Loom wrote into it, while FML opens whatever path the
-    // JarJar metadata names.
-    doFirst {
-        def unmatched = neoforgeEntries.get()
-                .findAll { it.startsWith(jarJarDir) && it.endsWith('.jar') }
-                .collect { fabricNestedDir + it.substring(jarJarDir.length()) }
-                .findAll { !fabricEntries.get().contains(it) }
-        if (unmatched) {
-            throw new GradleException("The NeoForge build nests libraries the Fabric build lacks: ${unmatched}")
-        }
-    }
-
-    from(zipTree(neoforgeFile)) {
-        exclude manifestPath
-        exclude "${jarJarDir}*.jar"
-        filesMatching("${jarJarDir}metadata.json") {
-            filter { line -> line.replace(jarJarDir, fabricNestedDir) }
-        }
-    }
+    from(shellMetadata)
+    from(neoforgeJar) { into jarJarDir }
+    from(fabricLoaderJar) { into fabricNestedDir }
     from(zipTree(fabricFile)) {
-        exclude { element ->
-            element.relativePath.pathString != manifestPath
-                    && neoforgeEntries.get().contains(element.relativePath.pathString)
-        }
+        include libraries.collect { it.path }
     }
 }

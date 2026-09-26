@@ -8,7 +8,7 @@ import com.eminus.gpu.Format;
 import com.eminus.gpu.pipeline.DepthCompare;
 import com.eminus.gpu.pipeline.PipelineSpec;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +17,7 @@ class DepthConventionTest {
     private static final boolean MINUS_ONE_TO_ONE = false;
     private static final boolean REVERSED = true;
     private static final boolean FORWARD = false;
-    private static final Identifier PIPELINE = Identifier.fromNamespaceAndPath("eminus", "test");
+    private static final ResourceLocation PIPELINE = ResourceLocation.fromNamespaceAndPath("eminus", "test");
 
     @Test
     void reversedDepthKeepsTheNearerFragmentOnTheGreaterValue() {

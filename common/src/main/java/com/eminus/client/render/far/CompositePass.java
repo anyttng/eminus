@@ -22,7 +22,7 @@ import com.eminus.gpu.texture.Texture;
 import com.eminus.render.backend.DepthConvention;
 import com.eminus.render.far.CompositeFog;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -32,8 +32,8 @@ import org.lwjgl.system.MemoryStack;
 public final class CompositePass implements AutoCloseable {
     public static final float DEPTH_BIAS = 4.0F / (1 << 24);
 
-    private static final Identifier PIPELINE = Identifier.fromNamespaceAndPath(Eminus.MODID, "far_composite");
-    private static final Identifier SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/far_composite");
+    private static final ResourceLocation PIPELINE = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "far_composite");
+    private static final ResourceLocation SHADER = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "core/far_composite");
     private static final String PASS_LABEL = "eminus-far-composite";
     private static final String UNIFORM_LABEL = "eminus-composite";
     private static final String COMPOSITE = "Composite";

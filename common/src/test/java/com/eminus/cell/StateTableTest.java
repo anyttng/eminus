@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.eminus.VanillaBootstrap;
 
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -41,9 +43,9 @@ class StateTableTest {
         BlockState glass = Blocks.GLASS.defaultBlockState();
         StateTable table = new StateTable(ids);
 
-        assertEquals(StateTable.FULL_OPACITY, stone.getLightDampening());
-        assertEquals(stone.getLightDampening(), table.opacity(table.idOf(stone)));
-        assertEquals(glass.getLightDampening(), table.opacity(table.idOf(glass)));
+        assertEquals(StateTable.FULL_OPACITY, stone.getLightBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO));
+        assertEquals(stone.getLightBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO), table.opacity(table.idOf(stone)));
+        assertEquals(glass.getLightBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO), table.opacity(table.idOf(glass)));
     }
 
     @Test
@@ -51,7 +53,7 @@ class StateTableTest {
         BlockState leaves = Blocks.OAK_LEAVES.defaultBlockState();
         StateTable table = new StateTable(ids);
 
-        assertTrue(leaves.getLightDampening() < StateTable.FULL_OPACITY);
+        assertTrue(leaves.getLightBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO) < StateTable.FULL_OPACITY);
         assertEquals(StateTable.FULL_OPACITY, table.opacity(table.idOf(leaves)));
     }
 
@@ -61,7 +63,7 @@ class StateTableTest {
         BlockState stone = Blocks.STONE.defaultBlockState();
         StateTable table = new StateTable(ids);
 
-        assertEquals(leaves.getLightDampening(), table.seeThroughLeaves().opacity(table.idOf(leaves)));
+        assertEquals(leaves.getLightBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO), table.seeThroughLeaves().opacity(table.idOf(leaves)));
         assertEquals(StateTable.FULL_OPACITY, table.seeThroughLeaves().opacity(table.idOf(stone)));
     }
 

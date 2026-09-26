@@ -108,7 +108,7 @@ public final class SectionConverter {
     }
 
     private static int idOf(Holder<Biome> holder, Dictionary<String> biomes) {
-        String key = holder.unwrapKey().map(resource -> resource.identifier().toString()).orElse(UNREGISTERED_BIOME);
+        String key = holder.unwrapKey().map(resource -> resource.location().toString()).orElse(UNREGISTERED_BIOME);
         int known = biomes.id(key);
         if (known != Dictionary.MISSING) {
             return known;

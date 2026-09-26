@@ -1,5 +1,10 @@
 # NeoForge mod metadata. Placeholders are expanded from gradle.properties at build time.
 
+# Mandatory on this game version and dropped again later: FML 4 refuses a file without them. The range is the loader's
+# own major, the one NeoForge 21.1.x ships.
+modLoader="javafml"
+loaderVersion="[4,)"
+
 # The license for the mod (mandatory).
 license="${mod_license}"
 

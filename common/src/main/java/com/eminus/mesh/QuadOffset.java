@@ -1,6 +1,7 @@
 package com.eminus.mesh;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
@@ -21,7 +22,7 @@ public final class QuadOffset {
             return NONE;
         }
 
-        Vec3 offset = state.getOffset(new BlockPos(blockX, blockY, blockZ));
+        Vec3 offset = state.getOffset(EmptyBlockGetter.INSTANCE, new BlockPos(blockX, blockY, blockZ));
         return pack(offset.x, offset.y, offset.z);
     }
 

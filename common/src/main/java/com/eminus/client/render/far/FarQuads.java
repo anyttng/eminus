@@ -26,14 +26,14 @@ import com.eminus.gpu.pipeline.PipelineSpec;
 import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 final class FarQuads {
     static final float SHADE_BLADE = 1.0F;
     static final int MAX_SAMPLES = 8;
 
     private static final int MAX_GROUP_INDICES = MeshBuffer.MAX_QUADS_PER_GROUP * DrawCommands.INDICES_PER_QUAD;
-    private static final Identifier SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/far_quads");
+    private static final ResourceLocation SHADER = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "core/far_quads");
     private static final String FRAME = "FarFrame";
     private static final String QUADS = "Quads";
     private static final String MESH_RECORDS = "MeshRecords";
@@ -45,7 +45,7 @@ final class FarQuads {
     private static final String LIGHTMAP = "Lightmap";
     private static final String NEXT_LONG_MODULO = "VARIANT_NEXT_LONG_MODULO";
 
-    static PipelineSpec.Builder pipeline(Identifier location, float alphaCutout, Capabilities capabilities,
+    static PipelineSpec.Builder pipeline(ResourceLocation location, float alphaCutout, Capabilities capabilities,
             VariantDraw variantDraw) {
         PipelineSpec.Builder builder = PipelineSpec.builder(location, SHADER, SHADER)
                 .withBinding(Binding.uniform(FRAME))

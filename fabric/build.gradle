@@ -1,5 +1,5 @@
 plugins {
-    id 'net.fabricmc.fabric-loom'
+    id 'net.fabricmc.fabric-loom-remap'
     id 'idea'
 }
 
@@ -21,12 +21,13 @@ base {
     archivesName = mod_id
 }
 
-// Mojang ships Java 25 to end users, so mods should target Java 25.
-java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+// 1.21.1 runs on Java 21 — that is what NeoForge 21.1.x and its Fabric contemporaries are built against.
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 // Common is compiled once, in its own module, and this one takes that output: the classes the Fabric suite runs are
-// then the very classes the shipped jar carries. 26.x Minecraft ships unobfuscated — no mappings line, no remapping,
-// no refmap — so nothing in common's output has to pass through Loom.
+// then the very classes the shipped jar carries. Both modules compile against Mojmap, and remapJar carries the whole
+// jar — common's classes and their mixin annotations included — onto intermediary, so nothing in common's output has
+// to pass through Loom's compile.
 evaluationDependsOn(':common')
 def commonMain = project(':common').sourceSets.main
 
@@ -49,32 +50,63 @@ repositories {
     }
 }
 
+// Same unpack as in common, for the same reason: common's classes are remapped against this module's classpath, and
+// the 'sodium:config_api_user' entrypoint names Sodium's config API.
+configurations {
+    sodiumModJar
+}
+
+dependencies {
+    sodiumModJar "maven.modrinth:sodium:${sodium_version}"
+}
+
+var sodiumModJars = tasks.register('unpackSodiumMod', Sync) {
+    from(zipTree(configurations.sodiumModJar.singleFile)) {
+        include 'META-INF/jarjar/net.caffeinemc.sodium-neoforge-*-mod.jar'
+        eachFile { it.relativePath = new RelativePath(true, it.name) }
+    }
+    includeEmptyDirs = false
+    into layout.buildDirectory.dir('sodium-mod')
+}
+
 dependencies {
     implementation commonMain.output
     minecraft "com.mojang:minecraft:${minecraft_version}"
-    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+    // Mojmap on both sides: the mixins are written against the same names NeoForge uses, so common's classes serve
+    // either loader, and remapJar carries this module's copy onto intermediary.
+    mappings loom.officialMojangMappings()
+    // modImplementation, not implementation: only the mod configurations run through Loom's dependency provider, which
+    // remaps these jars off intermediary and applies the loader's fabric-installer.json (mixin, asm).
+    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
 
     // The 'modmenu' entrypoint class is only ever asked for by ModMenu itself, so it never loads without it.
-    compileOnly "com.terraformersmc:modmenu:${modmenu_version}"
+    // modCompileOnly: its screen-factory API names the game's Screen, which only the remapped jar spells in Mojmap.
+    modCompileOnly "com.terraformersmc:modmenu:${modmenu_version}"
 
     // The 'sodium:config_api_user' entrypoint class is likewise only ever asked for by Sodium.
-    compileOnly("maven.modrinth:sodium:${sodium_version}") {
-        transitive = false
-    }
+    compileOnly files(sodiumModJars).asFileTree.matching { include '*.jar' }
 
     // Not bundled: Fabric Loader carries MixinExtras itself and keeps the higher version, so a copy here is dropped
-    // at load and only weighs. No annotation processor — with no remapping there is no refmap to generate.
+    // at load and only weighs. No annotation processor and no refmap: Loom 1.17 defaults useLegacyMixinAp to false
+    // and remaps the mixin annotations inside remapJar instead.
     compileOnly "io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"
 
-    // The cell store's fixed stack, bundled into the jar; Loom wraps a plain library jar as a nested mod itself.
+    // The cell store's fixed stack; Loom wraps a plain library jar as a nested mod itself. The root lifts the wrapped
+    // copies out of this jar into the shipped shell, the one copy both loaders open.
     include(implementation("org.xerial:sqlite-jdbc:${sqlite_jdbc_version}"))
     include(implementation("io.airlift:aircompressor:${aircompressor_version}"))
 }
 
+// Two jars on this game version, and only the second one ships: Loom compiles into a dev jar and remaps that into
+// build/libs, so the dev jar is named apart and a deploy matching on the name never picks it up.
 tasks.named('jar', Jar) {
-    archiveFileName = "${mod_id}-fabric-${jarVersion}.jar"
+    archiveFileName = "${mod_id}-fabric-${jarVersion}-dev.jar"
     from(commonMain.output)
+}
+
+tasks.named('remapJar', AbstractArchiveTask) {
+    archiveFileName = "${mod_id}-fabric-${jarVersion}.jar"
 }
 
 tasks.named('assemble') {

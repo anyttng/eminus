@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 
 import com.eminus.gpu.pipeline.PipelineSpec;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 public final class GlslSource {
     public static final String VERTEX_INDEX_ALIAS = "#define gl_VertexIndex gl_VertexID";
@@ -27,7 +27,7 @@ public final class GlslSource {
     }
 
     public static String compose(String source, List<PipelineSpec.Define> defines,
-            Function<Identifier, Optional<String>> includes) {
+            Function<ResourceLocation, Optional<String>> includes) {
         ImportedVersion imported = new ImportedVersion();
         List<String> lines = new ArrayList<>();
         for (String line : source.split(LINE, -1)) {
@@ -57,7 +57,7 @@ public final class GlslSource {
         return composed.toString();
     }
 
-    private static String expand(String line, Function<Identifier, Optional<String>> includes, int depth,
+    private static String expand(String line, Function<ResourceLocation, Optional<String>> includes, int depth,
             ImportedVersion imported) {
         Matcher version = VERSION_DIRECTIVE.matcher(line);
         if (depth > 0 && version.matches()) {
@@ -74,7 +74,7 @@ public final class GlslSource {
             throw new IllegalStateException("Include <" + include.group(1) + "> nests deeper than " + MAX_INCLUDE_DEPTH);
         }
 
-        Identifier id = Identifier.tryParse(include.group(1));
+        ResourceLocation id = ResourceLocation.tryParse(include.group(1));
         if (id == null) {
             throw new IllegalStateException("Include <" + include.group(1) + "> is not an identifier");
         }

@@ -14,7 +14,7 @@ import net.caffeinemc.mods.sodium.api.config.ConfigEntryPoint;
 import net.caffeinemc.mods.sodium.api.config.structure.ConfigBuilder;
 import net.caffeinemc.mods.sodium.api.config.structure.OptionGroupBuilder;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 public final class SodiumSettingsPage implements ConfigEntryPoint {
     private static final String INGESTION_ID = "ingestion";
@@ -119,7 +119,7 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
         return Component.literal(String.valueOf(value));
     }
 
-    private static Identifier id(String path) {
-        return Identifier.fromNamespaceAndPath(Eminus.MODID, path);
+    private static ResourceLocation id(String path) {
+        return ResourceLocation.fromNamespaceAndPath(Eminus.MODID, path);
     }
 }
