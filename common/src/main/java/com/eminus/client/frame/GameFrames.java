@@ -1,6 +1,5 @@
 package com.eminus.client.frame;
 
-import com.eminus.handoff.NearFieldOverride;
 import com.eminus.mixin.LevelRendererAccessor;
 
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -25,7 +24,6 @@ import org.joml.Vector4fc;
 
 public final class GameFrames {
     public static final float NO_FOG = Float.MAX_VALUE;
-    public static final double NO_FADE_IN = 0.0;
 
     private static final boolean SHADED = true;
 
@@ -56,10 +54,6 @@ public final class GameFrames {
     public static GameFog fog() {
         return fog(RenderSystem.getShaderFogStart(), RenderSystem.getShaderFogEnd(), renderDistanceFog,
                 new Vector4f(RenderSystem.getShaderFogColor()));
-    }
-
-    public static double sectionFadeInSeconds(double option) {
-        return NearFieldOverride.applied() ? NO_FADE_IN : option;
     }
 
     public static boolean cutoutLeaves() {

@@ -13,7 +13,7 @@ public class RenderSectionManagerMixin {
     private static final String RENDER_LISTS = "Lnet/caffeinemc/mods/sodium/client/render/chunk/RenderSectionManager;"
             + "renderLists:Lnet/caffeinemc/mods/sodium/client/render/chunk/lists/SortedRenderLists;";
 
-    @Inject(method = {"readRenderListFromTree", "renderOutOfGraph"},
+    @Inject(method = "finalizeRenderLists",
             at = @At(value = "FIELD", target = RENDER_LISTS, opcode = Opcodes.PUTFIELD, shift = At.Shift.AFTER))
     private void eminus$publishDrawnSections(CallbackInfo callback) {
         SodiumDrawnSections.publish();

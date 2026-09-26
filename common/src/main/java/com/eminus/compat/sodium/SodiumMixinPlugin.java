@@ -8,13 +8,13 @@ import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 public final class SodiumMixinPlugin implements IMixinConfigPlugin {
-    private static final String SODIUM_UNIFORMS_CLASS =
-            "net/caffeinemc/mods/sodium/client/render/chunk/UniformBufferManager.class";
+    private static final String SODIUM_SECTION_COLLECTOR_CLASS =
+            "net/caffeinemc/mods/sodium/client/render/chunk/lists/SectionCollector.class";
 
     private boolean present;
 
     public static boolean sodiumPresent() {
-        return SodiumMixinPlugin.class.getClassLoader().getResource(SODIUM_UNIFORMS_CLASS) != null;
+        return SodiumMixinPlugin.class.getClassLoader().getResource(SODIUM_SECTION_COLLECTOR_CLASS) != null;
     }
 
     @Override

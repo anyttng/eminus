@@ -5,10 +5,8 @@
   "compatibilityLevel": "JAVA_21",
   "plugin": "com.eminus.compat.sodium.SodiumMixinPlugin",
   "client": [
-    "RenderRegionManagerMixin",
     "RenderSectionManagerMixin",
-    "UniformBufferManagerMixin",
-    "VisibleChunkCollectorMixin"
+    "SectionCollectorMixin"
   ],
   "injectors": {
     "defaultRequire": 1
