@@ -9,6 +9,7 @@ import com.eminus.mesh.MeshBuffer;
 import com.eminus.mesh.Quad;
 import com.eminus.model.BakedModel;
 import com.eminus.model.ModelMetadata;
+import com.eminus.model.port.VariantDraw;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.far.DrawCommands;
 import com.eminus.client.handoff.NearSectionTable;
@@ -16,6 +17,7 @@ import com.eminus.client.model.ModelRecords;
 import com.eminus.client.model.ModelVariants;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.client.render.arena.MeshRecords;
+import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.TexelView;
 import com.eminus.gpu.pass.Pass;
@@ -41,10 +43,11 @@ final class FarQuads {
     private static final String ATLAS = "Atlas";
     private static final String TINT_MASK = "TintMask";
     private static final String LIGHTMAP = "Lightmap";
+    private static final String NEXT_LONG_MODULO = "VARIANT_NEXT_LONG_MODULO";
 
-    static PipelineSpec.Builder pipeline(Identifier location, float alphaCutout) {
-        return PipelineSpec.builder(location, SHADER, SHADER)
-                .withGameGlobals()
+    static PipelineSpec.Builder pipeline(Identifier location, float alphaCutout, Capabilities capabilities,
+            VariantDraw variantDraw) {
+        PipelineSpec.Builder builder = PipelineSpec.builder(location, SHADER, SHADER)
                 .withBinding(Binding.uniform(FRAME))
                 .withBinding(Binding.texel(QUADS, GeometryArena.QUAD_FORMAT))
                 .withBinding(Binding.texel(MESH_RECORDS, MeshRecords.TEXEL_FORMAT))
@@ -70,11 +73,15 @@ final class FarQuads {
                 .withDefine("NEAR_SECTION_BLOCKS", NearSections.SECTION_BLOCKS)
                 .withDefine("NEAR_TEXEL_BITS", NearSections.BITS_PER_TEXEL)
                 .withDefine("NEAR_TEXEL_SHIFT", NearSections.TEXEL_SHIFT);
+        if (variantDraw == VariantDraw.NEXT_LONG_MODULO) {
+            builder.withDefine(NEXT_LONG_MODULO);
+        }
+
+        return capabilities.lightmapHalfTexel() ? builder.withDefine("LIGHTMAP_HALF_TEXEL") : builder;
     }
 
     static void bind(Pass pass, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer frame,
             TexelView nearSections) {
-        pass.bindGameGlobals();
         pass.bind(FRAME, frame);
         pass.bind(QUADS, arena.quads());
         pass.bind(MESH_RECORDS, arena.records().texels());

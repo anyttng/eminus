@@ -4,6 +4,7 @@ import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
 import com.eminus.client.render.arena.GeometryArena;
+import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.TexelView;
@@ -12,6 +13,7 @@ import com.eminus.gpu.pass.PassSpec;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.pipeline.PipelineSpec;
 import com.eminus.gpu.texture.Texture;
+import com.eminus.model.port.VariantDraw;
 import com.eminus.render.backend.DepthConvention;
 
 import net.minecraft.resources.Identifier;
@@ -34,9 +36,9 @@ public final class OpaquePass {
         this.pipeline = pipeline;
     }
 
-    public static OpaquePass create(Gpu gpu, DepthConvention depth) {
+    public static OpaquePass create(Gpu gpu, DepthConvention depth, VariantDraw variantDraw) {
         gpu.assertRenderThread();
-        return new OpaquePass(gpu, gpu.pipeline(pipeline(depth)));
+        return new OpaquePass(gpu, gpu.pipeline(pipeline(depth, gpu.capabilities(), variantDraw)));
     }
 
     public Pipeline pipeline() {
@@ -58,8 +60,8 @@ public final class OpaquePass {
         }
     }
 
-    private static PipelineSpec pipeline(DepthConvention depth) {
-        return FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT)
+    private static PipelineSpec pipeline(DepthConvention depth, Capabilities capabilities, VariantDraw variantDraw) {
+        return FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT, capabilities, variantDraw)
                 .withDefine("FULL_COVERAGE")
                 .withDefine("NEAR_SECTIONS")
                 .withColourTarget(FarTarget.COLOUR_FORMAT, null, true)

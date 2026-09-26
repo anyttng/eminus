@@ -1,7 +1,5 @@
 package com.eminus.model;
 
-import net.minecraft.util.ARGB;
-
 public final class Mips {
     private static final int ALPHA_SHIFT = 24;
     private static final int RED_SHIFT = 16;
@@ -54,7 +52,7 @@ public final class Mips {
 
     private static int colourMean(int first, int second, int third, int fourth) {
         return channel(first, second, third, fourth, ALPHA_SHIFT) << ALPHA_SHIFT
-                | ARGB.meanLinear(first, second, third, fourth) & RGB_MASK;
+                | Argb.meanLinear(first, second, third, fourth) & RGB_MASK;
     }
 
     private static int arithmeticMean(int first, int second, int third, int fourth) {

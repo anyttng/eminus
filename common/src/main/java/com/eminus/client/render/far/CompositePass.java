@@ -113,15 +113,12 @@ public final class CompositePass implements AutoCloseable {
     }
 
     private static PipelineSpec pipeline(DepthConvention depth, Format colourFormat) {
-        PipelineSpec.Builder builder = PipelineSpec.builder(PIPELINE, SHADER, SHADER)
-                .withBinding(Binding.uniform(COMPOSITE))
-                .withBinding(Binding.sampled(FAR_COLOUR))
-                .withBinding(Binding.sampled(FAR_DEPTH))
-                .withDefine("FARTHEST", (float) DepthConvention.REVERSED_FARTHEST)
-                .withDefine("NEAREST", (float) DepthConvention.REVERSED_NEAREST)
+        return depth.define(PipelineSpec.builder(PIPELINE, SHADER, SHADER)
+                        .withBinding(Binding.uniform(COMPOSITE))
+                        .withBinding(Binding.sampled(FAR_COLOUR))
+                        .withBinding(Binding.sampled(FAR_DEPTH)))
                 .withColourTarget(colourFormat, Blend.TRANSLUCENT_PREMULTIPLIED, true)
-                .withDepthTest(depth.compare(), true);
-
-        return depth.zeroToOne() ? builder.withDefine("DEPTH_ZERO_TO_ONE").build() : builder.build();
+                .withDepthTest(depth.compare(), true)
+                .build();
     }
 }

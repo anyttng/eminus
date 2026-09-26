@@ -1,5 +1,7 @@
 package com.eminus.model;
 
+import com.eminus.model.port.VariantDraw;
+
 final class VariantPick {
     private static final int ENTRY_WORDS = BakedModel.VARIANT_WORDS;
     private static final int MAX_REJECTIONS = BakedModel.MAX_VARIANT_REJECTIONS;
@@ -22,11 +24,14 @@ final class VariantPick {
     private static final int LOW = 0;
     private static final int HIGH = 1;
 
-    static int modelId(int[] table, int blockX, int blockY, int blockZ) {
-        int entries = table.length / ENTRY_WORDS;
-        int total = table[(entries - 1) * ENTRY_WORDS];
-        int selection = selection(blockX, blockY, blockZ, total);
+    static int modelId(int[] table, int blockX, int blockY, int blockZ, VariantDraw draw) {
+        int total = table[table.length - ENTRY_WORDS];
+        int[] state = seed(blockX, blockY, blockZ);
+        return lookup(table, draw == VariantDraw.NEXT_INT ? nextInt(state, total) : nextLongModulo(state, total));
+    }
 
+    static int lookup(int[] table, int selection) {
+        int entries = table.length / ENTRY_WORDS;
         for (int entry = 0; entry < entries; entry++) {
             if (selection < table[entry * ENTRY_WORDS]) {
                 return table[entry * ENTRY_WORDS + 1];
@@ -36,8 +41,18 @@ final class VariantPick {
         return table[1];
     }
 
-    static int selection(int blockX, int blockY, int blockZ, int totalWeight) {
-        int[] state = seed(blockX, blockY, blockZ);
+    static int absModulo(int low, int bound) {
+        int magnitude = low < 0 ? -low : low;
+        int modulo = Integer.remainderUnsigned(magnitude, bound);
+        return low == Integer.MIN_VALUE ? -modulo : modulo;
+    }
+
+    private static int nextLongModulo(int[] state, int totalWeight) {
+        next32(state);
+        return absModulo(next32(state), totalWeight);
+    }
+
+    private static int nextInt(int[] state, int totalWeight) {
         if ((totalWeight & (totalWeight - 1)) == 0) {
             int[] product = multiplyWords(totalWeight, next31(state));
             return product[LOW] >>> POWER_SHIFT | product[HIGH] << 1;
@@ -64,10 +79,19 @@ final class VariantPick {
         return words(low ^ MULTIPLIER_LOW, (high ^ MULTIPLIER_HIGH) & STATE_HIGH_MASK);
     }
 
-    private static int next31(int[] state) {
+    private static void advance(int[] state) {
         int[] next = add(multiply(state, words(MULTIPLIER_LOW, MULTIPLIER_HIGH)), words(INCREMENT, 0));
         state[LOW] = next[LOW];
         state[HIGH] = next[HIGH] & STATE_HIGH_MASK;
+    }
+
+    private static int next32(int[] state) {
+        advance(state);
+        return state[LOW] >>> HALF_BITS | state[HIGH] << HALF_BITS;
+    }
+
+    private static int next31(int[] state) {
+        advance(state);
         return (state[LOW] >>> NEXT_LOW_SHIFT | state[HIGH] << NEXT_HIGH_SHIFT) & POSITIVE_MASK;
     }
 

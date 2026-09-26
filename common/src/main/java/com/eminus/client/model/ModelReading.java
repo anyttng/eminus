@@ -9,12 +9,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import com.eminus.client.gpu.Gpus;
+import com.eminus.client.model.game.ModelSheet;
 import com.eminus.gpu.Gpu;
 import com.eminus.model.BakedModel;
 import com.eminus.model.BiomeColours;
 import com.eminus.model.ModelBakery;
 import com.eminus.model.ModelMetadata;
-import com.eminus.model.ModelSheet;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Direction;

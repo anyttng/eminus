@@ -1,21 +1,21 @@
 package com.eminus.model;
 
-import java.util.IdentityHashMap;
+import java.util.HashMap;
 import java.util.Map;
 
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import com.eminus.model.port.Sprite;
 
 public final class SolidSprites {
-    private final Map<TextureAtlasSprite, int[]> texels = new IdentityHashMap<>();
+    private final Map<Sprite, int[]> texels = new HashMap<>();
 
-    public int argb(TextureAtlasSprite sprite, float u, float v) {
+    public int argb(Sprite sprite, float u, float v) {
         int[] solid = texels.computeIfAbsent(sprite, SolidSprites::solidified);
-        return solid[SpriteSampler.index(sprite, u, v)];
+        return solid[sprite.index(u, v)];
     }
 
-    private static int[] solidified(TextureAtlasSprite sprite) {
-        int[] copy = SpriteSampler.texels(sprite);
-        Solidify.apply(copy, sprite.contents().width(), sprite.contents().height());
+    private static int[] solidified(Sprite sprite) {
+        int[] copy = sprite.argb();
+        Solidify.apply(copy, sprite.width(), sprite.height());
         return copy;
     }
 }

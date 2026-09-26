@@ -10,6 +10,7 @@ import java.util.Set;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
+import com.eminus.client.frame.GameFrames;
 import com.eminus.compat.sodium.SodiumDrawnSections;
 import com.eminus.compat.sodium.SodiumMixinPlugin;
 import com.eminus.gpu.Format;
@@ -97,7 +98,7 @@ public final class NearSectionTable implements AutoCloseable {
     }
 
     private boolean owned(int sectionX, int sectionY, int sectionZ) {
-        return levelRenderer.isSectionCompiledAndVisible(pos.set(sectionX * NearSections.SECTION_BLOCKS,
+        return GameFrames.sectionDrawn(levelRenderer, pos.set(sectionX * NearSections.SECTION_BLOCKS,
                 sectionY * NearSections.SECTION_BLOCKS, sectionZ * NearSections.SECTION_BLOCKS), sectionFadeMillis)
                 && drawn(sectionX, sectionY, sectionZ);
     }

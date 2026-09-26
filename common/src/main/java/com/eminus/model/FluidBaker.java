@@ -1,11 +1,11 @@
 package com.eminus.model;
 
 import com.eminus.cell.FaceMask;
+import com.eminus.model.port.FluidModel;
+import com.eminus.model.port.FluidModels;
+import com.eminus.model.port.Sprite;
+import com.eminus.model.port.TintSource;
 
-import net.minecraft.client.color.block.BlockTintSource;
-import net.minecraft.client.renderer.block.FluidModel;
-import net.minecraft.client.renderer.block.FluidStateModelSet;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.material.FluidState;
 
@@ -16,28 +16,28 @@ public final class FluidBaker {
     private static final int UP = Direction.UP.ordinal();
     private static final float FULL_HEIGHT = 1.0F;
 
-    private final FluidStateModelSet models;
+    private final FluidModels models;
     private final SolidSprites sprites;
 
-    public FluidBaker(FluidStateModelSet models, SolidSprites sprites) {
+    public FluidBaker(FluidModels models, SolidSprites sprites) {
         this.models = models;
         this.sprites = sprites;
     }
 
-    public @Nullable BlockTintSource tintSource(FluidState fluid) {
-        return models.get(fluid).tintSource();
+    public @Nullable TintSource tintSource(FluidState fluid) {
+        return models.model(fluid).tint();
     }
 
     public BakedModel bake(FluidState fluid, @Nullable Tint tint) {
-        FluidModel model = models.get(fluid);
-        int[] side = still(model.stillMaterial().sprite());
+        FluidModel model = models.model(fluid);
+        int[] side = still(model.still());
         int[] faces = new int[BakedModel.FACE_COUNT * BakedModel.FACE_TEXELS];
 
         for (int face = 0; face < BakedModel.FACE_COUNT; face++) {
             System.arraycopy(side, 0, faces, face * BakedModel.FACE_TEXELS, BakedModel.FACE_TEXELS);
         }
 
-        boolean translucent = model.layer().translucent();
+        boolean translucent = model.translucent();
         long[] tintMask = tint == null ? BakedModel.untintedMask() : BakedModel.tintedMask();
         int tintRow = BiomeColours.NO_ROW;
         if (tint != null) {
@@ -95,13 +95,13 @@ public final class FluidBaker {
         return bounds[BakedModel.MAX_Y] >= FULL_HEIGHT;
     }
 
-    private int[] still(TextureAtlasSprite sprite) {
+    private int[] still(Sprite sprite) {
         int[] side = new int[BakedModel.FACE_TEXELS];
 
         for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
-            float v = between(sprite.getV0(), sprite.getV1(), row);
+            float v = between(sprite.v0(), sprite.v1(), row);
             for (int column = 0; column < BakedModel.FACE_SIDE; column++) {
-                float u = between(sprite.getU0(), sprite.getU1(), column);
+                float u = between(sprite.u0(), sprite.u1(), column);
                 side[row * BakedModel.FACE_SIDE + column] = sprites.argb(sprite, u, v);
             }
         }

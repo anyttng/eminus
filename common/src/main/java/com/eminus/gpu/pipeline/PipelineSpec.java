@@ -13,7 +13,6 @@ public record PipelineSpec(
         Identifier location,
         Identifier vertexShader,
         Identifier fragmentShader,
-        boolean gameGlobals,
         List<Binding> bindings,
         List<Define> defines,
         ColourTarget colour,
@@ -38,7 +37,6 @@ public record PipelineSpec(
         private final Identifier fragmentShader;
         private final List<Binding> bindings = new ArrayList<>();
         private final List<Define> defines = new ArrayList<>();
-        private boolean gameGlobals;
         private @Nullable ColourTarget colour;
         private @Nullable DepthTest depth;
 
@@ -46,11 +44,6 @@ public record PipelineSpec(
             this.location = location;
             this.vertexShader = vertexShader;
             this.fragmentShader = fragmentShader;
-        }
-
-        public Builder withGameGlobals() {
-            gameGlobals = true;
-            return this;
         }
 
         public Builder withBinding(Binding binding) {
@@ -88,7 +81,7 @@ public record PipelineSpec(
                 throw new IllegalStateException("Pipeline " + location + " declares no colour target");
             }
 
-            return new PipelineSpec(location, vertexShader, fragmentShader, gameGlobals, List.copyOf(bindings),
+            return new PipelineSpec(location, vertexShader, fragmentShader, List.copyOf(bindings),
                     List.copyOf(defines), colour, depth);
         }
     }

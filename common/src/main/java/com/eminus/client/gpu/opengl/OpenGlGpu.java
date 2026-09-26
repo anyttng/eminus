@@ -93,8 +93,9 @@ public final class OpenGlGpu implements Gpu {
         boolean zeroToOne = gl.GL_ARB_clip_control
                 && GL11C.glGetInteger(ARBClipControl.GL_CLIP_DEPTH_MODE) == ARBClipControl.GL_ZERO_TO_ONE;
 
-        return new OpenGlGpu(new Capabilities(BACKEND, zeroToOne, gl.GL_ARB_draw_indirect,
-                gl.GL_ARB_multi_draw_indirect, gl.GL_ARB_buffer_storage, NO_ALLOCATION_LIMIT,
+        return new OpenGlGpu(new Capabilities(BACKEND, zeroToOne, GameHandles.depthReversed(),
+                GameHandles.lightmapHalfTexel(),
+                gl.GL_ARB_draw_indirect, gl.GL_ARB_multi_draw_indirect, gl.GL_ARB_buffer_storage, NO_ALLOCATION_LIMIT,
                 OpenGlLimits.texelElements(), OpenGlLimits.freeBytes()));
     }
 

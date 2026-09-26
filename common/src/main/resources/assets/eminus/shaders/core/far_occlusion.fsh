@@ -8,6 +8,8 @@ layout(std140) uniform Occlusion {
     float FocalPixels;
 };
 
+#include <eminus:far_depth.glsl>
+
 uniform sampler2D FarDepth;
 uniform sampler2D GameDepth;
 
@@ -42,13 +44,13 @@ bool scene_position(ivec2 texel, ivec2 size, out vec3 position) {
 
     vec2 uv = (vec2(texel) + 0.5) / vec2(size);
     float far = texelFetch(FarDepth, texel, 0).r;
-    if (far > FARTHEST && far < NEAREST) {
+    if (NEARER(far, FARTHEST) && NEARER(NEAREST, far)) {
         position = unproject(FarInverse, uv, far);
         return true;
     }
 
     float game = texelFetch(GameDepth, texel, 0).r;
-    if (game > GAME_DEPTH_CLEARED) {
+    if (NEARER(game, FARTHEST)) {
         position = unproject(GameInverse, uv, game);
         return true;
     }
@@ -77,7 +79,7 @@ void main() {
     ivec2 size = textureSize(FarDepth, 0);
     ivec2 texel = ivec2(gl_FragCoord.xy);
     float far = texelFetch(FarDepth, texel, 0).r;
-    if (far <= FARTHEST || far >= NEAREST) {
+    if (!NEARER(far, FARTHEST) || !NEARER(NEAREST, far)) {
         discard;
     }
 

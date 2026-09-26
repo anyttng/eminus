@@ -5,7 +5,6 @@ import java.util.EnumSet;
 import java.util.Set;
 
 import com.eminus.Eminus;
-import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.Std140;
 import com.eminus.gpu.buffer.Buffer;
@@ -115,21 +114,17 @@ public final class OcclusionPass implements AutoCloseable {
     }
 
     private static PipelineSpec pipeline(DepthConvention depth) {
-        PipelineSpec.Builder builder = PipelineSpec.builder(PIPELINE, VERTEX_SHADER, FRAGMENT_SHADER)
-                .withBinding(Binding.uniform(OCCLUSION))
-                .withBinding(Binding.sampled(FAR_DEPTH))
-                .withBinding(Binding.sampled(GAME_DEPTH))
-                .withDefine("FARTHEST", (float) DepthConvention.REVERSED_FARTHEST)
-                .withDefine("NEAREST", (float) DepthConvention.REVERSED_NEAREST)
-                .withDefine("GAME_DEPTH_CLEARED", NearMaskPass.GAME_DEPTH_CLEARED)
+        return depth.define(PipelineSpec.builder(PIPELINE, VERTEX_SHADER, FRAGMENT_SHADER)
+                        .withBinding(Binding.uniform(OCCLUSION))
+                        .withBinding(Binding.sampled(FAR_DEPTH))
+                        .withBinding(Binding.sampled(GAME_DEPTH)))
                 .withDefine("SAMPLES", SAMPLES)
                 .withDefine("RADIUS", RADIUS)
                 .withDefine("PIXEL_RADIUS", PIXEL_RADIUS)
                 .withDefine("STRENGTH", STRENGTH)
                 .withDefine("MIN_BIAS", MIN_BIAS)
                 .withDefine("BIAS_PER_SQUARED_BLOCK", BIAS_PER_SQUARED_BLOCK)
-                .withColourTarget(FarTarget.COLOUR_FORMAT, Blend.MULTIPLY, true);
-
-        return depth.zeroToOne() ? builder.withDefine("DEPTH_ZERO_TO_ONE").build() : builder.build();
+                .withColourTarget(FarTarget.COLOUR_FORMAT, Blend.MULTIPLY, true)
+                .build();
     }
 }
