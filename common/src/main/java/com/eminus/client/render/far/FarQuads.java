@@ -65,6 +65,8 @@ final class FarQuads {
                 .withDefine("MODEL_FACES", BakedModel.FACE_COUNT)
                 .withDefine("FIRST_BLADE_FACE", Quad.FIRST_BLADE_FACE)
                 .withDefine("FLUID_FLAG", ModelMetadata.FLUID)
+                .withDefine("ONE_SIDED_FLAG", ModelMetadata.ONE_SIDED)
+                .withDefine("INWARD_FLAG", ModelMetadata.INWARD)
                 .withDefine("CORNER_STEPS", FluidCorners.STEPS)
                 .withDefine("FACE_SIDE", BakedModel.FACE_SIDE)
                 .withDefine("MAX_VARIANT_REJECTIONS", BakedModel.MAX_VARIANT_REJECTIONS)

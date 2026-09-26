@@ -15,7 +15,9 @@ public final class ModelMetadata {
     public static final int BLADED = 1 << 24;
     public static final int SLOPED = 1 << 25;
     public static final int FLUID = 1 << 26;
-    public static final int FLAGS = TINTED | TRANSLUCENT | BLADED | SLOPED | FLUID;
+    public static final int ONE_SIDED = 1 << 27;
+    public static final int INWARD = 1 << 28;
+    public static final int FLAGS = TINTED | TRANSLUCENT | BLADED | SLOPED | FLUID | ONE_SIDED | INWARD;
 
     public static int pack(int present, int occluding, int occludable, int emission, int flags) {
         return (present & FaceMask.ALL) << PRESENT_SHIFT

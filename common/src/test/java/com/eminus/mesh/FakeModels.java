@@ -7,11 +7,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.eminus.cell.FaceMask;
 import com.eminus.model.BiomeColours;
+import com.eminus.model.ModelMetadata;
 
 import net.minecraft.world.level.block.state.BlockState;
 
 final class FakeModels implements MeshModels {
+    private static final int FIRST_DERIVED_MODEL = 1000;
+
     @FunctionalInterface
     interface PositionalIds {
         int at(int blockX, int blockY, int blockZ);
@@ -31,8 +35,11 @@ final class FakeModels implements MeshModels {
     private final Set<Integer> solids = new HashSet<>();
     private final Set<Integer> partialHeights = new HashSet<>();
     private final List<Runnable> waiters = new ArrayList<>();
+    private final Map<Integer, Integer> oneSidedIds = new HashMap<>();
+    private final Map<List<Integer>, Integer> inwardIds = new HashMap<>();
 
     private int requests;
+    private int nextDerived = FIRST_DERIVED_MODEL;
     private boolean throwOnMetadata;
 
     void define(int stateId, int modelId, int metadata) {
@@ -95,6 +102,16 @@ final class FakeModels implements MeshModels {
         return requests;
     }
 
+    private int derive(int metadata, int heightFrom) {
+        int id = nextDerived++;
+        words.put(id, metadata);
+        if (partialHeights.contains(heightFrom)) {
+            partialHeights.add(id);
+        }
+
+        return id;
+    }
+
     int waiting() {
         return waiters.size();
     }
@@ -141,6 +158,22 @@ final class FakeModels implements MeshModels {
     @Override
     public int submergedModelId(int modelId) {
         return submergedIds.getOrDefault(modelId, modelId);
+    }
+
+    @Override
+    public int oneSidedModelId(int modelId) {
+        return oneSidedIds.computeIfAbsent(modelId,
+                id -> derive(words.getOrDefault(id, 0) | ModelMetadata.ONE_SIDED, id));
+    }
+
+    @Override
+    public int inwardModelId(int seabedModelId, int fluidModelId) {
+        return inwardIds.computeIfAbsent(List.of(seabedModelId, fluidModelId), pair -> {
+            int id = derive(ModelMetadata.pack(FaceMask.ALL, FaceMask.NONE, FaceMask.NONE, 0,
+                    ModelMetadata.FLUID | ModelMetadata.ONE_SIDED | ModelMetadata.INWARD), fluidModelId);
+            tintRows.put(id, tintRow(seabedModelId));
+            return id;
+        });
     }
 
     @Override
