@@ -8,6 +8,8 @@ import com.eminus.model.BakedModel;
 
 import com.mojang.blaze3d.platform.NativeImage;
 
+import net.minecraft.util.FastColor;
+
 public final class ModelSheet {
     public static void write(List<BakedModel> models, Path file) throws IOException {
         if (models.isEmpty()) {
@@ -33,7 +35,8 @@ public final class ModelSheet {
             for (int y = 0; y < BakedModel.FACE_SIDE; y++) {
                 int row = BakedModel.FACE_SIDE - 1 - y;
                 for (int x = 0; x < BakedModel.FACE_SIDE; x++) {
-                    sheet.setPixel(left + x, top + y, model.argb(face, row * BakedModel.FACE_SIDE + x));
+                    sheet.setPixelRGBA(left + x, top + y,
+                            FastColor.ABGR32.fromArgb32(model.argb(face, row * BakedModel.FACE_SIDE + x)));
                 }
             }
         }

@@ -1,6 +1,8 @@
 package com.eminus;
 
 import com.eminus.client.NeoForgeSessionHooks;
+import com.eminus.client.model.game.GameModels;
+import com.eminus.client.model.game.NeoForgeModels;
 import com.eminus.platform.NeoForgePlatform;
 import com.eminus.platform.Platforms;
 import com.eminus.settings.SettingsService;
@@ -18,6 +20,7 @@ public class EminusNeoForge {
         Eminus.LOGGER.info("Eminus initializing");
         Platforms.set(new NeoForgePlatform(modContainer));
         SettingsService.set(SettingsService.load(Platforms.get().configDir()));
+        GameModels.useLoader(new NeoForgeModels());
         modContainer.registerExtensionPoint(IConfigScreenFactory.class,
                 (container, modListScreen) -> new SettingsScreen(modListScreen));
         NeoForgeSessionHooks.register(NeoForge.EVENT_BUS);

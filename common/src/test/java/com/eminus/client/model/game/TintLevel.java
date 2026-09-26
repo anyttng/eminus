@@ -5,9 +5,9 @@ import java.util.List;
 import com.eminus.model.port.TintBiome;
 
 import net.minecraft.client.renderer.BiomeColors;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.CardinalLighting;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -20,10 +20,10 @@ import org.jspecify.annotations.Nullable;
 
 record TintLevel(int biome) implements BlockAndTintGetter, TintBiome {
     private static final List<ColorResolver> RESOLVERS = List.of(BiomeColors.GRASS_COLOR_RESOLVER,
-            BiomeColors.FOLIAGE_COLOR_RESOLVER, BiomeColors.DRY_FOLIAGE_COLOR_RESOLVER,
-            BiomeColors.WATER_COLOR_RESOLVER);
+            BiomeColors.FOLIAGE_COLOR_RESOLVER, BiomeColors.WATER_COLOR_RESOLVER);
     private static final int BIOME_SHIFT = 8;
     private static final String PREFIX = "test:biome_";
+    private static final float UNSHADED = 1.0F;
 
     static int colour(int biome, int resolver) {
         return (biome + 1) << BIOME_SHIFT | resolver + 1;
@@ -45,13 +45,13 @@ record TintLevel(int biome) implements BlockAndTintGetter, TintBiome {
     }
 
     @Override
-    public CardinalLighting cardinalLighting() {
-        return CardinalLighting.DEFAULT;
+    public float getShade(Direction direction, boolean shade) {
+        return UNSHADED;
     }
 
     @Override
     public LevelLightEngine getLightEngine() {
-        return LevelLightEngine.EMPTY;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -75,7 +75,7 @@ record TintLevel(int biome) implements BlockAndTintGetter, TintBiome {
     }
 
     @Override
-    public int getMinY() {
+    public int getMinBuildHeight() {
         return 0;
     }
 }

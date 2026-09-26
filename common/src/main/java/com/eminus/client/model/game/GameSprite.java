@@ -7,6 +7,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 
 import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.util.FastColor;
 
 record GameSprite(TextureAtlasSprite sprite) implements Sprite {
     private static final int BASE_MIP_LEVEL = 0;
@@ -51,7 +52,7 @@ record GameSprite(TextureAtlasSprite sprite) implements Sprite {
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                texels[y * width + x] = image.getPixel(x, y);
+                texels[y * width + x] = FastColor.ABGR32.fromArgb32(image.getPixelRGBA(x, y));
             }
         }
 

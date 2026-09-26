@@ -11,13 +11,20 @@ import java.util.Set;
 
 import com.eminus.model.port.VariantDraw;
 
+import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.ItemOverrides;
+import net.minecraft.client.renderer.block.model.ItemTransforms;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.model.WeightedBakedModel;
+import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
-import net.minecraft.util.random.Weighted;
-import net.minecraft.util.random.WeightedList;
+import net.minecraft.util.RandomSource;
+import net.minecraft.util.random.WeightedEntry;
 import net.minecraft.util.random.WeightedRandom;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
-import net.minecraft.world.level.levelgen.SingleThreadedRandomSource;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 class VariantPickTest {
@@ -31,17 +38,13 @@ class VariantPickTest {
             Integer.MAX_VALUE};
     private static final int[] BOUNDS = {1, 4, 5, 7, 71};
 
-    private interface Pick {
-        int at(int blockX, int blockY, int blockZ);
-    }
-
-    private record Variants(List<Weighted<Integer>> entries, int[] table, int total) {
+    private record Variants(List<WeightedEntry.Wrapper<Integer>> entries, int[] table, int total) {
         static Variants of(int... weights) {
-            List<Weighted<Integer>> entries = new ArrayList<>();
+            List<WeightedEntry.Wrapper<Integer>> entries = new ArrayList<>();
             int[] table = new int[weights.length * BakedModel.VARIANT_WORDS];
             int upperBound = 0;
             for (int entry = 0; entry < weights.length; entry++) {
-                entries.add(new Weighted<>(FIRST_MODEL + entry, weights[entry]));
+                entries.add(WeightedEntry.wrap(FIRST_MODEL + entry, weights[entry]));
                 upperBound += weights[entry];
                 table[entry * BakedModel.VARIANT_WORDS] = upperBound;
                 table[entry * BakedModel.VARIANT_WORDS + 1] = FIRST_MODEL + entry;
@@ -51,48 +54,79 @@ class VariantPickTest {
         }
 
         int weightedItem(int index) {
-            return WeightedRandom.getWeightedItem(entries, index, Weighted::weight).orElseThrow().value();
+            return WeightedRandom.getWeightedItem(entries, index).orElseThrow().data();
+        }
+
+        WeightedBakedModel gameModel() {
+            List<WeightedEntry.Wrapper<net.minecraft.client.resources.model.BakedModel>> models = new ArrayList<>();
+            for (WeightedEntry.Wrapper<Integer> entry : entries) {
+                models.add(WeightedEntry.wrap(new Marker(entry.data()), entry.weight().asInt()));
+            }
+
+            return new WeightedBakedModel(models);
+        }
+    }
+
+    private record Marker(int modelId) implements net.minecraft.client.resources.model.BakedModel {
+        @Override
+        public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, RandomSource random) {
+            return List.of(new BakedQuad(new int[0], modelId, Direction.UP, null, false));
+        }
+
+        @Override
+        public boolean useAmbientOcclusion() {
+            return false;
+        }
+
+        @Override
+        public boolean isGui3d() {
+            return false;
+        }
+
+        @Override
+        public boolean usesBlockLight() {
+            return false;
+        }
+
+        @Override
+        public boolean isCustomRenderer() {
+            return false;
+        }
+
+        @Override
+        public TextureAtlasSprite getParticleIcon() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public ItemTransforms getTransforms() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public ItemOverrides getOverrides() {
+            throw new UnsupportedOperationException();
         }
     }
 
     @Test
     void equalWeightsOfAPowerOfTwoPickWhatTheGamePicks() {
-        assertNextIntPicksLikeTheGame(1, 1, 1, 1);
+        assertLongModuloPicksLikeTheGame(1, 1, 1, 1);
     }
 
     @Test
     void aTotalThatIsNoPowerOfTwoPicksWhatTheGamePicks() {
-        assertNextIntPicksLikeTheGame(1, 2, 4);
+        assertLongModuloPicksLikeTheGame(1, 2, 4);
     }
 
     @Test
-    void unevenWeightsPastTheFlatSelectorPickWhatTheGamePicks() {
-        assertNextIntPicksLikeTheGame(3, 50, 1, 17);
+    void unevenWeightsPickWhatTheGamePicks() {
+        assertLongModuloPicksLikeTheGame(3, 50, 1, 17);
     }
 
     @Test
     void aZeroWeightEntryIsNeverPicked() {
-        assertNextIntPicksLikeTheGame(2, 0, 3);
-    }
-
-    @Test
-    void equalWeightsOfAPowerOfTwoDrawnByLongModuloPickWhatTheReferencePicks() {
-        assertLongModuloPicksLikeTheReference(1, 1, 1, 1);
-    }
-
-    @Test
-    void aTotalThatIsNoPowerOfTwoDrawnByLongModuloPicksWhatTheReferencePicks() {
-        assertLongModuloPicksLikeTheReference(1, 2, 4);
-    }
-
-    @Test
-    void unevenWeightsDrawnByLongModuloPickWhatTheReferencePicks() {
-        assertLongModuloPicksLikeTheReference(3, 50, 1, 17);
-    }
-
-    @Test
-    void aZeroWeightEntryIsNeverPickedByTheLongModuloDraw() {
-        assertLongModuloPicksLikeTheReference(2, 0, 3);
+        assertLongModuloPicksLikeTheGame(2, 0, 3);
     }
 
     @Test
@@ -114,22 +148,9 @@ class VariantPickTest {
         }
     }
 
-    private static void assertNextIntPicksLikeTheGame(int... weights) {
+    private static void assertLongModuloPicksLikeTheGame(int... weights) {
         Variants variants = Variants.of(weights);
-        WeightedList<Integer> list = WeightedList.of(variants.entries());
-        assertMirrorPicks(variants, VariantDraw.NEXT_INT, weights, (blockX, blockY, blockZ) ->
-                list.getRandomOrThrow(new SingleThreadedRandomSource(Mth.getSeed(blockX, blockY, blockZ))));
-    }
-
-    private static void assertLongModuloPicksLikeTheReference(int... weights) {
-        Variants variants = Variants.of(weights);
-        assertMirrorPicks(variants, VariantDraw.NEXT_LONG_MODULO, weights, (blockX, blockY, blockZ) -> {
-            LegacyRandomSource random = new LegacyRandomSource(Mth.getSeed(blockX, blockY, blockZ));
-            return variants.weightedItem(Math.abs((int) random.nextLong()) % variants.total());
-        });
-    }
-
-    private static void assertMirrorPicks(Variants variants, VariantDraw draw, int[] weights, Pick reference) {
+        WeightedBakedModel game = variants.gameModel();
         Set<Integer> picked = new HashSet<>();
 
         for (int x : HORIZONTAL) {
@@ -138,9 +159,10 @@ class VariantPickTest {
                     for (int step = 0; step < STRIDES; step++) {
                         int blockX = x + step * STRIDE;
                         int blockZ = z - step * STRIDE;
-                        int expected = reference.at(blockX, y, blockZ);
-                        assertEquals(expected, VariantPick.modelId(variants.table(), blockX, y, blockZ, draw),
-                                "block " + blockX + ", " + y + ", " + blockZ);
+                        RandomSource random = new LegacyRandomSource(Mth.getSeed(blockX, y, blockZ));
+                        int expected = game.getQuads(null, null, random).getFirst().getTintIndex();
+                        assertEquals(expected, VariantPick.modelId(variants.table(), blockX, y, blockZ,
+                                VariantDraw.NEXT_LONG_MODULO), "block " + blockX + ", " + y + ", " + blockZ);
                         picked.add(expected);
                     }
                 }
