@@ -10,7 +10,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -18,7 +17,7 @@ import net.minecraft.world.level.block.state.BlockState;
 public final class StateTable implements StateOpacity {
     public static final String DICTIONARY_NAME = "state";
     public static final int FULL_OPACITY = 15;
-    public static final BlockState PLACEHOLDER = Blocks.CONCRETE.pick(DyeColor.MAGENTA).defaultBlockState();
+    public static final BlockState PLACEHOLDER = Blocks.MAGENTA_CONCRETE.defaultBlockState();
 
     private static final int INITIAL_CAPACITY = 256;
     private static final int UNKNOWN_OPACITY = -1;

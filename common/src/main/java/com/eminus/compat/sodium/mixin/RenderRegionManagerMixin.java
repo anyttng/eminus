@@ -11,6 +11,7 @@ public class RenderRegionManagerMixin {
     private static final String WRITE_MESH_TIMES =
             "Lnet/caffeinemc/mods/sodium/client/render/chunk/UniformBufferManager;writeMeshTimes(III)V";
     private static final String UPLOAD_REGION_RESULTS = "uploadResults("
+            + "Lnet/caffeinemc/mods/sodium/client/gl/device/CommandList;"
             + "Lnet/caffeinemc/mods/sodium/client/render/chunk/region/RenderRegion;Ljava/util/Collection;"
             + "Lnet/caffeinemc/mods/sodium/client/render/chunk/UniformBufferManager;)V";
     private static final int BUILT_TIME_ARG = 2;

@@ -11,7 +11,6 @@ import com.eminus.model.BakedModel;
 import com.eminus.model.ModelMetadata;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.far.DrawCommands;
-import com.eminus.client.gpu.game.GameGpu;
 import com.eminus.client.handoff.NearSectionTable;
 import com.eminus.client.model.ModelRecords;
 import com.eminus.client.model.ModelVariants;
@@ -86,10 +85,6 @@ final class FarQuads {
         pass.bind(TINT_MASK, models.atlas().tintMask(), Sampler.NEAREST_MIPPED);
         pass.bind(LIGHTMAP, lightmap, Sampler.LINEAR);
         pass.quadIndices(MAX_GROUP_INDICES);
-    }
-
-    static void reserveIndices() {
-        GameGpu.reserveQuadIndices(MAX_GROUP_INDICES);
     }
 
     private FarQuads() {

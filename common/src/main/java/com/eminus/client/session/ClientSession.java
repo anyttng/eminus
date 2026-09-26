@@ -121,11 +121,11 @@ public final class ClientSession {
         }
 
         Minecraft client = Minecraft.getInstance();
-        GameRenderState state = client.gameRenderer.gameRenderState();
+        GameRenderState state = client.gameRenderer.getGameRenderState();
         FogData fog = state.levelRenderState.cameraRenderState.fogData;
         if (renderer.covers(fog, state.optionsRenderState.renderDistance)) {
-            boolean inAir = client.gameRenderer.mainCamera().getFluidInCamera() == FogType.NONE;
-            NearFieldOverride.apply(fog, state.optionsRenderState, inAir && !SettingsService.get().settings().fog());
+            boolean inAir = client.gameRenderer.getMainCamera().getFluidInCamera() == FogType.NONE;
+            NearFieldOverride.apply(fog, inAir && !SettingsService.get().settings().fog());
         } else {
             NearFieldOverride.skip();
         }

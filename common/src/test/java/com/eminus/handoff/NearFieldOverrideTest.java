@@ -3,7 +3,6 @@ package com.eminus.handoff;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import net.minecraft.client.renderer.fog.FogData;
-import net.minecraft.client.renderer.state.OptionsRenderState;
 
 import org.junit.jupiter.api.Test;
 
@@ -16,41 +15,45 @@ class NearFieldOverrideTest {
     private static final float RENDER_DISTANCE_END = 192.0F;
     private static final float SKY_END = 192.0F;
     private static final float CLOUD_END = 176.0F;
-    private static final int RENDER_DISTANCE_CHUNKS = 12;
     private static final double FADE_IN_SECONDS = 0.5;
 
     @Test
     void theRenderDistanceFogGoesToInfinityAndTheFadeInToZero() {
         FogData fog = fogData();
-        OptionsRenderState options = options();
 
-        NearFieldOverride.apply(fog, options, KEEP_ATMOSPHERIC_FOG);
+        NearFieldOverride.apply(fog, KEEP_ATMOSPHERIC_FOG);
 
         assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceStart);
         assertEquals(NearFieldOverride.NO_FOG, fog.renderDistanceEnd);
-        assertEquals(NearFieldOverride.NO_FADE_IN, options.chunkSectionFadeInTime);
+        assertEquals(NearFieldOverride.NO_FADE_IN, NearFieldOverride.fadeInTime(FADE_IN_SECONDS));
     }
 
     @Test
-    void keptAtmosphericFogLeavesTheEnvironmentalFogTheSkyTheCloudsAndTheOtherOptionsAlone() {
-        FogData fog = fogData();
-        OptionsRenderState options = options();
+    void aSkippedOverrideLeavesTheFadeInAtTheOption() {
+        NearFieldOverride.apply(fogData(), KEEP_ATMOSPHERIC_FOG);
 
-        NearFieldOverride.apply(fog, options, KEEP_ATMOSPHERIC_FOG);
+        NearFieldOverride.skip();
+
+        assertEquals(FADE_IN_SECONDS, NearFieldOverride.fadeInTime(FADE_IN_SECONDS));
+    }
+
+    @Test
+    void keptAtmosphericFogLeavesTheEnvironmentalFogTheSkyAndTheCloudsAlone() {
+        FogData fog = fogData();
+
+        NearFieldOverride.apply(fog, KEEP_ATMOSPHERIC_FOG);
 
         assertEquals(ENVIRONMENTAL_START, fog.environmentalStart);
         assertEquals(ENVIRONMENTAL_END, fog.environmentalEnd);
         assertEquals(SKY_END, fog.skyEnd);
         assertEquals(CLOUD_END, fog.cloudEnd);
-        assertEquals(RENDER_DISTANCE_CHUNKS, options.renderDistance);
     }
 
     @Test
     void clearedAtmosphericFogSendsTheEnvironmentalFogToInfinityAndLeavesTheSkyAndCloudsAlone() {
         FogData fog = fogData();
-        OptionsRenderState options = options();
 
-        NearFieldOverride.apply(fog, options, CLEAR_ATMOSPHERIC_FOG);
+        NearFieldOverride.apply(fog, CLEAR_ATMOSPHERIC_FOG);
 
         assertEquals(NearFieldOverride.NO_FOG, fog.environmentalStart);
         assertEquals(NearFieldOverride.NO_FOG, fog.environmentalEnd);
@@ -69,12 +72,5 @@ class NearFieldOverrideTest {
         fog.skyEnd = SKY_END;
         fog.cloudEnd = CLOUD_END;
         return fog;
-    }
-
-    private static OptionsRenderState options() {
-        OptionsRenderState options = new OptionsRenderState();
-        options.renderDistance = RENDER_DISTANCE_CHUNKS;
-        options.chunkSectionFadeInTime = FADE_IN_SECONDS;
-        return options;
     }
 }

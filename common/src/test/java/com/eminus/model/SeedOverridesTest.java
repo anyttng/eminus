@@ -19,7 +19,7 @@ class SeedOverridesTest {
     @Test
     void aDoorABedAndATallPlantSeedTheirOwnWay() {
         assertTrue(SeedOverrides.overridden(Blocks.OAK_DOOR));
-        assertTrue(SeedOverrides.overridden(Blocks.BED.white()));
+        assertTrue(SeedOverrides.overridden(Blocks.WHITE_BED));
         assertTrue(SeedOverrides.overridden(Blocks.TALL_GRASS));
     }
 

@@ -270,7 +270,7 @@ public final class FarRenderer implements AutoCloseable {
         target.resize(main.width(), main.height());
 
         int renderDistance = client.options.getEffectiveRenderDistance();
-        Camera camera = client.gameRenderer.mainCamera();
+        Camera camera = client.gameRenderer.getMainCamera();
         Vec3 eye = camera.position();
         camera.getViewRotationMatrix(viewRotation);
         projection.viewProjection(NearPlane.blocks(renderDistance), camera.getFov(), levelProjection.fold(),
@@ -283,7 +283,7 @@ public final class FarRenderer implements AutoCloseable {
                 FarProjection.focalPixels(camera.getFov(), main.height()), settings.farRenderCells(),
                 settings.detailDistance().pixels(), arena.pressure()));
 
-        FogData gameFog = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.fogData;
+        FogData gameFog = client.gameRenderer.getGameRenderState().levelRenderState.cameraRenderState.fogData;
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
         ClientLevel level = client.level;
         float reachBlocks = NearReach.blocks(renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, eye.y,
@@ -311,8 +311,6 @@ public final class FarRenderer implements AutoCloseable {
                     nearSections.sections(), level.cardinalLighting());
             Texture mainDepth = gpu.mainDepth();
             Texture lightmap = gpu.lightmap();
-            // On 26.2's Vulkan backend a shared index buffer grown inside a pass uploads nothing, and the GUI draws blank.
-            FarQuads.reserveIndices();
             mask.draw(target.depth(), target.colour(), mainDepth);
             opaque.draw(target, arena, models, lightmap, indirect.buffer(), 0, commands.opaqueCount(),
                     frame.buffer(), nearSections.texels());

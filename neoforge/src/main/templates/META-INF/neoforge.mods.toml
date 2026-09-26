@@ -23,7 +23,7 @@ authors="Anyttng"
 
 # The description text for the mod (multi line!).
 description='''
-Terrain far beyond the render distance: a coarse, persistent copy of every chunk you have seen, drawn as a far layer behind the game's own terrain. Runs on both of the game's graphics APIs, OpenGL and Vulkan.
+Terrain far beyond the render distance: a coarse, persistent copy of every chunk you have seen, drawn as a far layer behind the game's own terrain.
 '''
 
 # Sodium reads this property to find the page it adds to its options screen; nothing loads the class without Sodium.

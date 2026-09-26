@@ -1,18 +1,20 @@
 package com.eminus.client.gpu.opengl;
 
+import com.eminus.mixin.GlBufferAccessor;
+
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.textures.GpuTextureView;
-import com.mojang.blaze3d.opengl.FrameBufferAttachment;
-import com.mojang.blaze3d.opengl.GlBuffer;
 import com.mojang.blaze3d.opengl.GlStateManager;
+import com.mojang.blaze3d.opengl.GlTextureView;
 
 import net.minecraft.client.Minecraft;
 
 import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL13C;
 import org.lwjgl.opengl.GL14C;
+import org.lwjgl.opengl.GL20C;
 import org.lwjgl.opengl.GL30C;
 
 final class GameHandles {
@@ -39,15 +41,15 @@ final class GameHandles {
         if (globals == null) {
             throw new IllegalStateException("The game's globals uniform is not set");
         }
-        return ((GlBuffer) globals).handle();
+        return ((GlBufferAccessor) globals).eminus$handle();
     }
 
     private static RenderTarget target() {
-        return Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        return Minecraft.getInstance().getMainRenderTarget();
     }
 
     private static Handle handle(GpuTextureView view) {
-        return new Handle(view, ((FrameBufferAttachment) view).glId());
+        return new Handle(view, ((GlTextureView) view).texture().glId());
     }
 
     static int genTexture() {
@@ -84,7 +86,7 @@ final class GameHandles {
     }
 
     static void colourMask(int index, int mask) {
-        GlStateManager._colorMask(index, mask);
+        GlStateManager._colorMask(mask);
     }
 
     static void depthTest(int function, boolean writes) {
@@ -103,13 +105,13 @@ final class GameHandles {
     }
 
     static void blend(int index, int sourceRgb, int destinationRgb, int sourceAlpha, int destinationAlpha) {
-        GlStateManager._enableBlend(index);
+        GlStateManager._enableBlend();
         GlStateManager._blendFuncSeparate(sourceRgb, destinationRgb, sourceAlpha, destinationAlpha);
-        GlStateManager._blendEquationSeparate(GL14C.GL_FUNC_ADD, GL14C.GL_FUNC_ADD);
+        GL20C.glBlendEquationSeparate(GL14C.GL_FUNC_ADD, GL14C.GL_FUNC_ADD);
     }
 
     static void noBlend(int index) {
-        GlStateManager._disableBlend(index);
+        GlStateManager._disableBlend();
     }
 
     static void fillBothFaces() {
