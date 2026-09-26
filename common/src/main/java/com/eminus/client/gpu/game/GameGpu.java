@@ -25,6 +25,8 @@ import com.eminus.mixin.GpuDeviceAccessor;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.systems.DeviceInfo;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.GpuDeviceBackend;
@@ -52,6 +54,7 @@ public final class GameGpu implements Gpu {
         DeviceReading reading = DeviceReading.read(device);
 
         return new GameGpu(device, new Capabilities(info.backendName(), info.isZZeroToOne(),
+                DepthStencilState.DEFAULT.depthTest() == CompareOp.GREATER_THAN_OR_EQUAL,
                 info.features().drawIndirect(), info.features().multiDrawIndirect(),
                 info.features().persistentMapping(), info.limits().maxMemoryAllocationSize(),
                 reading.texelElements(), reading.freeBytes()));
