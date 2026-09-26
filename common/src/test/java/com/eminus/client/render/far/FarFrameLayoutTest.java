@@ -8,6 +8,7 @@ import java.nio.ByteOrder;
 import com.eminus.client.frame.FaceShade;
 import com.eminus.gpu.Std140;
 import com.eminus.handoff.NearSections;
+import com.eminus.render.far.CameraOrigin;
 
 import org.joml.Matrix4f;
 import org.junit.jupiter.api.Test;
@@ -22,12 +23,13 @@ class FarFrameLayoutTest {
     private static final float DELTA = 0.0F;
 
     private static final FaceShade SHADE = new FaceShade(0.1F, 0.2F, 0.3F, 0.4F, 0.5F, 0.6F);
+    private static final CameraOrigin CAMERA = CameraOrigin.of(0.0, 0.0, 0.0);
 
     @Test
     void theShadeFloatsStartInTheTailOfTheNearOrigin() {
         ByteBuffer bytes = ByteBuffer.allocateDirect(FarFrame.SIZE).order(ByteOrder.nativeOrder());
 
-        FarFrame.layout(Std140.into(bytes), new Matrix4f(), 0, 0, new NearSections(), SHADE);
+        FarFrame.layout(Std140.into(bytes), new Matrix4f(), 0, 0, new NearSections(), SHADE, CAMERA);
 
         assertEquals(SHADE.down(), bytes.getFloat(SHADE_DOWN_OFFSET), DELTA);
         assertEquals(SHADE.up(), bytes.getFloat(SHADE_DOWN_OFFSET + INT_BYTES), DELTA);

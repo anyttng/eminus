@@ -1,7 +1,6 @@
 #version 330
 
-#moj_import <minecraft:globals.glsl>
-#moj_import <minecraft:sample_lightmap.glsl>
+#moj_import <eminus:far_lightmap.glsl>
 
 layout(std140) uniform FarFrame {
     mat4 FarProjView;
@@ -16,6 +15,8 @@ layout(std140) uniform FarFrame {
     float ShadeSouth;
     float ShadeWest;
     float ShadeEast;
+    ivec3 CameraBlockPos;
+    vec3 CameraOffset;
 };
 
 uniform usamplerBuffer Quads;
@@ -54,7 +55,7 @@ void main() {
     voxelPoint = vertex.voxelPoint;
     tintColour = vertex.tint;
 
-    vec4 colour = sample_lightmap(Lightmap, ivec2(vertex.blockLight * LIGHT_STEP, vertex.skyLight * LIGHT_STEP));
+    vec4 colour = far_lightmap(Lightmap, ivec2(vertex.blockLight * LIGHT_STEP, vertex.skyLight * LIGHT_STEP));
     float faceShade = vertex.face == 0 ? ShadeDown
         : vertex.face == 1 ? ShadeUp
         : vertex.face == 2 ? ShadeNorth

@@ -8,7 +8,7 @@ import org.joml.Vector4fc;
 public final class Std140 {
     private static final int SCALAR = 4;
     private static final int VECTOR = 16;
-    private static final int IVEC3_BYTES = 12;
+    private static final int VEC3_BYTES = 12;
     private static final int MAT4_BYTES = 64;
 
     private final ByteBuffer buffer;
@@ -46,6 +46,12 @@ public final class Std140 {
     public Std140 putIVec3(int x, int y, int z) {
         align(VECTOR);
         buffer.putInt(x).putInt(y).putInt(z);
+        return this;
+    }
+
+    public Std140 putVec3(float x, float y, float z) {
+        align(VECTOR);
+        buffer.putFloat(x).putFloat(y).putFloat(z);
         return this;
     }
 
@@ -90,7 +96,11 @@ public final class Std140 {
         }
 
         public Size putIVec3() {
-            return put(VECTOR, IVEC3_BYTES);
+            return put(VECTOR, VEC3_BYTES);
+        }
+
+        public Size putVec3() {
+            return put(VECTOR, VEC3_BYTES);
         }
 
         public Size putVec4() {

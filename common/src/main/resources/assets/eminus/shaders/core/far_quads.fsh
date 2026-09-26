@@ -1,7 +1,5 @@
 #version 330
 
-#moj_import <minecraft:globals.glsl>
-
 layout(std140) uniform FarFrame {
     mat4 FarProjView;
     int MinBlockY;
@@ -15,6 +13,8 @@ layout(std140) uniform FarFrame {
     float ShadeSouth;
     float ShadeWest;
     float ShadeEast;
+    ivec3 CameraBlockPos;
+    vec3 CameraOffset;
 };
 
 uniform sampler2D Atlas;
