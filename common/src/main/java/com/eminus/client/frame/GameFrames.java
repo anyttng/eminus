@@ -42,6 +42,10 @@ public final class GameFrames {
         return NearFieldOverride.applied() ? NO_FADE_IN : option;
     }
 
+    public static boolean cutoutLeaves(Minecraft client) {
+        return client.options.cutoutLeaves().get();
+    }
+
     public static boolean sectionDrawn(LevelRenderer renderer, BlockPos pos, long fadeMillis) {
         return renderer.isSectionCompiledAndVisible(pos);
     }
