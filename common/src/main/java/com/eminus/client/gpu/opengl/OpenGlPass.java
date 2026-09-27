@@ -31,6 +31,7 @@ final class OpenGlPass implements Pass {
 
     private final OpenGlGpu gpu;
     private final GameHandles.Bindings gameBindings;
+    private final int[] gameTextures = new int[Integer.SIZE];
     private @Nullable OpenGlPipeline pipeline;
     private int sampledUnits;
 
@@ -122,10 +123,16 @@ final class OpenGlPass implements Pass {
     public void bind(String name, Texture texture, Sampler sampler) {
         OpenGlPipeline.Slot slot = slot(name);
         if (slot != null) {
+            int unit = 1 << slot.index();
+            int id = ((OpenGlTexture) texture).id();
             GameHandles.activeTexture(slot.index());
-            GameHandles.bindTexture(((OpenGlTexture) texture).id());
+            if ((sampledUnits & unit) == 0) {
+                gameTextures[slot.index()] = GameHandles.swapTexture(id);
+            } else {
+                GameHandles.bindTexture(id);
+            }
             GL33C.glBindSampler(slot.index(), gpu.sampler(sampler));
-            sampledUnits |= 1 << slot.index();
+            sampledUnits |= unit;
         }
     }
 
@@ -157,7 +164,10 @@ final class OpenGlPass implements Pass {
     @Override
     public void close() {
         for (int units = sampledUnits; units != 0; units &= units - 1) {
-            GL33C.glBindSampler(Integer.numberOfTrailingZeros(units), UNBOUND);
+            int unit = Integer.numberOfTrailingZeros(units);
+            GL33C.glBindSampler(unit, UNBOUND);
+            GameHandles.activeTexture(unit);
+            GameHandles.bindTexture(gameTextures[unit]);
         }
         GameHandles.restore(gameBindings);
     }

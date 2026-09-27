@@ -1,5 +1,7 @@
 package com.eminus.client.gpu.opengl;
 
+import java.nio.ByteBuffer;
+
 import com.eminus.gpu.Format;
 import com.eminus.mixin.LightTextureAccessor;
 
@@ -14,6 +16,7 @@ import org.lwjgl.opengl.GL13C;
 import org.lwjgl.opengl.GL14C;
 import org.lwjgl.opengl.GL20C;
 import org.lwjgl.opengl.GL30C;
+import org.lwjgl.system.MemoryStack;
 
 final class GameHandles {
     private static final boolean DEPTH_REVERSED = false;
@@ -30,6 +33,13 @@ final class GameHandles {
     private static final int Y = 1;
     private static final int WIDTH = 2;
     private static final int HEIGHT = 3;
+    private static final int COLOUR_COMPONENTS = 4;
+    private static final int RED = 0;
+    private static final int GREEN = 1;
+    private static final int BLUE = 2;
+    private static final int ALPHA = 3;
+    private static final int POLYGON_MODE_INTS = 2;
+    private static final int FRONT_FACES = 0;
 
     private GameHandles() {
     }
@@ -38,7 +48,12 @@ final class GameHandles {
     }
 
     record Bindings(int drawFramebuffer, int readFramebuffer, int program, int vertexArray, int[] viewport,
-            boolean scissor, int[] scissorBox) {
+            boolean scissor, int[] scissorBox, PipelineState pipeline) {
+    }
+
+    record PipelineState(boolean cull, boolean blend, int sourceRgb, int destinationRgb, int sourceAlpha,
+            int destinationAlpha, int equationRgb, int equationAlpha, boolean depthTest, int depthFunction,
+            boolean depthMask, int colourMask, boolean polygonOffset, int polygonMode, int activeTexture) {
     }
 
     private record Allocation(RenderTarget target, int generation) {
@@ -83,7 +98,62 @@ final class GameHandles {
         GL11C.glGetIntegerv(GL11C.GL_SCISSOR_BOX, scissorBox);
         return new Bindings(GL11C.glGetInteger(GL30C.GL_DRAW_FRAMEBUFFER_BINDING),
                 GL11C.glGetInteger(GL30C.GL_READ_FRAMEBUFFER_BINDING), program(), vertexArray(), viewport,
-                GL11C.glIsEnabled(GL11C.GL_SCISSOR_TEST), scissorBox);
+                GL11C.glIsEnabled(GL11C.GL_SCISSOR_TEST), scissorBox, pipelineState());
+    }
+
+    private static PipelineState pipelineState() {
+        int[] polygonMode = new int[POLYGON_MODE_INTS];
+        GL11C.glGetIntegerv(GL11C.GL_POLYGON_MODE, polygonMode);
+        return new PipelineState(GL11C.glIsEnabled(GL11C.GL_CULL_FACE), GL11C.glIsEnabled(GL11C.GL_BLEND),
+                GL11C.glGetInteger(GL14C.GL_BLEND_SRC_RGB), GL11C.glGetInteger(GL14C.GL_BLEND_DST_RGB),
+                GL11C.glGetInteger(GL14C.GL_BLEND_SRC_ALPHA), GL11C.glGetInteger(GL14C.GL_BLEND_DST_ALPHA),
+                GL11C.glGetInteger(GL20C.GL_BLEND_EQUATION_RGB), GL11C.glGetInteger(GL20C.GL_BLEND_EQUATION_ALPHA),
+                GL11C.glIsEnabled(GL11C.GL_DEPTH_TEST), GL11C.glGetInteger(GL11C.GL_DEPTH_FUNC),
+                GL11C.glGetBoolean(GL11C.GL_DEPTH_WRITEMASK), writtenColours(),
+                GL11C.glIsEnabled(GL11C.GL_POLYGON_OFFSET_FILL), polygonMode[FRONT_FACES],
+                GlStateManager._getActiveTexture());
+    }
+
+    private static int writtenColours() {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            ByteBuffer components = stack.malloc(COLOUR_COMPONENTS);
+            GL11C.glGetBooleanv(GL11C.GL_COLOR_WRITEMASK, components);
+            return (components.get(RED) != GL11C.GL_FALSE ? RED_BIT : 0)
+                    | (components.get(GREEN) != GL11C.GL_FALSE ? GREEN_BIT : 0)
+                    | (components.get(BLUE) != GL11C.GL_FALSE ? BLUE_BIT : 0)
+                    | (components.get(ALPHA) != GL11C.GL_FALSE ? ALPHA_BIT : 0);
+        }
+    }
+
+    private static void restore(PipelineState state) {
+        if (state.cull()) {
+            GlStateManager._enableCull();
+        } else {
+            GlStateManager._disableCull();
+        }
+        if (state.blend()) {
+            GlStateManager._enableBlend();
+        } else {
+            GlStateManager._disableBlend();
+        }
+        GlStateManager._blendFuncSeparate(state.sourceRgb(), state.destinationRgb(), state.sourceAlpha(),
+                state.destinationAlpha());
+        GL20C.glBlendEquationSeparate(state.equationRgb(), state.equationAlpha());
+        if (state.depthTest()) {
+            GlStateManager._enableDepthTest();
+        } else {
+            GlStateManager._disableDepthTest();
+        }
+        GlStateManager._depthFunc(state.depthFunction());
+        GlStateManager._depthMask(state.depthMask());
+        colourMask(state.colourMask());
+        if (state.polygonOffset()) {
+            GlStateManager._enablePolygonOffset();
+        } else {
+            GlStateManager._disablePolygonOffset();
+        }
+        GlStateManager._polygonMode(GL11C.GL_FRONT_AND_BACK, state.polygonMode());
+        GlStateManager._activeTexture(state.activeTexture());
     }
 
     static void restore(Bindings bindings) {
@@ -100,6 +170,7 @@ final class GameHandles {
         } else {
             GlStateManager._disableScissorTest();
         }
+        restore(bindings.pipeline());
     }
 
     static int program() {
@@ -130,8 +201,18 @@ final class GameHandles {
         GlStateManager._activeTexture(GL13C.GL_TEXTURE0 + unit);
     }
 
+    static int activeTextureUnit() {
+        return GlStateManager._getActiveTexture() - GL13C.GL_TEXTURE0;
+    }
+
     static void bindTexture(int id) {
         GlStateManager._bindTexture(id);
+    }
+
+    static int swapTexture(int id) {
+        int previous = GL11C.glGetInteger(GL11C.GL_TEXTURE_BINDING_2D);
+        GlStateManager._bindTexture(id);
+        return previous;
     }
 
     static void bindFramebuffer(int framebuffer) {
@@ -152,6 +233,10 @@ final class GameHandles {
     }
 
     static void colourMask(int index, int mask) {
+        colourMask(mask);
+    }
+
+    private static void colourMask(int mask) {
         GlStateManager._colorMask((mask & RED_BIT) != 0, (mask & GREEN_BIT) != 0, (mask & BLUE_BIT) != 0,
                 (mask & ALPHA_BIT) != 0);
     }

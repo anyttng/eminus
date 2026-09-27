@@ -25,9 +25,11 @@ final class OpenGlTexelView implements TexelView {
 
     static OpenGlTexelView create(OpenGlObjects objects, String label, OpenGlBuffer buffer, Format format) {
         int texture = GameHandles.genTexture();
+        int previousUnit = GameHandles.activeTextureUnit();
         GameHandles.activeTexture(CREATION_UNIT);
         GL11C.glBindTexture(GL31C.GL_TEXTURE_BUFFER, texture);
         GL31C.glTexBuffer(GL31C.GL_TEXTURE_BUFFER, OpenGlTypes.internalFormat(format), buffer.handle());
+        GameHandles.activeTexture(previousUnit);
         objects.created(OpenGlObjects.Kind.TEXEL_VIEW, texture, label + LABEL_SUFFIX);
         return new OpenGlTexelView(objects, buffer, format, texture);
     }

@@ -33,7 +33,7 @@ final class OpenGlTexture implements Texture {
     static OpenGlTexture create(OpenGlGpu gpu, String label, Format format, int width, int height, int mips) {
         OpenGlErrors.clear();
         int id = GameHandles.genTexture();
-        GameHandles.bindTexture(id);
+        int previous = GameHandles.swapTexture(id);
         GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL12C.GL_TEXTURE_BASE_LEVEL, BASE_MIP);
         GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL12C.GL_TEXTURE_MAX_LEVEL, mips - 1);
         for (int mip = 0; mip < mips; mip++) {
@@ -41,15 +41,17 @@ final class OpenGlTexture implements Texture {
                     height >> mip, NO_BORDER, OpenGlTypes.externalFormat(format), OpenGlTypes.componentType(format),
                     (ByteBuffer) null);
         }
+        GameHandles.bindTexture(previous);
         OpenGlErrors.check("texture " + label + " " + width + "x" + height);
         gpu.objects().created(OpenGlObjects.Kind.TEXTURE, id, label);
         return new OpenGlTexture(gpu, id, format, width, height, null);
     }
 
     static OpenGlTexture borrowed(OpenGlGpu gpu, GameHandles.Handle handle) {
-        GameHandles.bindTexture(handle.id());
+        int previous = GameHandles.swapTexture(handle.id());
         int width = GL11C.glGetTexLevelParameteri(GL11C.GL_TEXTURE_2D, BASE_MIP, GL11C.GL_TEXTURE_WIDTH);
         int height = GL11C.glGetTexLevelParameteri(GL11C.GL_TEXTURE_2D, BASE_MIP, GL11C.GL_TEXTURE_HEIGHT);
+        GameHandles.bindTexture(previous);
         return new OpenGlTexture(gpu, handle.id(), handle.format(), width, height, handle.owner());
     }
 
@@ -62,13 +64,14 @@ final class OpenGlTexture implements Texture {
     }
 
     void write(int mip, int x, int y, int regionWidth, int regionHeight, ByteBuffer data) {
-        GameHandles.bindTexture(id);
+        int previous = GameHandles.swapTexture(id);
         GL11C.glPixelStorei(GL11C.GL_UNPACK_ROW_LENGTH, regionWidth);
         GL11C.glPixelStorei(GL11C.GL_UNPACK_SKIP_PIXELS, PACKED_ROWS);
         GL11C.glPixelStorei(GL11C.GL_UNPACK_SKIP_ROWS, PACKED_ROWS);
         GL11C.glPixelStorei(GL11C.GL_UNPACK_ALIGNMENT, OpenGlTypes.unpackAlignment(format));
         GL11C.glTexSubImage2D(GL11C.GL_TEXTURE_2D, mip, x, y, regionWidth, regionHeight,
                 OpenGlTypes.externalFormat(format), OpenGlTypes.componentType(format), data);
+        GameHandles.bindTexture(previous);
     }
 
     @Override
