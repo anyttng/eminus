@@ -10,6 +10,8 @@ public final class MeshScratch {
     private final FacePlane positiveFluid = new FacePlane();
     private final FacePlane negativeBorder = new FacePlane();
     private final FacePlane positiveBorder = new FacePlane();
+    private final FacePlane negativeInward = new FacePlane();
+    private final FacePlane positiveInward = new FacePlane();
     private final GreedyMerger merger = new GreedyMerger();
     private final TintBlend blend = new TintBlend();
     private final VoxelOffsets offsets = new VoxelOffsets();
@@ -49,6 +51,14 @@ public final class MeshScratch {
 
     public FacePlane positiveBorderPlane() {
         return positiveBorder;
+    }
+
+    public FacePlane negativeInwardPlane() {
+        return negativeInward;
+    }
+
+    public FacePlane positiveInwardPlane() {
+        return positiveInward;
     }
 
     public GreedyMerger merger() {

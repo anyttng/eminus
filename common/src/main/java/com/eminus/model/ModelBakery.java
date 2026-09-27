@@ -28,6 +28,7 @@ public final class ModelBakery implements ModelSource {
     public static final int PLACEHOLDER_COLOUR = 0xFFFF_00FF;
 
     private static final int THREAD_PRIORITY = Thread.NORM_PRIORITY - 1;
+    private static final long LOW_WORD = 0xFFFF_FFFFL;
 
     private record Request(BlockState state, @Nullable List<Object> parts) {
     }
@@ -45,6 +46,8 @@ public final class ModelBakery implements ModelSource {
     private final Set<BlockState> positionalStates = ConcurrentHashMap.newKeySet();
     private final Map<Request, Integer> idByParts = new ConcurrentHashMap<>();
     private volatile int[] submergedIds = new int[0];
+    private final Map<Integer, Integer> oneSidedIds = new ConcurrentHashMap<>();
+    private final Map<Long, Integer> inwardIds = new ConcurrentHashMap<>();
     private final BlockingQueue<Request> requests = new LinkedBlockingQueue<>();
     private final Map<Request, List<Runnable>> waiting = new HashMap<>();
     private final ThreadLocal<Picker> pickers = ThreadLocal.withInitial(Picker::new);
@@ -83,6 +86,16 @@ public final class ModelBakery implements ModelSource {
         int[] snapshot = submergedIds;
         int twin = modelId >= 0 && modelId < snapshot.length ? snapshot[modelId] : MISSING;
         return twin == MISSING ? modelId : twin;
+    }
+
+    public int oneSidedModelId(int modelId) {
+        return oneSidedIds.computeIfAbsent(modelId, id -> models.register(model(id).oneSided()));
+    }
+
+    public int inwardModelId(int seabedModelId, int fluidModelId) {
+        long pair = (long) seabedModelId << Integer.SIZE | fluidModelId & LOW_WORD;
+        return inwardIds.computeIfAbsent(pair,
+                key -> models.register(model(seabedModelId).inward(model(fluidModelId))));
     }
 
     @Override
