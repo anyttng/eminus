@@ -12,7 +12,7 @@ class MipsTest {
     private static final int WHITE = 0xFFFF_FFFF;
     private static final int BLACK = 0xFF00_0000;
     private static final int GREY = 0xFF80_8080;
-    private static final int LINEAR_GREY = 0xFFBB_BBBB;
+    private static final int GAMMA_GREY = 0xFFBA_BABA;
     private static final int CLEAR_WHITE = 0x00FF_FFFF;
     private static final int HALF_CLEAR_WHITE = 0x80FF_FFFF;
 
@@ -38,13 +38,13 @@ class MipsTest {
     }
 
     @Test
-    void aColourGroupAveragesInLinearLight() {
+    void aColourGroupAveragesInGamma22() {
         int[] quad = {WHITE, BLACK, WHITE, BLACK};
 
         int[][] levels = Mips.colourChain(quad, 2);
 
         assertEquals(2, levels.length);
-        assertArrayEquals(new int[] {LINEAR_GREY}, levels[1]);
+        assertArrayEquals(new int[] {GAMMA_GREY}, levels[1]);
     }
 
     @Test

@@ -52,7 +52,7 @@ public final class Mips {
 
     private static int colourMean(int first, int second, int third, int fourth) {
         return channel(first, second, third, fourth, ALPHA_SHIFT) << ALPHA_SHIFT
-                | Argb.meanLinear(first, second, third, fourth) & RGB_MASK;
+                | Argb.meanGamma(first, second, third, fourth) & RGB_MASK;
     }
 
     private static int arithmeticMean(int first, int second, int third, int fourth) {
