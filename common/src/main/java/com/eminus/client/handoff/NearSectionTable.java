@@ -21,8 +21,6 @@ import com.eminus.gpu.buffer.TexelView;
 import com.eminus.handoff.NearSections;
 import com.eminus.mesh.MeshSummary;
 
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -37,7 +35,6 @@ public final class NearSectionTable implements AutoCloseable {
     private final Gpu gpu;
     private final NearSections sections = new NearSections();
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-    private final LongOpenHashSet vanillaDrawn = new LongOpenHashSet();
     private final NearSections.SectionQuery query = this::owned;
     private final boolean sodium = SodiumMixinPlugin.sodiumPresent();
 
@@ -46,9 +43,9 @@ public final class NearSectionTable implements AutoCloseable {
     private ByteBuffer scratch;
     private IntBuffer texels;
     private LevelRenderer levelRenderer;
-    private int cameraSectionX;
-    private int cameraSectionY;
-    private int cameraSectionZ;
+    private int viewOriginX;
+    private int viewOriginY;
+    private int viewOriginZ;
     private int viewDistance;
 
     private NearSectionTable(Gpu gpu) {
@@ -73,12 +70,10 @@ public final class NearSectionTable implements AutoCloseable {
             int cameraSectionY, int cameraSectionZ, int viewDistance, int radius, int minSectionY, int sectionCount) {
         gpu.assertRenderThread();
         levelRenderer = renderer;
-        if (!sodium) {
-            GameFrames.drawnSections(renderer, vanillaDrawn);
-        }
-        this.cameraSectionX = cameraSectionX;
-        this.cameraSectionY = cameraSectionY;
-        this.cameraSectionZ = cameraSectionZ;
+        long viewOrigin = GameFrames.viewOrigin(SectionPos.asLong(cameraSectionX, cameraSectionY, cameraSectionZ));
+        viewOriginX = SectionPos.x(viewOrigin);
+        viewOriginY = SectionPos.y(viewOrigin);
+        viewOriginZ = SectionPos.z(viewOrigin);
         this.viewDistance = viewDistance;
         sections.reset(cameraSectionX, cameraSectionZ, radius, minSectionY, sectionCount);
 
@@ -102,15 +97,16 @@ public final class NearSectionTable implements AutoCloseable {
     }
 
     private boolean owned(int sectionX, int sectionY, int sectionZ) {
+        pos.set(sectionX * NearSections.SECTION_BLOCKS, sectionY * NearSections.SECTION_BLOCKS,
+                sectionZ * NearSections.SECTION_BLOCKS);
         if (sodium) {
-            return GameFrames.sectionCompiled(levelRenderer, pos.set(sectionX * NearSections.SECTION_BLOCKS,
-                    sectionY * NearSections.SECTION_BLOCKS, sectionZ * NearSections.SECTION_BLOCKS))
+            return GameFrames.sectionCompiled(levelRenderer, pos)
                     && SodiumDrawnSections.drawn(sectionX, sectionY, sectionZ);
         }
 
-        return vanillaDrawn.contains(SectionPos.asLong(sectionX, sectionY, sectionZ))
-                && NearSections.inVanillaViewDistance(cameraSectionX, cameraSectionY, cameraSectionZ, viewDistance,
-                        sectionX, sectionY, sectionZ);
+        return GameFrames.gridSectionDrawable(levelRenderer, pos)
+                && NearSections.inVanillaViewDistance(viewOriginX, viewOriginY, viewOriginZ, viewDistance, sectionX,
+                        sectionY, sectionZ);
     }
 
     private void upload() {

@@ -14,8 +14,10 @@
     "LevelRendererMixin",
     "LightTextureAccessor",
     "RenderTargetMixin",
+    "SectionOcclusionGraphMixin",
     "SpriteContentsAccessor",
     "StairBlockAccessor",
+    "ViewAreaAccessor",
     "WeightedVariantsAccessor"
   ],
   "injectors": {

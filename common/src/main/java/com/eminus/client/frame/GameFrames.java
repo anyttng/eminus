@@ -1,15 +1,15 @@
 package com.eminus.client.frame;
 
 import com.eminus.mixin.LevelRendererAccessor;
+import com.eminus.mixin.ViewAreaAccessor;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-
-import it.unimi.dsi.fastutil.longs.LongSet;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.ViewArea;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,9 +26,12 @@ public final class GameFrames {
     public static final float NO_FOG = Float.MAX_VALUE;
 
     private static final boolean SHADED = true;
+    private static final long NO_VIEW_ORIGIN = Long.MAX_VALUE;
 
     private static float fov;
     private static boolean renderDistanceFog;
+    private static long scheduledViewOrigin = NO_VIEW_ORIGIN;
+    private static long viewOrigin = NO_VIEW_ORIGIN;
 
     public static GameFrame read(Minecraft client) {
         Camera camera = client.gameRenderer.getMainCamera();
@@ -64,13 +67,34 @@ public final class GameFrames {
         return renderer.isSectionCompiled(pos);
     }
 
-    public static void drawnSections(LevelRenderer renderer, LongSet into) {
-        into.clear();
-        for (SectionRenderDispatcher.RenderSection section : ((LevelRendererAccessor) renderer).eminus$visibleSections()) {
-            if (section.getCompiled() != SectionRenderDispatcher.CompiledSection.UNCOMPILED) {
-                into.add(SectionPos.asLong(section.getOrigin()));
-            }
+    // isSectionCompiled answers for whatever section fills the ring slot, and the graph queues one lacking neighbours undrawn.
+    public static boolean gridSectionDrawable(LevelRenderer renderer, BlockPos pos) {
+        ViewArea viewArea = ((LevelRendererAccessor) renderer).eminus$viewArea();
+        SectionRenderDispatcher.RenderSection section =
+                viewArea == null ? null : ((ViewAreaAccessor) viewArea).eminus$renderSectionAt(pos);
+        return section != null && section.getOrigin().equals(pos)
+                && section.getCompiled() != SectionRenderDispatcher.CompiledSection.UNCOMPILED
+                && section.hasAllNeighbors();
+    }
+
+    public static void scheduleViewOrigin(Vec3 camera) {
+        scheduledViewOrigin = SectionPos.asLong(BlockPos.containing(camera));
+    }
+
+    public static void applyViewOrigin() {
+        if (scheduledViewOrigin != NO_VIEW_ORIGIN) {
+            viewOrigin = scheduledViewOrigin;
         }
+    }
+
+    public static void resetViewOrigin() {
+        scheduledViewOrigin = NO_VIEW_ORIGIN;
+        viewOrigin = NO_VIEW_ORIGIN;
+    }
+
+    // The game draws the sections its occlusion graph gathered around this section, which lags the camera.
+    public static long viewOrigin(long cameraSection) {
+        return viewOrigin == NO_VIEW_ORIGIN ? cameraSection : viewOrigin;
     }
 
     public static void overrideNearField(boolean clearAtmosphericFog) {
