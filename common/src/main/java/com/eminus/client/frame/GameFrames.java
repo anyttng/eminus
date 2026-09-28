@@ -1,13 +1,21 @@
 package com.eminus.client.frame;
 
 import com.eminus.handoff.NearFieldOverride;
+import com.eminus.mixin.LevelRendererAccessor;
+import com.eminus.mixin.ViewAreaAccessor;
+
+import it.unimi.dsi.fastutil.longs.LongSet;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.ViewArea;
+import net.minecraft.client.renderer.chunk.CompiledSectionMesh;
+import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.material.FogType;
@@ -48,6 +56,23 @@ public final class GameFrames {
 
     public static boolean sectionDrawn(LevelRenderer renderer, BlockPos pos, long fadeMillis) {
         return renderer.isSectionCompiledAndVisible(pos);
+    }
+
+    public static void drawnSections(LevelRenderer renderer, LongSet into) {
+        into.clear();
+        for (SectionRenderDispatcher.RenderSection section : renderer.getVisibleSections()) {
+            if (section.getSectionMesh() != CompiledSectionMesh.UNCOMPILED) {
+                into.add(section.getSectionNode());
+            }
+        }
+    }
+
+    public static boolean sectionEmpty(LevelRenderer renderer, BlockPos pos) {
+        ViewArea viewArea = ((LevelRendererAccessor) renderer).eminus$viewArea();
+        SectionRenderDispatcher.RenderSection section = viewArea == null ? null
+                : ((ViewAreaAccessor) viewArea).eminus$renderSectionAt(pos);
+        return section != null && section.getSectionNode() == SectionPos.asLong(pos)
+                && section.getSectionMesh() == CompiledSectionMesh.EMPTY;
     }
 
     public static void overrideNearField(Minecraft client, boolean clearAtmosphericFog) {

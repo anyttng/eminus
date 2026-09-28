@@ -10,9 +10,11 @@
     "ClientLevelMixin",
     "ClientPacketListenerMixin",
     "GameRendererMixin",
+    "LevelRendererAccessor",
     "LevelRendererMixin",
     "SpriteContentsAccessor",
     "StairBlockAccessor",
+    "ViewAreaAccessor",
     "WeightedVariantsAccessor"
   ],
   "injectors": {
