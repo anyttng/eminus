@@ -405,8 +405,7 @@ public final class FarRenderer implements AutoCloseable {
         ClientLevel level = client.level;
         int renderDistance = game.renderDistance();
         nearSections.fill(client.levelRenderer, order.meshes(), runtime.frame(),
-                NearSections.section(Mth.floor(game.eyeX())), NearSections.section(Mth.floor(game.eyeY())),
-                NearSections.section(Mth.floor(game.eyeZ())), renderDistance,
+                NearSections.section(Mth.floor(game.eyeX())), NearSections.section(Mth.floor(game.eyeZ())),
                 renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSection(), level.getSectionsCount());
     }
 
