@@ -21,8 +21,11 @@ import com.eminus.gpu.buffer.TexelView;
 import com.eminus.handoff.NearSections;
 import com.eminus.mesh.MeshSummary;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 
 public final class NearSectionTable implements AutoCloseable {
     public static final Format TEXEL_FORMAT = Format.R32_UINT;
@@ -36,6 +39,7 @@ public final class NearSectionTable implements AutoCloseable {
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
     private final NearSections.SectionQuery query = this::owned;
     private final boolean sodium = SodiumMixinPlugin.sodiumPresent();
+    private final LongOpenHashSet drawn = new LongOpenHashSet();
 
     private Buffer buffer;
     private TexelView view;
@@ -76,6 +80,10 @@ public final class NearSectionTable implements AutoCloseable {
         this.cameraSectionY = cameraSectionY;
         this.cameraSectionZ = cameraSectionZ;
         this.viewDistance = viewDistance;
+        if (!sodium) {
+            GameFrames.drawnSections(renderer, drawn);
+        }
+
         sections.reset(cameraSectionX, cameraSectionZ, radius, minSectionY, sectionCount);
 
         for (MeshSummary mesh : meshes) {
@@ -98,18 +106,17 @@ public final class NearSectionTable implements AutoCloseable {
     }
 
     private boolean owned(int sectionX, int sectionY, int sectionZ) {
-        return GameFrames.sectionDrawn(levelRenderer, pos.set(sectionX * NearSections.SECTION_BLOCKS,
-                sectionY * NearSections.SECTION_BLOCKS, sectionZ * NearSections.SECTION_BLOCKS), sectionFadeMillis)
-                && drawn(sectionX, sectionY, sectionZ);
-    }
-
-    private boolean drawn(int sectionX, int sectionY, int sectionZ) {
+        pos.set(sectionX * NearSections.SECTION_BLOCKS, sectionY * NearSections.SECTION_BLOCKS,
+                sectionZ * NearSections.SECTION_BLOCKS);
         if (sodium) {
-            return SodiumDrawnSections.drawn(sectionX, sectionY, sectionZ);
+            return GameFrames.sectionDrawn(levelRenderer, pos, sectionFadeMillis)
+                    && SodiumDrawnSections.drawn(sectionX, sectionY, sectionZ);
         }
 
-        return NearSections.inVanillaViewDistance(cameraSectionX, cameraSectionY, cameraSectionZ, viewDistance,
-                sectionX, sectionY, sectionZ);
+        // The graph never lists an all-air section, yet the game still answers for its blocks.
+        return drawn.contains(SectionPos.asLong(sectionX, sectionY, sectionZ))
+                || GameFrames.sectionEmpty(levelRenderer, pos) && NearSections.inVanillaViewDistance(cameraSectionX,
+                        cameraSectionY, cameraSectionZ, viewDistance, sectionX, sectionY, sectionZ);
     }
 
     private void upload() {
