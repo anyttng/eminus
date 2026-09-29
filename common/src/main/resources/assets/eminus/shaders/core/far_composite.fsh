@@ -37,7 +37,8 @@ float linear_fog_value(float vertexDistance, float start, float end) {
 
 void main() {
     float depth = texture(FarDepth, screenUV).r;
-    if (!NEARER(depth, FARTHEST) || !NEARER(NEAREST, depth)) {
+    vec4 far = texture(FarColour, screenUV);
+    if (!NEARER(depth, FARTHEST) || far.a == 0.0) {
         discard;
     }
 
@@ -67,7 +68,6 @@ void main() {
     float fog = distance <= FogReach
             ? linear_fog_value(distance, GameFogStart, GameFogEnd)
             : linear_fog_value(distance, FogStart, FogEnd);
-    vec4 far = texture(FarColour, screenUV);
 
     gl_FragDepth = clamp(FARTHER(gameZ, DepthBias), 0.0, 1.0);
     float coverage = far.a * (1.0 - fade);
