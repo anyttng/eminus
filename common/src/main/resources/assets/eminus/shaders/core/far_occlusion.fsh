@@ -5,6 +5,7 @@ layout(std140) uniform Occlusion {
     mat4 FarInverse;
     mat4 GameInverse;
     float FocalPixels;
+    float DepthBias;
 };
 
 #moj_import <eminus:far_depth.glsl>
@@ -35,6 +36,19 @@ vec3 unproject(mat4 inverse, vec2 uv, float depth) {
     return eye.xyz / eye.w;
 }
 
+float masked_depth(vec2 uv, float game) {
+    vec4 clip = FarViewProjection * vec4(unproject(GameInverse, uv, CLOSER(game, DepthBias)), 1.0);
+    float depth = clip.z / clip.w;
+#ifndef DEPTH_ZERO_TO_ONE
+    depth = depth * 0.5 + 0.5;
+#endif
+    return clamp(depth, 0.0, 1.0);
+}
+
+bool far_surface(vec2 uv, float far, float game) {
+    return NEARER(far, FARTHEST) && (!NEARER(game, FARTHEST) || NEARER(far, masked_depth(uv, game)));
+}
+
 bool scene_position(ivec2 texel, ivec2 size, out vec3 position) {
     position = vec3(0.0);
     if (any(lessThan(texel, ivec2(0))) || any(greaterThanEqual(texel, size))) {
@@ -43,12 +57,12 @@ bool scene_position(ivec2 texel, ivec2 size, out vec3 position) {
 
     vec2 uv = (vec2(texel) + 0.5) / vec2(size);
     float far = texelFetch(FarDepth, texel, 0).r;
-    if (NEARER(far, FARTHEST) && NEARER(NEAREST, far)) {
+    float game = texelFetch(GameDepth, texel, 0).r;
+    if (far_surface(uv, far, game)) {
         position = unproject(FarInverse, uv, far);
         return true;
     }
 
-    float game = texelFetch(GameDepth, texel, 0).r;
     if (NEARER(game, FARTHEST)) {
         position = unproject(GameInverse, uv, game);
         return true;
@@ -77,12 +91,13 @@ bool surface_step(vec3 centre, ivec2 texel, ivec2 size, ivec2 offset, out vec3 d
 void main() {
     ivec2 size = textureSize(FarDepth, 0);
     ivec2 texel = ivec2(gl_FragCoord.xy);
+    vec2 uv = (vec2(texel) + 0.5) / vec2(size);
     float far = texelFetch(FarDepth, texel, 0).r;
-    if (!NEARER(far, FARTHEST) || !NEARER(NEAREST, far)) {
+    if (!far_surface(uv, far, texelFetch(GameDepth, texel, 0).r)) {
         discard;
     }
 
-    vec3 centre = unproject(FarInverse, (vec2(texel) + 0.5) / vec2(size), far);
+    vec3 centre = unproject(FarInverse, uv, far);
 
     vec3 normal = -normalize(centre);
     vec3 alongX;
