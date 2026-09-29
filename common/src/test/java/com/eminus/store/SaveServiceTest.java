@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Timeout;
 class SaveServiceTest {
     private static final int WORKER_THREADS = 1;
     private static final long KEY = CellKey.pack(0, 4, 5, 6);
+    private static final String PARKED_SERVICE = "save";
 
     private final AtomicLong clock = new AtomicLong();
     private final FakeCellStore store = new FakeCellStore();
@@ -48,12 +49,13 @@ class SaveServiceTest {
 
     @Test
     void aCellIsQueuedOnceHoweverOftenItIsSubmitted() {
-        CellHandle handle = openDirty();
-        harness.run(() -> cache.release(handle));
-        cache.sweep();
-        saves.flush();
+        SaveService parked = parkedSaves();
+        CellCache parkedCache = new CellCache(store, parked, clock::get);
+        releaseDirty(parkedCache, KEY);
+        clock.addAndGet(CellHandle.DIRTY_CAP_MILLIS);
+        parkedCache.sweep();
 
-        assertEquals(1, store.writes());
+        assertEquals(1, parked.pending());
     }
 
     @Test
@@ -80,17 +82,11 @@ class SaveServiceTest {
 
     @Test
     void anEnqueueOverTheSoftCapWritesInline() {
-        WorkService<Void> parked = idlePool.register("save", 1, WorkService.UNLIMITED, () -> null);
-        SaveService capped = new SaveService(store, parked);
+        SaveService capped = parkedSaves();
         CellCache cappedCache = new CellCache(store, capped, clock::get);
 
         for (int index = 0; index <= SaveService.SOFT_CAP; index++) {
-            long key = CellKey.pack(0, index, 0, 0);
-            harness.run(() -> {
-                CellHandle handle = cappedCache.open(key);
-                handle.markDirty();
-                cappedCache.release(handle);
-            });
+            releaseDirty(cappedCache, CellKey.pack(0, index, 0, 0));
         }
 
         assertEquals(SaveService.SOFT_CAP, capped.pending());
@@ -102,6 +98,18 @@ class SaveServiceTest {
             CellHandle handle = cache.open(KEY);
             handle.markDirty();
             return handle;
+        });
+    }
+
+    private SaveService parkedSaves() {
+        return new SaveService(store, idlePool.register(PARKED_SERVICE, 1, WorkService.UNLIMITED, () -> null));
+    }
+
+    private void releaseDirty(CellCache target, long key) {
+        harness.run(() -> {
+            CellHandle handle = target.open(key);
+            handle.markDirty();
+            target.release(handle);
         });
     }
 }
