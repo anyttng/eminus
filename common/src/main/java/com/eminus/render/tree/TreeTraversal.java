@@ -93,7 +93,7 @@ final class TreeTraversal {
             }
         }
 
-        return new RenderList(List.copyOf(drawn), borders());
+        return new RenderList(List.copyOf(drawn), borders(), camera);
     }
 
     private Long2IntMap borders() {
