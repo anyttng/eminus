@@ -6,7 +6,7 @@ import java.util.function.UnaryOperator;
 
 import com.eminus.Eminus;
 import com.eminus.client.settings.SettingsText;
-import com.eminus.settings.DetailDistance;
+import com.eminus.client.settings.SliderPositions;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
 
@@ -45,11 +45,13 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setName(Component.translatable(SettingsText.LOWEST_STORED_LEVEL_KEY))
                         .setTooltip(SettingsText.hint(SettingsText.LOWEST_STORED_LEVEL_KEY))
                         .setStorageHandler(this::save)
-                        .setRange(Settings.MIN_DETAIL_LEVEL, Settings.MAX_DETAIL_LEVEL, STEP)
-                        .setValueFormatter(SettingsText::lowestStoredLevel)
-                        .setDefaultValue(defaults.lowestStoredLevel())
-                        .setBinding(value -> edit(settings -> settings.withLowestStoredLevel(value)),
-                                () -> current().lowestStoredLevel()))
+                        .setRange(SliderPositions.FIRST, SliderPositions.LAST_LOWEST_STORED_LEVEL, STEP)
+                        .setValueFormatter(position -> SettingsText.lowestStoredLevel(
+                                SliderPositions.lowestStoredLevel(position)))
+                        .setDefaultValue(SliderPositions.lowestStoredLevelPosition(defaults.lowestStoredLevel()))
+                        .setBinding(position -> edit(settings -> settings.withLowestStoredLevel(
+                                        SliderPositions.lowestStoredLevel(position))),
+                                () -> SliderPositions.lowestStoredLevelPosition(current().lowestStoredLevel())))
                 .addOption(builder.createIntegerOption(id(FAR_RENDER_CELLS_ID))
                         .setName(Component.translatable(SettingsText.FAR_RENDER_CELLS_KEY))
                         .setTooltip(SettingsText.hint(SettingsText.FAR_RENDER_CELLS_KEY))
@@ -68,14 +70,17 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setDefaultValue(defaults.workerThreads())
                         .setBinding(value -> edit(settings -> settings.withWorkerThreads(value)),
                                 () -> current().workerThreads()))
-                .addOption(builder.createEnumOption(id(DETAIL_DISTANCE_ID), DetailDistance.class)
+                .addOption(builder.createIntegerOption(id(DETAIL_DISTANCE_ID))
                         .setName(Component.translatable(SettingsText.DETAIL_DISTANCE_KEY))
-                        .setTooltip(value -> SettingsText.detailDistanceHint())
+                        .setTooltip(position -> SettingsText.detailDistanceHint())
                         .setStorageHandler(this::save)
-                        .setElementNameProvider(SettingsText::detailDistance)
-                        .setDefaultValue(defaults.detailDistance())
-                        .setBinding(value -> edit(settings -> settings.withDetailDistance(value)),
-                                () -> current().detailDistance()))
+                        .setRange(SliderPositions.FIRST, SliderPositions.LAST_DETAIL_DISTANCE, STEP)
+                        .setValueFormatter(position -> SettingsText.detailDistance(
+                                SliderPositions.detailDistance(position)))
+                        .setDefaultValue(SliderPositions.detailDistancePosition(defaults.detailDistance()))
+                        .setBinding(position -> edit(settings -> settings.withDetailDistance(
+                                        SliderPositions.detailDistance(position))),
+                                () -> SliderPositions.detailDistancePosition(current().detailDistance())))
                 .addOption(builder.createBooleanOption(id(FOG_ID))
                         .setName(Component.translatable(SettingsText.FOG_KEY))
                         .setTooltip(SettingsText.hint(SettingsText.FOG_KEY))
