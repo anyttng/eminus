@@ -52,7 +52,7 @@ public final class SettingsFile {
 
     private static final String FOG_COMMENT = """
             Fog over LOD, carried on from the game's own fog at the edge of
-            the loaded chunks and full at the far render distance. false also clears the
+            the loaded chunks and full at the LOD distance. false also clears the
             game's open-air fog from the loaded chunks, so the two meet without a step.
             Fog that ends inside the loaded chunks (the Nether, a boss, blindness) and
             fog in water, lava or powder snow stay either way.""";
