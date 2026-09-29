@@ -39,6 +39,7 @@ import com.eminus.render.far.CameraOrigin;
 import com.eminus.render.far.CompositeFog;
 import com.eminus.render.far.DrawCommands;
 import com.eminus.render.far.MeshOrder;
+import com.eminus.render.far.TurnMargin;
 import com.eminus.render.tree.CameraFrame;
 import com.eminus.render.tree.NodeRow;
 import com.eminus.render.tree.NodeTable;
@@ -61,6 +62,7 @@ import net.minecraft.util.Mth;
 
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
 
 public final class FarRenderer implements AutoCloseable {
@@ -89,6 +91,7 @@ public final class FarRenderer implements AutoCloseable {
     private final LevelProjection levelProjection = new LevelProjection();
     private final Matrix4f farViewProjection = new Matrix4f();
     private final Matrix4f gameViewProjection = new Matrix4f();
+    private final TurnMargin turnMargin = new TurnMargin();
     private final TreeManager tree;
 
     private IndirectCommands indirect;
@@ -96,6 +99,7 @@ public final class FarRenderer implements AutoCloseable {
     private RenderList renderList = RenderList.EMPTY;
     private @Nullable TreeBatch uploading;
     private int uploaded;
+    private long frames;
     private boolean stopped;
 
     private FarRenderer(Gpu gpu, DimensionRuntime runtime, ClientBakery baking, ModelPublisher models,
@@ -281,11 +285,17 @@ public final class FarRenderer implements AutoCloseable {
                 game.viewRotation(), main.width(), main.height(), farViewProjection);
         FarProjection.gameViewProjection(levelProjection.projection(), game.viewRotation(), gameViewProjection);
 
+        frames++;
+        Quaternionf rotation = game.viewRotation().getNormalizedRotation(new Quaternionf());
+        float margin = turnMargin.frame(rotation);
+        Matrix4f walkViewProjection = projection.walkViewProjection(NearPlane.blocks(renderDistance), game.fov(),
+                margin, levelProjection.fold(), game.viewRotation(), main.width(), main.height(), new Matrix4f());
+
         Settings settings = SettingsService.get().settings();
-        tree.frame(new CameraFrame(game.eyeX(), game.eyeY(), game.eyeZ(), new Matrix4f(farViewProjection),
+        tree.frame(new CameraFrame(game.eyeX(), game.eyeY(), game.eyeZ(), walkViewProjection,
                 FarProjection.focalPixels(client.options.fov().get(), main.height()),
                 FarProjection.focalPixels(game.fov(), main.height()), settings.farRenderCells(),
-                settings.detailDistance().pixels(), arena.pressure()));
+                settings.detailDistance().pixels(), arena.pressure(), frames, rotation, margin));
 
         GameFog gameFog = game.fog();
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
@@ -343,6 +353,10 @@ public final class FarRenderer implements AutoCloseable {
         RenderList walked = batch.renderList();
         if (walked != null) {
             renderList = walked;
+            CameraFrame walkedWith = walked.walkedWith();
+            if (walkedWith != null) {
+                turnMargin.drawn(walkedWith);
+            }
         }
 
         tree.batches().take();
