@@ -60,6 +60,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
+import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
@@ -91,6 +92,7 @@ public final class FarRenderer implements AutoCloseable {
     private final LevelProjection levelProjection = new LevelProjection();
     private final Matrix4f farViewProjection = new Matrix4f();
     private final Matrix4f gameViewProjection = new Matrix4f();
+    private final FrustumIntersection drawFrustum = new FrustumIntersection();
     private final TurnMargin turnMargin = new TurnMargin();
     private final TreeManager tree;
 
@@ -310,7 +312,7 @@ public final class FarRenderer implements AutoCloseable {
 
         order.update(renderList, runtime.frame(), game.eyeX(), game.eyeY(), game.eyeZ());
         commands.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(),
-                game.eyeX(), game.eyeY(), game.eyeZ());
+                drawFrustum.set(farViewProjection), game.eyeX(), game.eyeY(), game.eyeZ());
 
         if (commands.count() > 0) {
             if (indirect.capacity() < commands.capacity()) {
