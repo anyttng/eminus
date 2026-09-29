@@ -45,7 +45,7 @@ public final class OcclusionPass implements AutoCloseable {
     private static final Set<BufferUsage> UNIFORM_USAGE = EnumSet.of(BufferUsage.UNIFORM, BufferUsage.COPY_DST);
     private static final int SIZE = Std140.size()
             .putMat4f().putMat4f().putMat4f()
-            .putFloat()
+            .putFloat().putFloat()
             .get();
     private static final long START_OF_BUFFER = 0L;
     private static final int VERTICES = 3;
@@ -100,6 +100,7 @@ public final class OcclusionPass implements AutoCloseable {
                     .putMat4f(farInverse)
                     .putMat4f(gameInverse)
                     .putFloat(focalPixels(farViewProjection, height))
+                    .putFloat(CompositePass.DEPTH_BIAS)
                     .get();
             gpu.write(uniform, START_OF_BUFFER, written);
         }
