@@ -1,6 +1,8 @@
 package com.eminus.client.settings;
 
-import java.util.List;
+import java.util.Optional;
+import java.util.function.IntFunction;
+import java.util.function.ToIntFunction;
 
 import static com.eminus.client.settings.SettingsText.DETAIL_DISTANCE_KEY;
 import static com.eminus.client.settings.SettingsText.FADE_KEY;
@@ -25,10 +27,8 @@ import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.network.chat.Component;
 
 public class SettingsScreen extends OptionsSubScreen {
-    private static final Codec<DetailDistance> DETAIL_DISTANCE_CODEC = Codec.STRING.xmap(
-            key -> DetailDistance.fromKey(key).orElse(Settings.DEFAULT_DETAIL_DISTANCE), DetailDistance::key);
-
     private static final boolean APPLY_ON_RELEASE = false;
+    private static final boolean STEPPED = true;
 
     private final OptionInstance<Boolean> ingestion;
     private final OptionInstance<Integer> lowestStoredLevel;
@@ -47,7 +47,8 @@ public class SettingsScreen extends OptionsSubScreen {
                 value -> this.apply());
         this.lowestStoredLevel = new OptionInstance<>(LOWEST_STORED_LEVEL_KEY, hint(LOWEST_STORED_LEVEL_KEY),
                 (caption, value) -> Options.genericValueLabel(caption, SettingsText.lowestStoredLevel(value)),
-                new OptionInstance.IntRange(Settings.MIN_DETAIL_LEVEL, Settings.MAX_DETAIL_LEVEL, APPLY_ON_RELEASE),
+                coarseToFine(SliderPositions.LAST_LOWEST_STORED_LEVEL, SliderPositions::lowestStoredLevel,
+                        SliderPositions::lowestStoredLevelPosition),
                 settings.lowestStoredLevel(), value -> this.apply());
         this.farRenderCells = new OptionInstance<>(FAR_RENDER_CELLS_KEY, hint(FAR_RENDER_CELLS_KEY),
                 (caption, value) -> Options.genericValueLabel(caption, SettingsText.farRenderDistance(value)),
@@ -61,8 +62,9 @@ public class SettingsScreen extends OptionsSubScreen {
                 settings.workerThreads(), value -> this.apply());
         this.detailDistance = new OptionInstance<>(DETAIL_DISTANCE_KEY,
                 value -> Tooltip.create(SettingsText.detailDistanceHint()),
-                (caption, value) -> SettingsText.detailDistance(value),
-                new OptionInstance.Enum<>(List.of(DetailDistance.values()), DETAIL_DISTANCE_CODEC),
+                (caption, value) -> Options.genericValueLabel(caption, SettingsText.detailDistance(value)),
+                coarseToFine(SliderPositions.LAST_DETAIL_DISTANCE, SliderPositions::detailDistance,
+                        SliderPositions::detailDistancePosition),
                 settings.detailDistance(), value -> this.apply());
         this.fog = OptionInstance.createBoolean(FOG_KEY, hint(FOG_KEY), settings.fog(), value -> this.apply());
         this.fade = OptionInstance.createBoolean(FADE_KEY, hint(FADE_KEY), settings.fade(), value -> this.apply());
@@ -97,5 +99,50 @@ public class SettingsScreen extends OptionsSubScreen {
 
     private static <T> OptionInstance.TooltipSupplier<T> hint(String captionKey) {
         return OptionInstance.cachedConstantTooltip(SettingsText.hint(captionKey));
+    }
+
+    private static <T> OptionInstance.SliderableValueSet<T> coarseToFine(int lastPosition, IntFunction<T> value,
+            ToIntFunction<T> position) {
+        return new AppliedOnRelease<>(new OptionInstance.IntRange(SliderPositions.FIRST, lastPosition, APPLY_ON_RELEASE)
+                .xmap(value, position, STEPPED));
+    }
+
+    // Vanilla's xmap drops the range's apply-on-release and applies every step while the slider is dragged.
+    private record AppliedOnRelease<T>(OptionInstance.SliderableValueSet<T> steps)
+            implements OptionInstance.SliderableValueSet<T> {
+        @Override
+        public double toSliderValue(T value) {
+            return steps.toSliderValue(value);
+        }
+
+        @Override
+        public T fromSliderValue(double slider) {
+            return steps.fromSliderValue(slider);
+        }
+
+        @Override
+        public Optional<T> next(T current) {
+            return steps.next(current);
+        }
+
+        @Override
+        public Optional<T> previous(T current) {
+            return steps.previous(current);
+        }
+
+        @Override
+        public Optional<T> validateValue(T value) {
+            return steps.validateValue(value);
+        }
+
+        @Override
+        public Codec<T> codec() {
+            return steps.codec();
+        }
+
+        @Override
+        public boolean applyValueImmediately() {
+            return APPLY_ON_RELEASE;
+        }
     }
 }
