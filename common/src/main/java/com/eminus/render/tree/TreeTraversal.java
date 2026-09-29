@@ -35,6 +35,9 @@ final class TreeTraversal {
     private final List<MeshSummary> drawn = new ArrayList<>();
     private final LongOpenHashSet drawnKeys = new LongOpenHashSet();
     private final LongOpenHashSet descendedKeys = new LongOpenHashSet();
+    private final List<MeshSummary> outOfViewDrawn = new ArrayList<>();
+    private final LongOpenHashSet outOfViewDrawnKeys = new LongOpenHashSet();
+    private final LongOpenHashSet outOfViewDescendedKeys = new LongOpenHashSet();
     private final List<TreeNode> outside = new ArrayList<>();
     private final List<Candidate> candidates = new ArrayList<>();
     private final List<TreeNode> requested = new ArrayList<>();
@@ -93,12 +96,37 @@ final class TreeTraversal {
             }
         }
 
-        return new RenderList(List.copyOf(drawn), borders(), camera);
+        return list(camera);
     }
 
-    private Long2IntMap borders() {
+    RenderList list(CameraFrame camera) {
+        outOfViewDrawn.clear();
+        outOfViewDrawnKeys.clear();
+        outOfViewDescendedKeys.clear();
+        double farBlocks = (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
+        current.clear();
+        current.addAll(outside);
+
+        while (!current.isEmpty()) {
+            next.clear();
+
+            for (TreeNode node : current) {
+                listOutOfView(node, camera, farBlocks);
+            }
+
+            current.clear();
+            current.addAll(next);
+        }
+
+        List<MeshSummary> meshes = new ArrayList<>(drawn.size() + outOfViewDrawn.size());
+        meshes.addAll(drawn);
+        meshes.addAll(outOfViewDrawn);
+        return new RenderList(List.copyOf(meshes), borders(meshes), camera);
+    }
+
+    private Long2IntMap borders(List<MeshSummary> meshes) {
         Long2IntOpenHashMap borders = new Long2IntOpenHashMap();
-        for (MeshSummary mesh : drawn) {
+        for (MeshSummary mesh : meshes) {
             int faces = borderFaces(mesh.key());
             if (faces != RenderList.NO_BORDER_FACES) {
                 borders.put(mesh.key(), faces);
@@ -112,8 +140,7 @@ final class TreeTraversal {
         int faces = RenderList.NO_BORDER_FACES;
         for (Direction face : FACES) {
             long neighbour = CellKey.neighbour(key, face);
-            if (!drawnKeys.contains(neighbour)
-                    && (descendedKeys.contains(neighbour) || ancestorDrawn(neighbour))) {
+            if (!drawn(neighbour) && (descended(neighbour) || ancestorDrawn(neighbour))) {
                 faces |= 1 << face.ordinal();
             }
         }
@@ -125,12 +152,20 @@ final class TreeTraversal {
         long ancestor = key;
         for (int level = CellKey.level(key) + 1; level <= DetailLevel.MAX; level++) {
             ancestor = CellKey.parent(ancestor);
-            if (drawnKeys.contains(ancestor)) {
+            if (drawn(ancestor)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private boolean drawn(long key) {
+        return drawnKeys.contains(key) || outOfViewDrawnKeys.contains(key);
+    }
+
+    private boolean descended(long key) {
+        return descendedKeys.contains(key) || outOfViewDescendedKeys.contains(key);
     }
 
     // Reused by the next walk; consumed before it.
@@ -186,6 +221,28 @@ final class TreeTraversal {
         }
 
         draw(node);
+    }
+
+    private void listOutOfView(TreeNode node, CameraFrame camera, double farBlocks) {
+        box(node, camera);
+
+        if (ProjectedSize.horizontalDistance(minX, maxX, minZ, maxZ) > farBlocks) {
+            return;
+        }
+
+        if (node.level() > extent.lowestLevel() && size(node, camera.pixelsPerBlock()) > camera.subdivisionPixels()
+                && node.occupancy() != OccupancyMask.EMPTY && node.childrenReady()) {
+            node.markDescended();
+            outOfViewDescendedKeys.add(node.key());
+            descend(node);
+            return;
+        }
+
+        outOfViewDrawnKeys.add(node.key());
+        MeshSummary mesh = node.mesh();
+        if (mesh != null && !mesh.isEmpty()) {
+            outOfViewDrawn.add(mesh);
+        }
     }
 
     private static void keepChildren(TreeNode node, long walk) {

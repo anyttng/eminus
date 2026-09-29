@@ -13,6 +13,8 @@ import com.eminus.render.arena.MeshSlots;
 
 import it.unimi.dsi.fastutil.longs.Long2IntFunction;
 
+import org.joml.FrustumIntersection;
+
 public final class DrawCommands {
     public static final int VERTICES_PER_QUAD = 4;
     public static final int INDICES_PER_QUAD = 6;
@@ -66,7 +68,8 @@ public final class DrawCommands {
     }
 
     public void write(List<MeshSummary> opaque, List<MeshSummary> translucent, Long2IntFunction borderFaces,
-            MeshSlots slots, CellFrame frame, double cameraX, double cameraY, double cameraZ) {
+            MeshSlots slots, CellFrame frame, FrustumIntersection frustum, double cameraX, double cameraY,
+            double cameraZ) {
         commands.clear();
         opaqueCount = 0;
         translucentCount = 0;
@@ -74,23 +77,29 @@ public final class DrawCommands {
 
         for (MeshSummary mesh : opaque) {
             MeshSlot slot = slots.slot(mesh.key());
-            if (slot != null) {
-                writeGroups(slot, borderFaces.get(mesh.key()), frame, cameraX, cameraY, cameraZ);
+            if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)) {
+                writeGroups(slot, borderFaces.get(mesh.key()), cameraX, cameraY, cameraZ);
             }
         }
 
         for (MeshSummary mesh : translucent) {
             MeshSlot slot = slots.slot(mesh.key());
-            if (slot != null && put(slot, QuadGroups.TRANSLUCENT)) {
+            if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)
+                    && put(slot, QuadGroups.TRANSLUCENT)) {
                 translucentCount++;
             }
         }
     }
 
-    private void writeGroups(MeshSlot slot, int borderFaces, CellFrame frame, double cameraX, double cameraY,
-            double cameraZ) {
+    private boolean inView(MeshSlot slot, CellFrame frame, FrustumIntersection frustum, double cameraX,
+            double cameraY, double cameraZ) {
         slot.bounds(frame, bounds);
+        return frustum.testAab((float) (bounds[MeshSlot.MIN_X] - cameraX), (float) (bounds[MeshSlot.MIN_Y] - cameraY),
+                (float) (bounds[MeshSlot.MIN_Z] - cameraZ), (float) (bounds[MeshSlot.MAX_X] - cameraX),
+                (float) (bounds[MeshSlot.MAX_Y] - cameraY), (float) (bounds[MeshSlot.MAX_Z] - cameraZ));
+    }
 
+    private void writeGroups(MeshSlot slot, int borderFaces, double cameraX, double cameraY, double cameraZ) {
         for (int group = 0; group < QuadGroups.COUNT; group++) {
             if (group == QuadGroups.TRANSLUCENT
                     || QuadGroups.isBorder(group) && (borderFaces & 1 << QuadGroups.direction(group)) == 0
