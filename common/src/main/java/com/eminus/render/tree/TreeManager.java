@@ -340,12 +340,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
                 ? Math.min(RequestBudget.perWalk(refinements + outOfViewRefinements), free)
                 : 0;
         RenderList walked = traversal.walk(nodes.roots(), camera, budget, outOfViewBudget, walk);
-        batch.renderList(walked);
         List<TreeNode> requested = traversal.requested();
         List<TreeNode> outOfView = traversal.outOfViewRequested();
         lastRequested = requested.size() + outOfView.size();
         lastStarved = traversal.starved();
-        lastDrawn = walked.meshes().size();
         outOfViewDue = !still;
 
         for (int index = 0; index < requested.size(); index++) {
@@ -364,6 +362,9 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             }
         }
 
+        RenderList listed = stale.isEmpty() ? walked : traversal.list(camera);
+        batch.renderList(listed);
+        lastDrawn = listed.meshes().size();
         treeChanged = !stale.isEmpty();
         lastEyeX = camera.eyeX();
         lastEyeY = camera.eyeY();

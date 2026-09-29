@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.eminus.cell.CellFrame;
@@ -50,12 +51,12 @@ class TreeTraversalTest {
     private final long rootKey = CellKey.pack(DetailLevel.MAX, 0, 0, 0);
 
     @Test
-    void aNodeOutsideTheFrustumIsAbsentAndUnseen() {
+    void aNodeOutsideTheFrustumIsListedButUnseen() {
         TreeNode root = meshedRoot(rootKey, OccupancyMask.EMPTY);
 
         RenderList behind = traversal.walk(nodes.roots(), FakeCameras.looking(BEHIND, INSIDE, INSIDE,
                 -1.0F, 0.0F, 0.0F, FAR_CELLS, FakeCameras.FAR_PIXELS_PER_BLOCK), BUDGET, NO_OUT_OF_VIEW, WALK);
-        assertTrue(behind.meshes().isEmpty());
+        assertEquals(List.of(root.mesh()), behind.meshes());
         assertEquals(0L, root.lastSeen());
 
         RenderList ahead = traversal.walk(nodes.roots(), FakeCameras.looking(BEHIND, INSIDE, INSIDE,
@@ -390,6 +391,38 @@ class TreeTraversalTest {
     }
 
     @Test
+    void anOutOfViewNodeIsListedThroughTheChildrenItHasWithoutRequestingOrSeeingThem() {
+        TreeNode behind = meshedRoot(rootKey, ALL_OCTANTS);
+        meshedRoot(aheadKey(), OccupancyMask.EMPTY);
+        List<MeshSummary> children = meshedChildren(behind);
+
+        RenderList list = traversal.walk(nodes.roots(), turnedAway(), BUDGET, NO_OUT_OF_VIEW, WALK);
+
+        assertTrue(list.meshes().containsAll(children));
+        assertFalse(list.meshes().contains(behind.mesh()));
+        assertTrue(traversal.requested().isEmpty());
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            assertEquals(0L, behind.child(octant).lastSeen());
+        }
+    }
+
+    @Test
+    void aListRedrawnAfterAnEvictionDrawsTheParentOfTheEvictedChildren() {
+        TreeNode behind = meshedRoot(rootKey, ALL_OCTANTS);
+        meshedRoot(aheadKey(), OccupancyMask.EMPTY);
+        List<MeshSummary> children = meshedChildren(behind);
+        traversal.walk(nodes.roots(), turnedAway(), BUDGET, NO_OUT_OF_VIEW, WALK);
+
+        nodes.remove(behind.child(0), removed -> { });
+        RenderList relisted = traversal.list(turnedAway());
+
+        assertTrue(relisted.meshes().contains(behind.mesh()));
+        for (MeshSummary child : children) {
+            assertFalse(relisted.meshes().contains(child));
+        }
+    }
+
+    @Test
     void aFullTableStopsTheOutOfViewPassWithoutStarving() {
         NodeTable small = new NodeTable(ROOTS_AND_ONE_CHILD);
         TreeTraversal limited = new TreeTraversal(small, extent);
@@ -415,6 +448,18 @@ class TreeTraversalTest {
         TreeNode root = nodes.root(key);
         root.meshed(TestMeshes.summary(key, occupancy));
         return root;
+    }
+
+    private List<MeshSummary> meshedChildren(TreeNode parent) {
+        List<MeshSummary> meshes = new ArrayList<>();
+        for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            TreeNode child = nodes.child(parent, octant);
+            MeshSummary mesh = TestMeshes.summary(child.key(), OccupancyMask.EMPTY);
+            child.meshed(mesh);
+            meshes.add(mesh);
+        }
+
+        return meshes;
     }
 
     private static CameraFrame inside() {
