@@ -15,7 +15,8 @@ import com.eminus.model.BakedModel;
 import net.minecraft.core.Direction;
 
 public final class ModelRecords implements AutoCloseable {
-    public static final int TEXELS = 7;
+    public static final int TEXELS = 8;
+    public static final int PACK_ID_TEXEL = 7;
     public static final int BYTES = TEXELS * 4 * Float.BYTES;
     public static final Format TEXEL_FORMAT = Format.RGBA32_FLOAT;
 
@@ -66,6 +67,10 @@ public final class ModelRecords implements AutoCloseable {
                 .putFloat(model.variantCount());
         for (float slope : model.slopes()) {
             scratch.putFloat(slope);
+        }
+        scratch.putFloat(model.packId());
+        while (scratch.hasRemaining()) {
+            scratch.putFloat(0.0F);
         }
         scratch.flip();
 

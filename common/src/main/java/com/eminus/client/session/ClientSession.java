@@ -2,6 +2,7 @@ package com.eminus.client.session;
 
 import java.nio.file.Path;
 import java.util.BitSet;
+import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
 import com.eminus.compat.iris.IrisShaderPack;
@@ -14,6 +15,7 @@ import com.eminus.client.frame.GameFrames;
 import com.eminus.client.gpu.Gpus;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.gpu.Gpu;
+import com.eminus.model.ModelBakery;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 import com.eminus.session.StoreFolders;
@@ -29,6 +31,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -45,6 +48,7 @@ public final class ClientSession {
     private static boolean overShaderPack;
     private static boolean inShaderPack;
     private static int renderedBiomeBlend;
+    private static @Nullable ToIntFunction<BlockState> renderedPackIds;
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
     private static FarRenderer renderer;
@@ -189,6 +193,11 @@ public final class ClientSession {
             restartRenderer();
         }
 
+        if (renderer != null && IrisShaderPack.packIds(renderedPackIds) != renderedPackIds) {
+            Eminus.LOGGER.info("Shader pack block ids changed: the far layer rebuilds");
+            restartRenderer();
+        }
+
         if (heldChunksPending) {
             submitHeldChunks();
         }
@@ -305,8 +314,9 @@ public final class ClientSession {
         rendered = SettingsService.get().settings();
         renderedCutoutLeaves = GameFrames.cutoutLeaves(minecraft);
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
+        renderedPackIds = IrisShaderPack.packIds(renderedPackIds);
         renderer = FarRenderer.start(minecraft, gpu, instance, runtime, level.getHeight(), rendered,
-                replacedArenaBytes);
+                replacedArenaBytes, renderedPackIds == null ? ModelBakery.NO_PACK_IDS : renderedPackIds);
     }
 
     private static void stopRenderer() {
