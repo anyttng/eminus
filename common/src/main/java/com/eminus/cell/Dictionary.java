@@ -58,7 +58,7 @@ public final class Dictionary<T> {
     private void store(int id, T value) {
         Object[] current = values;
         if (id >= current.length) {
-            current = Arrays.copyOf(current, Math.max(current.length * 2, id + 1));
+            current = Arrays.copyOf(current, IdTable.grownLength(current.length, id));
         }
 
         current[id] = value;

@@ -1,7 +1,6 @@
 package com.eminus.model;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +12,7 @@ import java.util.function.IntSupplier;
 
 import com.eminus.Eminus;
 import com.eminus.cell.Dictionary;
+import com.eminus.cell.IdTable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -45,7 +45,7 @@ public final class ModelBakery implements ModelSource {
     private final Map<BlockState, Integer> fluidIdByState = new ConcurrentHashMap<>();
     private final Set<BlockState> positionalStates = ConcurrentHashMap.newKeySet();
     private final Map<Request, Integer> idByParts = new ConcurrentHashMap<>();
-    private volatile int[] submergedIds = new int[0];
+    private final IdTable submergedIds = new IdTable(0, MISSING);
     private final Map<Integer, Integer> oneSidedIds = new ConcurrentHashMap<>();
     private final Map<Long, Integer> inwardIds = new ConcurrentHashMap<>();
     private final BlockingQueue<Request> requests = new LinkedBlockingQueue<>();
@@ -83,8 +83,7 @@ public final class ModelBakery implements ModelSource {
     }
 
     public int submergedModelId(int modelId) {
-        int[] snapshot = submergedIds;
-        int twin = modelId >= 0 && modelId < snapshot.length ? snapshot[modelId] : MISSING;
+        int twin = submergedIds.get(modelId);
         return twin == MISSING ? modelId : twin;
     }
 
@@ -203,25 +202,12 @@ public final class ModelBakery implements ModelSource {
         }
     }
 
-    private void remember(int surfaceId, int submergedId) {
-        int[] current = submergedIds;
-        int known = current.length;
-        if (surfaceId >= known) {
-            int size = Math.max(known * 2, surfaceId + 1);
-            current = Arrays.copyOf(current, size);
-            Arrays.fill(current, known, size, MISSING);
-        }
-
-        current[surfaceId] = submergedId;
-        submergedIds = current;
-    }
-
     private void publish(BlockState state, BakedState baked) {
         BakedModel fluid = baked.fluid();
         int fluidId = fluid == null ? NO_FLUID : models.register(fluid);
         int blockId = baked.variants().isEmpty() ? models.register(baked.block()) : registerVariants(baked);
         if (baked.submerged() != null) {
-            remember(fluid == null ? blockId : fluidId, models.register(baked.submerged()));
+            submergedIds.put(fluid == null ? blockId : fluidId, models.register(baked.submerged()));
         }
 
         if (baked.positional()) {
