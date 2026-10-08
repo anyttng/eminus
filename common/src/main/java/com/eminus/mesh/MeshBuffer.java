@@ -18,11 +18,13 @@ public final class MeshBuffer {
     public static final int MAX_COLOURS = Quad.MAX_COLOUR_INDEX + 1;
     public static final int UNTINTED = 0;
     public static final int WHITE = 0xFF_FFFF;
+    public static final int CHANNEL_BITS = 8;
+    public static final int RED_SHIFT = 2 * CHANNEL_BITS;
+    public static final int GREEN_SHIFT = CHANNEL_BITS;
+    public static final int BLUE_SHIFT = 0;
 
     private static final int ABSENT = -1;
-    private static final int RED_SHIFT = 16;
-    private static final int GREEN_SHIFT = 8;
-    private static final int CHANNEL_MASK = 0xFF;
+    private static final int CHANNEL_MASK = (1 << CHANNEL_BITS) - 1;
     private static final int OFFSET_SHIFT = Integer.SIZE;
     private static final long COLOUR_BITS = 0xFFFF_FFFFL;
 
@@ -186,7 +188,7 @@ public final class MeshBuffer {
     private static int distance(int first, int second) {
         int red = ((first >> RED_SHIFT) & CHANNEL_MASK) - ((second >> RED_SHIFT) & CHANNEL_MASK);
         int green = ((first >> GREEN_SHIFT) & CHANNEL_MASK) - ((second >> GREEN_SHIFT) & CHANNEL_MASK);
-        int blue = (first & CHANNEL_MASK) - (second & CHANNEL_MASK);
+        int blue = ((first >> BLUE_SHIFT) & CHANNEL_MASK) - ((second >> BLUE_SHIFT) & CHANNEL_MASK);
         return red * red + green * green + blue * blue;
     }
 

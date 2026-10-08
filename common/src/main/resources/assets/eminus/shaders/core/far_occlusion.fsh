@@ -4,6 +4,7 @@ layout(std140) uniform Occlusion {
     mat4 FarViewProjection;
     mat4 FarInverse;
     mat4 GameInverse;
+    mat4 GameToFar;
     float FocalPixels;
     float DepthBias;
 };
@@ -23,30 +24,9 @@ float interleaved_noise(vec2 pixel) {
     return fract(52.9829189 * fract(dot(pixel, vec2(0.06711056, 0.00583715))));
 }
 
-float ndc_z(float depth) {
-#ifdef DEPTH_ZERO_TO_ONE
-    return depth;
-#else
-    return depth * 2.0 - 1.0;
-#endif
-}
-
-vec3 unproject(mat4 inverse, vec2 uv, float depth) {
-    vec4 eye = inverse * vec4(uv * 2.0 - 1.0, ndc_z(depth), 1.0);
-    return eye.xyz / eye.w;
-}
-
-float masked_depth(vec2 uv, float game) {
-    vec4 clip = FarViewProjection * vec4(unproject(GameInverse, uv, CLOSER(game, DepthBias)), 1.0);
-    float depth = clip.z / clip.w;
-#ifndef DEPTH_ZERO_TO_ONE
-    depth = depth * 0.5 + 0.5;
-#endif
-    return clamp(depth, 0.0, 1.0);
-}
-
 bool far_surface(vec2 uv, float far, float game) {
-    return NEARER(far, FARTHEST) && (!NEARER(game, FARTHEST) || NEARER(far, masked_depth(uv, game)));
+    return NEARER(far, FARTHEST)
+            && (!NEARER(game, FARTHEST) || NEARER(far, far_mask_depth(GameToFar, uv, game, DepthBias)));
 }
 
 bool scene_position(ivec2 texel, ivec2 size, out vec3 position) {
@@ -59,12 +39,12 @@ bool scene_position(ivec2 texel, ivec2 size, out vec3 position) {
     float far = texelFetch(FarDepth, texel, 0).r;
     float game = texelFetch(GameDepth, texel, 0).r;
     if (far_surface(uv, far, game)) {
-        position = unproject(FarInverse, uv, far);
+        position = far_unproject(FarInverse, uv, far);
         return true;
     }
 
     if (NEARER(game, FARTHEST)) {
-        position = unproject(GameInverse, uv, game);
+        position = far_unproject(GameInverse, uv, game);
         return true;
     }
 
@@ -97,7 +77,7 @@ void main() {
         discard;
     }
 
-    vec3 centre = unproject(FarInverse, uv, far);
+    vec3 centre = far_unproject(FarInverse, uv, far);
 
     vec3 normal = -normalize(centre);
     vec3 alongX;

@@ -5,6 +5,7 @@ import java.util.OptionalDouble;
 import java.util.Set;
 
 import com.eminus.Eminus;
+import com.eminus.client.render.far.CompositePass;
 import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
@@ -29,6 +30,10 @@ import org.lwjgl.system.MemoryStack;
 
 public final class BackendCheck {
     public static final Format DEPTH_FORMAT = Format.D32_FLOAT;
+    public static final Std140.Block BLOCK = Std140.block("Probe");
+
+    private static final Std140.Member DEPTH = BLOCK.add(Std140.Type.FLOAT, "ProbeDepth");
+    private static final int UNIFORM_SIZE = BLOCK.size();
 
     private static final Location PROBE_PIPELINE = new Location(Eminus.MODID, "depth_probe");
     private static final Location PROBE_SHADER = new Location(Eminus.MODID, "core/depth_probe");
@@ -36,7 +41,6 @@ public final class BackendCheck {
     private static final String DEPTH_LABEL = "eminus-probe-depth";
     private static final String PASS_LABEL = "eminus-probe-pass";
     private static final String UNIFORM_LABEL = "eminus-probe-uniform";
-    private static final String PROBE_UNIFORM = "Probe";
     private static final Format COLOUR_FORMAT = Format.RGBA8_UNORM;
     private static final Vector4fc CLEAR_COLOUR = new Vector4f();
     private static final Set<TextureUsage> TARGET_USAGE = EnumSet.of(TextureUsage.ATTACHMENT);
@@ -45,7 +49,6 @@ public final class BackendCheck {
     private static final int PROBE_MIPS = 1;
     private static final int PROBE_VERTICES = 3;
     private static final float PROBE_DEPTH = 0.5F;
-    private static final int UNIFORM_SIZE = Std140.size().putFloat().get();
 
     private BackendCheck() {
     }
@@ -90,7 +93,7 @@ public final class BackendCheck {
                 Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, colour, CLEAR_COLOUR)
                         .withDepth(depth, OptionalDouble.of(convention.farthest())))) {
             pass.pipeline(probe);
-            pass.bind(PROBE_UNIFORM, uniform);
+            pass.bind(BLOCK.name(), uniform);
             pass.draw(PROBE_VERTICES);
             return true;
         } catch (RuntimeException refused) {
@@ -102,13 +105,13 @@ public final class BackendCheck {
     private static Buffer probeUniform(Gpu gpu) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             return gpu.buffer(UNIFORM_LABEL, UNIFORM_USAGE,
-                    Std140.into(stack.malloc(UNIFORM_SIZE)).putFloat(PROBE_DEPTH).get());
+                    BLOCK.into(stack.malloc(UNIFORM_SIZE)).putFloat(DEPTH, PROBE_DEPTH).get());
         }
     }
 
     private static PipelineSpec probePipeline(DepthConvention depth) {
-        return PipelineSpec.builder(PROBE_PIPELINE, PROBE_SHADER, PROBE_SHADER)
-                .withBinding(Binding.uniform(PROBE_UNIFORM))
+        return PipelineSpec.builder(PROBE_PIPELINE, CompositePass.FULL_SCREEN_SHADER, PROBE_SHADER)
+                .withBinding(Binding.uniform(BLOCK.name()))
                 .withColourTarget(COLOUR_FORMAT, null, true)
                 .withDepthTest(depth.compare(), true)
                 .build();
