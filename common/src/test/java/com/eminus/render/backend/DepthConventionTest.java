@@ -5,10 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.List;
 
 import com.eminus.gpu.Format;
+import com.eminus.gpu.Location;
 import com.eminus.gpu.pipeline.DepthCompare;
 import com.eminus.gpu.pipeline.PipelineSpec;
-
-import net.minecraft.resources.Identifier;
 
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +16,7 @@ class DepthConventionTest {
     private static final boolean MINUS_ONE_TO_ONE = false;
     private static final boolean REVERSED = true;
     private static final boolean FORWARD = false;
-    private static final Identifier PIPELINE = Identifier.fromNamespaceAndPath("eminus", "test");
+    private static final Location PIPELINE = new Location("eminus", "test");
 
     @Test
     void reversedDepthKeepsTheNearerFragmentOnTheGreaterValue() {

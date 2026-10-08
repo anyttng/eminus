@@ -6,6 +6,7 @@ import java.util.Set;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.pass.Pass;
 import com.eminus.render.far.DrawCommands;
 
 public final class IndirectCommands implements AutoCloseable {
@@ -25,7 +26,7 @@ public final class IndirectCommands implements AutoCloseable {
 
     public static IndirectCommands create(Gpu gpu, int capacity) {
         gpu.assertRenderThread();
-        return new IndirectCommands(gpu, gpu.buffer(LABEL, USAGE, (long) capacity * DrawCommands.COMMAND_BYTES),
+        return new IndirectCommands(gpu, gpu.buffer(LABEL, USAGE, (long) capacity * Pass.INDEXED_INDIRECT_BYTES),
                 capacity);
     }
 

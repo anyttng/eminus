@@ -2,6 +2,7 @@ package com.eminus.client.gpu.game;
 
 import java.util.Optional;
 
+import com.eminus.gpu.Location;
 import com.eminus.gpu.pipeline.Binding;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.pipeline.PipelineSpec;
@@ -20,14 +21,12 @@ import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 
-import net.minecraft.resources.Identifier;
-
-record GamePipeline(RenderPipeline pipeline) implements Pipeline {
+record GamePipeline(RenderPipeline pipeline, Location location) implements Pipeline {
     static GamePipeline of(PipelineSpec spec) {
         RenderPipeline.Builder builder = RenderPipeline.builder()
-                .withLocation(spec.location())
-                .withVertexShader(spec.vertexShader())
-                .withFragmentShader(spec.fragmentShader());
+                .withLocation(GameTypes.identifier(spec.location()))
+                .withVertexShader(GameTypes.identifier(spec.vertexShader()))
+                .withFragmentShader(GameTypes.identifier(spec.fragmentShader()));
 
         if (!spec.bindings().isEmpty()) {
             builder.withBindGroupLayout(layout(spec));
@@ -55,7 +54,7 @@ record GamePipeline(RenderPipeline pipeline) implements Pipeline {
             builder.withDepthStencilState(new DepthStencilState(GameTypes.compare(depth.compare()), depth.writes()));
         }
 
-        return new GamePipeline(builder.build());
+        return new GamePipeline(builder.build(), spec.location());
     }
 
     private static BindGroupLayout layout(PipelineSpec spec) {
@@ -71,11 +70,6 @@ record GamePipeline(RenderPipeline pipeline) implements Pipeline {
             }
         }
         return layout.build();
-    }
-
-    @Override
-    public Identifier location() {
-        return pipeline.getLocation();
     }
 
     @Override

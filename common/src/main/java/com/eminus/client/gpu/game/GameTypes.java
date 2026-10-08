@@ -3,6 +3,7 @@ package com.eminus.client.gpu.game;
 import java.util.Set;
 
 import com.eminus.gpu.Format;
+import com.eminus.gpu.Location;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.gpu.pass.Pass;
@@ -25,11 +26,17 @@ import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
 import com.mojang.blaze3d.textures.GpuTexture;
 
+import net.minecraft.resources.Identifier;
+
 final class GameTypes {
     private static final BlendFunction MULTIPLY = new BlendFunction(BlendFactor.ZERO, BlendFactor.SRC_COLOR,
             BlendFactor.ZERO, BlendFactor.ONE);
 
     private GameTypes() {
+    }
+
+    static Identifier identifier(Location location) {
+        return Identifier.fromNamespaceAndPath(location.namespace(), location.path());
     }
 
     static GpuFormat format(Format format) {

@@ -101,6 +101,7 @@ final class OpenGlPass implements Pass {
     public void bind(String name, TexelView texels) {
         OpenGlPipeline.Slot slot = slot(name);
         if (slot != null) {
+            slot.requireFormat(name, texels.format());
             GameHandles.activeTexture(slot.index());
             GL11C.glBindTexture(GL31C.GL_TEXTURE_BUFFER, ((OpenGlTexelView) texels).texture());
         }

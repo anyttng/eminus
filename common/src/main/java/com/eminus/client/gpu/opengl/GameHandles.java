@@ -1,6 +1,13 @@
 package com.eminus.client.gpu.opengl;
 
+import java.io.IOException;
+import java.io.Reader;
+import java.util.Optional;
+
+import com.eminus.gpu.Location;
+
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.GpuOutOfMemoryException;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.textures.GpuTextureView;
@@ -8,6 +15,8 @@ import com.mojang.blaze3d.opengl.FrameBufferAttachment;
 import com.mojang.blaze3d.opengl.GlStateManager;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.resources.Resource;
 
 import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL13C;
@@ -15,6 +24,8 @@ import org.lwjgl.opengl.GL14C;
 import org.lwjgl.opengl.GL30C;
 
 final class GameHandles {
+    static final int GAME_TRACKED_TEXTURE_UNITS = 12;
+
     private static final boolean LIGHTMAP_HALF_TEXEL = true;
 
     private GameHandles() {
@@ -41,6 +52,21 @@ final class GameHandles {
 
     static boolean lightmapHalfTexel() {
         return LIGHTMAP_HALF_TEXEL;
+    }
+
+    static Optional<String> resource(Location file) throws IOException {
+        Optional<Resource> resource = Minecraft.getInstance().getResourceManager()
+                .getResource(Identifier.fromNamespaceAndPath(file.namespace(), file.path()));
+        if (resource.isEmpty()) {
+            return Optional.empty();
+        }
+        try (Reader reader = resource.get().openAsReader()) {
+            return Optional.of(reader.readAllAsString());
+        }
+    }
+
+    static RuntimeException outOfMemory(String message) {
+        return new GpuOutOfMemoryException(message);
     }
 
     private static RenderTarget target() {
