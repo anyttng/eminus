@@ -8,10 +8,12 @@ import net.irisshaders.iris.api.v0.IrisApi;
 
 import net.minecraft.world.level.block.state.BlockState;
 
+import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 
 public final class IrisShaderPack {
     private static final boolean IRIS_PRESENT = IrisMixinPlugin.irisPresent();
+    public static final String SHADOW_OFF_PROPERTY = "eminus.shadow.off";
 
     public static boolean inUse() {
         return IRIS_PRESENT && Api.inUse();
@@ -35,6 +37,14 @@ public final class IrisShaderPack {
 
     public static void pipelineDestroyed(Object pipeline) {
         PackLayer.destroyed(pipeline);
+    }
+
+    public static void drawShadow(FarRenderer renderer, Matrix4fc shadowView, Matrix4fc shadowProjection) {
+        PackLayer.drawShadow(renderer, shadowView, shadowProjection);
+    }
+
+    public static int shadowReach(int irisChunks) {
+        return PackLayer.shadowReach(irisChunks);
     }
 
     public static void rendererStopped() {

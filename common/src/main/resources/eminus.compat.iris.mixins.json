@@ -6,11 +6,13 @@
   "plugin": "com.eminus.compat.iris.IrisMixinPlugin",
   "client": [
     "CommonUniformsMixin",
+    "DHCompatMixin",
     "IrisRenderingPipelineAccessor",
     "IrisRenderingPipelineMixin",
     "IrisSamplersMixin",
     "ShaderPackAccessor",
     "ShaderPackMixin",
+    "ShadowRendererMixin",
     "StandardMacrosMixin"
   ],
   "injectors": {

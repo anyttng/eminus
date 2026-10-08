@@ -99,8 +99,22 @@ public final class FarDraw {
         return (translucent ? builder.withDefine("TRANSLUCENT_PASS") : builder.withDefine("FULL_COVERAGE")).build();
     }
 
+    // Under a pack Iris clears the shadow depth to 1.0 and draws it forward, whatever the game's own direction.
+    public PipelineSpec shadowPipeline(Location location, boolean packVertex) {
+        PipelineSpec.Builder builder = FarQuads.pipeline(location, PACK_SHADER, OpaquePass.ALPHA_CUTOUT,
+                        gpu.capabilities(), variantDraw)
+                .withColourTarget(FarTarget.COLOUR_FORMAT, null, true)
+                .withDepthTest(DepthConvention.of(depth.zeroToOne(), false).compare(), true)
+                .withDefine("FULL_COVERAGE");
+        return (packVertex ? builder.withDefine("PACK_VERTEX") : builder).build();
+    }
+
     public void bind(Pass pass) {
         FarQuads.bind(pass, arena, models, lightmap, frame.buffer(), nearSections.texels());
+    }
+
+    public void bindShadow(Pass pass, FarShadow shadow) {
+        FarQuads.bind(pass, arena, models, lightmap, shadow.frameBuffer(), nearSections.texels());
     }
 
     public void drawOpaque(Pass pass) {
