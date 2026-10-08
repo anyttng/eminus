@@ -9,6 +9,7 @@ import java.util.function.UnaryOperator;
 import com.eminus.Eminus;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Location;
+import com.eminus.gpu.ShaderSources;
 import com.eminus.gpu.pipeline.Binding;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.pipeline.PipelineSpec;
@@ -56,13 +57,15 @@ final class OpenGlPipeline implements Pipeline {
     }
 
     static OpenGlPipeline of(OpenGlObjects objects, PipelineSpec spec, int firstUnit,
-            UnaryOperator<String> fragmentSource) {
+            UnaryOperator<ShaderSources> finish) {
         requireTextureUnits(spec, firstUnit);
         String name = spec.location().toString();
-        int vertex = compile(spec, spec.vertexShader(), VERTEX_EXTENSION, GL20C.GL_VERTEX_SHADER,
-                UnaryOperator.identity());
-        int fragment = compile(spec, spec.fragmentShader(), FRAGMENT_EXTENSION, GL20C.GL_FRAGMENT_SHADER,
-                fragmentSource);
+        ShaderSources sources = sources(spec, finish);
+        int vertex = sources == null ? NO_SHADER
+                : compile(spec, spec.vertexShader(), VERTEX_EXTENSION, GL20C.GL_VERTEX_SHADER, sources.vertex());
+        int fragment = sources == null ? NO_SHADER
+                : compile(spec, spec.fragmentShader(), FRAGMENT_EXTENSION, GL20C.GL_FRAGMENT_SHADER,
+                        sources.fragment());
         if (vertex == NO_SHADER || fragment == NO_SHADER) {
             GL20C.glDeleteShader(vertex);
             GL20C.glDeleteShader(fragment);
@@ -99,18 +102,23 @@ final class OpenGlPipeline implements Pipeline {
         }
     }
 
-    private static int compile(PipelineSpec spec, Location shader, String extension, int type,
-            UnaryOperator<String> finish) {
-        String name = spec.location() + " " + shader + extension;
-        String source;
+    private static @Nullable ShaderSources sources(PipelineSpec spec, UnaryOperator<ShaderSources> finish) {
         try {
-            source = finish.apply(GlslSource.compose(read(shader.withPrefix(SHADER_FOLDER).withSuffix(extension)),
-                    spec.defines(), OpenGlPipeline::includeSource));
+            return finish.apply(new ShaderSources(compose(spec, spec.vertexShader(), VERTEX_EXTENSION),
+                    compose(spec, spec.fragmentShader(), FRAGMENT_EXTENSION)));
         } catch (IOException | RuntimeException refused) {
-            Eminus.LOGGER.error("Shader {} could not be read: {}", name, refused.toString());
-            return NO_SHADER;
+            Eminus.LOGGER.error("Shaders of {} could not be read: {}", spec.location(), refused.toString());
+            return null;
         }
+    }
 
+    private static String compose(PipelineSpec spec, Location shader, String extension) throws IOException {
+        return GlslSource.compose(read(shader.withPrefix(SHADER_FOLDER).withSuffix(extension)), spec.defines(),
+                OpenGlPipeline::includeSource);
+    }
+
+    private static int compile(PipelineSpec spec, Location shader, String extension, int type, String source) {
+        String name = spec.location() + " " + shader + extension;
         int id = GL20C.glCreateShader(type);
         GL20C.glShaderSource(id, source);
         GL20C.glCompileShader(id);

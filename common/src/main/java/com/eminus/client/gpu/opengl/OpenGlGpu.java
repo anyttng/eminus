@@ -18,6 +18,7 @@ import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Foreign;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.ShaderSources;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.gpu.buffer.Staging;
@@ -190,8 +191,8 @@ public final class OpenGlGpu implements Gpu, Foreign {
     }
 
     @Override
-    public Pipeline pipeline(PipelineSpec spec, int firstTextureUnit, UnaryOperator<String> fragment) {
-        OpenGlPipeline pipeline = OpenGlPipeline.of(objects, spec, firstTextureUnit, fragment);
+    public Pipeline pipeline(PipelineSpec spec, int firstTextureUnit, UnaryOperator<ShaderSources> sources) {
+        OpenGlPipeline pipeline = OpenGlPipeline.of(objects, spec, firstTextureUnit, sources);
         pipelines.add(pipeline);
         return pipeline;
     }
