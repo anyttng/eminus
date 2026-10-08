@@ -18,7 +18,7 @@ public final class RowMasks {
     private final long[] positive = new long[ROWS];
     private final long[] negative = new long[ROWS];
 
-    public void build(CellVoxels voxels, StateOpacity opacity, Direction.Axis axis) {
+    public void build(CellVoxels voxels, StateOpacity opacity, int voxelBlocks, Direction.Axis axis) {
         for (int row = 0; row < ROWS; row++) {
             int v = row / SIDE;
             int u = row % SIDE;
@@ -33,8 +33,9 @@ public final class RowMasks {
 
                 long bit = 1L << (at + FIRST_VOXEL_BIT);
                 solidBits |= bit;
-                if (opacity.opacity(VoxelEntry.state(entry)) >= StateTable.FULL_OPACITY
-                        && VoxelEntry.gaps(entry) == VoxelEntry.NO_GAPS) {
+                if (VoxelEntry.gaps(entry) == VoxelEntry.NO_GAPS
+                        && (opacity.opacity(VoxelEntry.state(entry)) >= StateTable.FULL_OPACITY
+                                || opacity.coversGround(entry, voxelBlocks))) {
                     opaqueBits |= bit;
                 }
             }

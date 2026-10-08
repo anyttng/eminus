@@ -17,13 +17,25 @@ class PyramidDownsamplerTest {
     private static final int TRUNK = 3;
     private static final int LEAVES = 4;
     private static final int WATER = 5;
+    private static final int SNOW = 6;
 
-    private static final int[] OPACITY = {0, 0, 15, 15, 15, 1};
-    private static final StateOpacity OPACITIES = state -> OPACITY[state];
+    private static final int[] OPACITY = {0, 0, 15, 15, 15, 1, 0};
+    private static final StateOpacity OPACITIES = new StateOpacity() {
+        @Override
+        public int opacity(int stateId) {
+            return OPACITY[stateId];
+        }
+
+        @Override
+        public boolean cover(int stateId) {
+            return stateId == SNOW;
+        }
+    };
 
     private static final int BIOME = 7;
     private static final int TOP_BIOME = 9;
     private static final int HALF_SECTION = SectionPyramid.SECTION_SIDE / 2;
+    private static final int SNOW_Y = 3;
 
     private final SectionPyramid pyramid = new SectionPyramid();
 
@@ -155,6 +167,62 @@ class PyramidDownsamplerTest {
         assertEquals(FLOWER, VoxelEntry.state(coarsest));
         assertEquals(7, VoxelEntry.lowGap(coarsest));
         assertEquals(SectionPyramid.SECTION_SIDE - 8, VoxelEntry.highGap(coarsest));
+    }
+
+    @Test
+    void snowOnTheGroundWinsEveryLevelAtTheGroundsHeight() {
+        fill(VoxelEntry.AIR);
+        for (int z = 0; z < SectionPyramid.SECTION_SIDE; z++) {
+            for (int x = 0; x < SectionPyramid.SECTION_SIDE; x++) {
+                for (int y = 0; y < SNOW_Y; y++) {
+                    set(x, y, z, entry(STONE));
+                }
+                set(x, SNOW_Y, z, entry(SNOW));
+            }
+        }
+
+        PyramidDownsampler.build(pyramid, OPACITIES);
+
+        long first = at(DetailLevel.MIN + 1, 0, 1, 0);
+        assertEquals(SNOW, VoxelEntry.state(first));
+        assertEquals(VoxelEntry.NO_GAPS, VoxelEntry.gaps(first));
+        assertEquals(STONE, VoxelEntry.state(at(DetailLevel.MIN + 1, 0, 0, 0)));
+        for (int level = DetailLevel.MIN + 2; level <= DetailLevel.MAX; level++) {
+            long coarse = at(level, 0, 0, 0);
+            assertEquals(SNOW, VoxelEntry.state(coarse));
+            assertEquals(0, VoxelEntry.lowGap(coarse));
+            assertEquals(DetailLevel.blocksPerVoxel(level) - SNOW_Y - 1, VoxelEntry.highGap(coarse));
+        }
+    }
+
+    @Test
+    void snowBelowAHigherColumnLosesItsGroup() {
+        fill(VoxelEntry.AIR);
+        for (int z = 0; z < 2; z++) {
+            for (int x = 0; x < 2; x++) {
+                set(x, 0, z, entry(STONE));
+                set(x, 1, z, entry(SNOW));
+            }
+        }
+        set(1, 1, 1, entry(STONE));
+
+        PyramidDownsampler.build(pyramid, OPACITIES);
+
+        assertEquals(STONE, VoxelEntry.state(at(DetailLevel.MIN + 1, 0, 0, 0)));
+    }
+
+    @Test
+    void snowWinningAGroupWithoutGroundKeepsItsOwnBlock() {
+        fill(VoxelEntry.AIR);
+        set(0, 0, 0, entry(FLOWER));
+        set(1, 1, 1, entry(SNOW));
+
+        PyramidDownsampler.build(pyramid, OPACITIES);
+
+        long merged = at(DetailLevel.MIN + 1, 0, 0, 0);
+        assertEquals(SNOW, VoxelEntry.state(merged));
+        assertEquals(1, VoxelEntry.lowGap(merged));
+        assertEquals(0, VoxelEntry.highGap(merged));
     }
 
     @Test
