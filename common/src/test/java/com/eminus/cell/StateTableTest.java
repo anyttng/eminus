@@ -20,6 +20,7 @@ class StateTableTest {
     private static final String DAMAGED_STATE = "nosuchmod:nosuchblock";
     private static final int DAMAGED_ID = 1;
     private static final int UNKNOWN_ID = 99;
+    private static final int ID_PAST_CAPACITY = 1000;
 
     @BeforeAll
     static void bootstrapVanilla() {
@@ -87,6 +88,18 @@ class StateTableTest {
         ids.load(DAMAGED_ID, BlockStateParser.serialize(stone));
 
         assertSame(stone, new StateTable(ids).state(DAMAGED_ID));
+    }
+
+    @Test
+    void aStoredStatePastTheInitialCapacityComesBackWithItsOpacity() {
+        BlockState glass = Blocks.GLASS.defaultBlockState();
+        ids.load(VoxelEntry.AIR_STATE_ID, BlockStateParser.serialize(Blocks.AIR.defaultBlockState()));
+        ids.load(ID_PAST_CAPACITY, BlockStateParser.serialize(glass));
+        StateTable table = new StateTable(ids);
+
+        assertSame(glass, table.state(ID_PAST_CAPACITY));
+        assertEquals(glass.getLightDampening(), table.opacity(ID_PAST_CAPACITY));
+        assertEquals(glass.getLightDampening(), table.seeThroughLeaves().opacity(ID_PAST_CAPACITY));
     }
 
     @Test
