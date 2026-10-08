@@ -17,11 +17,9 @@ import com.eminus.ingest.IngestService;
 import com.eminus.handoff.NearSections;
 import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.client.handoff.NearSectionTable;
-import com.eminus.mesh.BakeryModels;
-import com.eminus.mesh.BakeryTints;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
-import com.eminus.model.ModelIndex;
+import com.eminus.client.mesh.MeshWiring;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.client.frame.GameFog;
 import com.eminus.client.frame.GameFrame;
@@ -173,10 +171,7 @@ public final class FarRenderer implements AutoCloseable {
                 NodeTable.capacity(runtime.lowestStoredLevel(), focal, settings.detailDistance().pixels(),
                         settings.farRenderCells(), levelHeight));
 
-        renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(), runtime.frame(),
-                new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
-                new BakeryTints(baking.colours(), runtime.biomes()), client.options.biomeBlendRadius().get(),
-                baking.opacity(runtime.states()), renderer.tree);
+        renderer.meshes = MeshWiring.service(client, runtime, instance, baking, renderer.tree);
         runtime.listenTo(renderer.tree);
         Eminus.LOGGER.info("Far renderer started for {}", runtime.identity().dimension());
 

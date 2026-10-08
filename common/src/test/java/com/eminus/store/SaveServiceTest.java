@@ -38,7 +38,7 @@ class SaveServiceTest {
 
     @Test
     void theQueuedCellIsWrittenByTheWorkerPool() {
-        CellHandle handle = openDirty();
+        CellHandle handle = openDirty(cache);
         harness.run(() -> cache.release(handle));
         harness.close();
 
@@ -60,21 +60,23 @@ class SaveServiceTest {
 
     @Test
     void aFailedWriteKeepsTheCellDirtyAndComesBackAfterTheBackoff() {
+        SaveService parked = parkedSaves();
+        CellCache parkedCache = new CellCache(store, parked, clock::get);
         store.refuseWrites(true);
-        CellHandle handle = openDirty();
-        harness.run(() -> cache.release(handle));
-        saves.flush();
+        CellHandle handle = openDirty(parkedCache);
+        harness.run(() -> parkedCache.release(handle));
+        parked.flush();
 
         assertTrue(handle.dirty());
         assertEquals(0, store.writes());
 
-        cache.sweep();
-        assertEquals(0, saves.pending());
+        parkedCache.sweep();
+        assertEquals(0, parked.pending());
 
         clock.addAndGet(CellHandle.RETRY_MILLIS);
         store.refuseWrites(false);
-        cache.sweep();
-        saves.flush();
+        parkedCache.sweep();
+        parked.flush();
 
         assertFalse(handle.dirty());
         assertEquals(1, store.writes());
@@ -93,9 +95,9 @@ class SaveServiceTest {
         assertEquals(1, store.writes());
     }
 
-    private CellHandle openDirty() {
+    private CellHandle openDirty(CellCache target) {
         return harness.call(() -> {
-            CellHandle handle = cache.open(KEY);
+            CellHandle handle = target.open(KEY);
             handle.markDirty();
             return handle;
         });
