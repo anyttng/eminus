@@ -1,6 +1,7 @@
 package com.eminus.cell;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -8,7 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.eminus.VanillaBootstrap;
 
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -63,6 +66,19 @@ class StateTableTest {
 
         assertEquals(leaves.getLightDampening(), table.seeThroughLeaves().opacity(table.idOf(leaves)));
         assertEquals(StateTable.FULL_OPACITY, table.seeThroughLeaves().opacity(table.idOf(stone)));
+    }
+
+    @Test
+    void snowLayersAndCarpetsAreCoversAndFullOrRaisedBlocksAreNot() {
+        StateTable table = new StateTable(ids);
+
+        assertTrue(table.cover(table.idOf(Blocks.SNOW.defaultBlockState())));
+        assertTrue(table.cover(table.idOf(Blocks.CARPET.pick(DyeColor.WHITE).defaultBlockState())));
+        assertTrue(table.cover(table.idOf(Blocks.MOSS_CARPET.defaultBlockState())));
+        assertFalse(table.cover(table.idOf(
+                Blocks.SNOW.defaultBlockState().setValue(SnowLayerBlock.LAYERS, SnowLayerBlock.MAX_HEIGHT))));
+        assertFalse(table.cover(table.idOf(Blocks.STONE.defaultBlockState())));
+        assertFalse(table.cover(table.idOf(Blocks.STONE_SLAB.defaultBlockState())));
     }
 
     @Test
