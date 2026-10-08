@@ -5,7 +5,7 @@ import java.nio.IntBuffer;
 import java.util.OptionalLong;
 
 import com.eminus.Eminus;
-import com.eminus.client.gpu.opengl.OpenGlLimits;
+import com.eminus.client.gpu.DeviceQueries;
 
 import com.mojang.renderpearl.api.device.GpuDevice;
 import com.mojang.renderpearl.backend.vulkan.VulkanDevice;
@@ -24,11 +24,8 @@ import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties2;
 import org.lwjgl.vulkan.VkPhysicalDeviceProperties;
 
 record DeviceReading(OptionalLong texelElements, OptionalLong freeBytes) {
-    private static final String OPENGL = "OpenGL";
     private static final String VULKAN = "Vulkan";
     private static final DeviceReading UNREAD = new DeviceReading(OptionalLong.empty(), OptionalLong.empty());
-    private static final String TEXEL_LIMIT = "texel-buffer limit";
-    private static final String FREE_MEMORY = "free video memory";
     private static final String PHYSICAL_DEVICE = "physical device";
     private static final String BACKEND_FIELD = "backend";
     private static final int NO_HEAP = -1;
@@ -37,10 +34,12 @@ record DeviceReading(OptionalLong texelElements, OptionalLong freeBytes) {
         String backend = device.getDeviceInfo().backendName();
 
         return switch (backend) {
-            case OPENGL -> new DeviceReading(OpenGlLimits.texelElements(), OpenGlLimits.freeBytes());
+            case DeviceQueries.OPENGL ->
+                    new DeviceReading(DeviceQueries.openGlTexelElements(), DeviceQueries.openGlFreeBytes());
             case VULKAN -> vulkan(device);
             default -> {
-                Eminus.LOGGER.warn("Device limits not read: backend {} is neither {} nor {}", backend, OPENGL, VULKAN);
+                Eminus.LOGGER.warn("Device limits not read: backend {} is neither {} nor {}", backend, DeviceQueries.OPENGL,
+                        VULKAN);
                 yield UNREAD;
             }
         };
@@ -51,25 +50,13 @@ record DeviceReading(OptionalLong texelElements, OptionalLong freeBytes) {
         try {
             physical = vkPhysicalDevice(device);
         } catch (ReflectiveOperationException | RuntimeException | LinkageError refused) {
-            logRefusal(VULKAN, PHYSICAL_DEVICE, refused);
+            DeviceQueries.refused(VULKAN, PHYSICAL_DEVICE, refused);
             return UNREAD;
         }
 
-        return new DeviceReading(reading(VULKAN, TEXEL_LIMIT, () -> vkTexelElements(physical)),
-                reading(VULKAN, FREE_MEMORY, () -> vkFreeBytes(physical)));
-    }
-
-    private static OptionalLong reading(String backend, String name, Query query) {
-        try {
-            return query.read();
-        } catch (RuntimeException | LinkageError refused) {
-            logRefusal(backend, name, refused);
-            return OptionalLong.empty();
-        }
-    }
-
-    private static void logRefusal(String backend, String name, Throwable refused) {
-        Eminus.LOGGER.warn("The {} was not read on {}: {}", name, backend, refused.toString());
+        return new DeviceReading(
+                DeviceQueries.read(VULKAN, DeviceQueries.TEXEL_LIMIT, () -> vkTexelElements(physical)),
+                DeviceQueries.read(VULKAN, DeviceQueries.FREE_MEMORY, () -> vkFreeBytes(physical)));
     }
 
     private static VkPhysicalDevice vkPhysicalDevice(GpuDevice device) throws ReflectiveOperationException {
@@ -137,10 +124,5 @@ record DeviceReading(OptionalLong texelElements, OptionalLong freeBytes) {
             }
             return false;
         }
-    }
-
-    @FunctionalInterface
-    private interface Query {
-        OptionalLong read();
     }
 }

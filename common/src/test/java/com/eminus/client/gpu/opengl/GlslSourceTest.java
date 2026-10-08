@@ -8,9 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.eminus.gpu.Location;
 import com.eminus.gpu.pipeline.PipelineSpec;
-
-import net.minecraft.resources.Identifier;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,8 +20,8 @@ class GlslSourceTest {
             "eminus:inner.glsl", "float inner() { return 1.0; }",
             "eminus:loop.glsl", "#include <eminus:loop.glsl>");
 
-    private static Optional<String> include(Identifier id) {
-        return Optional.ofNullable(INCLUDES.get(id.toString()));
+    private static Optional<String> include(Location location) {
+        return Optional.ofNullable(INCLUDES.get(location.toString()));
     }
 
     @Test

@@ -6,6 +6,7 @@ import java.nio.IntBuffer;
 import java.util.List;
 
 import com.eminus.cell.CellFrame;
+import com.eminus.gpu.pass.Pass;
 import com.eminus.mesh.MeshSummary;
 import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.MeshSlot;
@@ -18,8 +19,6 @@ import org.joml.FrustumIntersection;
 public final class DrawCommands {
     public static final int VERTICES_PER_QUAD = 4;
     public static final int INDICES_PER_QUAD = 6;
-    public static final int COMMAND_INTS = 5;
-    public static final int COMMAND_BYTES = COMMAND_INTS * Integer.BYTES;
 
     private static final int ONE_INSTANCE = 1;
     private static final int FIRST_INDEX = 0;
@@ -64,7 +63,7 @@ public final class DrawCommands {
     }
 
     public ByteBuffer buffer() {
-        return bytes.clear().limit(count() * COMMAND_BYTES);
+        return bytes.clear().limit(count() * Pass.INDEXED_INDIRECT_BYTES);
     }
 
     public void write(List<MeshSummary> opaque, List<MeshSummary> translucent, Long2IntFunction borderFaces,
@@ -134,15 +133,15 @@ public final class DrawCommands {
     }
 
     private void grow() {
-        ByteBuffer written = bytes.clear().limit(count() * COMMAND_BYTES);
+        ByteBuffer written = bytes.clear().limit(count() * Pass.INDEXED_INDIRECT_BYTES);
         allocate(capacity * GROWTH);
         bytes.put(written).clear();
-        commands.position(count() * COMMAND_INTS);
+        commands.position(count() * Pass.INDEXED_INDIRECT_INTS);
     }
 
     private void allocate(int commandCapacity) {
         capacity = commandCapacity;
-        bytes = ByteBuffer.allocateDirect(commandCapacity * COMMAND_BYTES).order(ByteOrder.nativeOrder());
+        bytes = ByteBuffer.allocateDirect(commandCapacity * Pass.INDEXED_INDIRECT_BYTES).order(ByteOrder.nativeOrder());
         commands = bytes.asIntBuffer();
     }
 }

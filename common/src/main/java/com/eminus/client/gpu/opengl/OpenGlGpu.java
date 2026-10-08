@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import com.eminus.Eminus;
+import com.eminus.client.gpu.DeviceQueries;
 import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
@@ -29,8 +30,6 @@ import com.eminus.gpu.texture.Texture;
 import com.eminus.gpu.texture.TextureUsage;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-
-import net.minecraft.client.Minecraft;
 
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.opengl.ARBClipControl;
@@ -96,7 +95,7 @@ public final class OpenGlGpu implements Gpu {
         return new OpenGlGpu(new Capabilities(BACKEND, zeroToOne, GameHandles.depthReversed(),
                 GameHandles.lightmapHalfTexel(),
                 gl.GL_ARB_draw_indirect, gl.GL_ARB_multi_draw_indirect, gl.GL_ARB_buffer_storage, NO_ALLOCATION_LIMIT,
-                OpenGlLimits.texelElements(), OpenGlLimits.freeBytes()));
+                DeviceQueries.openGlTexelElements(), DeviceQueries.openGlFreeBytes()));
     }
 
     OpenGlObjects objects() {
@@ -173,7 +172,7 @@ public final class OpenGlGpu implements Gpu {
             return kept;
         }
 
-        OpenGlTexture fresh = OpenGlTexture.borrowed(this, handle);
+        OpenGlTexture fresh = OpenGlTexture.borrowed(handle);
         if (kept != null) {
             textureClosed(kept.id());
         }
@@ -183,7 +182,7 @@ public final class OpenGlGpu implements Gpu {
 
     @Override
     public Pipeline pipeline(PipelineSpec spec) {
-        OpenGlPipeline pipeline = OpenGlPipeline.of(objects, Minecraft.getInstance().getResourceManager(), spec);
+        OpenGlPipeline pipeline = OpenGlPipeline.of(objects, spec);
         pipelines.add(pipeline);
         return pipeline;
     }

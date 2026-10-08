@@ -11,13 +11,11 @@ final class OpenGlTexelView implements TexelView {
     private static final String LABEL_SUFFIX = "-texels";
     private static final int CREATION_UNIT = 0;
 
-    private final OpenGlObjects objects;
     private final Buffer buffer;
     private final Format format;
-    private final int texture;
+    private final OpenGlName texture;
 
-    private OpenGlTexelView(OpenGlObjects objects, Buffer buffer, Format format, int texture) {
-        this.objects = objects;
+    private OpenGlTexelView(Buffer buffer, Format format, OpenGlName texture) {
         this.buffer = buffer;
         this.format = format;
         this.texture = texture;
@@ -29,11 +27,14 @@ final class OpenGlTexelView implements TexelView {
         GL11C.glBindTexture(GL31C.GL_TEXTURE_BUFFER, texture);
         GL31C.glTexBuffer(GL31C.GL_TEXTURE_BUFFER, OpenGlTypes.internalFormat(format), buffer.handle());
         objects.created(OpenGlObjects.Kind.TEXEL_VIEW, texture, label + LABEL_SUFFIX);
-        return new OpenGlTexelView(objects, buffer, format, texture);
+        return new OpenGlTexelView(buffer, format, new OpenGlName(texture, id -> {
+            GameHandles.deleteTexture(id);
+            objects.deleted(OpenGlObjects.Kind.TEXEL_VIEW);
+        }));
     }
 
     int texture() {
-        return texture;
+        return texture.id();
     }
 
     @Override
@@ -48,7 +49,6 @@ final class OpenGlTexelView implements TexelView {
 
     @Override
     public void close() {
-        GameHandles.deleteTexture(texture);
-        objects.deleted(OpenGlObjects.Kind.TEXEL_VIEW);
+        texture.delete();
     }
 }
