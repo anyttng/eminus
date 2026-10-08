@@ -21,6 +21,7 @@ final class TreeCleaner {
     private final List<Candidate> unwanted = new ArrayList<>();
     private final List<Candidate> outOfView = new ArrayList<>();
     private final List<TreeNode> picked = new ArrayList<>();
+    private final CellBox box = new CellBox();
 
     private int unwantedPicked;
 
@@ -80,10 +81,9 @@ final class TreeCleaner {
             return;
         }
 
-        float size = ProjectedSize.of(frame, parent.key(), camera);
+        float size = ProjectedSize.of(box.set(frame, parent.key(), camera), camera.pixelsPerBlock());
         Candidate candidate = new Candidate(parent, lastSeen, size);
-        if (size > camera.subdivisionPixels()
-                && ProjectedSize.horizontalDistance(frame, parent.key(), camera) <= farBlocks) {
+        if (size > camera.subdivisionPixels() && box.horizontalDistance() <= farBlocks) {
             outOfView.add(candidate);
         } else {
             unwanted.add(candidate);

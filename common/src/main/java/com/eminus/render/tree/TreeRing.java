@@ -1,6 +1,7 @@
 package com.eminus.render.tree;
 
-import com.eminus.settings.FarDistance;
+import com.eminus.cell.CellFrame;
+import com.eminus.cell.DetailLevel;
 
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongComparator;
@@ -69,8 +70,8 @@ public final class TreeRing {
         anchorX = eyeX;
         anchorZ = eyeZ;
         this.radius = radius;
-        centreX = Math.floorDiv((int) Math.floor(eyeX), FarDistance.BLOCKS_PER_TOP_LEVEL_CELL);
-        centreZ = Math.floorDiv((int) Math.floor(eyeZ), FarDistance.BLOCKS_PER_TOP_LEVEL_CELL);
+        centreX = CellFrame.cellX((int) Math.floor(eyeX), DetailLevel.MAX);
+        centreZ = CellFrame.cellZ((int) Math.floor(eyeZ), DetailLevel.MAX);
         toAdd.clear();
         toRemove.clear();
 

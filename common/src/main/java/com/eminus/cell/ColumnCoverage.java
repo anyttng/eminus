@@ -50,15 +50,11 @@ public final class ColumnCoverage {
     }
 
     public synchronized void fill(long key, boolean[] grid) {
-        int level = CellKey.level(key);
-        int originX = CellKey.x(key) * DetailLevel.blocksPerCell(level);
-        int originZ = CellKey.z(key) * DetailLevel.blocksPerCell(level);
-
         for (int x = -OUTSIDE; x <= DetailLevel.VOXELS_PER_SIDE; x++) {
-            int chunkX = (originX + (x << level)) >> CHUNK_SHIFT;
+            int chunkX = CellFrame.blockXOf(key, x) >> CHUNK_SHIFT;
 
             for (int z = -OUTSIDE; z <= DetailLevel.VOXELS_PER_SIDE; z++) {
-                int chunkZ = (originZ + (z << level)) >> CHUNK_SHIFT;
+                int chunkZ = CellFrame.blockZOf(key, z) >> CHUNK_SHIFT;
                 grid[index(x, z)] = everything || covered.contains(pack(chunkX, chunkZ));
             }
         }

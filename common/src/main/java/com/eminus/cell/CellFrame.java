@@ -11,7 +11,7 @@ public final class CellFrame {
         return minBlockY;
     }
 
-    public int cellX(int blockX, int level) {
+    public static int cellX(int blockX, int level) {
         return Math.floorDiv(blockX, DetailLevel.blocksPerCell(level));
     }
 
@@ -19,7 +19,7 @@ public final class CellFrame {
         return Math.floorDiv(blockY - minBlockY, DetailLevel.blocksPerCell(level));
     }
 
-    public int cellZ(int blockZ, int level) {
+    public static int cellZ(int blockZ, int level) {
         return Math.floorDiv(blockZ, DetailLevel.blocksPerCell(level));
     }
 
@@ -27,7 +27,7 @@ public final class CellFrame {
         return CellKey.pack(level, cellX(blockX, level), cellY(blockY, level), cellZ(blockZ, level));
     }
 
-    public int voxelX(int blockX, int level) {
+    public static int voxelX(int blockX, int level) {
         return Math.floorMod(blockX, DetailLevel.blocksPerCell(level)) >> level;
     }
 
@@ -35,11 +35,11 @@ public final class CellFrame {
         return Math.floorMod(blockY - minBlockY, DetailLevel.blocksPerCell(level)) >> level;
     }
 
-    public int voxelZ(int blockZ, int level) {
+    public static int voxelZ(int blockZ, int level) {
         return Math.floorMod(blockZ, DetailLevel.blocksPerCell(level)) >> level;
     }
 
-    public int originBlockX(int cellX, int level) {
+    public static int originBlockX(int cellX, int level) {
         return cellX * DetailLevel.blocksPerCell(level);
     }
 
@@ -47,11 +47,23 @@ public final class CellFrame {
         return cellY * DetailLevel.blocksPerCell(level) + minBlockY;
     }
 
-    public int originBlockZ(int cellZ, int level) {
+    public static int originBlockZ(int cellZ, int level) {
         return cellZ * DetailLevel.blocksPerCell(level);
     }
 
-    public int blockX(int cellX, int voxelX, int level) {
+    public static int originXOf(long key) {
+        return originBlockX(CellKey.x(key), CellKey.level(key));
+    }
+
+    public int originYOf(long key) {
+        return originBlockY(CellKey.y(key), CellKey.level(key));
+    }
+
+    public static int originZOf(long key) {
+        return originBlockZ(CellKey.z(key), CellKey.level(key));
+    }
+
+    public static int blockX(int cellX, int voxelX, int level) {
         return originBlockX(cellX, level) + (voxelX << level);
     }
 
@@ -59,11 +71,11 @@ public final class CellFrame {
         return originBlockY(cellY, level) + (voxelY << level);
     }
 
-    public int blockZ(int cellZ, int voxelZ, int level) {
+    public static int blockZ(int cellZ, int voxelZ, int level) {
         return originBlockZ(cellZ, level) + (voxelZ << level);
     }
 
-    public int blockXOf(long key, int voxelX) {
+    public static int blockXOf(long key, int voxelX) {
         return blockX(CellKey.x(key), voxelX, CellKey.level(key));
     }
 
@@ -71,7 +83,7 @@ public final class CellFrame {
         return blockY(CellKey.y(key), voxelY, CellKey.level(key));
     }
 
-    public int blockZOf(long key, int voxelZ) {
+    public static int blockZOf(long key, int voxelZ) {
         return blockZ(CellKey.z(key), voxelZ, CellKey.level(key));
     }
 }
