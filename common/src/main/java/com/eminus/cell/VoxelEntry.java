@@ -7,17 +7,20 @@ public final class VoxelEntry {
     public static final int MAX_BIOME_ID = KEPT_BIOME - 1;
     public static final int MAX_LIGHT = 15;
     public static final int NO_GAPS = 0;
+    public static final int NIBBLE_BITS = 4;
+    public static final int BLOCK_LIGHT_SHIFT = 0;
+    public static final int SKY_LIGHT_SHIFT = NIBBLE_BITS;
+    public static final int LOW_GAP_SHIFT = 0;
+    public static final int HIGH_GAP_SHIFT = NIBBLE_BITS;
 
     private static final int BIOME_SHIFT = 32;
     private static final int LIGHT_SHIFT = 48;
     private static final int GAPS_SHIFT = 56;
-    private static final int SKY_LIGHT_SHIFT = 4;
-    private static final int HIGH_GAP_SHIFT = 4;
     private static final long STATE_MASK = 0xFFFF_FFFFL;
     private static final long BIOME_MASK = 0xFFFFL;
     private static final long LIGHT_MASK = 0xFFL;
     private static final long GAPS_MASK = 0xFFL;
-    private static final int NIBBLE_MASK = 0xF;
+    private static final int NIBBLE_MASK = (1 << NIBBLE_BITS) - 1;
 
     public static final long AIR = pack(AIR_STATE_ID, UNKNOWN_BIOME, light(MAX_LIGHT, 0));
 
@@ -28,7 +31,7 @@ public final class VoxelEntry {
     }
 
     public static int light(int skyLight, int blockLight) {
-        return ((skyLight & NIBBLE_MASK) << SKY_LIGHT_SHIFT) | (blockLight & NIBBLE_MASK);
+        return ((skyLight & NIBBLE_MASK) << SKY_LIGHT_SHIFT) | ((blockLight & NIBBLE_MASK) << BLOCK_LIGHT_SHIFT);
     }
 
     public static int state(long entry) {
@@ -60,7 +63,7 @@ public final class VoxelEntry {
     }
 
     public static int blockLight(long entry) {
-        return light(entry) & NIBBLE_MASK;
+        return (light(entry) >>> BLOCK_LIGHT_SHIFT) & NIBBLE_MASK;
     }
 
     public static int gaps(long entry) {
@@ -76,7 +79,7 @@ public final class VoxelEntry {
     }
 
     public static int lowGapOf(int gaps) {
-        return gaps & NIBBLE_MASK;
+        return (gaps >>> LOW_GAP_SHIFT) & NIBBLE_MASK;
     }
 
     public static int highGapOf(int gaps) {
@@ -84,7 +87,7 @@ public final class VoxelEntry {
     }
 
     public static long withGaps(long entry, int lowGap, int highGap) {
-        long gaps = ((highGap & NIBBLE_MASK) << HIGH_GAP_SHIFT) | (lowGap & NIBBLE_MASK);
+        long gaps = ((highGap & NIBBLE_MASK) << HIGH_GAP_SHIFT) | ((lowGap & NIBBLE_MASK) << LOW_GAP_SHIFT);
         return (entry & ~(GAPS_MASK << GAPS_SHIFT)) | (gaps << GAPS_SHIFT);
     }
 

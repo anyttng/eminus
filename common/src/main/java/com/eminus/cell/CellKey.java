@@ -9,13 +9,13 @@ public final class CellKey {
     public static final int MAX_HORIZONTAL = (1 << (HORIZONTAL_BITS - 1)) - 1;
     public static final int MIN_VERTICAL = -(1 << (VERTICAL_BITS - 1));
     public static final int MAX_VERTICAL = (1 << (VERTICAL_BITS - 1)) - 1;
+    public static final int LEVEL_BITS = 3;
+    public static final int Y_SHIFT = 0;
+    public static final int Z_SHIFT = Y_SHIFT + VERTICAL_BITS;
+    public static final int X_SHIFT = Z_SHIFT + HORIZONTAL_BITS;
+    public static final int LEVEL_SHIFT = X_SHIFT + HORIZONTAL_BITS;
 
     private static final int CHILDREN_PER_AXIS = 2;
-    private static final int LEVEL_BITS = 3;
-    private static final int Y_SHIFT = 0;
-    private static final int Z_SHIFT = Y_SHIFT + VERTICAL_BITS;
-    private static final int X_SHIFT = Z_SHIFT + HORIZONTAL_BITS;
-    private static final int LEVEL_SHIFT = X_SHIFT + HORIZONTAL_BITS;
     private static final long LEVEL_MASK = (1L << LEVEL_BITS) - 1;
     private static final long HORIZONTAL_MASK = (1L << HORIZONTAL_BITS) - 1;
     private static final long VERTICAL_MASK = (1L << VERTICAL_BITS) - 1;
