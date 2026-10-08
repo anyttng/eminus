@@ -6,6 +6,8 @@ import java.util.OptionalDouble;
 import java.util.Set;
 
 import com.eminus.Eminus;
+import com.eminus.client.render.far.CompositePass;
+import com.eminus.client.render.far.FarProjection;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.Location;
@@ -26,14 +28,18 @@ import org.joml.Matrix4fc;
 import org.lwjgl.system.MemoryStack;
 
 public final class NearMaskPass implements AutoCloseable {
+    public static final Std140.Block BLOCK = Std140.block("Mask");
+
+    private static final Std140.Member GAME_TO_FAR = BLOCK.add(Std140.Type.MAT4, "GameToFar");
+    private static final Std140.Member BIAS = BLOCK.add(Std140.Type.FLOAT, "DepthBias");
+    private static final int SIZE = BLOCK.size();
+
     private static final Location PIPELINE = new Location(Eminus.MODID, "near_mask");
-    private static final Location SHADER = new Location(Eminus.MODID, "core/near_mask");
+    private static final Location FRAGMENT_SHADER = new Location(Eminus.MODID, "core/near_mask");
     private static final String PASS_LABEL = "eminus-near-mask";
     private static final String UNIFORM_LABEL = "eminus-near-mask";
-    private static final String MASK = "Mask";
     private static final String GAME_DEPTH = "GameDepth";
     private static final Set<BufferUsage> UNIFORM_USAGE = EnumSet.of(BufferUsage.UNIFORM, BufferUsage.COPY_DST);
-    private static final int SIZE = Std140.size().putMat4f().putFloat().get();
     private static final long START_OF_BUFFER = 0L;
     private static final int VERTICES = 3;
 
@@ -72,7 +78,7 @@ public final class NearMaskPass implements AutoCloseable {
         try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, colour, null)
                 .withDepth(farDepth, OptionalDouble.of(depth.farthest())))) {
             pass.pipeline(pipeline);
-            pass.bind(MASK, uniform);
+            pass.bind(BLOCK.name(), uniform);
             pass.bind(GAME_DEPTH, gameDepth, Sampler.NEAREST);
             pass.draw(VERTICES);
         }
@@ -84,21 +90,20 @@ public final class NearMaskPass implements AutoCloseable {
     }
 
     private void write(Matrix4fc farViewProjection, Matrix4fc gameViewProjection) {
-        gameViewProjection.invert(gameInverse);
-        farViewProjection.mul(gameInverse, gameToFar);
+        FarProjection.gameToFar(farViewProjection, gameViewProjection, gameInverse, gameToFar);
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            ByteBuffer written = Std140.into(stack.malloc(SIZE))
-                    .putMat4f(gameToFar)
-                    .putFloat(depthBias)
+            ByteBuffer written = BLOCK.into(stack.malloc(SIZE))
+                    .putMat4(GAME_TO_FAR, gameToFar)
+                    .putFloat(BIAS, depthBias)
                     .get();
             gpu.write(uniform, START_OF_BUFFER, written);
         }
     }
 
     private static PipelineSpec pipeline(Format colourFormat, DepthConvention depth) {
-        return depth.define(PipelineSpec.builder(PIPELINE, SHADER, SHADER)
-                        .withBinding(Binding.uniform(MASK))
+        return depth.define(PipelineSpec.builder(PIPELINE, CompositePass.FULL_SCREEN_SHADER, FRAGMENT_SHADER)
+                        .withBinding(Binding.uniform(BLOCK.name()))
                         .withBinding(Binding.sampled(GAME_DEPTH)))
                 .withColourTarget(colourFormat, null, false)
                 .withDepthTest(depth.compare(), true)

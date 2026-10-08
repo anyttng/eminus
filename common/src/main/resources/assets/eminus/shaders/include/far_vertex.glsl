@@ -20,17 +20,24 @@ struct FarVertex {
 };
 
 const int FAR_CORNERS_PER_QUAD = 4;
-const int FAR_MODEL_TEXELS = 7;
-const uint FAR_OFFSET_MASK = 1023u;
-const int FAR_OFFSET_SIGN = 512;
-const float FAR_OFFSET_STEPS = 256.0;
-const uint FAR_OFFSET_X_SHIFT = 0u;
-const uint FAR_OFFSET_Y_SHIFT = 10u;
-const uint FAR_OFFSET_Z_SHIFT = 20u;
-const int FAR_NIBBLE = 15;
-const uint FAR_GAP_MASK = 15u;
-const uint FAR_HIGH_GAP_SHIFT = 4u;
+const int FAR_WORD_BITS = 32;
 const float FAR_HALF_VOXEL = 0.5;
+
+uint far_field(uint value, int shift, int bits) {
+    return (value >> uint(shift)) & ((1u << uint(bits)) - 1u);
+}
+
+uint far_field(uvec2 value, int shift, int bits) {
+    if (shift >= FAR_WORD_BITS) {
+        return far_field(value.y, shift - FAR_WORD_BITS, bits);
+    }
+
+    uint low = value.x >> uint(shift);
+    if (shift + bits > FAR_WORD_BITS) {
+        low |= value.y << uint(FAR_WORD_BITS - shift);
+    }
+    return low & ((1u << uint(bits)) - 1u);
+}
 
 float far_low(float model, float lowGap, float blocks) {
     return (lowGap + model) / blocks;
@@ -40,9 +47,10 @@ float far_high(float model, float highGap, float blocks) {
     return (blocks - 1.0 - highGap + model) / blocks;
 }
 
-float far_offset_axis(uint bits, uint shift) {
-    int steps = int((bits >> shift) & FAR_OFFSET_MASK);
-    return float(steps >= FAR_OFFSET_SIGN ? steps - 2 * FAR_OFFSET_SIGN : steps) / FAR_OFFSET_STEPS;
+float far_offset_axis(uint placement, int shift) {
+    int steps = int(far_field(placement, shift, OFFSET_AXIS_BITS));
+    int signBit = 1 << (OFFSET_AXIS_BITS - 1);
+    return float(steps >= signBit ? steps - 2 * signBit : steps) / OFFSET_STEPS_PER_BLOCK;
 }
 
 // The corner arithmetic below reads and writes every axis by comparison, never by a varying index: a translated shader
@@ -89,8 +97,10 @@ vec4 far_fluid_corners(uint corners, float flatHeight) {
         return vec4(round(flatHeight * steps) / steps);
     }
 
-    return vec4(float(corners & 255u), float((corners >> 8u) & 255u), float((corners >> 16u) & 255u),
-                float(corners >> 24u)) / steps;
+    return vec4(float(far_field(corners, CORNER_NORTH_WEST_SHIFT, CORNER_BITS)),
+                float(far_field(corners, CORNER_NORTH_EAST_SHIFT, CORNER_BITS)),
+                float(far_field(corners, CORNER_SOUTH_WEST_SHIFT, CORNER_BITS)),
+                float(far_field(corners, CORNER_SOUTH_EAST_SHIFT, CORNER_BITS))) / steps;
 }
 
 float far_fluid_corner(vec4 surface, int face, vec2 unit) {
@@ -111,9 +121,12 @@ float far_fluid_corner(vec4 surface, int face, vec2 unit) {
     return widthEnd ? surface.w : surface.y;
 }
 
+int far_normal_axis(int face) {
+    return face < 2 ? 1 : (face < 4 ? 2 : 0);
+}
+
 vec3 far_face_normal(int face) {
-    return vec3(face == 4 ? -1.0 : (face == 5 ? 1.0 : 0.0), face == 0 ? -1.0 : (face == 1 ? 1.0 : 0.0),
-                face == 2 ? -1.0 : (face == 3 ? 1.0 : 0.0));
+    return far_axis_set(vec3(0.0), far_normal_axis(face), (face & 1) == 1 ? 1.0 : -1.0);
 }
 
 vec2 far_slope(vec4 fifth, vec4 sixth, vec4 seventh, int face) {
@@ -144,27 +157,29 @@ FarVertex far_vertex(int vertexId) {
     vec2 unit = vec2(corner == 1 || corner == 2 ? 1.0 : 0.0, corner >= 2 ? 1.0 : 0.0);
 
     uvec4 mesh = texelFetch(MeshRecords, quadIndex / QUADS_PER_BLOCK);
-    int level = int((mesh.y >> 28u) & 7u);
-    int cellX = int((mesh.y >> 4u) & 0xFFFFFFu) + MIN_HORIZONTAL;
-    int cellZ = int(((mesh.y & 0xFu) << 20u) | (mesh.x >> 12u)) + MIN_HORIZONTAL;
-    int cellY = int(mesh.x & 0xFFFu) + MIN_VERTICAL;
+    int level = int(far_field(mesh.xy, CELL_LEVEL_SHIFT, CELL_LEVEL_BITS));
+    int cellX = int(far_field(mesh.xy, CELL_X_SHIFT, CELL_HORIZONTAL_BITS)) + MIN_HORIZONTAL;
+    int cellZ = int(far_field(mesh.xy, CELL_Z_SHIFT, CELL_HORIZONTAL_BITS)) + MIN_HORIZONTAL;
+    int cellY = int(far_field(mesh.xy, CELL_Y_SHIFT, CELL_VERTICAL_BITS)) + MIN_VERTICAL;
 
     uvec2 quad = texelFetch(Quads, quadIndex).xy;
-    int face = int(quad.x & 7u);
-    ivec3 voxel = ivec3(int((quad.x >> 3u) & 31u), int((quad.x >> 8u) & 31u), int((quad.x >> 13u) & 31u));
-    int width = int((quad.x >> 18u) & 15u) + 1;
-    int height = int((quad.x >> 22u) & 15u) + 1;
-    int light = int(((quad.x >> 26u) | ((quad.y & 3u) << 6u)) & 255u);
-    int modelId = int((quad.y >> 2u) & 0x3FFFFu);
-    int colourIndex = int((quad.y >> 20u) & 0xFFFu);
+    int face = int(far_field(quad, QUAD_FACE_SHIFT, QUAD_FACE_BITS));
+    ivec3 voxel = ivec3(far_field(quad, QUAD_X_SHIFT, QUAD_COORDINATE_BITS),
+                        far_field(quad, QUAD_Y_SHIFT, QUAD_COORDINATE_BITS),
+                        far_field(quad, QUAD_Z_SHIFT, QUAD_COORDINATE_BITS));
+    int width = int(far_field(quad, QUAD_WIDTH_SHIFT, QUAD_SIDE_BITS)) + 1;
+    int height = int(far_field(quad, QUAD_HEIGHT_SHIFT, QUAD_SIDE_BITS)) + 1;
+    uint light = far_field(quad, QUAD_LIGHT_SHIFT, QUAD_LIGHT_BITS);
+    int modelId = int(far_field(quad, QUAD_MODEL_SHIFT, QUAD_MODEL_BITS));
+    int colourIndex = int(far_field(quad, QUAD_COLOUR_SHIFT, QUAD_COLOUR_BITS));
 
-    vec4 first = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS);
-    vec4 second = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 1);
-    vec4 third = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 2);
-    vec4 fourth = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 3);
-    vec4 fifth = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 4);
-    vec4 sixth = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 5);
-    vec4 seventh = texelFetch(ModelRecords, modelId * FAR_MODEL_TEXELS + 6);
+    vec4 first = texelFetch(ModelRecords, modelId * MODEL_TEXELS);
+    vec4 second = texelFetch(ModelRecords, modelId * MODEL_TEXELS + 1);
+    vec4 third = texelFetch(ModelRecords, modelId * MODEL_TEXELS + 2);
+    vec4 fourth = texelFetch(ModelRecords, modelId * MODEL_TEXELS + 3);
+    vec4 fifth = texelFetch(ModelRecords, modelId * MODEL_TEXELS + 4);
+    vec4 sixth = texelFetch(ModelRecords, modelId * MODEL_TEXELS + 5);
+    vec4 seventh = texelFetch(ModelRecords, modelId * MODEL_TEXELS + 6);
     vec3 boundsMin = vec3(second.z, second.w, third.x);
     vec3 boundsMax = vec3(third.y, third.z, third.w);
 
@@ -175,7 +190,10 @@ FarVertex far_vertex(int vertexId) {
     vertex.tint = vec3(1.0);
     if (colourIndex != 0) {
         uvec2 entry = texelFetch(Quads, int(mesh.z + mesh.w) + colourIndex).rg;
-        vertex.tint = vec3((entry.r >> 16u) & 255u, (entry.r >> 8u) & 255u, entry.r & 255u) / 255.0;
+        vertex.tint = vec3(far_field(entry.r, TINT_RED_SHIFT, TINT_CHANNEL_BITS),
+                           far_field(entry.r, TINT_GREEN_SHIFT, TINT_CHANNEL_BITS),
+                           far_field(entry.r, TINT_BLUE_SHIFT, TINT_CHANNEL_BITS))
+                / float((1 << TINT_CHANNEL_BITS) - 1);
         placement = entry.g;
     }
 
@@ -184,13 +202,13 @@ FarVertex far_vertex(int vertexId) {
     float lowGap = 0.0;
     float highGap = 0.0;
     if (level != 0) {
-        lowGap = float(placement & FAR_GAP_MASK);
-        highGap = float((placement >> FAR_HIGH_GAP_SHIFT) & FAR_GAP_MASK);
+        lowGap = float(far_field(placement, LOW_GAP_SHIFT, NIBBLE_BITS));
+        highGap = float(far_field(placement, HIGH_GAP_SHIFT, NIBBLE_BITS));
     } else if (fluid) {
         corners = placement;
     } else {
-        offset = vec3(far_offset_axis(placement, FAR_OFFSET_X_SHIFT), far_offset_axis(placement, FAR_OFFSET_Y_SHIFT),
-                      far_offset_axis(placement, FAR_OFFSET_Z_SHIFT));
+        offset = vec3(far_offset_axis(placement, OFFSET_X_SHIFT), far_offset_axis(placement, OFFSET_Y_SHIFT),
+                      far_offset_axis(placement, OFFSET_Z_SHIFT));
     }
 
     float blocks = float(1 << level);
@@ -209,7 +227,7 @@ FarVertex far_vertex(int vertexId) {
         local.z += mix(boundsMin.z, boundsMax.z, unit.x);
         extent = vec2(face == FIRST_BLADE_FACE ? unit.x : 1.0 - unit.x, unit.y * float(height));
     } else {
-        int normalAxis = face < 2 ? 1 : (face < 4 ? 2 : 0);
+        int normalAxis = far_normal_axis(face);
         int widthAxis = face < 4 ? 0 : 2;
         int heightAxis = face < 2 ? 2 : 1;
         bool vertical = heightAxis == 1;
@@ -251,7 +269,7 @@ FarVertex far_vertex(int vertexId) {
 
     vec3 faceLocal = local;
     if (face < FIRST_BLADE_FACE) {
-        int faceAxis = face < 2 ? 1 : (face < 4 ? 2 : 0);
+        int faceAxis = far_normal_axis(face);
         faceLocal = far_axis_set(faceLocal, faceAxis,
                 float(far_axis_int(voxel, faceAxis)) + FAR_HALF_VOXEL + far_axis(offset, faceAxis));
     }
@@ -276,8 +294,8 @@ FarVertex far_vertex(int vertexId) {
     vertex.variantCount = int(fourth.w);
 
     vertex.face = face;
-    vertex.blockLight = light & FAR_NIBBLE;
-    vertex.skyLight = (light >> 4) & FAR_NIBBLE;
+    vertex.blockLight = int(far_field(light, BLOCK_LIGHT_SHIFT, NIBBLE_BITS));
+    vertex.skyLight = int(far_field(light, SKY_LIGHT_SHIFT, NIBBLE_BITS));
 
     return vertex;
 }

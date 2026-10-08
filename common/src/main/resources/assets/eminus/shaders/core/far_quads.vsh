@@ -2,23 +2,7 @@
 #extension GL_ARB_separate_shader_objects : require
 
 #include <eminus:far_lightmap.glsl>
-
-layout(std140) uniform FarFrame {
-    mat4 FarProjView;
-    int MinBlockY;
-    int AtlasCells;
-    int NearSide;
-    int NearHeight;
-    ivec3 NearOrigin;
-    float ShadeDown;
-    float ShadeUp;
-    float ShadeNorth;
-    float ShadeSouth;
-    float ShadeWest;
-    float ShadeEast;
-    ivec3 CameraBlockPos;
-    vec3 CameraOffset;
-};
+#include <eminus:far_frame.glsl>
 
 uniform usamplerBuffer Quads;
 uniform usamplerBuffer MeshRecords;

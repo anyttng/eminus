@@ -42,28 +42,13 @@ void main() {
         discard;
     }
 
-#ifdef DEPTH_ZERO_TO_ONE
-    float ndcZ = depth;
-#else
-    float ndcZ = depth * 2.0 - 1.0;
-#endif
-
-    vec4 ndc = vec4(screenUV * 2.0 - 1.0, ndcZ, 1.0);
-    vec4 eye = FarInverse * ndc;
-    vec3 position = eye.xyz / eye.w;
-
+    vec3 position = far_unproject(FarInverse, screenUV, depth);
     float fade = linear_fog_value(length(position.xz), FadeStart, FadeEnd);
     if (fade >= 1.0) {
         discard;
     }
 
-    vec4 reprojected = Reproject * ndc;
-    float gameZ = reprojected.z / reprojected.w;
-
-#ifndef DEPTH_ZERO_TO_ONE
-    gameZ = gameZ * 0.5 + 0.5;
-#endif
-
+    float gameZ = far_reproject(Reproject, screenUV, depth);
     float distance = length(position);
     float fog = distance <= FogReach
             ? linear_fog_value(distance, GameFogStart, GameFogEnd)
