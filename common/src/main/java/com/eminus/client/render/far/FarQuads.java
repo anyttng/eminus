@@ -16,6 +16,7 @@ import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.far.DrawCommands;
 import com.eminus.client.gpu.game.GameGpu;
 import com.eminus.client.handoff.NearSectionTable;
+import com.eminus.client.model.ModelPublisher;
 import com.eminus.client.model.ModelRecords;
 import com.eminus.client.model.ModelVariants;
 import com.eminus.client.render.arena.GeometryArena;

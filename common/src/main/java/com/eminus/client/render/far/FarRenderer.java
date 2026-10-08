@@ -21,6 +21,7 @@ import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
 import com.eminus.client.mesh.MeshWiring;
 import com.eminus.client.model.ClientBakery;
+import com.eminus.client.model.ModelPublisher;
 import com.eminus.client.frame.GameFog;
 import com.eminus.client.frame.GameFrame;
 import com.eminus.client.frame.GameFrames;
