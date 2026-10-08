@@ -10,13 +10,17 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CarpetBlock;
 import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class StateTable implements StateOpacity {
     public static final String DICTIONARY_NAME = "state";
     public static final int FULL_OPACITY = 15;
+    public static final int CLEAR_OPACITY = 0;
     public static final BlockState PLACEHOLDER = Blocks.MAGENTA_CONCRETE.defaultBlockState();
 
     private static final int INITIAL_CAPACITY = 256;
@@ -67,6 +71,12 @@ public final class StateTable implements StateOpacity {
         }
 
         return opacityOf(resolve(stateId));
+    }
+
+    @Override
+    public boolean cover(int stateId) {
+        Block block = state(stateId).getBlock();
+        return (block instanceof SnowLayerBlock || block instanceof CarpetBlock) && opacity(stateId) == CLEAR_OPACITY;
     }
 
     public StateOpacity seeThroughLeaves() {
