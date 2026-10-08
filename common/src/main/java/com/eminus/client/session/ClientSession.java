@@ -61,6 +61,7 @@ public final class ClientSession {
             return;
         }
 
+        IrisShaderPack.listenToShadowPass();
         Minecraft minecraft = Minecraft.getInstance();
         world = worldName(minecraft);
         Settings settings = SettingsService.get().settings();
@@ -132,12 +133,21 @@ public final class ClientSession {
         }
     }
 
+    public static void drawFarLayerInShadowPass(Matrix4fc shadowView, Matrix4fc shadowProjection) {
+        if (renderer != null && inShaderPack) {
+            IrisShaderPack.drawShadow(renderer, shadowView, shadowProjection);
+        }
+    }
+
     public static boolean drawsOverShaderPack() {
         return overShaderPack;
     }
 
     public static void overrideNearField() {
         Minecraft client = Minecraft.getInstance();
+        if (renderer != null) {
+            renderer.newFrame();
+        }
         readShaderPack();
         if (renderer == null || client.level == null || overShaderPack) {
             NearFieldOverride.skip();

@@ -10,11 +10,14 @@ import java.util.stream.IntStream;
 
 import com.eminus.Eminus;
 import com.eminus.client.render.far.FarDraw;
+import com.eminus.client.render.far.FarShadow;
 import com.eminus.client.render.far.FarTarget;
 import com.eminus.gpu.Foreign;
 import com.eminus.gpu.Location;
+import com.eminus.gpu.ShaderSources;
 import com.eminus.gpu.pass.Pass;
 import com.eminus.gpu.pipeline.Pipeline;
+import com.eminus.gpu.texture.Texture;
 
 import com.google.common.primitives.Ints;
 
@@ -51,8 +54,6 @@ final class PackProgram {
     private static final int FIRST_UNIT = IrisSamplers.WORLD_RESERVED_TEXTURE_UNITS.stream()
             .mapToInt(Integer::intValue).max().orElseThrow() + 1;
     private static final String LOCATION_PREFIX = "pack";
-    private static final String OPAQUE_NAME = "eminus_opaque";
-    private static final String TRANSLUCENT_NAME = "eminus_translucent";
     private static final String MODEL_VIEW = "iris_ModelViewMatrix";
     private static final String MODEL_VIEW_INVERSE = "iris_ModelViewMatrixInverse";
     private static final String PROJECTION = "iris_ProjectionMatrix";
@@ -80,6 +81,18 @@ final class PackProgram {
     private final Matrix4f inverse = new Matrix4f();
     private final Matrix3f normal = new Matrix3f();
 
+    enum Kind {
+        OPAQUE("eminus_opaque"),
+        TRANSLUCENT("eminus_translucent"),
+        SHADOW("eminus_shadow");
+
+        private final String programName;
+
+        Kind(String programName) {
+            this.programName = programName;
+        }
+    }
+
     private PackProgram(Foreign foreign, Pipeline pipeline, ProgramSource source, Object pass,
             CustomUniforms customUniforms, ProgramUniforms uniforms, ProgramSamplers samplers, ProgramImages images) {
         this.foreign = foreign;
@@ -100,19 +113,27 @@ final class PackProgram {
     }
 
     static @Nullable PackProgram build(FarDraw draw, Foreign foreign, IrisRenderingPipeline irisPipeline,
-            ProgramSet programSet, ShaderProperties properties, String file, String packSource, boolean translucent) {
-        String name = translucent ? TRANSLUCENT_NAME : OPAQUE_NAME;
+            ProgramSet programSet, ShaderProperties properties, String file, String packSource,
+            @Nullable String packVertexSource, Kind kind) {
+        String name = kind.programName;
+        Location location = new Location(Eminus.MODID, LOCATION_PREFIX + file);
         ProgramSource[] built = new ProgramSource[1];
         Pipeline pipeline = foreign.pipeline(
-                draw.packPipeline(new Location(Eminus.MODID, LOCATION_PREFIX + file), translucent), FIRST_UNIT,
+                kind == Kind.SHADOW ? draw.shadowPipeline(location, packVertexSource != null)
+                        : draw.packPipeline(location, kind == Kind.TRANSLUCENT),
+                FIRST_UNIT,
                 ours -> {
                     String spliced = PackSources.splice(packSource,
-                            PackSources.header(JcppProcessor.glslPreprocessSource(ours, List.of())));
+                            PackSources.header(JcppProcessor.glslPreprocessSource(ours.fragment(), List.of())));
+                    String splicedVertex = packVertexSource == null ? null : PackSources.spliceVertex(packVertexSource,
+                            PackSources.header(JcppProcessor.glslPreprocessSource(ours.vertex(), List.of())));
                     built[0] = new ProgramSource(name, null, null, null, null, spliced, programSet, properties, null);
-                    Map<PatchShaderType, String> patched = TransformPatcher.patchDHTerrain(name, null, null, null,
-                            null, spliced, irisPipeline.getTextureMap());
+                    Map<PatchShaderType, String> patched = TransformPatcher.patchDHTerrain(name, splicedVertex, null,
+                            null, null, spliced, irisPipeline.getTextureMap());
                     ShaderPrinter.printProgram(name).addSources(patched).print();
-                    return patched.get(PatchShaderType.FRAGMENT);
+                    return new ShaderSources(
+                            splicedVertex == null ? ours.vertex() : patched.get(PatchShaderType.VERTEX),
+                            patched.get(PatchShaderType.FRAGMENT));
                 });
         if (!pipeline.compiles()) {
             return null;
@@ -129,9 +150,11 @@ final class PackProgram {
             CommonUniforms.addDynamicUniforms(uniforms, FogMode.PER_VERTEX);
             customUniforms.assignTo(uniforms);
             BuiltinReplacementUniforms.addBuiltinReplacementUniforms(uniforms);
-            irisPipeline.addGbufferOrShadowSamplers(samplers, images, translucent
-                    ? irisPipeline::getFlippedAfterTranslucent
-                    : irisPipeline::getFlippedAfterPrepare, false, false, true, false);
+            irisPipeline.addGbufferOrShadowSamplers(samplers, images, switch (kind) {
+                case OPAQUE -> irisPipeline::getFlippedAfterPrepare;
+                case TRANSLUCENT -> irisPipeline::getFlippedAfterTranslucent;
+                case SHADOW -> irisPipeline::getFlippedBeforeShadow;
+            }, kind == Kind.SHADOW, false, true, false);
             Object pass = new Object();
             customUniforms.mapholderToPass(uniforms, pass);
             return new PackProgram(foreign, pipeline, built[0], pass, customUniforms, uniforms.buildUniforms(),
@@ -150,19 +173,8 @@ final class PackProgram {
 
     void draw(FarDraw draw, GlFramebuffer framebuffer, boolean translucent) {
         FarTarget target = draw.target();
-        try (Pass farPass = foreign.pass(framebuffer.getId(), target.width(), target.height(),
-                source.getDirectives().getDrawBuffers().length)) {
-            farPass.pipeline(pipeline);
-            samplers.update();
-            uniforms.update();
-            customUniforms.push(pass);
-            images.update();
-            matrices(draw.view(), draw.projection());
-            IrisRenderSystem.bindTextureToUnit(GL11C.GL_TEXTURE_2D, IrisSamplers.LIGHTMAP_TEXTURE_UNIT,
-                    foreign.texture(draw.lightmap()));
-            source.getDirectives().getBlendModeOverride().ifPresent(BlendModeOverride::apply);
-            bufferBlends.forEach(BufferBlendOverride::apply);
-
+        try (Pass farPass = open(framebuffer, target.width(), target.height())) {
+            use(farPass, draw.view(), draw.projection(), draw.lightmap());
             draw.bind(farPass);
             if (translucent) {
                 draw.drawTranslucent(farPass);
@@ -170,10 +182,41 @@ final class PackProgram {
                 draw.drawOpaque(farPass);
             }
         } finally {
-            ProgramUniforms.clearActiveUniforms();
-            ProgramSamplers.clearActiveSamplers();
-            BlendModeOverride.restore();
+            restore();
         }
+    }
+
+    void drawShadow(FarDraw draw, FarShadow shadow, GlFramebuffer framebuffer, int resolution) {
+        try (Pass farPass = open(framebuffer, resolution, resolution)) {
+            use(farPass, shadow.view(), shadow.projection(), draw.lightmap());
+            draw.bindShadow(farPass, shadow);
+            shadow.draw(farPass);
+        } finally {
+            restore();
+        }
+    }
+
+    private Pass open(GlFramebuffer framebuffer, int width, int height) {
+        return foreign.pass(framebuffer.getId(), width, height, source.getDirectives().getDrawBuffers().length);
+    }
+
+    private void use(Pass farPass, Matrix4fc view, Matrix4fc projection, Texture lightmap) {
+        farPass.pipeline(pipeline);
+        samplers.update();
+        uniforms.update();
+        customUniforms.push(pass);
+        images.update();
+        matrices(view, projection);
+        IrisRenderSystem.bindTextureToUnit(GL11C.GL_TEXTURE_2D, IrisSamplers.LIGHTMAP_TEXTURE_UNIT,
+                foreign.texture(lightmap));
+        source.getDirectives().getBlendModeOverride().ifPresent(BlendModeOverride::apply);
+        bufferBlends.forEach(BufferBlendOverride::apply);
+    }
+
+    private static void restore() {
+        ProgramUniforms.clearActiveUniforms();
+        ProgramSamplers.clearActiveSamplers();
+        BlendModeOverride.restore();
     }
 
     private void matrices(Matrix4fc view, Matrix4fc farProjection) {
