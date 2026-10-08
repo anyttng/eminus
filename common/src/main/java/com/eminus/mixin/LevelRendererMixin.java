@@ -50,6 +50,11 @@ public class LevelRendererMixin {
     private void eminus$deferClassicTransparency(LevelRenderer renderer, ChunkSectionsToRender chunkSectionsToRender,
             FeatureRenderDispatcher.PreparedFrame featureFrame, RenderPass renderPass, Operation<Void> original,
             @Share(DEFERRED) LocalBooleanRef deferred) {
+        if (ClientSession.drawsOverShaderPack()) {
+            original.call(renderer, chunkSectionsToRender, featureFrame, renderPass);
+            return;
+        }
+
         deferred.set(true);
     }
 
