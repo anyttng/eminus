@@ -24,6 +24,7 @@ flat in ivec4 eminus_variantInfo;
 flat in ivec3 eminus_cellOrigin;
 flat in int eminus_face;
 flat in float eminus_emission;
+flat in int eminus_blockId;
 
 struct EminusFragment {
     vec4 color;
@@ -37,6 +38,7 @@ struct EminusFragment {
     vec3 viewPos;
     vec3 playerPos;
     float emission;
+    int blockId;
     bool translucent;
     bool blade;
 };
@@ -77,6 +79,7 @@ EminusFragment eminus_fragment() {
     fragment.viewPos = eminus_viewPos;
     fragment.playerPos = eminus_playerPos;
     fragment.emission = eminus_emission;
+    fragment.blockId = eminus_blockId;
 #ifdef TRANSLUCENT_PASS
     fragment.translucent = true;
 #else

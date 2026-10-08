@@ -1,4 +1,4 @@
-# Eminus shader-pack contract, version 1
+# Eminus shader-pack contract, version 2
 
 Eminus draws the terrain past the render distance as a level-of-detail layer (LOD). Under an Iris shader pack that
 does not know Eminus, the LOD is drawn over the pack's finished frame in Eminus's own shading. A pack that ships the
@@ -7,7 +7,9 @@ own buffers, so your lighting, fog and post-processing apply to the LOD the way 
 
 The contract is one fragment function. Eminus reads no other LOD mod's pack files.
 
-## Support in five minutes
+## Support in two steps
+
+### 1. Shade the LOD with your terrain code
 
 1. Copy [`example-pack/shaders/eminus_opaque.glsl`](example-pack/shaders/eminus_opaque.glsl) into your pack's
    `shaders/` folder.
@@ -18,8 +20,19 @@ The contract is one fragment function. Eminus reads no other LOD mod's pack file
 3. Reload shaders with Iris's Reload Shaders key — F3 + R by default. The log line
    `Shader pack carries the Eminus contract: the far layer draws inside the pack` confirms it took.
 
+A pack that lights and fogs terrain in its `gbuffers` programs is done here.
+
+### 2. Let your later passes see the LOD
+
+A `deferred` or `composite` pass that reads `depthtex0` sees nothing where only the LOD is: it treats those pixels
+as sky, so deferred lighting overwrites them and distance fog skips them. Wherever such a pass reads `depthtex0`, read
+`eminusDepthTex0` (or `eminusDepthTex1`) where `depthtex0` holds nothing, rebuild the position with
+`eminusProjectionInverse`, and take `eminusRenderDistance` as the far edge — [Depth](#depth) has the details. A pack
+that already supports Distant Horizons makes the same change where it reads `dhDepthTex`, `dhProjectionInverse` and
+`dhRenderDistance`.
+
 The [example pack](example-pack/) is a complete minimal pack under the same MIT license as Eminus: textured, lit
-terrain, a fog composite that reads both the near and the LOD depth, and the one contract file.
+terrain, the contract file, and a fog composite that is step 2 in a dozen lines.
 
 ## Files
 
@@ -49,7 +62,7 @@ Defined in every program of the pack while Eminus is installed:
 | Macro | Value |
 | --- | --- |
 | `EMINUS` | defined, empty |
-| `EMINUS_CONTRACT_VERSION` | `1` |
+| `EMINUS_CONTRACT_VERSION` | `2` |
 
 ## The function
 
@@ -74,10 +87,17 @@ program, `0.1` in the translucent one. Your function never sees a pixel the near
 | `viewPos` | `vec3` | Position in view space. |
 | `playerPos` | `vec3` | Position relative to the camera on the world axes, as `gbufferModelViewInverse * viewPos` gives it. |
 | `emission` | `float` | The block's light emission, `level / 15`. |
+| `blockId` | `int` | The block's id from your `block.properties`, the value `mc_Entity.x` carries in `gbuffers_terrain`; `-1` where your mapping names nothing. Since version 2. |
 | `translucent` | `bool` | `true` in the translucent program. |
 | `blade` | `bool` | `true` on a plant blade (`face >= 6`). |
 
-Per-block ids (`mc_Entity`, your `block.properties`) are not part of version 1.
+`blockId` follows Iris's own rules: a block takes the id of its state, and a fluid — the water in a waterlogged
+block included — takes the id of the fluid's own block. A pack that tells blocks apart by `mc_Entity.x` in its terrain
+fragment code therefore reads `fragment.blockId` in the same place; code that needs version 2 tests
+`#if EMINUS_CONTRACT_VERSION >= 2`.
+
+The LOD's geometry is built for one mapping. Loading a pack with this contract, leaving it, or switching to one
+whose `block.properties` maps differently rebuilds the LOD once, as Iris rebuilds the near terrain on the same switch.
 
 ## Inside the contract files
 
