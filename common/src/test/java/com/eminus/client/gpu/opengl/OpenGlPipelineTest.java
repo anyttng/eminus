@@ -17,6 +17,7 @@ class OpenGlPipelineTest {
     private static final String SAMPLER = "Sampler";
     private static final String TEXELS = "Texels";
     private static final int UNIT = 0;
+    private static final int SHIFTED_FIRST_UNIT = 4;
 
     private static PipelineSpec spec(int textureBindings) {
         PipelineSpec.Builder builder = PipelineSpec.builder(PIPELINE, PIPELINE, PIPELINE)
@@ -31,15 +32,22 @@ class OpenGlPipelineTest {
 
     @Test
     void aPipelineWithinTheGameTrackedUnitsIsAccepted() {
-        assertDoesNotThrow(() -> OpenGlPipeline.requireTextureUnits(spec(GameHandles.GAME_TRACKED_TEXTURE_UNITS)));
+        assertDoesNotThrow(() -> OpenGlPipeline.requireTextureUnits(spec(GameHandles.GAME_TRACKED_TEXTURE_UNITS),
+                UNIT));
     }
 
     @Test
     void aTextureBindingPastTheGameTrackedUnitsIsRefusedWithThePipelineName() {
         IllegalArgumentException refused = assertThrows(IllegalArgumentException.class,
-                () -> OpenGlPipeline.requireTextureUnits(spec(GameHandles.GAME_TRACKED_TEXTURE_UNITS + 1)));
+                () -> OpenGlPipeline.requireTextureUnits(spec(GameHandles.GAME_TRACKED_TEXTURE_UNITS + 1), UNIT));
 
         assertTrue(refused.getMessage().contains(PIPELINE.toString()), refused.getMessage());
+    }
+
+    @Test
+    void bindingsStartingPastTheFirstUnitCountTheUnitsBelowThem() {
+        assertThrows(IllegalArgumentException.class, () -> OpenGlPipeline.requireTextureUnits(
+                spec(GameHandles.GAME_TRACKED_TEXTURE_UNITS - SHIFTED_FIRST_UNIT + 1), SHIFTED_FIRST_UNIT));
     }
 
     @Test

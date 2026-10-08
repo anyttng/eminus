@@ -43,6 +43,7 @@ public final class ClientSession {
     private static boolean heldChunksPending;
     private static boolean renderedCutoutLeaves;
     private static boolean overShaderPack;
+    private static boolean inShaderPack;
     private static int renderedBiomeBlend;
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
@@ -116,8 +117,14 @@ public final class ClientSession {
     }
 
     public static void drawFarLayerOverShaderPack() {
-        if (renderer != null && overShaderPack) {
+        if (renderer != null && overShaderPack && !inShaderPack) {
             renderer.frame(Minecraft.getInstance());
+        }
+    }
+
+    public static void drawFarLayerInShaderPack(Object pipeline, boolean translucent) {
+        if (renderer != null && inShaderPack) {
+            IrisShaderPack.drawInPack(renderer, pipeline, translucent);
         }
     }
 
@@ -144,10 +151,12 @@ public final class ClientSession {
 
     private static void readShaderPack() {
         boolean inUse = IrisShaderPack.inUse();
-        if (inUse != overShaderPack) {
+        boolean contract = inUse && renderer != null && IrisShaderPack.contractReady(renderer);
+        if (inUse != overShaderPack || contract != inShaderPack) {
             overShaderPack = inUse;
-            Eminus.LOGGER.info(inUse
-                    ? "Shader pack in use: the far layer draws over the pack's finished frame"
+            inShaderPack = contract;
+            Eminus.LOGGER.info(contract ? "Shader pack carries the Eminus contract: the far layer draws inside the pack"
+                    : inUse ? "Shader pack in use: the far layer draws over the pack's finished frame"
                     : "No shader pack: the far layer draws in its own target");
         }
     }
@@ -302,6 +311,7 @@ public final class ClientSession {
 
     private static void stopRenderer() {
         if (renderer != null) {
+            IrisShaderPack.rendererStopped();
             renderer.close();
             renderer = null;
         }

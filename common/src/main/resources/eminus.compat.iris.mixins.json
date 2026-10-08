@@ -5,7 +5,12 @@
   "compatibilityLevel": "JAVA_25",
   "plugin": "com.eminus.compat.iris.IrisMixinPlugin",
   "client": [
-    "IrisRenderingPipelineMixin"
+    "CommonUniformsMixin",
+    "IrisRenderingPipelineMixin",
+    "IrisSamplersMixin",
+    "ShaderPackAccessor",
+    "ShaderPackMixin",
+    "StandardMacrosMixin"
   ],
   "injectors": {
     "defaultRequire": 1

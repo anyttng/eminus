@@ -3,9 +3,13 @@ package com.eminus.render.backend;
 import com.eminus.gpu.pipeline.DepthCompare;
 import com.eminus.gpu.pipeline.PipelineSpec;
 
+import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
+
 public record DepthConvention(boolean zeroToOne, boolean reversed) {
     private static final double LOW = 0.0;
     private static final double HIGH = 1.0;
+    private static final float CLIP_SPAN = 2.0F;
 
     public static DepthConvention of(boolean zeroToOne, boolean reversed) {
         return new DepthConvention(zeroToOne, reversed);
@@ -33,6 +37,22 @@ public record DepthConvention(boolean zeroToOne, boolean reversed) {
             builder.withDefine("DEPTH_ZERO_TO_ONE");
         }
         return reversed ? builder.withDefine("DEPTH_REVERSED") : builder;
+    }
+
+    public Matrix4f forward(Matrix4fc projection, Matrix4f target) {
+        target.set(projection);
+        if (reversed && zeroToOne) {
+            return target.m02(target.m03() - CLIP_SPAN * target.m02()).m12(target.m13() - CLIP_SPAN * target.m12())
+                    .m22(target.m23() - CLIP_SPAN * target.m22()).m32(target.m33() - CLIP_SPAN * target.m32());
+        }
+        if (reversed) {
+            return target.m02(-target.m02()).m12(-target.m12()).m22(-target.m22()).m32(-target.m32());
+        }
+        if (zeroToOne) {
+            return target.m02(CLIP_SPAN * target.m02() - target.m03()).m12(CLIP_SPAN * target.m12() - target.m13())
+                    .m22(CLIP_SPAN * target.m22() - target.m23()).m32(CLIP_SPAN * target.m32() - target.m33());
+        }
+        return target;
     }
 
     public String range() {

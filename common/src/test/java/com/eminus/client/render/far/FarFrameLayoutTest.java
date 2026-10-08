@@ -9,19 +9,19 @@ import com.eminus.gpu.Std140;
 import org.junit.jupiter.api.Test;
 
 class FarFrameLayoutTest {
-    // GLSL std140 for the FarFrame block in far_frame.glsl: a mat4, four ints, an ivec3 at 80 whose 4-byte tail
-    // takes the first float.
-    private static final int MAT4_BYTES = 64;
+    // GLSL std140 for the FarFrame block in far_frame.glsl: the 4-byte tail of the NearOrigin ivec3 takes the first
+    // float.
     private static final int INT_BYTES = 4;
-    private static final int NEAR_ORIGIN_OFFSET = MAT4_BYTES + 4 * INT_BYTES;
-    private static final int SHADE_DOWN_OFFSET = NEAR_ORIGIN_OFFSET + 3 * INT_BYTES;
+    private static final int IVEC3_BYTES = 3 * INT_BYTES;
+    private static final String NEAR_ORIGIN = "NearOrigin";
     private static final List<String> SHADES = List.of("ShadeDown", "ShadeUp", "ShadeNorth", "ShadeSouth",
             "ShadeWest", "ShadeEast");
 
     @Test
     void theShadeFloatsStartInTheTailOfTheNearOrigin() {
+        int shadeDown = offset(NEAR_ORIGIN) + IVEC3_BYTES;
         for (int shade = 0; shade < SHADES.size(); shade++) {
-            assertEquals(SHADE_DOWN_OFFSET + shade * INT_BYTES, offset(SHADES.get(shade)));
+            assertEquals(shadeDown + shade * INT_BYTES, offset(SHADES.get(shade)));
         }
     }
 

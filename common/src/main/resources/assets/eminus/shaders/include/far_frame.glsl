@@ -3,6 +3,7 @@
 
 layout(std140) uniform FarFrame {
     mat4 FarProjView;
+    mat4 FarView;
     int MinBlockY;
     int AtlasCells;
     int NearSide;
