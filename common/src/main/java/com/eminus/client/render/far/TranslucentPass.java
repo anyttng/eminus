@@ -6,6 +6,7 @@ import com.eminus.Eminus;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Location;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.TexelView;
 import com.eminus.gpu.pass.Pass;
@@ -17,12 +18,10 @@ import com.eminus.gpu.texture.Texture;
 import com.eminus.model.port.VariantDraw;
 import com.eminus.render.backend.DepthConvention;
 
-import net.minecraft.resources.ResourceLocation;
-
 public final class TranslucentPass {
     public static final float ALPHA_CUTOUT = 0.1F;
 
-    private static final ResourceLocation PIPELINE = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "far_translucent");
+    private static final Location PIPELINE = new Location(Eminus.MODID, "far_translucent");
     private static final String PASS_LABEL = "eminus-far-translucent";
 
     private final Gpu gpu;

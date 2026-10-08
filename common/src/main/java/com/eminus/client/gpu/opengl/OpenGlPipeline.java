@@ -1,20 +1,16 @@
 package com.eminus.client.gpu.opengl;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 import com.eminus.Eminus;
+import com.eminus.gpu.Format;
+import com.eminus.gpu.Location;
 import com.eminus.gpu.pipeline.Binding;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.pipeline.PipelineSpec;
-
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.server.packs.resources.ResourceProvider;
 
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.opengl.GL11C;
@@ -32,7 +28,13 @@ final class OpenGlPipeline implements Pipeline {
     private static final int LOG_LENGTH = 32768;
     private static final String INACTIVE = "inactive";
 
-    record Slot(Binding.Kind kind, int index) {
+    record Slot(Binding.Kind kind, int index, @Nullable Format format) {
+        void requireFormat(String name, Format viewFormat) {
+            if (viewFormat != format) {
+                throw new IllegalArgumentException("Binding " + name + " declares " + format + " but its view is "
+                        + viewFormat);
+            }
+        }
     }
 
     private final PipelineSpec spec;
@@ -45,10 +47,11 @@ final class OpenGlPipeline implements Pipeline {
         this.slots = slots;
     }
 
-    static OpenGlPipeline of(OpenGlObjects objects, ResourceProvider resources, PipelineSpec spec) {
+    static OpenGlPipeline of(OpenGlObjects objects, PipelineSpec spec) {
+        requireTextureUnits(spec);
         String name = spec.location().toString();
-        int vertex = compile(resources, spec, spec.vertexShader(), VERTEX_EXTENSION, GL20C.GL_VERTEX_SHADER);
-        int fragment = compile(resources, spec, spec.fragmentShader(), FRAGMENT_EXTENSION, GL20C.GL_FRAGMENT_SHADER);
+        int vertex = compile(spec, spec.vertexShader(), VERTEX_EXTENSION, GL20C.GL_VERTEX_SHADER);
+        int fragment = compile(spec, spec.fragmentShader(), FRAGMENT_EXTENSION, GL20C.GL_FRAGMENT_SHADER);
         if (vertex == NO_SHADER || fragment == NO_SHADER) {
             GL20C.glDeleteShader(vertex);
             GL20C.glDeleteShader(fragment);
@@ -75,13 +78,23 @@ final class OpenGlPipeline implements Pipeline {
         return new OpenGlPipeline(spec, program, slots);
     }
 
-    private static int compile(ResourceProvider resources, PipelineSpec spec, ResourceLocation shader, String extension,
-            int type) {
+    static void requireTextureUnits(PipelineSpec spec) {
+        long units = spec.bindings().stream()
+                .filter(binding -> binding.kind() == Binding.Kind.TEXEL || binding.kind() == Binding.Kind.SAMPLED)
+                .count();
+        if (units > GameHandles.GAME_TRACKED_TEXTURE_UNITS) {
+            throw new IllegalArgumentException("Pipeline " + spec.location() + " declares " + units
+                    + " texture bindings, more than the " + GameHandles.GAME_TRACKED_TEXTURE_UNITS
+                    + " units the game tracks");
+        }
+    }
+
+    private static int compile(PipelineSpec spec, Location shader, String extension, int type) {
         String name = spec.location() + " " + shader + extension;
         String source;
         try {
-            source = GlslSource.compose(read(resources, shader.withPath(SHADER_FOLDER + shader.getPath() + extension)),
-                    spec.defines(), include -> includeSource(resources, include));
+            source = GlslSource.compose(read(shader.withPrefix(SHADER_FOLDER).withSuffix(extension)), spec.defines(),
+                    OpenGlPipeline::includeSource);
         } catch (IOException | RuntimeException refused) {
             Eminus.LOGGER.error("Shader {} could not be read: {}", name, refused.toString());
             return NO_SHADER;
@@ -99,27 +112,22 @@ final class OpenGlPipeline implements Pipeline {
         return id;
     }
 
-    private static Optional<String> includeSource(ResourceProvider resources, ResourceLocation include) {
+    private static Optional<String> includeSource(Location include) {
         try {
-            return Optional.of(read(resources, include.withPrefix(INCLUDE_FOLDER)));
-        } catch (IOException missing) {
+            return GameHandles.resource(include.withPrefix(INCLUDE_FOLDER));
+        } catch (IOException unreadable) {
             return Optional.empty();
         }
     }
 
-    private static String read(ResourceProvider resources, ResourceLocation file) throws IOException {
-        Resource resource = resources.getResource(file)
-                .orElseThrow(() -> new IOException("No resource " + file));
-        try (InputStream stream = resource.open()) {
-            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-        }
+    private static String read(Location file) throws IOException {
+        return GameHandles.resource(file).orElseThrow(() -> new IOException("No resource " + file));
     }
 
     private static void resolve(int program, PipelineSpec spec, Map<String, @Nullable Slot> slots) {
         int nextBlock = 0;
         int nextUnit = 0;
-        int gameProgram = GameHandles.program();
-        GameHandles.useProgram(program);
+        GL20C.glUseProgram(program);
         for (Binding binding : spec.bindings()) {
             switch (binding.kind()) {
                 case UNIFORM -> {
@@ -128,7 +136,7 @@ final class OpenGlPipeline implements Pipeline {
                         slots.put(binding.name(), null);
                     } else {
                         GL31C.glUniformBlockBinding(program, index, nextBlock);
-                        slots.put(binding.name(), new Slot(binding.kind(), nextBlock++));
+                        slots.put(binding.name(), new Slot(binding.kind(), nextBlock++, binding.format()));
                     }
                 }
                 case TEXEL, SAMPLED -> {
@@ -137,13 +145,13 @@ final class OpenGlPipeline implements Pipeline {
                         slots.put(binding.name(), null);
                     } else {
                         GL20C.glUniform1i(location, nextUnit);
-                        slots.put(binding.name(), new Slot(binding.kind(), nextUnit++));
+                        slots.put(binding.name(), new Slot(binding.kind(), nextUnit++, binding.format()));
                     }
                 }
                 case STORAGE -> throw new IllegalArgumentException("Own OpenGL binds no storage buffers");
             }
         }
-        GameHandles.useProgram(gameProgram);
+        GL20C.glUseProgram(NO_PROGRAM);
 
         StringBuilder resolved = new StringBuilder();
         for (Map.Entry<String, @Nullable Slot> slot : slots.entrySet()) {
@@ -177,7 +185,7 @@ final class OpenGlPipeline implements Pipeline {
     }
 
     @Override
-    public ResourceLocation location() {
+    public Location location() {
         return spec.location();
     }
 

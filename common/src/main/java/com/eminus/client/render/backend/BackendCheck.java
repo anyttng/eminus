@@ -8,6 +8,7 @@ import com.eminus.Eminus;
 import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Location;
 import com.eminus.gpu.Std140;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
@@ -22,8 +23,6 @@ import com.eminus.render.backend.BackendLimitation;
 import com.eminus.render.backend.BackendSupport;
 import com.eminus.render.backend.DepthConvention;
 
-import net.minecraft.resources.ResourceLocation;
-
 import org.joml.Vector4f;
 import org.joml.Vector4fc;
 import org.lwjgl.system.MemoryStack;
@@ -31,8 +30,8 @@ import org.lwjgl.system.MemoryStack;
 public final class BackendCheck {
     public static final Format DEPTH_FORMAT = Format.D32_FLOAT;
 
-    private static final ResourceLocation PROBE_PIPELINE = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "depth_probe");
-    private static final ResourceLocation PROBE_SHADER = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "core/depth_probe");
+    private static final Location PROBE_PIPELINE = new Location(Eminus.MODID, "depth_probe");
+    private static final Location PROBE_SHADER = new Location(Eminus.MODID, "core/depth_probe");
     private static final String COLOUR_LABEL = "eminus-probe-colour";
     private static final String DEPTH_LABEL = "eminus-probe-depth";
     private static final String PASS_LABEL = "eminus-probe-pass";

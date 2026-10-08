@@ -8,6 +8,7 @@ import java.util.Set;
 import com.eminus.Eminus;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Location;
 import com.eminus.gpu.Std140;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
@@ -20,15 +21,13 @@ import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.render.backend.DepthConvention;
 
-import net.minecraft.resources.ResourceLocation;
-
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.lwjgl.system.MemoryStack;
 
 public final class NearMaskPass implements AutoCloseable {
-    private static final ResourceLocation PIPELINE = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "near_mask");
-    private static final ResourceLocation SHADER = ResourceLocation.fromNamespaceAndPath(Eminus.MODID, "core/near_mask");
+    private static final Location PIPELINE = new Location(Eminus.MODID, "near_mask");
+    private static final Location SHADER = new Location(Eminus.MODID, "core/near_mask");
     private static final String PASS_LABEL = "eminus-near-mask";
     private static final String UNIFORM_LABEL = "eminus-near-mask";
     private static final String MASK = "Mask";
