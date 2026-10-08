@@ -84,7 +84,8 @@ final class FarQuads {
                 .withDefine("NEAR_SECTION_BLOCKS", NearSections.SECTION_BLOCKS)
                 .withDefine("NEAR_TEXEL_BITS", NearSections.BITS_PER_TEXEL)
                 .withDefine("NEAR_TEXEL_SHIFT", NearSections.TEXEL_SHIFT)
-                .withDefine("MODEL_TEXELS", ModelRecords.TEXELS);
+                .withDefine("MODEL_TEXELS", ModelRecords.TEXELS)
+                .withDefine("PACK_ID_TEXEL", ModelRecords.PACK_ID_TEXEL);
         cellKeyLayout(builder);
         quadLayout(builder);
         placementLayout(builder);

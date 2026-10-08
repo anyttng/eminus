@@ -6,6 +6,7 @@
   "plugin": "com.eminus.compat.iris.IrisMixinPlugin",
   "client": [
     "CommonUniformsMixin",
+    "IrisRenderingPipelineAccessor",
     "IrisRenderingPipelineMixin",
     "IrisSamplersMixin",
     "ShaderPackAccessor",

@@ -3,24 +3,29 @@ package com.eminus.compat.iris;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
 import com.eminus.client.render.far.FarDraw;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.client.render.far.FarTarget;
+import com.eminus.compat.iris.mixin.IrisRenderingPipelineAccessor;
 import com.eminus.compat.iris.mixin.ShaderPackAccessor;
 import com.eminus.gpu.Foreign;
 
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
+import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.irisshaders.iris.shaderpack.include.AbsolutePackPath;
 import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
+import net.irisshaders.iris.shaderpack.materialmap.WorldRenderingSettings;
 import net.irisshaders.iris.shaderpack.programs.ProgramSet;
 import net.irisshaders.iris.shaderpack.properties.ShaderProperties;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.block.state.BlockState;
 
 import org.jspecify.annotations.Nullable;
 
@@ -67,6 +72,20 @@ final class PackLayer {
         properties = access.eminus$shaderProperties();
     }
 
+    static @Nullable ToIntFunction<BlockState> packIds(@Nullable ToIntFunction<BlockState> rendered) {
+        WorldRenderingPipeline pipeline = Iris.getPipelineManager().getPipelineNullable();
+        if (pipeline == null) {
+            return rendered;
+        }
+
+        if (!(pipeline instanceof IrisRenderingPipeline iris) || of(iris).opaqueFile == null) {
+            return null;
+        }
+
+        return ((IrisRenderingPipelineAccessor) iris).eminus$initializedBlockIds()
+                ? WorldRenderingSettings.INSTANCE.getBlockStateIds() : rendered;
+    }
+
     static boolean readyFor(FarRenderer renderer) {
         boolean ready = Iris.getPipelineManager().getPipelineNullable() instanceof IrisRenderingPipeline pipeline
                 && of(pipeline).ready(renderer);
@@ -99,6 +118,8 @@ final class PackLayer {
             current.opaque = null;
             current.translucent = null;
             current.drawn = null;
+            current.opaqueAttached = NO_TEXTURE;
+            current.translucentAttached = NO_TEXTURE;
         }
     }
 

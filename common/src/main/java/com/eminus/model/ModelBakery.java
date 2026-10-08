@@ -9,6 +9,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.IntSupplier;
+import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
 import com.eminus.cell.Dictionary;
@@ -26,6 +27,7 @@ public final class ModelBakery implements ModelSource {
     public static final int NO_FLUID = -2;
     public static final int POSITIONAL = -4;
     public static final int PLACEHOLDER_COLOUR = 0xFFFF_00FF;
+    public static final ToIntFunction<BlockState> NO_PACK_IDS = state -> BakedModel.NO_PACK_ID;
 
     private static final int THREAD_PRIORITY = Thread.NORM_PRIORITY - 1;
     private static final long LOW_WORD = 0xFFFF_FFFFL;
@@ -40,6 +42,7 @@ public final class ModelBakery implements ModelSource {
     }
 
     private final StateBaker baker;
+    private final ToIntFunction<BlockState> packIds;
     private final Dictionary<BakedModel> models = new Dictionary<>((id, model) -> { });
     private final Map<BlockState, Integer> idByState = new ConcurrentHashMap<>();
     private final Map<BlockState, Integer> fluidIdByState = new ConcurrentHashMap<>();
@@ -56,12 +59,17 @@ public final class ModelBakery implements ModelSource {
 
     private volatile boolean running = true;
 
-    private ModelBakery(StateBaker baker) {
+    private ModelBakery(StateBaker baker, ToIntFunction<BlockState> packIds) {
         this.baker = baker;
+        this.packIds = packIds;
     }
 
     public static ModelBakery start(StateBaker baker) {
-        ModelBakery bakery = new ModelBakery(baker);
+        return start(baker, NO_PACK_IDS);
+    }
+
+    public static ModelBakery start(StateBaker baker, ToIntFunction<BlockState> packIds) {
+        ModelBakery bakery = new ModelBakery(baker, packIds);
         bakery.thread.setDaemon(true);
         bakery.thread.setPriority(THREAD_PRIORITY);
         bakery.thread.start();
@@ -176,7 +184,8 @@ public final class ModelBakery implements ModelSource {
             if (request.parts() == null) {
                 publish(request.state(), bake(request.state()));
             } else {
-                idByParts.put(request, models.register(bakeParts(request)));
+                idByParts.put(request,
+                        models.register(bakeParts(request).withPackId(packIds.applyAsInt(request.state()))));
             }
 
             answer(request);
@@ -203,11 +212,15 @@ public final class ModelBakery implements ModelSource {
     }
 
     private void publish(BlockState state, BakedState baked) {
+        int statePackId = packIds.applyAsInt(state);
+        int fluidPackId = packIds.applyAsInt(state.getFluidState().createLegacyBlock());
         BakedModel fluid = baked.fluid();
-        int fluidId = fluid == null ? NO_FLUID : models.register(fluid);
-        int blockId = baked.variants().isEmpty() ? models.register(baked.block()) : registerVariants(baked);
+        int fluidId = fluid == null ? NO_FLUID : models.register(fluid.withPackId(fluidPackId));
+        int blockId = baked.variants().isEmpty() ? models.register(baked.block().withPackId(statePackId))
+                : registerVariants(baked, statePackId);
         if (baked.submerged() != null) {
-            submergedIds.put(fluid == null ? blockId : fluidId, models.register(baked.submerged()));
+            submergedIds.put(fluid == null ? blockId : fluidId,
+                    models.register(baked.submerged().withPackId(fluid == null ? statePackId : fluidPackId)));
         }
 
         if (baked.positional()) {
@@ -218,7 +231,7 @@ public final class ModelBakery implements ModelSource {
         idByState.put(state, blockId);
     }
 
-    private int registerVariants(BakedState baked) {
+    private int registerVariants(BakedState baked, int packId) {
         List<WeightedModel> variants = baked.variants();
         int[] table = new int[variants.size() * BakedModel.VARIANT_WORDS];
         int upperBound = 0;
@@ -227,10 +240,10 @@ public final class ModelBakery implements ModelSource {
             WeightedModel variant = variants.get(entry);
             upperBound += variant.weight();
             table[entry * BakedModel.VARIANT_WORDS] = upperBound;
-            table[entry * BakedModel.VARIANT_WORDS + 1] = models.register(variant.model());
+            table[entry * BakedModel.VARIANT_WORDS + 1] = models.register(variant.model().withPackId(packId));
         }
 
-        return models.register(variants.getFirst().model().withVariants(table));
+        return models.register(variants.getFirst().model().withVariants(table).withPackId(packId));
     }
 
     private void answer(Request request) {

@@ -1,8 +1,14 @@
 package com.eminus.compat.iris;
 
+import java.util.function.ToIntFunction;
+
 import com.eminus.client.render.far.FarRenderer;
 
 import net.irisshaders.iris.api.v0.IrisApi;
+
+import net.minecraft.world.level.block.state.BlockState;
+
+import org.jspecify.annotations.Nullable;
 
 public final class IrisShaderPack {
     private static final boolean IRIS_PRESENT = IrisMixinPlugin.irisPresent();
@@ -13,6 +19,10 @@ public final class IrisShaderPack {
 
     public static boolean renderingShadowPass() {
         return IRIS_PRESENT && Api.renderingShadowPass();
+    }
+
+    public static @Nullable ToIntFunction<BlockState> packIds(@Nullable ToIntFunction<BlockState> rendered) {
+        return IRIS_PRESENT ? PackLayer.packIds(rendered) : null;
     }
 
     public static boolean contractReady(FarRenderer renderer) {
