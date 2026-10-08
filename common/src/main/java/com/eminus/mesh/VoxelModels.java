@@ -17,7 +17,7 @@ public final class VoxelModels {
             return modelId;
         }
 
-        return models.positionalModelId(stateId, frame.blockXOf(key, x), frame.blockYOf(key, y),
-                frame.blockZOf(key, z), whenBaked);
+        return models.positionalModelId(stateId, CellFrame.blockXOf(key, x), frame.blockYOf(key, y),
+                CellFrame.blockZOf(key, z), whenBaked);
     }
 }

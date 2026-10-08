@@ -2,6 +2,7 @@ package com.eminus.mesh;
 
 import java.util.Arrays;
 
+import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.VoxelEntry;
@@ -45,8 +46,8 @@ public final class TintBlend {
         this.voxels = voxels;
         this.tints = tints;
         level = CellKey.level(key);
-        originX = CellKey.x(key) * DetailLevel.blocksPerCell(level);
-        originZ = CellKey.z(key) * DetailLevel.blocksPerCell(level);
+        originX = CellFrame.originXOf(key);
+        originZ = CellFrame.originZOf(key);
         radius = columns(blendRadius, level);
 
         for (RowLayers layers : rows.values()) {

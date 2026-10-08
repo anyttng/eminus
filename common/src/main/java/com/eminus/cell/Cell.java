@@ -7,7 +7,6 @@ import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 
 public final class Cell {
     private static final int VOXELS = DetailLevel.VOXELS_PER_CELL;
-    private static final int COORDINATE_MASK = DetailLevel.VOXELS_PER_SIDE - 1;
     public static final int MAX_PALETTE = 0x1_0000;
 
     private static final int INDEX_MASK = MAX_PALETTE - 1;
@@ -213,9 +212,6 @@ public final class Cell {
     }
 
     private static int octantOfVoxel(int voxel) {
-        return OccupancyMask.octantOf(
-                voxel & COORDINATE_MASK,
-                voxel >>> (DetailLevel.SIDE_BITS * 2),
-                (voxel >>> DetailLevel.SIDE_BITS) & COORDINATE_MASK);
+        return OccupancyMask.octantOf(DetailLevel.voxelX(voxel), DetailLevel.voxelY(voxel), DetailLevel.voxelZ(voxel));
     }
 }

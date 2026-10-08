@@ -143,9 +143,9 @@ class CellMergerTest {
         harness.run(() -> {
             for (int level = DetailLevel.MIN; level <= DetailLevel.MAX; level++) {
                 CellHandle handle = cells.open(frame.keyAt(level, 0, 0, 0));
-                int voxelX = frame.voxelX(0, level);
+                int voxelX = CellFrame.voxelX(0, level);
                 int voxelY = frame.voxelY(0, level);
-                int voxelZ = frame.voxelZ(0, level);
+                int voxelZ = CellFrame.voxelZ(0, level);
                 biomes[level] = handle.withCell(cell -> VoxelEntry.biome(cell.get(voxelX, voxelY, voxelZ)));
                 cells.release(handle);
             }
