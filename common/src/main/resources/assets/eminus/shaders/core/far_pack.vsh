@@ -21,6 +21,7 @@ flat out ivec4 eminus_variantInfo;
 flat out ivec3 eminus_cellOrigin;
 flat out int eminus_face;
 flat out float eminus_emission;
+flat out int eminus_blockId;
 out vec3 iris_vBlockPos;
 flat out uvec2 iris_TexId;
 
@@ -47,6 +48,7 @@ void main() {
     eminus_cellOrigin = vertex.cellOrigin;
     eminus_face = vertex.face;
     eminus_emission = float(vertex.emission) / float(MAX_EMISSION);
+    eminus_blockId = int(texelFetch(ModelRecords, vertex.modelId * MODEL_TEXELS + PACK_ID_TEXEL).x);
 
     iris_vBlockPos = vertex.voxelPoint;
     iris_TexId = uvec2(0u, uint(min(vertex.face, LAST_AXIS_FACE)));

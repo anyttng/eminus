@@ -17,6 +17,7 @@ struct FarVertex {
     int variantStart;
     int variantCount;
     int emission;
+    int modelId;
     bool culled;
 };
 
@@ -295,6 +296,7 @@ FarVertex far_vertex(int vertexId) {
     vertex.variantCount = int(fourth.w);
 
     vertex.emission = int(far_field(uint(flags), EMISSION_SHIFT, EMISSION_BITS));
+    vertex.modelId = modelId;
     vertex.face = face;
     vertex.blockLight = int(far_field(light, BLOCK_LIGHT_SHIFT, NIBBLE_BITS));
     vertex.skyLight = int(far_field(light, SKY_LIGHT_SHIFT, NIBBLE_BITS));
