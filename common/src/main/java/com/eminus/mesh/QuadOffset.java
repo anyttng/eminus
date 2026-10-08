@@ -7,15 +7,15 @@ import net.minecraft.world.phys.Vec3;
 
 public final class QuadOffset {
     public static final int NONE = 0;
+    public static final int AXIS_BITS = 10;
+    public static final int X_SHIFT = 0;
+    public static final int Y_SHIFT = AXIS_BITS;
+    public static final int Z_SHIFT = 2 * AXIS_BITS;
+    public static final float STEPS_PER_BLOCK = 256.0F;
 
-    private static final int AXIS_BITS = 10;
     private static final int AXIS_MASK = (1 << AXIS_BITS) - 1;
-    private static final int X_SHIFT = 0;
-    private static final int Y_SHIFT = AXIS_BITS;
-    private static final int Z_SHIFT = 2 * AXIS_BITS;
     private static final int SIGN_SHIFT = Integer.SIZE - AXIS_BITS;
     private static final int MAX_STEPS = (1 << (AXIS_BITS - 1)) - 1;
-    private static final float STEPS_PER_BLOCK = 256.0F;
 
     public static int of(BlockState state, int blockX, int blockY, int blockZ) {
         if (!state.hasOffsetFunction()) {

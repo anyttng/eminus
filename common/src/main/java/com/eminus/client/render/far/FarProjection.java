@@ -62,6 +62,12 @@ public final class FarProjection {
         return gameViewProjection.mul(farInverse, target);
     }
 
+    public static Matrix4f gameToFar(Matrix4fc farViewProjection, Matrix4fc gameViewProjection, Matrix4f gameInverse,
+            Matrix4f target) {
+        gameViewProjection.invert(gameInverse);
+        return farViewProjection.mul(gameInverse, target);
+    }
+
     public static float focalPixels(float fovDegrees, float height) {
         return (float) (height * HALF / Math.tan(Math.toRadians(fovDegrees) * HALF));
     }
