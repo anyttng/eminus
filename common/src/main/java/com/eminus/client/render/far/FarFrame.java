@@ -19,6 +19,7 @@ public final class FarFrame implements AutoCloseable {
     public static final Std140.Block BLOCK = Std140.block("FarFrame");
 
     private static final Std140.Member PROJ_VIEW = BLOCK.add(Std140.Type.MAT4, "FarProjView");
+    private static final Std140.Member VIEW = BLOCK.add(Std140.Type.MAT4, "FarView");
     private static final Std140.Member MIN_BLOCK_Y = BLOCK.add(Std140.Type.INT, "MinBlockY");
     private static final Std140.Member ATLAS_CELLS = BLOCK.add(Std140.Type.INT, "AtlasCells");
     private static final Std140.Member NEAR_SIDE = BLOCK.add(Std140.Type.INT, "NearSide");
@@ -55,13 +56,14 @@ public final class FarFrame implements AutoCloseable {
         return buffer;
     }
 
-    public void write(Matrix4fc viewProjection, int minBlockY, int atlasCells, NearSections near,
+    public void write(Matrix4fc viewProjection, Matrix4fc view, int minBlockY, int atlasCells, NearSections near,
             FaceShade shade, CameraOrigin camera) {
         gpu.assertRenderThread();
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
             ByteBuffer written = BLOCK.into(stack.malloc(SIZE))
                     .putMat4(PROJ_VIEW, viewProjection)
+                    .putMat4(VIEW, view)
                     .putInt(MIN_BLOCK_Y, minBlockY)
                     .putInt(ATLAS_CELLS, atlasCells)
                     .putInt(NEAR_SIDE, near.side())

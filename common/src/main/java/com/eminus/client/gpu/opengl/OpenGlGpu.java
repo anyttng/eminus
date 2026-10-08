@@ -10,10 +10,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 
 import com.eminus.Eminus;
 import com.eminus.client.gpu.DeviceQueries;
 import com.eminus.gpu.Capabilities;
+import com.eminus.gpu.Foreign;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.buffer.Buffer;
@@ -42,7 +44,7 @@ import org.lwjgl.opengl.GL33C;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.system.MemoryUtil;
 
-public final class OpenGlGpu implements Gpu {
+public final class OpenGlGpu implements Gpu, Foreign {
     public static final String BACKEND = "own OpenGL";
 
     private static final String VERTEX_ARRAY_LABEL = "eminus-vertex-array";
@@ -188,8 +190,45 @@ public final class OpenGlGpu implements Gpu {
     }
 
     @Override
+    public Pipeline pipeline(PipelineSpec spec, int firstTextureUnit, UnaryOperator<String> fragment) {
+        OpenGlPipeline pipeline = OpenGlPipeline.of(objects, spec, firstTextureUnit, fragment);
+        pipelines.add(pipeline);
+        return pipeline;
+    }
+
+    @Override
+    public int program(Pipeline pipeline) {
+        return ((OpenGlPipeline) pipeline).program();
+    }
+
+    @Override
+    public int textureUnits(Pipeline pipeline) {
+        return ((OpenGlPipeline) pipeline).textureUnits();
+    }
+
+    @Override
+    public int texture(Texture texture) {
+        return ((OpenGlTexture) texture).id();
+    }
+
+    @Override
     public Pass pass(PassSpec spec) {
         return OpenGlPass.open(this, spec);
+    }
+
+    @Override
+    public Pass pass(int framebuffer, int width, int height, int colourTargets) {
+        return OpenGlPass.openForeign(this, framebuffer, width, height, colourTargets);
+    }
+
+    @Override
+    public void copyDepth(Texture colour, Texture from, Texture to) {
+        OpenGlTexture carrier = (OpenGlTexture) colour;
+        GameHandles.bindFramebuffers(framebuffer(carrier, (OpenGlTexture) from),
+                framebuffer(carrier, (OpenGlTexture) to));
+        GL30C.glBlitFramebuffer(0, 0, from.width(), from.height(), 0, 0, to.width(), to.height(),
+                GL11C.GL_DEPTH_BUFFER_BIT, GL11C.GL_NEAREST);
+        GameHandles.bindFramebuffer(UNBOUND);
     }
 
     @Override
@@ -200,6 +239,11 @@ public final class OpenGlGpu implements Gpu {
     @Override
     public Optional<Compute> compute() {
         return Optional.empty();
+    }
+
+    @Override
+    public Optional<Foreign> foreign() {
+        return Optional.of(this);
     }
 
     int sampler(Sampler sampler) {
