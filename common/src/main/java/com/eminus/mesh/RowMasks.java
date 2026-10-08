@@ -63,12 +63,8 @@ public final class RowMasks {
         return isSet(negative[row], voxel);
     }
 
-    static long entryAt(CellVoxels voxels, Direction.Axis axis, int u, int v, int at) {
-        return switch (axis) {
-            case X -> voxels.entry(at, v, u);
-            case Y -> voxels.entry(u, at, v);
-            case Z -> voxels.entry(u, v, at);
-        };
+    private static long entryAt(CellVoxels voxels, Direction.Axis axis, int u, int v, int at) {
+        return voxels.entry(PlaneAxes.x(axis, u, v, at), PlaneAxes.y(axis, u, v, at), PlaneAxes.z(axis, u, v, at));
     }
 
     private static boolean isSet(long mask, int voxel) {
