@@ -88,9 +88,9 @@ public final class FaceLightReading {
             int spanX = span(Direction.Axis.X, face.getAxis(), quad);
             int spanY = span(Direction.Axis.Y, face.getAxis(), quad);
             int spanZ = span(Direction.Axis.Z, face.getAxis(), quad);
-            int fromX = frame.blockXOf(key, Quad.x(quad));
+            int fromX = CellFrame.blockXOf(key, Quad.x(quad));
             int fromY = frame.blockYOf(key, Quad.y(quad));
-            int fromZ = frame.blockZOf(key, Quad.z(quad));
+            int fromZ = CellFrame.blockZOf(key, Quad.z(quad));
             if (!box.overlaps(fromX, fromY, fromZ, fromX + spanX * voxelBlocks - 1,
                     fromY + spanY * voxelBlocks - 1, fromZ + spanZ * voxelBlocks - 1)) {
                 continue;

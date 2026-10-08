@@ -97,7 +97,7 @@ public final class IngestService {
             return;
         }
 
-        if (!hasLightData(light, chunk, chunkPos, sections.length)) {
+        if (!hasLightData(light, chunk, sections.length)) {
             Eminus.LOGGER.debug("Chunk {} carries no light data; it is skipped.", chunkPos);
             return;
         }
@@ -214,7 +214,7 @@ public final class IngestService {
 
         // The light engine drops the layers of an air-only section whose 26 neighbours are air-only too, for good.
         if (!chunk.getSections()[index].hasOnlyAir()
-                && !skyPublished(level.getLightEngine(), SectionPos.of(sectionX, sectionY, sectionZ))) {
+                && !skyPublished(level.getLightEngine(), sectionPos(chunk, index))) {
             return;
         }
 
@@ -241,10 +241,10 @@ public final class IngestService {
     private void submit(LevelLightEngine light, LevelChunk chunk, int index, @Nullable AtomicInteger remaining,
             IngestTrigger trigger) {
         LevelChunkSection section = chunk.getSections()[index];
-        int sectionX = chunk.getPos().x;
-        int sectionY = chunk.getSectionYFromSectionIndex(index);
-        int sectionZ = chunk.getPos().z;
-        SectionPos sectionPos = SectionPos.of(sectionX, sectionY, sectionZ);
+        SectionPos sectionPos = sectionPos(chunk, index);
+        int sectionX = sectionPos.x();
+        int sectionY = sectionPos.y();
+        int sectionZ = sectionPos.z();
         DataLayer skyLight = Objects.requireNonNullElseGet(sky(light, sectionPos), () -> openSky(light));
         DataLayer blockLight = layer(light, LightLayer.BLOCK, sectionPos);
 
@@ -370,9 +370,9 @@ public final class IngestService {
         return light.lightOnInSection(SectionPos.of(chunkX, 0, chunkZ));
     }
 
-    private static boolean hasLightData(LevelLightEngine light, LevelChunk chunk, ChunkPos chunkPos, int sectionCount) {
+    private static boolean hasLightData(LevelLightEngine light, LevelChunk chunk, int sectionCount) {
         for (int index = 0; index < sectionCount; index++) {
-            SectionPos sectionPos = SectionPos.of(chunkPos, chunk.getSectionYFromSectionIndex(index));
+            SectionPos sectionPos = sectionPos(chunk, index);
             if (layer(light, LightLayer.SKY, sectionPos) != null || layer(light, LightLayer.BLOCK, sectionPos) != null) {
                 return true;
             }

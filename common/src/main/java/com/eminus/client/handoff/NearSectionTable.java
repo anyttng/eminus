@@ -77,11 +77,10 @@ public final class NearSectionTable implements AutoCloseable {
 
         for (MeshSummary mesh : meshes) {
             long key = mesh.key();
-            int level = CellKey.level(key);
-            int side = DetailLevel.blocksPerCell(level);
-            int minX = frame.originBlockX(CellKey.x(key), level);
-            int minY = frame.originBlockY(CellKey.y(key), level);
-            int minZ = frame.originBlockZ(CellKey.z(key), level);
+            int side = DetailLevel.blocksPerCell(CellKey.level(key));
+            int minX = CellFrame.originXOf(key);
+            int minY = frame.originYOf(key);
+            int minZ = CellFrame.originZOf(key);
             sections.queryBlocks(minX, minY, minZ, minX + side, minY + side, minZ + side, query);
         }
 

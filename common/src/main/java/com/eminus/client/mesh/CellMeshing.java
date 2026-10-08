@@ -45,9 +45,9 @@ public final class CellMeshing {
             int maxY, int maxZ) {
         LongArrayList keys = new LongArrayList();
         for (int level = fromLevel; level <= toLevel; level++) {
-            for (int cellX = frame.cellX(minX, level); cellX <= frame.cellX(maxX, level); cellX++) {
+            for (int cellX = CellFrame.cellX(minX, level); cellX <= CellFrame.cellX(maxX, level); cellX++) {
                 for (int cellY = frame.cellY(minY, level); cellY <= frame.cellY(maxY, level); cellY++) {
-                    for (int cellZ = frame.cellZ(minZ, level); cellZ <= frame.cellZ(maxZ, level); cellZ++) {
+                    for (int cellZ = CellFrame.cellZ(minZ, level); cellZ <= CellFrame.cellZ(maxZ, level); cellZ++) {
                         keys.add(CellKey.pack(level, cellX, cellY, cellZ));
                     }
                 }

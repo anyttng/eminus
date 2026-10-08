@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import com.eminus.Eminus;
 import com.eminus.api.v1.LevelState;
 import com.eminus.api.v1.TreeState;
+import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.EdgeMask;
@@ -46,6 +47,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private final TreeRing.Columns columns = new Columns();
     private final TreeTraversal traversal;
     private final TreeCleaner cleaner = new TreeCleaner();
+    private final CellBox box = new CellBox();
     private final BlockingQueue<TreeMessage> messages = new LinkedBlockingQueue<>();
     private final AtomicReference<CameraFrame> frames = new AtomicReference<>();
     private final TreeBatches batches = new TreeBatches();
@@ -262,13 +264,12 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         int firstBlockZ = chunkZ * FarDistance.BLOCKS_PER_CHUNK;
 
         for (int level = extent.lowestLevel(); level <= DetailLevel.MAX; level++) {
-            int side = DetailLevel.blocksPerCell(level);
             int heightCells = extent.heightCells() << (DetailLevel.MAX - level);
-            int lastCellX = Math.floorDiv(firstBlockX + FarDistance.BLOCKS_PER_CHUNK, side);
-            int lastCellZ = Math.floorDiv(firstBlockZ + FarDistance.BLOCKS_PER_CHUNK, side);
+            int lastCellX = CellFrame.cellX(firstBlockX + FarDistance.BLOCKS_PER_CHUNK, level);
+            int lastCellZ = CellFrame.cellZ(firstBlockZ + FarDistance.BLOCKS_PER_CHUNK, level);
 
-            for (int cellX = Math.floorDiv(firstBlockX - 1, side); cellX <= lastCellX; cellX++) {
-                for (int cellZ = Math.floorDiv(firstBlockZ - 1, side); cellZ <= lastCellZ; cellZ++) {
+            for (int cellX = CellFrame.cellX(firstBlockX - 1, level); cellX <= lastCellX; cellX++) {
+                for (int cellZ = CellFrame.cellZ(firstBlockZ - 1, level); cellZ <= lastCellZ; cellZ++) {
                     for (int cellY = 0; cellY < heightCells; cellY++) {
                         TreeNode node = nodes.get(CellKey.pack(level, cellX, cellY, cellZ));
                         if (node != null) {
@@ -454,7 +455,9 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     }
 
     private float priority(TreeNode node) {
-        return camera == null ? ProjectedSize.UNKNOWN : ProjectedSize.of(extent.frame(), node.key(), camera);
+        return camera == null
+                ? ProjectedSize.UNKNOWN
+                : ProjectedSize.of(box.set(extent.frame(), node.key(), camera), camera.pixelsPerBlock());
     }
 
     private void dispatch(TreeNode node, float priority, boolean outOfView) {

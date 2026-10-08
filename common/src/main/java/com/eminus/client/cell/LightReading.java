@@ -57,9 +57,9 @@ public final class LightReading {
                 for (int y = minY; y <= maxY; y++) {
                     for (int z = minZ; z <= maxZ; z++) {
                         CellHandle handle = open.computeIfAbsent(cells.keyAt(DetailLevel.MIN, x, y, z), cache::open);
-                        int voxelX = cells.voxelX(x, DetailLevel.MIN);
+                        int voxelX = CellFrame.voxelX(x, DetailLevel.MIN);
                         int voxelY = cells.voxelY(y, DetailLevel.MIN);
-                        int voxelZ = cells.voxelZ(z, DetailLevel.MIN);
+                        int voxelZ = CellFrame.voxelZ(z, DetailLevel.MIN);
                         long entry = handle.withCell(cell -> cell.get(voxelX, voxelY, voxelZ));
                         long[] row = new long[WIDTH];
                         row[X] = x;

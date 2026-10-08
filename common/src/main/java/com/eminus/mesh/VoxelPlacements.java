@@ -18,8 +18,8 @@ public final class VoxelPlacements {
     public int block(MeshModels models, long entry, int x, int y, int z) {
         int offset = QuadPlacement.gapped(level)
                 ? QuadOffset.NONE
-                : models.offset(VoxelEntry.state(entry), frame.blockXOf(key, x), frame.blockYOf(key, y),
-                        frame.blockZOf(key, z));
+                : models.offset(VoxelEntry.state(entry), CellFrame.blockXOf(key, x), frame.blockYOf(key, y),
+                        CellFrame.blockZOf(key, z));
         return QuadPlacement.ofBlock(level, entry, offset);
     }
 
