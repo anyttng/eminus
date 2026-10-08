@@ -21,7 +21,8 @@ import com.eminus.render.arena.MeshSlots;
 import com.eminus.render.backend.BackendSupport;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongList;
+import it.unimi.dsi.fastutil.longs.LongCollection;
+import it.unimi.dsi.fastutil.longs.LongIterator;
 
 import org.jspecify.annotations.Nullable;
 
@@ -152,11 +153,11 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         return index;
     }
 
-    public void evict(LongList keys) {
+    public void evict(LongCollection keys) {
         gpu.assertRenderThread();
 
-        for (int at = 0; at < keys.size(); at++) {
-            release(keys.getLong(at));
+        for (LongIterator key = keys.iterator(); key.hasNext(); ) {
+            release(key.nextLong());
         }
     }
 

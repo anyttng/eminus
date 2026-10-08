@@ -67,8 +67,8 @@ public final class SurfaceReading {
                 }
 
                 float top = frame.blockYOf(key, Quad.y(quad)) + upFaceHeight(mesh, quad, bakery, level);
-                int fromX = frame.blockXOf(key, Quad.x(quad));
-                int fromZ = frame.blockZOf(key, Quad.z(quad));
+                int fromX = CellFrame.blockXOf(key, Quad.x(quad));
+                int fromZ = CellFrame.blockZOf(key, Quad.z(quad));
                 int toX = fromX + Quad.width(quad) * voxelBlocks;
                 int toZ = fromZ + Quad.height(quad) * voxelBlocks;
 
