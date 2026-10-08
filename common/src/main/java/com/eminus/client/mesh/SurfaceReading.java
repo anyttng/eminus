@@ -7,20 +7,18 @@ import java.util.concurrent.CompletableFuture;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
-import com.eminus.cell.VoxelEntry;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.client.session.ClientSession;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.FluidCorners;
 import com.eminus.mesh.Quad;
 import com.eminus.mesh.QuadOffset;
+import com.eminus.mesh.QuadPlacement;
 import com.eminus.model.BakedModel;
 import com.eminus.model.ModelBakery;
 import com.eminus.model.ModelMetadata;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
-
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Direction;
@@ -41,29 +39,13 @@ public final class SurfaceReading {
         }
 
         CellFrame frame = runtime.frame();
-        long[] keys = keys(frame, minX, minZ, side, minY, maxY);
+        long[] keys = CellMeshing.keys(frame, DetailLevel.MIN, DetailLevel.MAX, minX, minY, minZ, minX + side - 1, maxY,
+                minZ + side - 1);
         ClientBakery baking = ClientBakery.start(Minecraft.getInstance());
 
         return CellMeshing.mesh(runtime, instance, baking, keys, TIMEOUT_SECONDS)
                 .thenApply(meshes -> tops(frame, baking.bakery(), meshes, minX, minZ, side))
                 .whenComplete((tops, failure) -> baking.stop());
-    }
-
-    private static long[] keys(CellFrame frame, int minX, int minZ, int side, int minY, int maxY) {
-        int maxX = minX + side - 1;
-        int maxZ = minZ + side - 1;
-        LongArrayList keys = new LongArrayList();
-        for (int level = DetailLevel.MIN; level <= DetailLevel.MAX; level++) {
-            for (int cellX = frame.cellX(minX, level); cellX <= frame.cellX(maxX, level); cellX++) {
-                for (int cellY = frame.cellY(minY, level); cellY <= frame.cellY(maxY, level); cellY++) {
-                    for (int cellZ = frame.cellZ(minZ, level); cellZ <= frame.cellZ(maxZ, level); cellZ++) {
-                        keys.add(CellKey.pack(level, cellX, cellY, cellZ));
-                    }
-                }
-            }
-        }
-
-        return keys.toLongArray();
     }
 
     private static float[][] tops(CellFrame frame, ModelBakery bakery, Map<Long, CellMesh> meshes, int minX, int minZ,
@@ -108,13 +90,12 @@ public final class SurfaceReading {
     private static float upFaceHeight(CellMesh mesh, long quad, ModelBakery bakery, int level) {
         BakedModel model = bakery.model(Quad.modelId(quad));
         float[] bounds = model.bounds();
-        int placement = mesh.offset(quad);
-        boolean coarse = level != DetailLevel.MIN;
+        int placement = mesh.placement(quad);
         int voxelBlocks = DetailLevel.blocksPerVoxel(level);
-        float below = voxelBlocks - (coarse ? VoxelEntry.highGapOf(placement) : 0);
+        float below = voxelBlocks - QuadPlacement.highGap(level, placement);
 
         if (ModelMetadata.has(model.metadata(), ModelMetadata.FLUID)) {
-            return below - 1.0F + fluidTop(coarse ? FluidCorners.FLAT : placement, bounds[BakedModel.MAX_Y]);
+            return below - 1.0F + fluidTop(QuadPlacement.corners(level, true, placement), bounds[BakedModel.MAX_Y]);
         }
 
         float widthFrom = bounds[BakedModel.MIN_X];
@@ -127,7 +108,7 @@ public final class SurfaceReading {
                 + Math.min(alongWidth * widthFrom, alongWidth * widthTo)
                 + Math.min(alongHeight * heightFrom, alongHeight * heightTo);
 
-        return below - inset + (coarse ? 0.0F : QuadOffset.y(placement));
+        return below - inset + QuadOffset.y(QuadPlacement.offset(level, false, placement));
     }
 
     private static float fluidTop(int corners, float flatHeight) {

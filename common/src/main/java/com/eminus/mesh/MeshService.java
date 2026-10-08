@@ -162,10 +162,10 @@ public final class MeshService {
                 }
             }
 
-            scratch.blend().begin(scratch.voxels(), tints, task.key(), blendRadius);
+            scratch.begin(frame, task.key(), tints, blendRadius);
 
             AtomicBoolean retried = new AtomicBoolean();
-            CellMesh mesh = new CellMesher(scratch, models, frame).mesh(task.key(), occupancy,
+            CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy,
                     opacity.at(CellKey.level(task.key())), () -> {
                 if (retried.compareAndSet(false, true)) {
                     submit(task.retry());

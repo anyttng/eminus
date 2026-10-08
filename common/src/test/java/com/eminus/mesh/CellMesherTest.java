@@ -1072,7 +1072,7 @@ class CellMesherTest {
 
     private static void assertBladesOffset(CellMesh mesh, int x, int y, int z, Vec3 expected) {
         for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
-            int offset = mesh.offset(bladeAt(mesh, blade, x, y, z));
+            int offset = mesh.placement(bladeAt(mesh, blade, x, y, z));
             assertEquals(expected.x, QuadOffset.x(offset), OFFSET_TOLERANCE, "x of blade " + blade);
             assertEquals(expected.y, QuadOffset.y(offset), OFFSET_TOLERANCE, "y of blade " + blade);
             assertEquals(expected.z, QuadOffset.z(offset), OFFSET_TOLERANCE, "z of blade " + blade);
@@ -1176,7 +1176,7 @@ class CellMesherTest {
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
             if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y && Quad.z(quad) == z) {
-                return mesh.offset(quad);
+                return mesh.placement(quad);
             }
         }
 
@@ -1190,9 +1190,9 @@ class CellMesherTest {
         around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
         scratch.voxels().loadCoverage(coverage, key);
         scratch.voxels().loadBelow(around.get(Direction.DOWN));
-        scratch.blend().begin(scratch.voxels(), tints, key, NO_BLEND);
+        scratch.begin(FRAME, key, tints, NO_BLEND);
 
-        return new CellMesher(scratch, models, FRAME)
+        return new CellMesher(scratch, models)
                 .mesh(key, centre.occupancy(), opacity, () -> bakeRequests++);
     }
 
@@ -1210,9 +1210,9 @@ class CellMesherTest {
         scratch.voxels().load(centre);
         around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
         long key = CellKey.pack(level, 0, 0, 0);
-        scratch.blend().begin(scratch.voxels(), tints, key, NO_BLEND);
+        scratch.begin(FRAME, key, tints, NO_BLEND);
 
-        return new CellMesher(scratch, models, FRAME)
+        return new CellMesher(scratch, models)
                 .mesh(key, centre.occupancy(), opacity, () -> bakeRequests++);
     }
 

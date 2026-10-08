@@ -80,6 +80,13 @@ public final class FluidCorners {
         return corners >>> SOUTH_EAST_SHIFT & MASK;
     }
 
+    public static float height(int corners, boolean east, boolean south) {
+        int steps = south
+                ? (east ? southEast(corners) : southWest(corners))
+                : (east ? northEast(corners) : northWest(corners));
+        return steps / (float) STEPS;
+    }
+
     public static boolean full(int corners) {
         return corners != FLAT && northWest(corners) == STEPS && northEast(corners) == STEPS
                 && southWest(corners) == STEPS && southEast(corners) == STEPS;
