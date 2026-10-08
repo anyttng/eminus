@@ -29,15 +29,27 @@ final class OpenGlPass implements Pass {
     private static final int UNBOUND = 0;
     private static final int VECTOR_COMPONENTS = 4;
 
+    private static final int ONE_TARGET = 1;
+
     private final OpenGlGpu gpu;
     private final GameHandles.Bindings gameBindings;
+    private final int colourTargets;
     private final int[] gameTextures = new int[Integer.SIZE];
     private @Nullable OpenGlPipeline pipeline;
     private int sampledUnits;
 
-    private OpenGlPass(OpenGlGpu gpu, GameHandles.Bindings gameBindings) {
+    private OpenGlPass(OpenGlGpu gpu, GameHandles.Bindings gameBindings, int colourTargets) {
         this.gpu = gpu;
         this.gameBindings = gameBindings;
+        this.colourTargets = colourTargets;
+    }
+
+    static OpenGlPass openForeign(OpenGlGpu gpu, int framebuffer, int width, int height, int colourTargets) {
+        GameHandles.Bindings gameBindings = GameHandles.bindings();
+        GameHandles.bindFramebuffer(framebuffer);
+        GameHandles.viewport(0, 0, width, height);
+        GameHandles.scissor(0, 0, width, height);
+        return new OpenGlPass(gpu, gameBindings, colourTargets);
     }
 
     static OpenGlPass open(OpenGlGpu gpu, PassSpec spec) {
@@ -48,7 +60,7 @@ final class OpenGlPass implements Pass {
             GameHandles.restore(gameBindings);
             throw refused;
         }
-        return new OpenGlPass(gpu, gameBindings);
+        return new OpenGlPass(gpu, gameBindings, ONE_TARGET);
     }
 
     private static void clear(OpenGlGpu gpu, PassSpec spec) {
@@ -91,13 +103,15 @@ final class OpenGlPass implements Pass {
         }
 
         PipelineSpec.ColourTarget colour = spec.colour();
-        GameHandles.colourMask(COLOUR_INDEX, colour.writes() ? WRITE_ALL : WRITE_NONE);
-        if (colour.blend() == null) {
-            GameHandles.noBlend(COLOUR_INDEX);
-        } else {
-            OpenGlTypes.BlendFactors factors = OpenGlTypes.blend(colour.blend());
-            GameHandles.blend(COLOUR_INDEX, factors.sourceRgb(), factors.destinationRgb(), factors.sourceAlpha(),
-                    factors.destinationAlpha());
+        for (int index = COLOUR_INDEX; index < colourTargets; index++) {
+            GameHandles.colourMask(index, colour.writes() ? WRITE_ALL : WRITE_NONE);
+            if (colour.blend() == null) {
+                GameHandles.noBlend(index);
+            } else {
+                OpenGlTypes.BlendFactors factors = OpenGlTypes.blend(colour.blend());
+                GameHandles.blend(index, factors.sourceRgb(), factors.destinationRgb(), factors.sourceAlpha(),
+                        factors.destinationAlpha());
+            }
         }
         GameHandles.fillBothFaces();
     }

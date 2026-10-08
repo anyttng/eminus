@@ -243,6 +243,11 @@ final class GameHandles {
         GlStateManager._glBindFramebuffer(GL30C.GL_FRAMEBUFFER, framebuffer);
     }
 
+    static void bindFramebuffers(int read, int draw) {
+        GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, read);
+        GlStateManager._glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, draw);
+    }
+
     static void deleteFramebuffer(int framebuffer) {
         GlStateManager._glDeleteFramebuffers(framebuffer);
     }

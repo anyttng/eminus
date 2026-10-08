@@ -1,0 +1,210 @@
+package com.eminus.compat.iris;
+
+import java.nio.FloatBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import com.eminus.Eminus;
+import com.eminus.client.render.far.FarDraw;
+import com.eminus.client.render.far.FarTarget;
+import com.eminus.gpu.Foreign;
+import com.eminus.gpu.Location;
+import com.eminus.gpu.pass.Pass;
+import com.eminus.gpu.pipeline.Pipeline;
+
+import com.google.common.primitives.Ints;
+
+import net.irisshaders.iris.gl.IrisRenderSystem;
+import net.irisshaders.iris.gl.blending.BlendModeOverride;
+import net.irisshaders.iris.gl.blending.BufferBlendOverride;
+import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
+import net.irisshaders.iris.gl.program.ProgramImages;
+import net.irisshaders.iris.gl.program.ProgramSamplers;
+import net.irisshaders.iris.gl.program.ProgramUniforms;
+import net.irisshaders.iris.gl.state.FogMode;
+import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
+import net.irisshaders.iris.pipeline.transform.PatchShaderType;
+import net.irisshaders.iris.pipeline.transform.ShaderPrinter;
+import net.irisshaders.iris.pipeline.transform.TransformPatcher;
+import net.irisshaders.iris.samplers.IrisSamplers;
+import net.irisshaders.iris.shaderpack.preprocessor.JcppProcessor;
+import net.irisshaders.iris.shaderpack.programs.ProgramSet;
+import net.irisshaders.iris.shaderpack.programs.ProgramSource;
+import net.irisshaders.iris.shaderpack.properties.ShaderProperties;
+import net.irisshaders.iris.uniforms.CommonUniforms;
+import net.irisshaders.iris.uniforms.builtin.BuiltinReplacementUniforms;
+import net.irisshaders.iris.uniforms.custom.CustomUniforms;
+
+import org.joml.Matrix3f;
+import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
+import org.jspecify.annotations.Nullable;
+import org.lwjgl.opengl.GL11C;
+import org.lwjgl.opengl.GL20C;
+import org.lwjgl.system.MemoryStack;
+
+final class PackProgram {
+    private static final int FIRST_UNIT = IrisSamplers.WORLD_RESERVED_TEXTURE_UNITS.stream()
+            .mapToInt(Integer::intValue).max().orElseThrow() + 1;
+    private static final String LOCATION_PREFIX = "pack";
+    private static final String OPAQUE_NAME = "eminus_opaque";
+    private static final String TRANSLUCENT_NAME = "eminus_translucent";
+    private static final String MODEL_VIEW = "iris_ModelViewMatrix";
+    private static final String MODEL_VIEW_INVERSE = "iris_ModelViewMatrixInverse";
+    private static final String PROJECTION = "iris_ProjectionMatrix";
+    private static final String PROJECTION_INVERSE = "iris_ProjectionMatrixInverse";
+    private static final String NORMAL_MATRIX = "iris_NormalMatrix";
+    private static final int NO_PROGRAM = 0;
+    private static final int MAT4_FLOATS = 16;
+    private static final int MAT3_FLOATS = 9;
+    private static final boolean TRANSPOSE = false;
+
+    private final Foreign foreign;
+    private final Pipeline pipeline;
+    private final ProgramSource source;
+    private final Object pass;
+    private final CustomUniforms customUniforms;
+    private final ProgramUniforms uniforms;
+    private final ProgramSamplers samplers;
+    private final ProgramImages images;
+    private final List<BufferBlendOverride> bufferBlends;
+    private final int modelView;
+    private final int modelViewInverse;
+    private final int projection;
+    private final int projectionInverse;
+    private final int normalMatrix;
+    private final Matrix4f inverse = new Matrix4f();
+    private final Matrix3f normal = new Matrix3f();
+
+    private PackProgram(Foreign foreign, Pipeline pipeline, ProgramSource source, Object pass,
+            CustomUniforms customUniforms, ProgramUniforms uniforms, ProgramSamplers samplers, ProgramImages images) {
+        this.foreign = foreign;
+        this.pipeline = pipeline;
+        this.source = source;
+        this.pass = pass;
+        this.customUniforms = customUniforms;
+        this.uniforms = uniforms;
+        this.samplers = samplers;
+        this.images = images;
+        this.bufferBlends = bufferBlends(source);
+        int program = foreign.program(pipeline);
+        modelView = GL20C.glGetUniformLocation(program, MODEL_VIEW);
+        modelViewInverse = GL20C.glGetUniformLocation(program, MODEL_VIEW_INVERSE);
+        projection = GL20C.glGetUniformLocation(program, PROJECTION);
+        projectionInverse = GL20C.glGetUniformLocation(program, PROJECTION_INVERSE);
+        normalMatrix = GL20C.glGetUniformLocation(program, NORMAL_MATRIX);
+    }
+
+    static @Nullable PackProgram build(FarDraw draw, Foreign foreign, IrisRenderingPipeline irisPipeline,
+            ProgramSet programSet, ShaderProperties properties, String file, String packSource, boolean translucent) {
+        String name = translucent ? TRANSLUCENT_NAME : OPAQUE_NAME;
+        ProgramSource[] built = new ProgramSource[1];
+        Pipeline pipeline = foreign.pipeline(
+                draw.packPipeline(new Location(Eminus.MODID, LOCATION_PREFIX + file), translucent), FIRST_UNIT,
+                ours -> {
+                    String spliced = PackSources.splice(packSource,
+                            PackSources.header(JcppProcessor.glslPreprocessSource(ours, List.of())));
+                    built[0] = new ProgramSource(name, null, null, null, null, spliced, programSet, properties, null);
+                    Map<PatchShaderType, String> patched = TransformPatcher.patchDHTerrain(name, null, null, null,
+                            null, spliced, irisPipeline.getTextureMap());
+                    ShaderPrinter.printProgram(name).addSources(patched).print();
+                    return patched.get(PatchShaderType.FRAGMENT);
+                });
+        if (!pipeline.compiles()) {
+            return null;
+        }
+
+        int program = foreign.program(pipeline);
+        Set<Integer> reserved = IntStream.range(0, foreign.textureUnits(pipeline)).boxed().collect(Collectors.toSet());
+        GL20C.glUseProgram(program);
+        try {
+            ProgramUniforms.Builder uniforms = ProgramUniforms.builder(name, program);
+            ProgramSamplers.Builder samplers = ProgramSamplers.builder(program, reserved);
+            ProgramImages.Builder images = ProgramImages.builder(program);
+            CustomUniforms customUniforms = irisPipeline.getCustomUniforms();
+            CommonUniforms.addDynamicUniforms(uniforms, FogMode.PER_VERTEX);
+            customUniforms.assignTo(uniforms);
+            BuiltinReplacementUniforms.addBuiltinReplacementUniforms(uniforms);
+            irisPipeline.addGbufferOrShadowSamplers(samplers, images, translucent
+                    ? irisPipeline::getFlippedAfterTranslucent
+                    : irisPipeline::getFlippedAfterPrepare, false, false, true, false);
+            Object pass = new Object();
+            customUniforms.mapholderToPass(uniforms, pass);
+            return new PackProgram(foreign, pipeline, built[0], pass, customUniforms, uniforms.buildUniforms(),
+                    samplers.build(), images.build());
+        } catch (RuntimeException refused) {
+            Eminus.LOGGER.error("Shader pack file {} did not bind to the pack: {}", file, refused.toString());
+            return null;
+        } finally {
+            GL20C.glUseProgram(NO_PROGRAM);
+        }
+    }
+
+    ProgramSource source() {
+        return source;
+    }
+
+    void draw(FarDraw draw, GlFramebuffer framebuffer, boolean translucent) {
+        FarTarget target = draw.target();
+        try (Pass farPass = foreign.pass(framebuffer.getId(), target.width(), target.height(),
+                source.getDirectives().getDrawBuffers().length)) {
+            farPass.pipeline(pipeline);
+            samplers.update();
+            uniforms.update();
+            customUniforms.push(pass);
+            images.update();
+            matrices(draw.view(), draw.projection());
+            IrisRenderSystem.bindTextureToUnit(GL11C.GL_TEXTURE_2D, IrisSamplers.LIGHTMAP_TEXTURE_UNIT,
+                    foreign.texture(draw.lightmap()));
+            source.getDirectives().getBlendModeOverride().ifPresent(BlendModeOverride::apply);
+            bufferBlends.forEach(BufferBlendOverride::apply);
+
+            draw.bind(farPass);
+            if (translucent) {
+                draw.drawTranslucent(farPass);
+            } else {
+                draw.drawOpaque(farPass);
+            }
+        } finally {
+            ProgramUniforms.clearActiveUniforms();
+            ProgramSamplers.clearActiveSamplers();
+            BlendModeOverride.restore();
+        }
+    }
+
+    private void matrices(Matrix4fc view, Matrix4fc farProjection) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            FloatBuffer matrix = stack.mallocFloat(MAT4_FLOATS);
+            matrix4(modelView, view, matrix);
+            matrix4(modelViewInverse, view.invert(inverse), matrix);
+            matrix4(projection, farProjection, matrix);
+            matrix4(projectionInverse, farProjection.invert(inverse), matrix);
+            if (normalMatrix >= 0) {
+                GL20C.glUniformMatrix3fv(normalMatrix, TRANSPOSE,
+                        view.invert(inverse).transpose3x3(normal).get(stack.mallocFloat(MAT3_FLOATS)));
+            }
+        }
+    }
+
+    private static void matrix4(int location, Matrix4fc value, FloatBuffer scratch) {
+        if (location >= 0) {
+            GL20C.glUniformMatrix4fv(location, TRANSPOSE, value.get(scratch));
+        }
+    }
+
+    private static List<BufferBlendOverride> bufferBlends(ProgramSource source) {
+        List<BufferBlendOverride> overrides = new ArrayList<>();
+        int[] drawBuffers = source.getDirectives().getDrawBuffers();
+        source.getDirectives().getBufferBlendOverrides().forEach(information -> {
+            int index = Ints.indexOf(drawBuffers, information.index());
+            if (index >= 0) {
+                overrides.add(new BufferBlendOverride(index, information.blendMode()));
+            }
+        });
+        return overrides;
+    }
+}

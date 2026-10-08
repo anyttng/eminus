@@ -48,7 +48,12 @@ final class FarQuads {
 
     static PipelineSpec.Builder pipeline(Location location, float alphaCutout, Capabilities capabilities,
             VariantDraw variantDraw) {
-        PipelineSpec.Builder builder = PipelineSpec.builder(location, SHADER, SHADER)
+        return pipeline(location, SHADER, alphaCutout, capabilities, variantDraw);
+    }
+
+    static PipelineSpec.Builder pipeline(Location location, Location shader, float alphaCutout,
+            Capabilities capabilities, VariantDraw variantDraw) {
+        PipelineSpec.Builder builder = PipelineSpec.builder(location, shader, shader)
                 .withBinding(Binding.uniform(FarFrame.BLOCK.name()))
                 .withBinding(Binding.texel(QUADS, GeometryArena.QUAD_FORMAT))
                 .withBinding(Binding.texel(MESH_RECORDS, MeshRecords.TEXEL_FORMAT))
@@ -67,6 +72,9 @@ final class FarQuads {
                 .withDefine("FLUID_FLAG", ModelMetadata.FLUID)
                 .withDefine("ONE_SIDED_FLAG", ModelMetadata.ONE_SIDED)
                 .withDefine("INWARD_FLAG", ModelMetadata.INWARD)
+                .withDefine("EMISSION_SHIFT", ModelMetadata.EMISSION_SHIFT)
+                .withDefine("EMISSION_BITS", Integer.bitCount(ModelMetadata.MAX_EMISSION))
+                .withDefine("MAX_EMISSION", ModelMetadata.MAX_EMISSION)
                 .withDefine("CORNER_STEPS", FluidCorners.STEPS)
                 .withDefine("FACE_SIDE", BakedModel.FACE_SIDE)
                 .withDefine("MAX_VARIANT_REJECTIONS", BakedModel.MAX_VARIANT_REJECTIONS)

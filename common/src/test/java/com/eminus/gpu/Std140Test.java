@@ -19,9 +19,9 @@ class Std140Test {
 
     @Test
     void theFarFrameOffsetsAreTheShaders() {
-        assertEquals(List.of(0, 64, 68, 72, 76, 80, 92, 96, 100, 104, 108, 112, 128, 144),
+        assertEquals(List.of(0, 64, 128, 132, 136, 140, 144, 156, 160, 164, 168, 172, 176, 192, 208),
                 FarFrame.BLOCK.members().stream().map(Std140.Member::offset).toList());
-        assertEquals(156, FarFrame.BLOCK.size());
+        assertEquals(220, FarFrame.BLOCK.size());
     }
 
     @Test

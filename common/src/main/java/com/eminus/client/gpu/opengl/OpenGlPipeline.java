@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 
 import com.eminus.Eminus;
 import com.eminus.gpu.Format;
@@ -25,6 +26,7 @@ final class OpenGlPipeline implements Pipeline {
     private static final int NO_PROGRAM = 0;
     private static final int NO_SHADER = 0;
     private static final int NOT_ACTIVE = -1;
+    private static final int FIRST_UNIT = 0;
     private static final int LOG_LENGTH = 32768;
     private static final String INACTIVE = "inactive";
 
@@ -40,22 +42,31 @@ final class OpenGlPipeline implements Pipeline {
     private final PipelineSpec spec;
     private final int program;
     private final Map<String, @Nullable Slot> slots;
+    private final int textureUnits;
 
-    private OpenGlPipeline(PipelineSpec spec, int program, Map<String, @Nullable Slot> slots) {
+    private OpenGlPipeline(PipelineSpec spec, int program, Map<String, @Nullable Slot> slots, int textureUnits) {
         this.spec = spec;
         this.program = program;
         this.slots = slots;
+        this.textureUnits = textureUnits;
     }
 
     static OpenGlPipeline of(OpenGlObjects objects, PipelineSpec spec) {
-        requireTextureUnits(spec);
+        return of(objects, spec, FIRST_UNIT, UnaryOperator.identity());
+    }
+
+    static OpenGlPipeline of(OpenGlObjects objects, PipelineSpec spec, int firstUnit,
+            UnaryOperator<String> fragmentSource) {
+        requireTextureUnits(spec, firstUnit);
         String name = spec.location().toString();
-        int vertex = compile(spec, spec.vertexShader(), VERTEX_EXTENSION, GL20C.GL_VERTEX_SHADER);
-        int fragment = compile(spec, spec.fragmentShader(), FRAGMENT_EXTENSION, GL20C.GL_FRAGMENT_SHADER);
+        int vertex = compile(spec, spec.vertexShader(), VERTEX_EXTENSION, GL20C.GL_VERTEX_SHADER,
+                UnaryOperator.identity());
+        int fragment = compile(spec, spec.fragmentShader(), FRAGMENT_EXTENSION, GL20C.GL_FRAGMENT_SHADER,
+                fragmentSource);
         if (vertex == NO_SHADER || fragment == NO_SHADER) {
             GL20C.glDeleteShader(vertex);
             GL20C.glDeleteShader(fragment);
-            return new OpenGlPipeline(spec, NO_PROGRAM, Map.of());
+            return new OpenGlPipeline(spec, NO_PROGRAM, Map.of(), firstUnit);
         }
 
         int program = GL20C.glCreateProgram();
@@ -69,32 +80,32 @@ final class OpenGlPipeline implements Pipeline {
         if (GL20C.glGetProgrami(program, GL20C.GL_LINK_STATUS) == GL11C.GL_FALSE) {
             Eminus.LOGGER.error("Program {} did not link: {}", name, GL20C.glGetProgramInfoLog(program, LOG_LENGTH).strip());
             GL20C.glDeleteProgram(program);
-            return new OpenGlPipeline(spec, NO_PROGRAM, Map.of());
+            return new OpenGlPipeline(spec, NO_PROGRAM, Map.of(), firstUnit);
         }
 
         objects.created(OpenGlObjects.Kind.PROGRAM, program, name);
         Map<String, @Nullable Slot> slots = new HashMap<>();
-        resolve(program, spec, slots);
-        return new OpenGlPipeline(spec, program, slots);
+        int textureUnits = resolve(program, spec, slots, firstUnit);
+        return new OpenGlPipeline(spec, program, slots, textureUnits);
     }
 
-    static void requireTextureUnits(PipelineSpec spec) {
-        long units = spec.bindings().stream()
+    static void requireTextureUnits(PipelineSpec spec, int firstUnit) {
+        long units = firstUnit + spec.bindings().stream()
                 .filter(binding -> binding.kind() == Binding.Kind.TEXEL || binding.kind() == Binding.Kind.SAMPLED)
                 .count();
         if (units > GameHandles.GAME_TRACKED_TEXTURE_UNITS) {
-            throw new IllegalArgumentException("Pipeline " + spec.location() + " declares " + units
-                    + " texture bindings, more than the " + GameHandles.GAME_TRACKED_TEXTURE_UNITS
-                    + " units the game tracks");
+            throw new IllegalArgumentException("Pipeline " + spec.location() + " declares texture bindings up to unit "
+                    + units + ", more than the " + GameHandles.GAME_TRACKED_TEXTURE_UNITS + " units the game tracks");
         }
     }
 
-    private static int compile(PipelineSpec spec, Location shader, String extension, int type) {
+    private static int compile(PipelineSpec spec, Location shader, String extension, int type,
+            UnaryOperator<String> finish) {
         String name = spec.location() + " " + shader + extension;
         String source;
         try {
-            source = GlslSource.compose(read(shader.withPrefix(SHADER_FOLDER).withSuffix(extension)), spec.defines(),
-                    OpenGlPipeline::includeSource);
+            source = finish.apply(GlslSource.compose(read(shader.withPrefix(SHADER_FOLDER).withSuffix(extension)),
+                    spec.defines(), OpenGlPipeline::includeSource));
         } catch (IOException | RuntimeException refused) {
             Eminus.LOGGER.error("Shader {} could not be read: {}", name, refused.toString());
             return NO_SHADER;
@@ -124,9 +135,9 @@ final class OpenGlPipeline implements Pipeline {
         return GameHandles.resource(file).orElseThrow(() -> new IOException("No resource " + file));
     }
 
-    private static void resolve(int program, PipelineSpec spec, Map<String, @Nullable Slot> slots) {
+    private static int resolve(int program, PipelineSpec spec, Map<String, @Nullable Slot> slots, int firstUnit) {
         int nextBlock = 0;
-        int nextUnit = 0;
+        int nextUnit = firstUnit;
         GL20C.glUseProgram(program);
         for (Binding binding : spec.bindings()) {
             switch (binding.kind()) {
@@ -160,10 +171,15 @@ final class OpenGlPipeline implements Pipeline {
         }
         Eminus.LOGGER.info("[eminus-gl] program name={} blocks={} units={} text={}", spec.location(),
                 nextBlock, nextUnit, resolved.toString().strip());
+        return nextUnit;
     }
 
     PipelineSpec spec() {
         return spec;
+    }
+
+    int textureUnits() {
+        return textureUnits;
     }
 
     Map<String, @Nullable Slot> slots() {
