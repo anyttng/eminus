@@ -1,12 +1,11 @@
-package com.eminus.client.render.far;
+package com.eminus.client.model;
+
+import java.util.Arrays;
 
 import com.eminus.Eminus;
+import com.eminus.gpu.Gpu;
 import com.eminus.model.BakedModel;
 import com.eminus.model.ModelBakery;
-import com.eminus.client.model.ModelAtlas;
-import com.eminus.client.model.ModelRecords;
-import com.eminus.client.model.ModelVariants;
-import com.eminus.gpu.Gpu;
 
 public final class ModelPublisher implements AutoCloseable {
     public static final int START_CELLS = 4;
@@ -22,8 +21,11 @@ public final class ModelPublisher implements AutoCloseable {
     private ModelRecords records;
     private ModelVariants variants;
     private int recordCapacity = START_RECORDS;
+    private int[] variantStarts = new int[START_RECORDS];
     private int published;
     private int variantEntries;
+    private int growths;
+    private int reuploaded;
     private boolean atlasFull;
 
     private ModelPublisher(Gpu gpu, ModelBakery bakery, ModelAtlas atlas, ModelRecords records,
@@ -57,6 +59,14 @@ public final class ModelPublisher implements AutoCloseable {
         return published;
     }
 
+    public int growths() {
+        return growths;
+    }
+
+    public int reuploaded() {
+        return reuploaded;
+    }
+
     public void publish() {
         gpu.assertRenderThread();
         int baked = bakery.modelCount();
@@ -71,6 +81,7 @@ public final class ModelPublisher implements AutoCloseable {
             }
 
             atlas.upload(published, model);
+            variantStarts[published] = variantEntries;
             records.write(published, model, variantEntries);
             if (model.variantCount() > 0) {
                 variants.write(variantEntries, model.variants());
@@ -90,7 +101,8 @@ public final class ModelPublisher implements AutoCloseable {
 
     private boolean fitAtlas(int modelId) {
         while (!atlas.fits(modelId)) {
-            if (atlas.grow(bakery) == 0) {
+            int moved = atlas.grow(bakery);
+            if (moved == 0) {
                 if (!atlasFull) {
                     Eminus.LOGGER.error("The model atlas is full at {} models; the rest stay unpublished", published);
                     atlasFull = true;
@@ -98,6 +110,9 @@ public final class ModelPublisher implements AutoCloseable {
 
                 return false;
             }
+
+            growths++;
+            reuploaded += moved;
         }
 
         return true;
@@ -112,12 +127,10 @@ public final class ModelPublisher implements AutoCloseable {
         records.close();
         records = ModelRecords.create(gpu, grown);
         recordCapacity = grown;
+        variantStarts = Arrays.copyOf(variantStarts, grown);
 
-        int start = 0;
         for (int modelId = 0; modelId < published; modelId++) {
-            BakedModel model = bakery.model(modelId);
-            records.write(modelId, model, start);
-            start += model.variantCount();
+            records.write(modelId, bakery.model(modelId), variantStarts[modelId]);
         }
     }
 
@@ -130,12 +143,10 @@ public final class ModelPublisher implements AutoCloseable {
         variants.close();
         variants = ModelVariants.create(gpu, grown);
 
-        int start = 0;
         for (int modelId = 0; modelId < published; modelId++) {
             BakedModel model = bakery.model(modelId);
             if (model.variantCount() > 0) {
-                variants.write(start, model.variants());
-                start += model.variantCount();
+                variants.write(variantStarts[modelId], model.variants());
             }
         }
     }

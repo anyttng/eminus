@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.ToIntFunction;
 
 import com.eminus.client.gpu.Gpus;
 import com.eminus.client.model.game.ModelSheet;
@@ -43,7 +44,6 @@ public final class ModelReading {
     public static final int TINTED = 4;
     public static final int INSET_UP_BITS = 5;
 
-    private static final int START_CELLS = 4;
     private static final int BAKE_TIMEOUT_SECONDS = 60;
     private static final int NO_DETAIL = 0;
     private static final List<Block> SAMPLE = List.of(
@@ -95,55 +95,39 @@ public final class ModelReading {
                 return;
             }
 
-            CountDownLatch served = new CountDownLatch(1);
-            if (bakery.request(state, served::countDown) != ModelBakery.MISSING) {
-                continue;
-            }
-
-            try {
-                if (!served.await(BAKE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                    throw new IllegalStateException("The bake of " + state + " did not finish within "
-                            + BAKE_TIMEOUT_SECONDS + " seconds.");
-                }
-            } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-                return;
-            }
+            awaitBake(state, whenBaked -> bakery.request(state, whenBaked));
         }
     }
 
-    private static void upload(ModelBakery bakery, long[] summary) {
-        int count = bakery.modelCount();
-        try (Gpu gpu = Gpus.create();
-                ModelAtlas atlas = ModelAtlas.create(gpu, START_CELLS);
-                ModelRecords records = ModelRecords.create(gpu, Math.max(count, 1))) {
-            summary[CELLS_FROM] = atlas.cellsPerSide();
-            int variantStart = 0;
+    static int awaitBake(BlockState state, ToIntFunction<Runnable> request) {
+        CountDownLatch served = new CountDownLatch(1);
+        int modelId = request.applyAsInt(served::countDown);
+        if (modelId != ModelBakery.MISSING) {
+            return modelId;
+        }
 
-            for (int modelId = 0; modelId < count; modelId++) {
-                while (!atlas.fits(modelId)) {
-                    int moved = atlas.grow(bakery);
-                    if (moved == 0) {
-                        break;
-                    }
-
-                    summary[GROWTHS]++;
-                    summary[REUPLOADED] += moved;
-                }
-
-                if (!atlas.fits(modelId)) {
-                    break;
-                }
-
-                BakedModel model = bakery.model(modelId);
-                atlas.upload(modelId, model);
-                records.write(modelId, model, variantStart);
-                variantStart += model.variantCount();
-                summary[UPLOADED]++;
+        try {
+            if (!served.await(BAKE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("The bake of " + state + " did not finish within "
+                        + BAKE_TIMEOUT_SECONDS + " seconds.");
             }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while baking " + state + ".", interrupted);
+        }
 
-            summary[CELLS_TO] = atlas.cellsPerSide();
-            summary[SIDE] = atlas.side();
+        return request.applyAsInt(() -> { });
+    }
+
+    private static void upload(ModelBakery bakery, long[] summary) {
+        try (Gpu gpu = Gpus.create(); ModelPublisher publisher = ModelPublisher.start(gpu, bakery)) {
+            summary[CELLS_FROM] = publisher.atlas().cellsPerSide();
+            publisher.publish();
+            summary[UPLOADED] = publisher.published();
+            summary[GROWTHS] = publisher.growths();
+            summary[REUPLOADED] = publisher.reuploaded();
+            summary[CELLS_TO] = publisher.atlas().cellsPerSide();
+            summary[SIDE] = publisher.atlas().side();
         }
     }
 

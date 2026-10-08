@@ -3,6 +3,7 @@ package com.eminus.client.render.far;
 import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
+import com.eminus.client.model.ModelPublisher;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Gpu;

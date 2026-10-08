@@ -1,7 +1,6 @@
 package com.eminus.model;
 
-import java.util.Arrays;
-
+import com.eminus.cell.IdTable;
 import com.eminus.cell.StateTable;
 
 import net.minecraft.world.level.block.state.BlockState;
@@ -11,9 +10,8 @@ public final class ModelIndex {
 
     private final StateTable states;
     private final ModelBakery bakery;
-
-    private volatile int[] modelIds = newIds(INITIAL_CAPACITY);
-    private volatile int[] fluidIds = newIds(INITIAL_CAPACITY);
+    private final IdTable modelIds = new IdTable(INITIAL_CAPACITY, ModelBakery.MISSING);
+    private final IdTable fluidIds = new IdTable(INITIAL_CAPACITY, ModelBakery.MISSING);
 
     public ModelIndex(StateTable states, ModelBakery bakery) {
         this.states = states;
@@ -21,21 +19,21 @@ public final class ModelIndex {
     }
 
     public int modelId(int stateId, Runnable whenBaked) {
-        int known = remembered(modelIds, stateId);
+        int known = modelIds.get(stateId);
         if (known != ModelBakery.MISSING) {
             return known;
         }
 
-        return resolve(stateId, whenBaked) ? remembered(modelIds, stateId) : ModelBakery.MISSING;
+        return resolve(stateId, whenBaked) ? modelIds.get(stateId) : ModelBakery.MISSING;
     }
 
     public int fluidModelId(int stateId, Runnable whenBaked) {
-        int known = remembered(fluidIds, stateId);
+        int known = fluidIds.get(stateId);
         if (known != ModelBakery.MISSING) {
             return known;
         }
 
-        return resolve(stateId, whenBaked) ? remembered(fluidIds, stateId) : ModelBakery.MISSING;
+        return resolve(stateId, whenBaked) ? fluidIds.get(stateId) : ModelBakery.MISSING;
     }
 
     public int positionalModelId(int stateId, int blockX, int blockY, int blockZ, Runnable whenBaked) {
@@ -65,39 +63,8 @@ public final class ModelIndex {
             return false;
         }
 
-        remember(stateId, bakery.positional(state) ? ModelBakery.POSITIONAL : modelId, bakery.fluidModelId(state));
+        fluidIds.put(stateId, bakery.fluidModelId(state));
+        modelIds.put(stateId, bakery.positional(state) ? ModelBakery.POSITIONAL : modelId);
         return true;
-    }
-
-    private synchronized void remember(int stateId, int modelId, int fluidId) {
-        int[] currentModels = modelIds;
-        int[] currentFluids = fluidIds;
-
-        if (stateId >= currentModels.length) {
-            int size = Math.max(currentModels.length * 2, stateId + 1);
-            currentModels = grown(currentModels, size);
-            currentFluids = grown(currentFluids, size);
-        }
-
-        currentModels[stateId] = modelId;
-        currentFluids[stateId] = fluidId;
-        fluidIds = currentFluids;
-        modelIds = currentModels;
-    }
-
-    private static int remembered(int[] snapshot, int stateId) {
-        return stateId >= 0 && stateId < snapshot.length ? snapshot[stateId] : ModelBakery.MISSING;
-    }
-
-    private static int[] grown(int[] current, int size) {
-        int[] grown = Arrays.copyOf(current, size);
-        Arrays.fill(grown, current.length, size, ModelBakery.MISSING);
-        return grown;
-    }
-
-    private static int[] newIds(int capacity) {
-        int[] created = new int[capacity];
-        Arrays.fill(created, ModelBakery.MISSING);
-        return created;
     }
 }
