@@ -28,6 +28,7 @@ import com.eminus.client.frame.GameFrame;
 import com.eminus.client.frame.GameFrames;
 import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Location;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.render.arena.ArenaSizing;
@@ -57,7 +58,6 @@ import com.eminus.settings.SettingsService;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
 import org.joml.FrustumIntersection;
@@ -151,7 +151,7 @@ public final class FarRenderer implements AutoCloseable {
         OcclusionPass occlusion = OcclusionPass.create(gpu, support.depth());
         TranslucentPass translucent = TranslucentPass.create(gpu, support.depth(), baking.variantDraw());
         CompositePass composite = CompositePass.create(gpu, support.depth());
-        Identifier refused = refusedProgram(List.of(mask.pipeline(), opaque.pipeline(), occlusion.pipeline(),
+        Location refused = refusedProgram(List.of(mask.pipeline(), opaque.pipeline(), occlusion.pipeline(),
                 translucent.pipeline(), composite.pipeline()));
         if (refused != null) {
             Eminus.LOGGER.warn("Renderer disabled: program {} did not compile", refused);
@@ -183,7 +183,7 @@ public final class FarRenderer implements AutoCloseable {
         return renderer;
     }
 
-    static @Nullable Identifier refusedProgram(List<Pipeline> pipelines) {
+    static @Nullable Location refusedProgram(List<Pipeline> pipelines) {
         for (Pipeline pipeline : pipelines) {
             if (!pipeline.compiles()) {
                 return pipeline.location();

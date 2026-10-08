@@ -4,7 +4,8 @@ import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.pipeline.Pipeline;
 
 public interface Pass extends Bindings, AutoCloseable {
-    int INDEXED_INDIRECT_BYTES = 5 * Integer.BYTES;
+    int INDEXED_INDIRECT_INTS = 5;
+    int INDEXED_INDIRECT_BYTES = INDEXED_INDIRECT_INTS * Integer.BYTES;
 
     void pipeline(Pipeline pipeline);
 

@@ -4,21 +4,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.eminus.gpu.Format;
-
-import net.minecraft.resources.Identifier;
+import com.eminus.gpu.Location;
 
 import org.jspecify.annotations.Nullable;
 
 public record PipelineSpec(
-        Identifier location,
-        Identifier vertexShader,
-        Identifier fragmentShader,
+        Location location,
+        Location vertexShader,
+        Location fragmentShader,
         List<Binding> bindings,
         List<Define> defines,
         ColourTarget colour,
         @Nullable DepthTest depth) {
 
-    public static Builder builder(Identifier location, Identifier vertexShader, Identifier fragmentShader) {
+    public static Builder builder(Location location, Location vertexShader, Location fragmentShader) {
         return new Builder(location, vertexShader, fragmentShader);
     }
 
@@ -32,15 +31,15 @@ public record PipelineSpec(
     }
 
     public static final class Builder {
-        private final Identifier location;
-        private final Identifier vertexShader;
-        private final Identifier fragmentShader;
+        private final Location location;
+        private final Location vertexShader;
+        private final Location fragmentShader;
         private final List<Binding> bindings = new ArrayList<>();
         private final List<Define> defines = new ArrayList<>();
         private @Nullable ColourTarget colour;
         private @Nullable DepthTest depth;
 
-        private Builder(Identifier location, Identifier vertexShader, Identifier fragmentShader) {
+        private Builder(Location location, Location vertexShader, Location fragmentShader) {
             this.location = location;
             this.vertexShader = vertexShader;
             this.fragmentShader = fragmentShader;
