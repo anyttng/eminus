@@ -12,8 +12,6 @@ import java.util.Map;
 import java.util.StringJoiner;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import com.eminus.client.model.game.GameModels;
 import com.eminus.model.BakedModel;
@@ -52,7 +50,6 @@ public final class ShapeReading {
 
     private static final String THREAD_NAME = "eminus-shape-reading";
     private static final float EPSILON = 1.0E-3F;
-    private static final int BAKE_TIMEOUT_SECONDS = 60;
     private static final int ALL_MODELS = Integer.MAX_VALUE;
     private static final float NO_FLUID = -1.0F;
     private static final String SEPARATOR = ",";
@@ -108,7 +105,10 @@ public final class ShapeReading {
                 }
 
                 boolean positional = bakery.positional(state);
-                int modelId = positional ? positionalModelId(bakery, state) : bakery.modelId(state);
+                int modelId = positional
+                        ? ModelReading.awaitBake(state,
+                                whenBaked -> bakery.positionalModelId(state, 0, 0, 0, whenBaked))
+                        : bakery.modelId(state);
                 if (modelId < 0) {
                     throw new IllegalStateException("No model was baked for " + state + ".");
                 }
@@ -137,26 +137,6 @@ public final class ShapeReading {
         writeClasses(directory.resolve(CLASSES_FILE_NAME), classes);
         summary[CLASSES] = classes.size();
         return List.of(summary);
-    }
-
-    private static int positionalModelId(ModelBakery bakery, BlockState state) {
-        CountDownLatch served = new CountDownLatch(1);
-        int modelId = bakery.positionalModelId(state, 0, 0, 0, served::countDown);
-        if (modelId != ModelBakery.MISSING) {
-            return modelId;
-        }
-
-        try {
-            if (!served.await(BAKE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                throw new IllegalStateException("The bake of " + state + " did not finish within "
-                        + BAKE_TIMEOUT_SECONDS + " seconds.");
-            }
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while baking " + state + ".", interrupted);
-        }
-
-        return bakery.positionalModelId(state, 0, 0, 0, () -> { });
     }
 
     private static float spriteColumns(ModelQuad quad, float uSpan) {
