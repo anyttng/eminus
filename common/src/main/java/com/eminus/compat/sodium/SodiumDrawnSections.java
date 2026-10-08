@@ -2,6 +2,8 @@ package com.eminus.compat.sodium;
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
+import com.eminus.compat.iris.IrisShaderPack;
+
 import net.minecraft.core.SectionPos;
 
 public final class SodiumDrawnSections {
@@ -12,7 +14,9 @@ public final class SodiumDrawnSections {
 
     public static void traversal(int cameraX, int cameraY, int cameraZ, float fracX, float fracY, float fracZ,
             float searchDistance) {
-        pending = new Reach(cameraX, cameraY, cameraZ, fracX, fracY, fracZ, searchDistance);
+        if (!IrisShaderPack.renderingShadowPass()) {
+            pending = new Reach(cameraX, cameraY, cameraZ, fracX, fracY, fracZ, searchDistance);
+        }
     }
 
     public static void visited(int sectionX, int sectionY, int sectionZ, boolean built) {
@@ -32,6 +36,10 @@ public final class SodiumDrawnSections {
     }
 
     public static void publish() {
+        if (IrisShaderPack.renderingShadowPass()) {
+            return;
+        }
+
         published = pending;
     }
 

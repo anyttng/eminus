@@ -58,6 +58,9 @@ var sodiumModJars = tasks.register('unpackSodiumMod', Sync) {
 
 dependencies {
     compileOnly files(sodiumModJars).asFileTree.matching { include '*.jar' }
+    compileOnly("maven.modrinth:iris:${iris_version}") {
+        transitive = false
+    }
 }
 
 // The cell store's fixed stack. This module compiles and tests against them; the loader modules bundle them.
