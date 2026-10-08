@@ -19,9 +19,13 @@ public final class FarProjection {
 
     public Matrix4f viewProjection(float near, float fov, Matrix4fc fold, Matrix4fc rotation, float width,
             float height, Matrix4f target) {
+        return projection(near, fov, fold, width, height, target).mul(rotation);
+    }
+
+    public Matrix4f projection(float near, float fov, Matrix4fc fold, float width, float height, Matrix4f target) {
         projection.setupPerspective(near, FAR, fov, width, height);
         projection.getMatrix(target);
-        return target.mul(fold).mul(rotation);
+        return target.mul(fold);
     }
 
     public Matrix4f walkViewProjection(float near, float fov, float turnMargin, Matrix4fc fold, Matrix4fc rotation,
