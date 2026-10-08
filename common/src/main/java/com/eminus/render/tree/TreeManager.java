@@ -47,7 +47,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private final TreeRing.Columns columns = new Columns();
     private final TreeTraversal traversal;
     private final TreeCleaner cleaner = new TreeCleaner();
-    private final CellBox box = new CellBox();
+    private final TreeDispatch dispatch;
     private final BlockingQueue<TreeMessage> messages = new LinkedBlockingQueue<>();
     private final AtomicReference<CameraFrame> frames = new AtomicReference<>();
     private final TreeBatches batches = new TreeBatches();
@@ -56,13 +56,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
 
     private TreeBatch batch = new TreeBatch();
     private boolean treeChanged = true;
-    private long requests;
     private int lastRequested;
     private boolean lastStarved;
     private int lastDrawn;
     private long pressureEvictions;
-    private int refinements;
-    private int outOfViewRefinements;
     private boolean outOfViewDue;
     private boolean outOfViewHeld;
     private boolean lastTablePressure;
@@ -79,6 +76,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         this.extent = extent;
         nodes = new NodeTable(capacity);
         traversal = new TreeTraversal(nodes, extent);
+        dispatch = new TreeDispatch(builds, extent);
     }
 
     public static TreeManager start(TreeBuilds builds, TreeExtent extent) {
@@ -288,7 +286,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         }
 
         if (!node.isRoot()) {
-            settleRefinement(node);
+            dispatch.settle(node);
         }
 
         node.meshed(mesh.summary());
@@ -297,7 +295,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         treeChanged = true;
 
         if (node.takeRebuild()) {
-            dispatch(node, priority(node), false);
+            dispatch.build(node, dispatch.priority(node, camera), false);
         }
     }
 
@@ -336,10 +334,8 @@ public final class TreeManager implements CellChangeListener, MeshListener {
 
         long walk = walks + 1;
         int free = nodes.free();
-        int budget = Math.min(RequestBudget.perWalk(refinements), free);
-        int outOfViewBudget = still && !outOfViewHeld
-                ? Math.min(RequestBudget.perWalk(refinements + outOfViewRefinements), free)
-                : 0;
+        int budget = dispatch.budget(free);
+        int outOfViewBudget = still && !outOfViewHeld ? dispatch.outOfViewBudget(free) : 0;
         RenderList walked = traversal.walk(nodes.roots(), camera, budget, outOfViewBudget, walk);
         List<TreeNode> requested = traversal.requested();
         List<TreeNode> outOfView = traversal.outOfViewRequested();
@@ -348,11 +344,11 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         outOfViewDue = !still;
 
         for (int index = 0; index < requested.size(); index++) {
-            dispatch(requested.get(index), traversal.requestedPriority(index), false);
+            dispatch.build(requested.get(index), traversal.requestedPriority(index), false);
         }
 
         for (int index = 0; index < outOfView.size(); index++) {
-            dispatch(outOfView.get(index), ProjectedSize.outOfView(traversal.outOfViewSize(index)), true);
+            dispatch.build(outOfView.get(index), ProjectedSize.outOfView(traversal.outOfViewSize(index)), true);
         }
 
         List<TreeNode> stale = cleaner.pick(nodes.all(), camera, extent.frame(), walk);
@@ -406,7 +402,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             }
 
             if (removed.building() && !removed.isRoot()) {
-                settleRefinement(removed);
+                dispatch.settle(removed);
             }
 
             CellHandle pending = removed.pending();
@@ -451,38 +447,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             return;
         }
 
-        dispatch(node, priority(node), false);
-    }
-
-    private float priority(TreeNode node) {
-        return camera == null
-                ? ProjectedSize.UNKNOWN
-                : ProjectedSize.of(box.set(extent.frame(), node.key(), camera), camera.pixelsPerBlock());
-    }
-
-    private void dispatch(TreeNode node, float priority, boolean outOfView) {
-        if (!node.isRoot() && !node.building()) {
-            if (outOfView) {
-                outOfViewRefinements++;
-            } else {
-                refinements++;
-            }
-        }
-
-        CellHandle handle = node.pending();
-        int references = node.pendingReferences();
-        long request = ++requests;
-        node.clearPending();
-        node.startBuild(request, outOfView);
-        builds.build(node.key(), handle, references, request, priority);
-    }
-
-    private void settleRefinement(TreeNode node) {
-        if (node.outOfViewBuild()) {
-            outOfViewRefinements--;
-        } else {
-            refinements--;
-        }
+        dispatch.build(node, dispatch.priority(node, camera), false);
     }
 
     private void publish() {
@@ -497,7 +462,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             for (int cellY = 0; cellY < extent.heightCells(); cellY++) {
                 TreeNode root = nodes.root(CellKey.pack(DetailLevel.MAX, cellX, cellY, cellZ));
                 if (root.mesh() == null && !root.building()) {
-                    dispatch(root, priority(root), false);
+                    dispatch.build(root, dispatch.priority(root, camera), false);
                 }
             }
 
