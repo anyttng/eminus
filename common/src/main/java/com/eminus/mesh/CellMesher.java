@@ -1,6 +1,5 @@
 package com.eminus.mesh;
 
-import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.StateOpacity;
@@ -14,25 +13,22 @@ import org.jspecify.annotations.Nullable;
 public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
     private final MeshScratch scratch;
     private final MeshModels models;
-    private final CellFrame frame;
 
     private Direction face;
     private int plane;
     private boolean border;
+    private int level;
     private boolean coarse;
 
-    public CellMesher(MeshScratch scratch, MeshModels models, CellFrame frame) {
+    public CellMesher(MeshScratch scratch, MeshModels models) {
         this.scratch = scratch;
         this.models = models;
-        this.frame = frame;
     }
 
     public @Nullable CellMesh mesh(long key, int occupancy, StateOpacity opacity, Runnable whenBaked) {
-        scratch.reset();
-        coarse = CellKey.level(key) > DetailLevel.MIN;
-        scratch.offsets().begin(frame, key);
-        scratch.voxelModels().begin(frame, key);
-        FacePasses passes = new FacePasses(scratch, opacity, models, CellKey.level(key), whenBaked, this);
+        level = CellKey.level(key);
+        coarse = level > DetailLevel.MIN;
+        FacePasses passes = new FacePasses(scratch, opacity, models, level, whenBaked, this);
         BladePass blades = new BladePass(scratch, models, whenBaked);
 
         if (!passes.run() || !blades.run()) {
@@ -70,18 +66,14 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
 
     @Override
     public boolean stacks(long data) {
+        int placement = scratch.buffer().placementAt(Quad.colourIndex(data));
         return !coarse || face.getAxis() == Direction.Axis.Y
-                || scratch.buffer().offsetAt(Quad.colourIndex(data)) == VoxelEntry.NO_GAPS
-                        && models.fillsHeight(Quad.modelId(data));
+                || QuadPlacement.gaps(level, placement) == VoxelEntry.NO_GAPS && models.fillsHeight(Quad.modelId(data));
     }
 
     private long placed(long data, int u, int v, int width, int height) {
-        int ordinal = face.ordinal();
-
-        return switch (face.getAxis()) {
-            case X -> Quad.of(data, ordinal, plane, v, u, width, height);
-            case Y -> Quad.of(data, ordinal, u, plane, v, width, height);
-            case Z -> Quad.of(data, ordinal, u, v, plane, width, height);
-        };
+        Direction.Axis normal = face.getAxis();
+        return Quad.of(data, face.ordinal(), PlaneAxes.x(normal, u, v, plane), PlaneAxes.y(normal, u, v, plane),
+                PlaneAxes.z(normal, u, v, plane), width, height);
     }
 }

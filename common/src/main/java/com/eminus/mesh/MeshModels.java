@@ -1,9 +1,12 @@
 package com.eminus.mesh;
 
+import com.eminus.model.ModelBakery;
+
 public interface MeshModels {
-    int MISSING = -1;
-    int NO_FLUID = -2;
-    int POSITIONAL = -4;
+    int MISSING = ModelBakery.MISSING;
+    int NO_FLUID = ModelBakery.NO_FLUID;
+    int AIR = -3;
+    int POSITIONAL = ModelBakery.POSITIONAL;
 
     int modelId(int stateId, Runnable whenBaked);
 

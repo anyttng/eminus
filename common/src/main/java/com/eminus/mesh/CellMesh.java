@@ -44,7 +44,7 @@ public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, 
         return MeshBuffer.colourOf(colours[Quad.colourIndex(quad)]);
     }
 
-    public int offset(long quad) {
-        return MeshBuffer.offsetOf(colours[Quad.colourIndex(quad)]);
+    public int placement(long quad) {
+        return MeshBuffer.placementOf(colours[Quad.colourIndex(quad)]);
     }
 }

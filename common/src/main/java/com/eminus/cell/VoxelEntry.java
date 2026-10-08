@@ -63,7 +63,11 @@ public final class VoxelEntry {
     }
 
     public static int blockLight(long entry) {
-        return (light(entry) >>> BLOCK_LIGHT_SHIFT) & NIBBLE_MASK;
+        return blockLightOf(light(entry));
+    }
+
+    public static int blockLightOf(int light) {
+        return (light >>> BLOCK_LIGHT_SHIFT) & NIBBLE_MASK;
     }
 
     public static int gaps(long entry) {

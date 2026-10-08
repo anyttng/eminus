@@ -5,14 +5,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import com.eminus.cell.CellFrame;
+import com.eminus.cell.CellKey;
 import com.eminus.client.model.ClientBakery;
-import com.eminus.mesh.BakeryModels;
-import com.eminus.mesh.BakeryTints;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
-import com.eminus.model.ModelIndex;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
+
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import net.minecraft.client.Minecraft;
 
@@ -21,15 +22,7 @@ public final class CellMeshing {
             ClientBakery baking, long[] keys, int timeoutSeconds) {
         Map<Long, CellMesh> meshes = new ConcurrentHashMap<>();
         CompletableFuture<Map<Long, CellMesh>> done = new CompletableFuture<>();
-        MeshService service = new MeshService(
-                instance.build(),
-                runtime.cells(),
-                runtime.coverage(),
-                runtime.frame(),
-                new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
-                new BakeryTints(baking.colours(), runtime.biomes()),
-                Minecraft.getInstance().options.biomeBlendRadius().get(),
-                baking.opacity(runtime.states()),
+        MeshService service = MeshWiring.service(Minecraft.getInstance(), runtime, instance, baking,
                 (mesh, request) -> {
                     meshes.put(mesh.key(), mesh);
                     if (meshes.size() == keys.length) {
@@ -46,6 +39,22 @@ public final class CellMeshing {
                 service.drop();
             }
         });
+    }
+
+    public static long[] keys(CellFrame frame, int fromLevel, int toLevel, int minX, int minY, int minZ, int maxX,
+            int maxY, int maxZ) {
+        LongArrayList keys = new LongArrayList();
+        for (int level = fromLevel; level <= toLevel; level++) {
+            for (int cellX = frame.cellX(minX, level); cellX <= frame.cellX(maxX, level); cellX++) {
+                for (int cellY = frame.cellY(minY, level); cellY <= frame.cellY(maxY, level); cellY++) {
+                    for (int cellZ = frame.cellZ(minZ, level); cellZ <= frame.cellZ(maxZ, level); cellZ++) {
+                        keys.add(CellKey.pack(level, cellX, cellY, cellZ));
+                    }
+                }
+            }
+        }
+
+        return keys.toLongArray();
     }
 
     private CellMeshing() {
