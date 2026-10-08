@@ -22,8 +22,12 @@ flat out ivec3 eminus_cellOrigin;
 flat out int eminus_face;
 flat out float eminus_emission;
 flat out int eminus_blockId;
+#ifdef PACK_VERTEX
+vec4 eminus_shadowPosition(vec4 shadowClipPosition);
+#else
 out vec3 iris_vBlockPos;
 flat out uvec2 iris_TexId;
+#endif
 
 const vec4 CULLED_POSITION = vec4(2.0, 2.0, 2.0, 1.0);
 const vec3 BLADE_NORMAL = vec3(0.0, 1.0, 0.0);
@@ -33,7 +37,11 @@ const int LAST_AXIS_FACE = 5;
 
 void main() {
     FarVertex vertex = far_vertex(gl_VertexID);
+#ifdef PACK_VERTEX
+    gl_Position = vertex.culled ? CULLED_POSITION : eminus_shadowPosition(FarProjView * vec4(vertex.position, 1.0));
+#else
     gl_Position = vertex.culled ? CULLED_POSITION : FarProjView * vec4(vertex.position, 1.0);
+#endif
 
     eminus_faceUV = vertex.faceUV;
     eminus_nearPoint = vertex.facePoint;
@@ -50,6 +58,8 @@ void main() {
     eminus_emission = float(vertex.emission) / float(MAX_EMISSION);
     eminus_blockId = int(texelFetch(ModelRecords, vertex.modelId * MODEL_TEXELS + PACK_ID_TEXEL).x);
 
+#ifndef PACK_VERTEX
     iris_vBlockPos = vertex.voxelPoint;
     iris_TexId = uvec2(0u, uint(min(vertex.face, LAST_AXIS_FACE)));
+#endif
 }

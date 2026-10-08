@@ -69,6 +69,25 @@ public final class DrawCommands {
     public void write(List<MeshSummary> opaque, List<MeshSummary> translucent, Long2IntFunction borderFaces,
             MeshSlots slots, CellFrame frame, FrustumIntersection frustum, double cameraX, double cameraY,
             double cameraZ) {
+        writeOpaque(opaque, borderFaces, slots, frame, frustum, true, cameraX, cameraY, cameraZ);
+
+        for (MeshSummary mesh : translucent) {
+            MeshSlot slot = slots.slot(mesh.key());
+            if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)
+                    && put(slot, QuadGroups.TRANSLUCENT)) {
+                translucentCount++;
+            }
+        }
+    }
+
+    public void writeShadow(List<MeshSummary> opaque, Long2IntFunction borderFaces, MeshSlots slots,
+            CellFrame frame, FrustumIntersection frustum, double cameraX, double cameraY, double cameraZ) {
+        writeOpaque(opaque, borderFaces, slots, frame, frustum, false, cameraX, cameraY, cameraZ);
+    }
+
+    private void writeOpaque(List<MeshSummary> opaque, Long2IntFunction borderFaces, MeshSlots slots,
+            CellFrame frame, FrustumIntersection frustum, boolean facing, double cameraX, double cameraY,
+            double cameraZ) {
         commands.clear();
         opaqueCount = 0;
         translucentCount = 0;
@@ -77,15 +96,7 @@ public final class DrawCommands {
         for (MeshSummary mesh : opaque) {
             MeshSlot slot = slots.slot(mesh.key());
             if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)) {
-                writeGroups(slot, borderFaces.get(mesh.key()), cameraX, cameraY, cameraZ);
-            }
-        }
-
-        for (MeshSummary mesh : translucent) {
-            MeshSlot slot = slots.slot(mesh.key());
-            if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)
-                    && put(slot, QuadGroups.TRANSLUCENT)) {
-                translucentCount++;
+                writeGroups(slot, borderFaces.get(mesh.key()), facing, cameraX, cameraY, cameraZ);
             }
         }
     }
@@ -98,12 +109,13 @@ public final class DrawCommands {
                 (float) (bounds[MeshSlot.MAX_Y] - cameraY), (float) (bounds[MeshSlot.MAX_Z] - cameraZ));
     }
 
-    private void writeGroups(MeshSlot slot, int borderFaces, double cameraX, double cameraY, double cameraZ) {
+    private void writeGroups(MeshSlot slot, int borderFaces, boolean facing, double cameraX, double cameraY,
+            double cameraZ) {
         for (int group = 0; group < QuadGroups.COUNT; group++) {
             if (group == QuadGroups.TRANSLUCENT
                     || QuadGroups.isBorder(group) && (borderFaces & 1 << QuadGroups.direction(group)) == 0
                     || slot.groupCount(group) == 0
-                    || !GroupFacing.visible(group, bounds, cameraX, cameraY, cameraZ)) {
+                    || facing && !GroupFacing.visible(group, bounds, cameraX, cameraY, cameraZ)) {
                 continue;
             }
 

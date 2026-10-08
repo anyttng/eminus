@@ -233,6 +233,40 @@ class DrawCommandsTest {
     }
 
     @Test
+    void aShadowWriteDrawsTheGroupFacingAwayFromTheCamera() {
+        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(slot(key, BLOCK)), frame, EVERYWHERE, INSIDE,
+                FAR_BELOW, INSIDE);
+
+        assertEquals(2, commands.opaqueCount());
+        assertEquals(UP_QUADS + DOWN_QUADS, commands.quads());
+    }
+
+    @Test
+    void aShadowWriteLeavesTheTranslucentGroupOut() {
+        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(both(key, BLOCK)), frame, EVERYWHERE, INSIDE,
+                INSIDE, INSIDE);
+
+        assertEquals(0, commands.translucentCount());
+        assertEquals(UP_QUADS + DOWN_QUADS, commands.quads());
+    }
+
+    @Test
+    void aShadowWriteKeepsABorderGroupWithoutItsMarkOut() {
+        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(border(key, BLOCK)), frame, EVERYWHERE, INSIDE,
+                INSIDE, INSIDE);
+
+        assertEquals(0, commands.count());
+    }
+
+    @Test
+    void aShadowWriteLeavesAMeshOutsideItsFrustumOut() {
+        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(slot(key, BLOCK)), frame, FAR_EAST, INSIDE,
+                INSIDE, INSIDE);
+
+        assertEquals(0, commands.count());
+    }
+
+    @Test
     void aWritePastTheCapacityGrowsTheBufferAndKeepsEveryCommand() {
         int[] groupStart = new int[QuadGroups.COUNT];
         int[] groupCount = new int[QuadGroups.COUNT];

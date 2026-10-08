@@ -10,6 +10,7 @@ final class PackSources {
     private static final String VERSION = "#version";
     private static final String EXTENSION = "#extension";
     private static final String LINE = "\n";
+    private static final String NO_MAIN = "";
 
     private PackSources() {
     }
@@ -30,6 +31,14 @@ final class PackSources {
     }
 
     static String splice(String packSource, String header) {
+        return splice(packSource, header, MAIN);
+    }
+
+    static String spliceVertex(String packSource, String header) {
+        return splice(packSource, header, NO_MAIN);
+    }
+
+    private static String splice(String packSource, String header, String main) {
         String[] lines = packSource.split(LINE, -1);
         int insertAt = -1;
         for (int index = 0; index < lines.length; index++) {
@@ -54,7 +63,7 @@ final class PackSources {
         if (insertAt == lines.length) {
             spliced.append(header);
         }
-        return spliced.append(MAIN).toString();
+        return spliced.append(main).toString();
     }
 
     private static boolean directive(String line) {

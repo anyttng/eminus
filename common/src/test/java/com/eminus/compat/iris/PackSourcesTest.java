@@ -14,6 +14,8 @@ class PackSourcesTest {
     private static final String HEADER = "struct EminusFragment { vec4 color; };\n";
     private static final String PACK = "#version 330 compatibility\n#extension GL_ARB_shader_texture_lod : enable\n\n"
             + "/* RENDERTARGETS: 0,1 */\nvoid eminus_emitFragment(EminusFragment fragment) {\n}\n";
+    private static final String SHADOW_VERTEX = "#version 400 compatibility\n\n"
+            + "vec4 eminus_shadowPosition(vec4 shadowClipPosition) {\n    return shadowClipPosition;\n}\n";
 
     @Test
     void theDimensionFolderIsReadBeforeTheRoot() {
@@ -29,7 +31,9 @@ class PackSourcesTest {
     @Test
     void everyContractFileIsLookedForAtTheRootAndInEachDimensionFolder() {
         assertEquals(List.of("/eminus_opaque.glsl", "/world-1/eminus_opaque.glsl", "/eminus_translucent.glsl",
-                "/world-1/eminus_translucent.glsl"), PackContract.paths(List.of(NETHER)));
+                "/world-1/eminus_translucent.glsl", "/eminus_shadow.glsl", "/world-1/eminus_shadow.glsl",
+                "/eminus_shadow_vertex.glsl", "/world-1/eminus_shadow_vertex.glsl"),
+                PackContract.paths(List.of(NETHER)));
     }
 
     @Test
@@ -58,6 +62,16 @@ class PackSourcesTest {
 
         assertTrue(spliced.endsWith(PackSources.MAIN), spliced);
         assertTrue(PackSources.MAIN.contains(PackContract.FUNCTION + "(eminus_fragment())"), PackSources.MAIN);
+    }
+
+    @Test
+    void theVertexSpliceKeepsOurOwnMainAndAddsNone() {
+        String ours = "void main() {\n    gl_Position = eminus_shadowPosition(vec4(0.0));\n}\n";
+        String spliced = PackSources.spliceVertex(SHADOW_VERTEX, ours);
+
+        assertTrue(spliced.startsWith("#version 400 compatibility"), spliced);
+        assertTrue(spliced.indexOf(ours) < spliced.indexOf("vec4 eminus_shadowPosition"), spliced);
+        assertFalse(spliced.contains(PackContract.FUNCTION), spliced);
     }
 
     @Test

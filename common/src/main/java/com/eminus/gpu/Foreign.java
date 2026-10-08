@@ -8,7 +8,7 @@ import com.eminus.gpu.pipeline.PipelineSpec;
 import com.eminus.gpu.texture.Texture;
 
 public interface Foreign {
-    Pipeline pipeline(PipelineSpec spec, int firstTextureUnit, UnaryOperator<String> fragment);
+    Pipeline pipeline(PipelineSpec spec, int firstTextureUnit, UnaryOperator<ShaderSources> sources);
 
     int program(Pipeline pipeline);
 
