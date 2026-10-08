@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.util.BitSet;
 
 import com.eminus.Eminus;
+import com.eminus.compat.iris.IrisShaderPack;
 import com.eminus.handoff.NearFieldOverride;
 import com.eminus.ingest.IngestService;
 import com.eminus.ingest.IngestTrigger;
@@ -41,6 +42,7 @@ public final class ClientSession {
 
     private static boolean heldChunksPending;
     private static boolean renderedCutoutLeaves;
+    private static boolean overShaderPack;
     private static int renderedBiomeBlend;
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
@@ -108,14 +110,25 @@ public final class ClientSession {
     }
 
     public static void drawFarLayer() {
-        if (renderer != null) {
+        if (renderer != null && !overShaderPack) {
             renderer.frame(Minecraft.getInstance());
         }
     }
 
+    public static void drawFarLayerOverShaderPack() {
+        if (renderer != null && overShaderPack) {
+            renderer.frame(Minecraft.getInstance());
+        }
+    }
+
+    public static boolean drawsOverShaderPack() {
+        return overShaderPack;
+    }
+
     public static void overrideNearField() {
         Minecraft client = Minecraft.getInstance();
-        if (renderer == null || client.level == null) {
+        readShaderPack();
+        if (renderer == null || client.level == null || overShaderPack) {
             NearFieldOverride.skip();
             return;
         }
@@ -126,6 +139,16 @@ public final class ClientSession {
             NearFieldOverride.apply();
         } else {
             NearFieldOverride.skip();
+        }
+    }
+
+    private static void readShaderPack() {
+        boolean inUse = IrisShaderPack.inUse();
+        if (inUse != overShaderPack) {
+            overShaderPack = inUse;
+            Eminus.LOGGER.info(inUse
+                    ? "Shader pack in use: the far layer draws over the pack's finished frame"
+                    : "No shader pack: the far layer draws in its own target");
         }
     }
 
