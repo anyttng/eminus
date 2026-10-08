@@ -42,6 +42,7 @@ public final class FacePasses {
     private final Runnable whenBaked;
     private final Sink sink;
     private final @Nullable FluidCorners corners;
+    private final int voxelBlocks;
 
     private Direction.Axis axis;
     private Direction towardsLow;
@@ -56,6 +57,7 @@ public final class FacePasses {
         this.whenBaked = whenBaked;
         this.sink = sink;
         corners = level == FluidCorners.LEVEL ? new FluidCorners(scratch.voxels(), models) : null;
+        voxelBlocks = DetailLevel.blocksPerVoxel(level);
     }
 
     public boolean run() {
@@ -63,7 +65,7 @@ public final class FacePasses {
             axis = along;
             towardsLow = TOWARDS_LOW[along.ordinal()];
             towardsHigh = TOWARDS_HIGH[along.ordinal()];
-            scratch.masks().build(scratch.voxels(), opacity, along);
+            scratch.masks().build(scratch.voxels(), opacity, voxelBlocks, along);
 
             for (int plane = 0; plane < SIDE; plane++) {
                 clearPlanes();
@@ -209,8 +211,10 @@ public final class FacePasses {
                         && facingHoldsSameTranslucent(metadata, modelId, highModel, high, u, v, plane + 1))
                 && !(highCovered && facingDrawsSameFluid(modelId, drawn, highDrawn))
                 && !(fluid && slopesInto(stateId, high));
-        boolean lowFace = lowKept && visible(metadata, metadataOf(lowDrawn), towardsLow, lowCovered);
-        boolean highFace = highKept && visible(metadata, metadataOf(highDrawn), towardsHigh, highCovered);
+        boolean lowFace = lowKept && visible(metadata, metadataOf(lowDrawn), towardsLow, lowCovered)
+                && !shielded(metadata, owner, low, towardsLow);
+        boolean highFace = highKept && visible(metadata, metadataOf(highDrawn), towardsHigh, highCovered)
+                && !shielded(metadata, owner, high, towardsHigh);
         boolean lowBorder = lowKept && !lowFace && plane == FIRST_PLANE && bordered(metadata, towardsLow);
         boolean highBorder = highKept && !highFace && plane == LAST_PLANE && bordered(metadata, towardsHigh);
 
@@ -285,8 +289,10 @@ public final class FacePasses {
                         && facingHoldsSameTranslucent(metadata, fluidModel, highModel, high, u, v, plane + 1))
                 && !(highCovered && facingDrawsSameFluid(fluidModel, drawn, highDrawn))
                 && !slopesInto(stateId, high);
-        boolean lowFace = lowKept && visible(metadata, metadataOf(lowDrawn), towardsLow, lowCovered);
-        boolean highFace = highKept && visible(metadata, metadataOf(highDrawn), towardsHigh, highCovered);
+        boolean lowFace = lowKept && visible(metadata, metadataOf(lowDrawn), towardsLow, lowCovered)
+                && !shielded(metadata, owner, low, towardsLow);
+        boolean highFace = highKept && visible(metadata, metadataOf(highDrawn), towardsHigh, highCovered)
+                && !shielded(metadata, owner, high, towardsHigh);
         placeFluid(scratch.negativeFluidPlane(), scratch.positiveFluidPlane(), lowFace, highFace, owner,
                 drawn == fluidModel, highDrawn, metadata, drawn, u, v, plane, low, high);
         placeFluidBorder(lowKept && !lowFace && plane == FIRST_PLANE && bordered(metadata, towardsLow),
@@ -572,6 +578,16 @@ public final class FacePasses {
             default -> VoxelEntry.lowGap(facing) <= VoxelEntry.lowGap(owner)
                     && VoxelEntry.highGap(facing) <= VoxelEntry.highGap(owner);
         };
+    }
+
+    private boolean shielded(int metadata, long owner, long facing, Direction face) {
+        return face.getAxis() != Direction.Axis.Y
+                && (ModelMetadata.occludable(metadata) & FaceMask.bit(face)) != 0
+                && opacity.coversGround(facing, voxelBlocks)
+                && VoxelEntry.lowGap(facing) <= VoxelEntry.lowGap(owner)
+                && (VoxelEntry.highGap(facing) < VoxelEntry.highGap(owner)
+                        || VoxelEntry.state(facing) == VoxelEntry.state(owner)
+                                && VoxelEntry.highGap(facing) == VoxelEntry.highGap(owner));
     }
 
     private static boolean visible(int metadata, int facingMetadata, Direction face, boolean covered) {

@@ -79,6 +79,9 @@ class CellMesherTest {
     private static final int SEA = 39;
     private static final int SEA_MODEL = 40;
     private static final int SEA_SUBMERGED_MODEL = 41;
+    private static final int SNOW = 42;
+    private static final int SNOW_MODEL = 43;
+    private static final int GROUND_LEVEL = 2;
     private static final int SEA_FLUID = 2;
     private static final int SEABED_Y = 10;
     private static final int SEA_TOP_Y = 14;
@@ -128,7 +131,17 @@ class CellMesherTest {
     private final Map<Integer, Integer> opacities = new HashMap<>();
     private final FakeModels models = new FakeModels();
     private final FakeTints tints = new FakeTints();
-    private final StateOpacity opacity = stateId -> opacities.getOrDefault(stateId, 0);
+    private final StateOpacity opacity = new StateOpacity() {
+        @Override
+        public int opacity(int stateId) {
+            return opacities.getOrDefault(stateId, 0);
+        }
+
+        @Override
+        public boolean cover(int stateId) {
+            return stateId == SNOW;
+        }
+    };
 
     private int bakeRequests;
 
@@ -698,6 +711,38 @@ class CellMesherTest {
     }
 
     @Test
+    void snowOverTheGroundHidesTheFacesTheGroundWouldHide() {
+        defineSnow();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(STONE));
+        cell.set(4, 5, 4, block(SNOW));
+        cell.set(5, 5, 4, block(SNOW));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(absent(mesh, Direction.UP, 4, 4, 4));
+        assertTrue(absent(mesh, Direction.EAST, 4, 5, 4));
+        assertTrue(absent(mesh, Direction.WEST, 5, 5, 4));
+        assertTrue(has(mesh, Direction.UP, 4, 5, 4, SNOW_MODEL));
+    }
+
+    @Test
+    void gappedSnowOverTheGroundHidesTheSidesBelowItsTop() {
+        defineSnow();
+        Cell cell = blank();
+        cell.set(4, 4, 4, VoxelEntry.withGaps(block(SNOW), 0, 1));
+        cell.set(5, 4, 4, VoxelEntry.withGaps(block(SNOW), 0, 1));
+        cell.set(4, 4, 5, VoxelEntry.withGaps(block(STONE), 0, 2));
+
+        CellMesh mesh = mesh(cell, airAround(), GROUND_LEVEL);
+
+        assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
+        assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+        assertTrue(absent(mesh, Direction.NORTH, 4, 4, 5));
+        assertTrue(has(mesh, Direction.SOUTH, 4, 4, 4, SNOW_MODEL));
+    }
+
+    @Test
     void aVoxelOverAShorterOneShowsItsBottomAndTheShorterItsTop() {
         defineBlocks();
         Cell cell = blank();
@@ -1082,6 +1127,13 @@ class CellMesherTest {
         opacities.put(OPAQUE_LEAVES, StateTable.FULL_OPACITY);
         opacities.put(CUTOUT_LEAVES, StateTable.FULL_OPACITY);
         opacities.put(GRASS_BLOCK, StateTable.FULL_OPACITY);
+    }
+
+    private void defineSnow() {
+        defineBlocks();
+        models.define(SNOW, SNOW_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.DOWN, FaceMask.ALL & ~FaceMask.UP, 0, 0));
+        models.partialHeight(SNOW_MODEL);
     }
 
     private void defineLava() {
