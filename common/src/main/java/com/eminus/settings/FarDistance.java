@@ -11,6 +11,10 @@ public final class FarDistance {
         return cells * CHUNKS_PER_TOP_LEVEL_CELL;
     }
 
+    public static int cellsToBlocks(int cells) {
+        return cells * BLOCKS_PER_TOP_LEVEL_CELL;
+    }
+
     public static int chunksToCells(int chunks) {
         return Math.ceilDiv(chunks, CHUNKS_PER_TOP_LEVEL_CELL);
     }

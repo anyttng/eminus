@@ -3,7 +3,6 @@ package com.eminus.render.tree;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import com.eminus.api.v1.TreeState;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.mesh.CellMesh;
 

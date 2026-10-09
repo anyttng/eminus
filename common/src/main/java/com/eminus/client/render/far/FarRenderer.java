@@ -6,8 +6,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
-import com.eminus.api.v1.ArenaState;
-import com.eminus.api.v1.FarLayerState;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.cache.CellHandle;
@@ -31,6 +29,7 @@ import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.render.arena.ArenaSizing;
 import com.eminus.render.arena.MeshSlot;
+import com.eminus.client.render.arena.ArenaState;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.render.backend.BackendSupport;
 import com.eminus.render.backend.DepthConvention;
@@ -71,6 +70,8 @@ public final class FarRenderer implements AutoCloseable {
     public static final int START_COMMANDS = 32768;
     public static final String ARENA_CAP_PROPERTY = "eminus.arena.maxMiB";
     public static final String ARENA_FLOOR_PROPERTY = "eminus.arena.minMiB";
+
+    private static final String PROGRAM_REFUSED = "program %s did not compile";
 
     private final Gpu gpu;
     private final DimensionRuntime runtime;
@@ -135,7 +136,7 @@ public final class FarRenderer implements AutoCloseable {
                 new TreeExtent(runtime.frame(), heightCells, runtime.lowestStoredLevel()), nodeCapacity);
     }
 
-    public static @Nullable FarRenderer start(Minecraft client, Gpu gpu, EminusInstance instance,
+    public static FarStart start(Minecraft client, Gpu gpu, EminusInstance instance,
             DimensionRuntime runtime, int levelHeight, Settings settings, long replacedArenaBytes,
             ToIntFunction<BlockState> packIds) {
         gpu.assertRenderThread();
@@ -151,7 +152,7 @@ public final class FarRenderer implements AutoCloseable {
         GeometryArena arena = GeometryArena.create(gpu, support, bytes);
         if (arena == null) {
             gpu.close();
-            return null;
+            return FarStart.refused(support.reason());
         }
 
         ClientBakery baking = ClientBakery.start(client, packIds);
@@ -164,14 +165,15 @@ public final class FarRenderer implements AutoCloseable {
         Location refused = refusedProgram(List.of(mask.pipeline(), opaque.pipeline(), occlusion.pipeline(),
                 translucent.pipeline(), composite.pipeline()));
         if (refused != null) {
-            Eminus.LOGGER.warn("Renderer disabled: program {} did not compile", refused);
+            String refusal = PROGRAM_REFUSED.formatted(refused);
+            Eminus.LOGGER.warn("Renderer disabled: {}", refusal);
             baking.stop();
             composite.close();
             occlusion.close();
             mask.close();
             arena.close();
             gpu.close();
-            return null;
+            return FarStart.refused(refusal);
         }
 
         FarRenderer renderer = new FarRenderer(gpu, support.depth(), runtime, baking,
@@ -187,7 +189,7 @@ public final class FarRenderer implements AutoCloseable {
         runtime.listenTo(renderer.tree);
         Eminus.LOGGER.info("Far renderer started for {}", runtime.identity().dimension());
 
-        return renderer;
+        return FarStart.started(renderer);
     }
 
     static @Nullable Location refusedProgram(List<Pipeline> pipelines) {
@@ -349,7 +351,7 @@ public final class FarRenderer implements AutoCloseable {
                 models.atlas().cellsPerSide(), nearSections.sections(), game.shade(),
                 CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
         draw.frame(indirect.buffer(), commands.opaqueCount(), commands.translucentCount(), gpu.lightmap(),
-                farProjection, game.viewRotation(), settings.farRenderCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL);
+                farProjection, game.viewRotation(), FarDistance.cellsToBlocks(settings.farRenderCells()));
         return true;
     }
 
@@ -379,7 +381,7 @@ public final class FarRenderer implements AutoCloseable {
         uploading = null;
     }
 
-    public CompletableFuture<FarLayerState> state() {
+    public CompletableFuture<FarState> state() {
         gpu.assertRenderThread();
         String dimension = runtime.identity().dimension();
         ArenaState arenaState = arena.state();
@@ -388,7 +390,7 @@ public final class FarRenderer implements AutoCloseable {
         int pendingBlockChanges = ingest == null ? 0 : ingest.pendingBlockChanges();
 
         return tree.snapshot().thenApply(treeState ->
-                new FarLayerState(dimension, arenaState, treeState, ingestQueued, pendingBlockChanges));
+                new FarState(dimension, arenaState, treeState, ingestQueued, pendingBlockChanges));
     }
 
     public CompletableFuture<List<long[]>> describe(int blockX, int blockY, int blockZ) {

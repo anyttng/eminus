@@ -1,5 +1,6 @@
 plugins {
     id 'java-library'
+    id 'maven-publish'
     id 'net.neoforged.moddev'
     id 'idea'
 }
@@ -114,12 +115,69 @@ test {
     systemProperty 'eminus.repoRoot', rootDir.absolutePath
 }
 
-// The artifact the harness compiles against: com/eminus/api alone, so its compile classpath cannot reach an internal
-// type at all. That the API's own signatures name no internal is ApiSurfaceTest's guarantee.
-tasks.register('apiJar', Jar) {
-    archiveBaseName = 'eminus-api'
+// The artifact another mod and the harness compile against: com/eminus/api alone, so their compile classpath cannot
+// reach an internal type at all. That the API's own signatures name no internal is ApiSurfaceTest's guarantee.
+def apiPackage = 'com/eminus/api/**'
+def apiArtifactId = 'eminus-api'
+
+var apiJar = tasks.register('apiJar', Jar) {
+    archiveBaseName = apiArtifactId
     from sourceSets.main.output
-    include 'com/eminus/api/**'
+    include apiPackage
+}
+
+var apiSourcesJar = tasks.register('apiSourcesJar', Jar) {
+    archiveBaseName = apiArtifactId
+    archiveClassifier = 'sources'
+    from sourceSets.main.allJava
+    include apiPackage
+}
+
+var apiJavadoc = tasks.register('apiJavadoc', Javadoc) {
+    source = sourceSets.main.allJava.matching { include apiPackage }
+    classpath = sourceSets.main.compileClasspath + sourceSets.main.output
+    destinationDir = layout.buildDirectory.dir('docs/api-javadoc').get().asFile
+    options {
+        encoding = 'UTF-8'
+        charSet = 'UTF-8'
+        addStringOption('Xdoclint:all,-missing', '-quiet')
+    }
+}
+
+var apiJavadocJar = tasks.register('apiJavadocJar', Jar) {
+    archiveBaseName = apiArtifactId
+    archiveClassifier = 'javadoc'
+    from apiJavadoc
+}
+
+publishing {
+    publications {
+        register('api', MavenPublication) {
+            groupId = mod_group_id
+            artifactId = apiArtifactId
+            version = eminus_version
+            artifact apiJar
+            artifact apiSourcesJar
+            artifact apiJavadocJar
+            pom {
+                name = 'Eminus API'
+                description = 'The semver-stable surface of Eminus for other mods.'
+                url = 'https://github.com/anyttng/eminus'
+                licenses {
+                    license {
+                        name = mod_license
+                    }
+                }
+            }
+        }
+    }
+    repositories {
+        // -PeminusMavenDir points the tree at a checkout of the repository's 'maven' branch, which is what publishes it.
+        maven {
+            name = 'eminus'
+            url = uri(findProperty('eminusMavenDir') ?: layout.buildDirectory.dir('maven').get().asFile)
+        }
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {

@@ -14,6 +14,7 @@ import com.eminus.client.frame.GameFrame;
 import com.eminus.client.frame.GameFrames;
 import com.eminus.client.gpu.Gpus;
 import com.eminus.client.render.far.FarRenderer;
+import com.eminus.client.render.far.FarStart;
 import com.eminus.gpu.Gpu;
 import com.eminus.model.ModelBakery;
 import com.eminus.session.DimensionRuntime;
@@ -53,6 +54,7 @@ public final class ClientSession {
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
     private static FarRenderer renderer;
+    private static @Nullable String refusal;
     private static Settings rendered;
     private static ClientLevel level;
     private static String world = "";
@@ -190,6 +192,10 @@ public final class ClientSession {
 
     public static @Nullable FarRenderer renderer() {
         return renderer;
+    }
+
+    public static @Nullable String refusal() {
+        return refusal;
     }
 
     @SuppressWarnings("ReferenceEquality")
@@ -332,11 +338,14 @@ public final class ClientSession {
         renderedCutoutLeaves = GameFrames.cutoutLeaves();
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
         renderedPackIds = IrisShaderPack.packIds(renderedPackIds);
-        renderer = FarRenderer.start(minecraft, gpu, instance, runtime, level.getHeight(), rendered,
+        FarStart start = FarRenderer.start(minecraft, gpu, instance, runtime, level.getHeight(), rendered,
                 replacedArenaBytes, renderedPackIds == null ? ModelBakery.NO_PACK_IDS : renderedPackIds);
+        renderer = start.renderer();
+        refusal = start.refusal();
     }
 
     private static void stopRenderer() {
+        refusal = null;
         if (renderer != null) {
             IrisShaderPack.rendererStopped();
             renderer.close();
