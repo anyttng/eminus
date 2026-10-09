@@ -3,6 +3,7 @@ package com.eminus.compat.iris.dh;
 import java.util.Optional;
 import java.util.function.ToIntFunction;
 
+import com.eminus.client.render.far.FarDraw;
 import com.eminus.compat.iris.PackPath;
 import com.eminus.compat.iris.PackProgram;
 
@@ -79,6 +80,6 @@ public final class DhPath implements PackPath {
         String fragment = program.getFragmentSource().orElseThrow();
         return new Source(PROGRAM_PREFIX + program.getName(), FILE_ROOT + program.getName(),
                 ours -> DhSources.spliceFragmentProgram(fragment, PackPath.header(ours)),
-                ours -> DhSources.spliceVertexProgram(vertex, PackPath.header(ours)));
+                ours -> DhSources.spliceVertexProgram(vertex, PackPath.header(ours)), FarDraw.PackVertex.PROGRAM);
     }
 }

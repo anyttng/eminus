@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
+import com.eminus.client.render.far.FarDraw;
 import com.eminus.compat.iris.PackContract;
 import com.eminus.compat.iris.PackPath;
 import com.eminus.compat.iris.PackProgram;
@@ -31,16 +32,18 @@ public final class ContractPath implements PackPath {
     private final @Nullable PackFile translucent;
     private final @Nullable PackFile shadow;
     private final @Nullable PackFile shadowVertex;
+    private final @Nullable PackFile vertex;
 
     private record PackFile(String path, String source) {
     }
 
     private ContractPath(PackFile opaque, @Nullable PackFile translucent, @Nullable PackFile shadow,
-            @Nullable PackFile shadowVertex) {
+            @Nullable PackFile shadowVertex, @Nullable PackFile vertex) {
         this.opaque = opaque;
         this.translucent = translucent;
         this.shadow = shadow;
         this.shadowVertex = shadowVertex;
+        this.vertex = vertex;
     }
 
     public static @Nullable ContractPath detect(ShaderPack pack, NamespacedId dimension) {
@@ -50,7 +53,7 @@ public final class ContractPath implements PackPath {
         PackFile opaque = read(sources, PackContract.OPAQUE_FILE, folder);
         return opaque == null ? null : new ContractPath(opaque,
                 read(sources, PackContract.TRANSLUCENT_FILE, folder), read(sources, PackContract.SHADOW_FILE, folder),
-                read(sources, PackContract.SHADOW_VERTEX_FILE, folder));
+                read(sources, PackContract.SHADOW_VERTEX_FILE, folder), read(sources, PackContract.VERTEX_FILE, folder));
     }
 
     @Override
@@ -72,19 +75,26 @@ public final class ContractPath implements PackPath {
 
     @Override
     public @Nullable Source source(PackProgram.Kind kind) {
+        FarDraw.PackVertex stage = vertex == null ? FarDraw.PackVertex.OURS : FarDraw.PackVertex.HOOK;
         return switch (kind) {
-            case OPAQUE -> fragmentOnly(OPAQUE_PROGRAM, opaque);
-            case TRANSLUCENT -> fragmentOnly(TRANSLUCENT_PROGRAM, translucent == null ? opaque : translucent);
-            case SHADOW -> shadow == null ? null : new Source(SHADOW_PROGRAM, shadow.path(),
-                    ours -> ContractSources.splice(shadow.source(), PackPath.header(ours)),
-                    shadowVertex == null ? null
-                            : ours -> ContractSources.spliceVertex(shadowVertex.source(), PackPath.header(ours)));
+            case OPAQUE -> source(OPAQUE_PROGRAM, opaque, vertex, stage);
+            case TRANSLUCENT -> source(TRANSLUCENT_PROGRAM, translucent == null ? opaque : translucent, vertex, stage);
+            case SHADOW -> shadow == null ? null : shadowSource(shadow);
         };
     }
 
-    private static Source fragmentOnly(String programName, PackFile file) {
+    private Source shadowSource(PackFile file) {
+        FarDraw.PackVertex stage = ContractSources.shadowStage(vertex != null, shadowVertex != null);
+        return source(SHADOW_PROGRAM, file, stage == FarDraw.PackVertex.HOOK ? vertex : shadowVertex, stage);
+    }
+
+    private static Source source(String programName, PackFile file, @Nullable PackFile vertexFile,
+            FarDraw.PackVertex stage) {
         return new Source(programName, file.path(),
-                ours -> ContractSources.splice(file.source(), PackPath.header(ours)), null);
+                ours -> ContractSources.splice(file.source(), PackPath.header(ours)),
+                vertexFile == null ? null
+                        : ours -> ContractSources.spliceVertex(vertexFile.source(), PackPath.header(ours)),
+                stage);
     }
 
     private static String folder(Map<NamespacedId, String> dimensions, ShaderPackAccessor access,
