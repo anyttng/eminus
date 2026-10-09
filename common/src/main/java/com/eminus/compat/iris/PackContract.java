@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class PackContract {
-    public static final int VERSION = 4;
+    public static final int VERSION = 5;
     public static final String OPAQUE_FILE = "eminus_opaque.glsl";
     public static final String TRANSLUCENT_FILE = "eminus_translucent.glsl";
     public static final String SHADOW_FILE = "eminus_shadow.glsl";
@@ -23,7 +23,19 @@ public final class PackContract {
     public static final String RENDER_DISTANCE = "eminusRenderDistance";
     public static final List<String> UNIFORMS = List.of(PROJECTION, PROJECTION_INVERSE, PREVIOUS_PROJECTION,
             RENDER_DISTANCE);
-    public static final List<String> SAMPLERS = List.of(DEPTH_SAMPLER, OPAQUE_DEPTH_SAMPLER);
+    public static final String VIEW_POSITION = "eminus_viewPosition";
+    public static final String VIEW_POINT = "eminus_viewPoint";
+    public static final String VIEW_NEAR_DEPTH = "eminus_viewNearDepth0";
+    public static final String VIEW_NEAR_OPAQUE_DEPTH = "eminus_viewNearDepth1";
+    public static final String VIEW_FAR_DEPTH = "eminus_viewFarDepth0";
+    public static final String VIEW_FAR_OPAQUE_DEPTH = "eminus_viewFarDepth1";
+    public static final String VIEW_NEAR_PROJECTION_INVERSE = "eminus_viewNearProjectionInverse";
+    public static final String VIEW_FAR_PROJECTION_INVERSE = "eminus_viewFarProjectionInverse";
+    public static final String VIEW_FAR_DISTANCE = "eminus_viewFarDistance";
+    public static final String NEAR_DEPTH = "depthtex0";
+    public static final String NEAR_OPAQUE_DEPTH = "depthtex1";
+    public static final List<String> SAMPLERS = List.of(DEPTH_SAMPLER, OPAQUE_DEPTH_SAMPLER, VIEW_NEAR_DEPTH,
+            VIEW_NEAR_OPAQUE_DEPTH, VIEW_FAR_DEPTH, VIEW_FAR_OPAQUE_DEPTH);
 
     public static final String ROOT = "/";
 

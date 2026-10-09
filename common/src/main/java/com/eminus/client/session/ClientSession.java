@@ -6,6 +6,7 @@ import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
 import com.eminus.compat.iris.IrisShaderPack;
+import com.eminus.compat.vitrail.VitrailShaderPack;
 import com.eminus.handoff.NearFieldOverride;
 import com.eminus.ingest.IngestService;
 import com.eminus.ingest.IngestTrigger;
@@ -14,6 +15,7 @@ import com.eminus.client.frame.GameFrame;
 import com.eminus.client.frame.GameFrames;
 import com.eminus.client.gpu.Gpus;
 import com.eminus.client.render.far.FarRenderer;
+import com.eminus.client.render.far.FarStart;
 import com.eminus.gpu.Gpu;
 import com.eminus.model.ModelBakery;
 import com.eminus.session.DimensionRuntime;
@@ -53,6 +55,7 @@ public final class ClientSession {
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
     private static FarRenderer renderer;
+    private static @Nullable String refusal;
     private static Settings rendered;
     private static ClientLevel level;
     private static String world = "";
@@ -166,8 +169,9 @@ public final class ClientSession {
     }
 
     private static void readShaderPack() {
-        boolean inUse = IrisShaderPack.inUse();
-        boolean inside = inUse && renderer != null && IrisShaderPack.packPathReady(renderer);
+        boolean irisInUse = IrisShaderPack.inUse();
+        boolean inUse = irisInUse || VitrailShaderPack.inUse();
+        boolean inside = irisInUse && renderer != null && IrisShaderPack.packPathReady(renderer);
         boolean dhPrograms = inside && IrisShaderPack.throughDhPrograms();
         if (inUse != overShaderPack || inside != inShaderPack || dhPrograms != throughDhPrograms) {
             overShaderPack = inUse;
@@ -191,6 +195,10 @@ public final class ClientSession {
 
     public static @Nullable FarRenderer renderer() {
         return renderer;
+    }
+
+    public static @Nullable String refusal() {
+        return refusal;
     }
 
     @SuppressWarnings("ReferenceEquality")
@@ -333,11 +341,14 @@ public final class ClientSession {
         renderedCutoutLeaves = GameFrames.cutoutLeaves(minecraft);
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
         renderedPackIds = IrisShaderPack.packIds(renderedPackIds);
-        renderer = FarRenderer.start(minecraft, gpu, instance, runtime, level.getHeight(), rendered,
+        FarStart start = FarRenderer.start(minecraft, gpu, instance, runtime, level.getHeight(), rendered,
                 replacedArenaBytes, renderedPackIds == null ? ModelBakery.NO_PACK_IDS : renderedPackIds);
+        renderer = start.renderer();
+        refusal = start.refusal();
     }
 
     private static void stopRenderer() {
+        refusal = null;
         if (renderer != null) {
             IrisShaderPack.rendererStopped();
             renderer.close();

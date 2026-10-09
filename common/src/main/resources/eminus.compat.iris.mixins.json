@@ -13,7 +13,8 @@
     "IrisSamplersMixin",
     "ShaderPackAccessor",
     "ShaderPackMixin",
-    "StandardMacrosMixin"
+    "StandardMacrosMixin",
+    "TransformPatcherMixin"
   ],
   "injectors": {
     "defaultRequire": 1
