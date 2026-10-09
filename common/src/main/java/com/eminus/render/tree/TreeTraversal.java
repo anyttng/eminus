@@ -55,7 +55,7 @@ final class TreeTraversal {
         this.extent = extent;
     }
 
-    RenderList walk(Collection<TreeNode> roots, CameraFrame camera, int budget, int outOfViewBudget, long walk) {
+    void walk(Collection<TreeNode> roots, CameraFrame camera, int budget, int outOfViewBudget, long walk) {
         frustum.set(camera.viewProjection());
         current.clear();
         current.addAll(roots);
@@ -89,8 +89,6 @@ final class TreeTraversal {
                 requestOutOfView(camera, farBlocks, outOfViewLeft);
             }
         }
-
-        return list(camera);
     }
 
     RenderList list(CameraFrame camera) {
