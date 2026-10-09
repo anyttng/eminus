@@ -21,7 +21,7 @@ public final class FaceRasterizer {
     private static final float FLUSH = 1.0F / 256.0F;
     private static final float MIN_AREA = 1.0E-6F;
     private static final float MIN_FACING = 1.0E-3F;
-    private static final float DIAGONAL = 0.70710678F;
+    private static final float DIAGONAL = 0.70710677F;
     private static final int ALPHA_MASK = 0xFF00_0000;
     private static final float ALIGNED = 1.0F - 1.0E-3F;
     private static final float COPLANAR = 1.0E-4F;
@@ -211,6 +211,7 @@ public final class FaceRasterizer {
                 && Math.abs(planeNormal.dot(planePoint.set(quad.quad().corner(0)).sub(first.corner(0)))) <= COPLANAR;
     }
 
+    @SuppressWarnings("EnumOrdinal")
     private float depthOnPlane(int face, Vector3fc origin, float width, float height) {
         Direction.Axis normal = FACES[face].getAxis();
         int normalAxis = normal.ordinal();

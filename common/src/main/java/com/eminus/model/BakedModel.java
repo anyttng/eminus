@@ -6,6 +6,7 @@ import com.eminus.cell.FaceMask;
 
 import net.minecraft.core.Direction;
 
+@SuppressWarnings("ArrayRecordComponent")
 public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] slopes, float[] bounds, int metadata,
         int tintRow, int[] variants, int packId) {
     public static final int FACE_COUNT = 6;
@@ -26,7 +27,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
     public static final float BLOCK_BOTTOM = 0.0F;
     public static final float BLOCK_TOP = 1.0F;
 
-    public static final int FIRST_SIDE_FACE = Direction.NORTH.ordinal();
+    public static final int FIRST_SIDE_FACE = Direction.NORTH.get3DDataValue();
     public static final int SLOPES_PER_FACE = 2;
     public static final int SLOPES_LENGTH = FACE_COUNT * SLOPES_PER_FACE;
 
@@ -128,7 +129,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
 
     public BakedModel inward(BakedModel fluid) {
         int word = ModelMetadata.pack(FaceMask.ALL, FaceMask.NONE, FaceMask.NONE, ModelMetadata.emission(metadata),
-                metadata & ModelMetadata.TINTED | ModelMetadata.FLUID | ModelMetadata.ONE_SIDED
+                (metadata & ModelMetadata.TINTED) | ModelMetadata.FLUID | ModelMetadata.ONE_SIDED
                         | ModelMetadata.INWARD);
         return new BakedModel(faces, tintMask, fluid.insets, new float[SLOPES_LENGTH], fluid.bounds, word, tintRow,
                 NO_VARIANTS, packId);

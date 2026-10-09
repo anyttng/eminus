@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 import com.eminus.VanillaBootstrap;
@@ -28,8 +27,7 @@ class TintSweepTest {
     private static final int SETS = 10;
     private static final int BIOME_STEP = 100;
 
-    private static final Function<FluidState, @Nullable TintSource> NO_FLUID_TINTS = fluid -> null;
-    private static final UnaryOperator<BlockState> OWN_SHAPE = state -> state;
+    private static final UnaryOperator<BlockState> OWN_SHAPE = UnaryOperator.identity();
 
     private static List<Block> blocks;
 
@@ -56,7 +54,7 @@ class TintSweepTest {
         }
 
         BiomeColours colours = colours();
-        TintSweep.sweep(states(blocks), tints(byBlock), NO_FLUID_TINTS, OWN_SHAPE, colours);
+        TintSweep.sweep(states(blocks), tints(byBlock), TintSweepTest::noFluidTints, OWN_SHAPE, colours);
 
         assertEquals(SETS, colours.rowCount());
         assertEquals(Tint.row(0), colours.resolve(sources.get(SETS - 1), blocks.getLast().defaultBlockState()));
@@ -77,8 +75,8 @@ class TintSweepTest {
 
         BiomeColours forward = colours();
         BiomeColours backward = colours();
-        TintSweep.sweep(states(users), tints(byBlock), NO_FLUID_TINTS, OWN_SHAPE, forward);
-        TintSweep.sweep(states(users.reversed()), tints(byBlock), NO_FLUID_TINTS, OWN_SHAPE, backward);
+        TintSweep.sweep(states(users), tints(byBlock), TintSweepTest::noFluidTints, OWN_SHAPE, forward);
+        TintSweep.sweep(states(users.reversed()), tints(byBlock), TintSweepTest::noFluidTints, OWN_SHAPE, backward);
 
         for (int set = 0; set < SETS; set++) {
             BlockState state = users.get(set).defaultBlockState();
@@ -116,5 +114,9 @@ class TintSweepTest {
 
     private static TintSource varying(int set) {
         return (state, biome, x, z) -> ((FakeBiome) biome).index() * BIOME_STEP + set;
+    }
+
+    private static @Nullable TintSource noFluidTints(FluidState fluid) {
+        return null;
     }
 }

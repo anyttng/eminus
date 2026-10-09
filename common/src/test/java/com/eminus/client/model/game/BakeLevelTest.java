@@ -28,7 +28,7 @@ class BakeLevelTest {
 
         int colour = level.getBlockTint(SAMPLE, (biome, x, z) -> {
             assertNull(biome);
-            return (int) x * COLUMN + (int) z;
+            return ((int) x) * COLUMN + (int) z;
         });
 
         assertEquals(SAMPLE.getX() * COLUMN + SAMPLE.getZ(), colour);

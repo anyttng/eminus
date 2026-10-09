@@ -20,17 +20,6 @@ public final class FacePasses {
     private static final int FIRST_PLANE = 0;
     private static final int LAST_PLANE = SIDE - 1;
     private static final int NO_METADATA = 0;
-    private static final Direction[] TOWARDS_LOW = new Direction[Direction.Axis.values().length];
-    private static final Direction[] TOWARDS_HIGH = new Direction[Direction.Axis.values().length];
-
-    static {
-        for (Direction face : Direction.values()) {
-            Direction[] side = face.getAxisDirection() == Direction.AxisDirection.POSITIVE
-                    ? TOWARDS_HIGH
-                    : TOWARDS_LOW;
-            side[face.getAxis().ordinal()] = face;
-        }
-    }
 
     private static final class Side {
         private final int edge;
@@ -101,8 +90,8 @@ public final class FacePasses {
     public boolean run() {
         for (Direction.Axis along : Direction.Axis.values()) {
             axis = along;
-            low.towards = TOWARDS_LOW[along.ordinal()];
-            high.towards = TOWARDS_HIGH[along.ordinal()];
+            low.towards = Direction.get(Direction.AxisDirection.NEGATIVE, along);
+            high.towards = Direction.get(Direction.AxisDirection.POSITIVE, along);
             scratch.masks().build(scratch.voxels(), opacity, voxelBlocks, along);
 
             for (plane = 0; plane < SIDE; plane++) {
@@ -347,7 +336,7 @@ public final class FacePasses {
     private boolean placeInward() {
         boolean lowCut = low.face && cut(low);
         boolean highCut = high.face && cut(high);
-        if (!lowCut && !highCut || !ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT)) {
+        if ((!lowCut && !highCut) || !ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT)) {
             return true;
         }
 
@@ -465,8 +454,8 @@ public final class FacePasses {
                 && opacity.coversGround(facing, voxelBlocks)
                 && VoxelEntry.lowGap(facing) <= VoxelEntry.lowGap(owner)
                 && (VoxelEntry.highGap(facing) < VoxelEntry.highGap(owner)
-                        || VoxelEntry.state(facing) == VoxelEntry.state(owner)
-                                && VoxelEntry.highGap(facing) == VoxelEntry.highGap(owner));
+                        || (VoxelEntry.state(facing) == VoxelEntry.state(owner)
+                                && VoxelEntry.highGap(facing) == VoxelEntry.highGap(owner)));
     }
 
     private static boolean visible(int metadata, int facingMetadata, Direction face, boolean covered) {

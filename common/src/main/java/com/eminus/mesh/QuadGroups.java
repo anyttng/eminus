@@ -17,7 +17,7 @@ public final class QuadGroups {
             return TRANSLUCENT;
         }
 
-        return (ModelMetadata.present(metadata) & bit(face.getOpposite())) == 0 ? DOUBLE_SIDED : face.ordinal();
+        return (ModelMetadata.present(metadata) & bit(face.getOpposite())) == 0 ? DOUBLE_SIDED : face.get3DDataValue();
     }
 
     public static int ofBlade(int metadata) {
@@ -25,7 +25,7 @@ public final class QuadGroups {
     }
 
     public static int border(Direction face) {
-        return FIRST_BORDER + face.ordinal();
+        return FIRST_BORDER + face.get3DDataValue();
     }
 
     public static boolean isBorder(int group) {
@@ -41,7 +41,7 @@ public final class QuadGroups {
     }
 
     private static int bit(Direction face) {
-        return 1 << face.ordinal();
+        return 1 << face.get3DDataValue();
     }
 
     private QuadGroups() {

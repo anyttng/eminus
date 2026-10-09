@@ -35,6 +35,7 @@ class VariantPickTest {
         int at(int blockX, int blockY, int blockZ);
     }
 
+    @SuppressWarnings("ArrayRecordComponent")
     private record Variants(List<Weighted<Integer>> entries, int[] table, int total) {
         static Variants of(int... weights) {
             List<Weighted<Integer>> entries = new ArrayList<>();

@@ -135,7 +135,7 @@ final class TreeTraversal {
         for (Direction face : FACES) {
             long neighbour = CellKey.neighbour(key, face);
             if (!drawn(neighbour) && (descended(neighbour) || ancestorDrawn(neighbour))) {
-                faces |= 1 << face.ordinal();
+                faces |= 1 << face.get3DDataValue();
             }
         }
 

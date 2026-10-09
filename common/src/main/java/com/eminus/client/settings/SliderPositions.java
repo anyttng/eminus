@@ -22,6 +22,7 @@ public final class SliderPositions {
         return DETAIL_DISTANCES[LAST_DETAIL_DISTANCE - position];
     }
 
+    @SuppressWarnings("EnumOrdinal")
     public static int detailDistancePosition(DetailDistance distance) {
         return LAST_DETAIL_DISTANCE - distance.ordinal();
     }

@@ -111,7 +111,8 @@ whose `block.properties` maps differently rebuilds the LOD once, as Iris rebuild
 ## Inside the contract files
 
 Everything Iris hands a `gbuffers` program is available: its uniforms, your custom uniforms, `colortex*` and
-`depthtex*`, `noisetex`, custom textures and images. Besides:
+`depthtex*`, `noisetex`, custom textures and images, and your shader storage buffers at the bindings your
+`shaders.properties` gives them. Besides:
 
 - `lightmap` is the game's lightmap, so `texture(lightmap, fragment.lmcoord)` lights a LOD pixel as vanilla would;
 - `gtexture` is a white pixel — the LOD's texture arrives in `fragment.color`;

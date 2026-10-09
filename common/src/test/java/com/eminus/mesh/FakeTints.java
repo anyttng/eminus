@@ -33,6 +33,6 @@ final class FakeTints implements BiomeTints {
     }
 
     private static long key(int row, int biomeId) {
-        return (long) row << Integer.SIZE | biomeId & 0xFFFF_FFFFL;
+        return (long) row << Integer.SIZE | (biomeId & 0xFFFF_FFFFL);
     }
 }

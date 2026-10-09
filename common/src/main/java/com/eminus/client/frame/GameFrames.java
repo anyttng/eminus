@@ -58,6 +58,7 @@ public final class GameFrames {
         return renderer.isSectionCompiledAndVisible(pos);
     }
 
+    @SuppressWarnings("ReferenceEquality")
     public static void drawnSections(LevelRenderer renderer, LongSet into) {
         into.clear();
         for (SectionRenderDispatcher.RenderSection section : renderer.getVisibleSections()) {
@@ -67,6 +68,7 @@ public final class GameFrames {
         }
     }
 
+    @SuppressWarnings("ReferenceEquality")
     public static boolean sectionEmpty(LevelRenderer renderer, BlockPos pos) {
         ViewArea viewArea = ((LevelRendererAccessor) renderer).eminus$viewArea();
         SectionRenderDispatcher.RenderSection section = viewArea == null ? null

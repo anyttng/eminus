@@ -12,12 +12,12 @@ class FaceMaskTest {
 
     @Test
     void eachBitSitsAtItsDirectionOrdinal() {
-        assertEquals(Direction.DOWN.ordinal(), Integer.numberOfTrailingZeros(FaceMask.DOWN));
-        assertEquals(Direction.UP.ordinal(), Integer.numberOfTrailingZeros(FaceMask.UP));
-        assertEquals(Direction.NORTH.ordinal(), Integer.numberOfTrailingZeros(FaceMask.NORTH));
-        assertEquals(Direction.SOUTH.ordinal(), Integer.numberOfTrailingZeros(FaceMask.SOUTH));
-        assertEquals(Direction.WEST.ordinal(), Integer.numberOfTrailingZeros(FaceMask.WEST));
-        assertEquals(Direction.EAST.ordinal(), Integer.numberOfTrailingZeros(FaceMask.EAST));
+        assertEquals(Direction.DOWN.get3DDataValue(), Integer.numberOfTrailingZeros(FaceMask.DOWN));
+        assertEquals(Direction.UP.get3DDataValue(), Integer.numberOfTrailingZeros(FaceMask.UP));
+        assertEquals(Direction.NORTH.get3DDataValue(), Integer.numberOfTrailingZeros(FaceMask.NORTH));
+        assertEquals(Direction.SOUTH.get3DDataValue(), Integer.numberOfTrailingZeros(FaceMask.SOUTH));
+        assertEquals(Direction.WEST.get3DDataValue(), Integer.numberOfTrailingZeros(FaceMask.WEST));
+        assertEquals(Direction.EAST.get3DDataValue(), Integer.numberOfTrailingZeros(FaceMask.EAST));
     }
 
     @Test

@@ -91,7 +91,7 @@ public final class VoxelEntry {
     }
 
     public static long withGaps(long entry, int lowGap, int highGap) {
-        long gaps = ((highGap & NIBBLE_MASK) << HIGH_GAP_SHIFT) | ((lowGap & NIBBLE_MASK) << LOW_GAP_SHIFT);
+        long gaps = ((long) (highGap & NIBBLE_MASK) << HIGH_GAP_SHIFT) | ((lowGap & NIBBLE_MASK) << LOW_GAP_SHIFT);
         return (entry & ~(GAPS_MASK << GAPS_SHIFT)) | (gaps << GAPS_SHIFT);
     }
 

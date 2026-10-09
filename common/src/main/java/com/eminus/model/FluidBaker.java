@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 
 public final class FluidBaker {
     private static final int ALPHA_MASK = 0xFF00_0000;
-    private static final int UP = Direction.UP.ordinal();
+    private static final int UP = Direction.UP.get3DDataValue();
     private static final float FULL_HEIGHT = 1.0F;
 
     private final FluidModels models;

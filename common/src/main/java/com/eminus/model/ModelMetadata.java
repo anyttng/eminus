@@ -24,7 +24,7 @@ public final class ModelMetadata {
                 | (occluding & FaceMask.ALL) << OCCLUDING_SHIFT
                 | (occludable & FaceMask.ALL) << OCCLUDABLE_SHIFT
                 | (emission & MAX_EMISSION) << EMISSION_SHIFT
-                | flags & FLAGS;
+                | (flags & FLAGS);
     }
 
     public static int present(int word) {
@@ -44,7 +44,7 @@ public final class ModelMetadata {
     }
 
     public static int withEmission(int word, int emission) {
-        return word & ~(MAX_EMISSION << EMISSION_SHIFT) | (emission & MAX_EMISSION) << EMISSION_SHIFT;
+        return (word & ~(MAX_EMISSION << EMISSION_SHIFT)) | ((emission & MAX_EMISSION) << EMISSION_SHIFT);
     }
 
     public static boolean has(int word, int flag) {

@@ -82,7 +82,7 @@ class ObjWriterTest {
             throws IOException {
         MeshBuffer buffer = new MeshBuffer();
         long data = Quad.data(0, modelId, buffer.colourIndex(MeshBuffer.WHITE, placement));
-        buffer.add(face.ordinal(), Quad.of(data, face.ordinal(), x, y, z, 1, 1));
+        buffer.add(face.get3DDataValue(), Quad.of(data, face.get3DDataValue(), x, y, z, 1, 1));
         CellMesh mesh = buffer.freeze(CellKey.pack(level, 0, 0, 0), OccupancyMask.EMPTY);
         Path file = folder.resolve("cell.obj");
 
@@ -91,7 +91,7 @@ class ObjWriterTest {
         List<float[]> corners = new ArrayList<>();
         for (String line : Files.readAllLines(file)) {
             if (line.startsWith("v ")) {
-                String[] parts = line.split(" ");
+                String[] parts = line.split(" ", -1);
                 corners.add(new float[] {
                     Float.parseFloat(parts[1]), Float.parseFloat(parts[2]), Float.parseFloat(parts[3])});
             }
