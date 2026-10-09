@@ -1,4 +1,4 @@
-# Eminus shader-pack contract, version 4
+# Eminus shader-pack contract, version 5
 
 Eminus draws the terrain past the render distance as a level-of-detail layer (LOD). Under an Iris shader pack that
 does not know Eminus, the LOD is drawn over the pack's finished frame in Eminus's own shading
@@ -25,11 +25,18 @@ A pack that lights and fogs terrain in its `gbuffers` programs is done here.
 ### 2. Let your later passes see the LOD
 
 A `deferred` or `composite` pass that reads `depthtex0` sees nothing where only the LOD is: it treats those pixels
-as sky, so deferred lighting overwrites them and distance fog skips them. Wherever such a pass reads `depthtex0`, read
-`eminusDepthTex0` (or `eminusDepthTex1`) where `depthtex0` holds nothing, rebuild the position with
-`eminusProjectionInverse`, and take `eminusRenderDistance` as the far edge — [Depth](#depth) has the details. A pack
-that already supports Distant Horizons makes the same change where it reads `dhDepthTex`, `dhProjectionInverse` and
-`dhRenderDistance`.
+as sky, so deferred lighting overwrites them and distance fog skips them. Wherever such a pass turns `depthtex0` into a
+position, call `eminus_viewPosition` instead, and take `eminusRenderDistance` as the far edge where it is not `0`:
+
+```glsl
+#if EMINUS_CONTRACT_VERSION >= 5
+    vec4 position = eminus_viewPosition(texcoord, false);
+#endif
+```
+
+`position.xyz` is the view-space position of the near field where it drew and of the LOD where only the LOD did;
+`position.w` is `0.0` on sky. [The position helper](#the-position-helper) has the details, and
+[By hand](#by-hand) the reconstruction for a pack that keeps its own.
 
 ### 3. Cast shadows from the LOD
 
@@ -45,7 +52,7 @@ scale, a shadow distortion), add `eminus_vertex.glsl` with the same code, so the
 they expect your terrain. [The vertex hook](#the-vertex-hook) has the details.
 
 The [example pack](example-pack/) is a complete minimal pack: textured, lit terrain, the contract file, and a fog
-composite that is step 2 in a dozen lines. It carries its own MIT [license](example-pack/LICENSE), so a pack may copy
+composite that is step 2 in one call. It carries its own MIT [license](example-pack/LICENSE), so a pack may copy
 any part of it.
 
 ## Files
@@ -79,7 +86,7 @@ Defined in every program of the pack while Eminus is installed:
 | Macro | Value |
 | --- | --- |
 | `EMINUS` | defined, empty |
-| `EMINUS_CONTRACT_VERSION` | `4` |
+| `EMINUS_CONTRACT_VERSION` | `5` |
 
 ## The function
 
@@ -246,12 +253,37 @@ and an LOD fragment there would break that. The LOD has its own depth instead, r
 | `eminusPreviousProjection` | `mat4` | The LOD's projection of the previous frame. |
 | `eminusRenderDistance` | `int` | The LOD's render distance in blocks; `0` on a frame with no LOD drawn. |
 
-Both depth textures read the way `depthtex0` reads — `1.0` where nothing is — and turn into a view-space position
-through `eminusProjectionInverse` the way `depthtex0` does through `gbufferProjectionInverse`, with `gbufferModelView`
-for the camera. Where the near field drew, `eminusDepthTex0` holds that surface's depth in the LOD's projection, so
-read `depthtex0` first and fall back to the LOD depth only where `depthtex0` holds nothing. On a frame where
-`eminusRenderDistance` is `0` the depth textures carry no LOD — test it before reading them. The example pack's
-[`composite.fsh`](example-pack/shaders/composite.fsh) does exactly this.
+### The position helper
+
+```glsl
+vec4 eminus_viewPosition(vec2 texcoord, bool opaqueOnly);
+```
+
+Since version 5. Eminus supplies it in every program of the pack that calls it, in any stage; a program that does not
+name it is compiled as you wrote it. Call it where Iris hands your program `depthtex0`: that is where the textures it
+reads are bound.
+
+It returns the view-space position of the nearest surface at `texcoord`, with `w` at `1.0`: the near field's where the
+near field drew (`depthtex0`, or `depthtex1` when `opaqueOnly` is `true`, through `gbufferProjectionInverse`), and the
+LOD's where only the LOD did (`eminusDepthTex0`, or `eminusDepthTex1`, through `eminusProjectionInverse`). On sky `w` is
+`0.0` and `xyz` is the point on the near projection's far plane, so `normalize(xyz)` is the view ray. On a frame where
+`eminusRenderDistance` is `0` it reads the near field alone. Both kinds of position are in the one view space
+`gbufferModelViewInverse` takes to the world axes. The example pack's
+[`composite.fsh`](example-pack/shaders/composite.fsh) fogs the near field and the LOD through it.
+
+The helper reads its own copies of those textures and matrices, so it works whether or not your program declares
+`depthtex0` and the others, and none of your declarations collides with it. Do not declare a name that begins with
+`eminus_view` in any program of the pack.
+
+### By hand
+
+A pack that keeps its own reconstruction reads the LOD depth itself. Both depth textures read the way `depthtex0`
+reads (`1.0` where nothing is) and turn into a view-space position through `eminusProjectionInverse` the way
+`depthtex0` does through `gbufferProjectionInverse`, with `gbufferModelView` for the camera. Where the near field drew,
+`eminusDepthTex0` holds that surface's depth in the LOD's projection, so read `depthtex0` first and fall back to the
+LOD depth only where `depthtex0` holds nothing. On a frame where `eminusRenderDistance` is `0` the depth textures carry
+no LOD: test it before reading them. A pack that already supports Distant Horizons makes the same change where it reads
+`dhDepthTex`, `dhProjectionInverse` and `dhRenderDistance`.
 
 ## When a file does not build
 
