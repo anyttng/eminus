@@ -61,9 +61,9 @@ final class PackLayer {
             return;
         }
 
-        PackPath contract = ContractPath.detect(pack, dimension);
-        path = contract != null ? contract : DhPath.detect(pack, pipeline);
         programSet = pack.getProgramSet(dimension);
+        PackPath contract = ContractPath.detect(pack, dimension);
+        path = contract != null ? contract : DhPath.detect(pack, pipeline, programSet);
         properties = ((ShaderPackAccessor) pack).eminus$shaderProperties();
     }
 
@@ -214,7 +214,8 @@ final class PackLayer {
     private @Nullable PackProgram program(FarDraw draw, Foreign foreign, PackProgram.Kind kind) {
         PackPath.Source source = path.source(kind);
         return source == null ? null
-                : PackProgram.build(draw, foreign, pipeline, programSet, properties, source, kind);
+                : PackProgram.build(draw, foreign, pipeline, programSet, properties, source, kind,
+                        path.distantHorizons());
     }
 
     private void drawOpaque(FarRenderer renderer) {
