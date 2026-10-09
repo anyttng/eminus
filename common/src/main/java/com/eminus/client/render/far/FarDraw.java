@@ -40,6 +40,17 @@ public final class FarDraw {
     private Texture lightmap;
     private int farBlocks;
 
+    public enum PackVertex {
+        OURS,
+        HOOK,
+        SHADOW_HOOK,
+        PROGRAM;
+
+        public boolean hook() {
+            return this == HOOK || this == SHADOW_HOOK;
+        }
+    }
+
     FarDraw(Gpu gpu, DepthConvention depth, VariantDraw variantDraw, GeometryArena arena, ModelPublisher models,
             FarFrame frame, NearSectionTable nearSections, FarTarget target) {
         this.gpu = gpu;
@@ -92,34 +103,37 @@ public final class FarDraw {
         return farBlocks;
     }
 
-    public PipelineSpec packPipeline(Location location, boolean translucent, boolean packProgram) {
-        PipelineSpec.Builder builder = FarQuads.pipeline(location, PACK_SHADER,
+    public PipelineSpec packPipeline(Location location, boolean translucent, PackVertex vertex) {
+        PipelineSpec.Builder builder = withVertex(FarQuads.pipeline(location, PACK_SHADER,
                         translucent ? TranslucentPass.ALPHA_CUTOUT : OpaquePass.ALPHA_CUTOUT, gpu.capabilities(),
                         variantDraw)
                 .withColourTarget(FarTarget.COLOUR_FORMAT, translucent ? Blend.TRANSLUCENT : null, true)
-                .withDepthTest(depth.compare(), true);
-        if (packProgram) {
-            withPackProgram(builder);
-        }
+                .withDepthTest(depth.compare(), true), vertex);
         return (translucent ? builder.withDefine("TRANSLUCENT_PASS") : builder.withDefine("FULL_COVERAGE")).build();
     }
 
     // Under a pack Iris clears the shadow depth to 1.0 and draws it forward, whatever the game's own direction.
-    public PipelineSpec shadowPipeline(Location location, boolean packVertex, boolean packProgram) {
-        PipelineSpec.Builder builder = FarQuads.pipeline(location, PACK_SHADER, OpaquePass.ALPHA_CUTOUT,
+    public PipelineSpec shadowPipeline(Location location, PackVertex vertex) {
+        PipelineSpec.Builder builder = withVertex(FarQuads.pipeline(location, PACK_SHADER, OpaquePass.ALPHA_CUTOUT,
                         gpu.capabilities(), variantDraw)
                 .withColourTarget(FarTarget.COLOUR_FORMAT, null, true)
                 .withDepthTest(DepthConvention.of(depth.zeroToOne(), false).compare(), true)
-                .withDefine("FULL_COVERAGE");
-        if (packProgram) {
-            return withPackProgram(builder).build();
+                .withDefine("FULL_COVERAGE")
+                .withDefine("SHADOW_PASS"), vertex);
+        if (vertex.hook() && depth.zeroToOne()) {
+            builder.withDefine("SHADOW_ZERO_TO_ONE");
         }
-        return (packVertex ? builder.withDefine("PACK_VERTEX") : builder).build();
+        return builder.build();
     }
 
-    private static PipelineSpec.Builder withPackProgram(PipelineSpec.Builder builder) {
-        return builder.withDefine("DH_PROGRAM")
-                .withDefine("FACE_MEAN_LEVEL", Mips.levelCount(BakedModel.FACE_SIDE) - 1);
+    private static PipelineSpec.Builder withVertex(PipelineSpec.Builder builder, PackVertex vertex) {
+        return switch (vertex) {
+            case OURS -> builder;
+            case HOOK -> builder.withDefine("PACK_VERTEX");
+            case SHADOW_HOOK -> builder.withDefine("PACK_SHADOW_VERTEX");
+            case PROGRAM -> builder.withDefine("DH_PROGRAM")
+                    .withDefine("FACE_MEAN_LEVEL", Mips.levelCount(BakedModel.FACE_SIDE) - 1);
+        };
     }
 
     public void bind(Pass pass) {

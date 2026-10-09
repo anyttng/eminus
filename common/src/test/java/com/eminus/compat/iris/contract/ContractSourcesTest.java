@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
+import com.eminus.client.render.far.FarDraw;
 import com.eminus.compat.iris.PackContract;
 
 import org.junit.jupiter.api.Test;
@@ -44,8 +45,21 @@ class ContractSourcesTest {
     void everyContractFileIsLookedForAtTheRootAndInEachDimensionFolder() {
         assertEquals(List.of("/eminus_opaque.glsl", "/world-1/eminus_opaque.glsl", "/eminus_translucent.glsl",
                 "/world-1/eminus_translucent.glsl", "/eminus_shadow.glsl", "/world-1/eminus_shadow.glsl",
-                "/eminus_shadow_vertex.glsl", "/world-1/eminus_shadow_vertex.glsl"),
+                "/eminus_shadow_vertex.glsl", "/world-1/eminus_shadow_vertex.glsl", "/eminus_vertex.glsl",
+                "/world-1/eminus_vertex.glsl"),
                 PackContract.paths(List.of(NETHER)));
+    }
+
+    @Test
+    void theVertexHookDrivesTheShadowProgramOverTheVersionThreeShadowHook() {
+        assertEquals(FarDraw.PackVertex.HOOK, ContractSources.shadowStage(true, true));
+        assertEquals(FarDraw.PackVertex.HOOK, ContractSources.shadowStage(true, false));
+    }
+
+    @Test
+    void theVersionThreeShadowHookDrivesTheShadowProgramWithoutTheVertexHook() {
+        assertEquals(FarDraw.PackVertex.SHADOW_HOOK, ContractSources.shadowStage(false, true));
+        assertEquals(FarDraw.PackVertex.OURS, ContractSources.shadowStage(false, false));
     }
 
     @Test

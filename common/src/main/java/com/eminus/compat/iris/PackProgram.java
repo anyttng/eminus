@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -67,6 +68,8 @@ public final class PackProgram {
     private static final int MAT4_FLOATS = 16;
     private static final int MAT3_FLOATS = 9;
     private static final boolean TRANSPOSE = false;
+    private static final Pattern CORE_VERSION = Pattern.compile("#version\\s+(\\d+)\\s+compatibility");
+    private static final String CORE_PROFILE = "#version $1 core";
 
     private final Foreign foreign;
     private final Pipeline pipeline;
@@ -115,26 +118,28 @@ public final class PackProgram {
     }
 
     static @Nullable PackProgram build(FarDraw draw, Foreign foreign, IrisRenderingPipeline irisPipeline,
-            ProgramSet programSet, ShaderProperties properties, PackPath.Source source, Kind kind,
-            boolean distantHorizons) {
+            ProgramSet programSet, ShaderProperties properties, PackPath.Source source, Kind kind) {
         String name = source.programName();
         Location location = new Location(Eminus.MODID, LOCATION_PREFIX + source.file());
         ProgramSource[] built = new ProgramSource[1];
         Pipeline pipeline = foreign.pipeline(
-                kind == Kind.SHADOW ? draw.shadowPipeline(location, source.vertex() != null, distantHorizons)
-                        : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertex() != null),
+                kind == Kind.SHADOW ? draw.shadowPipeline(location, source.vertexStage())
+                        : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertexStage()),
                 FIRST_UNIT,
                 ours -> {
                     String spliced = source.fragment().apply(ours.fragment());
                     String splicedVertex = source.vertex() == null ? null : source.vertex().apply(ours.vertex());
                     built[0] = new ProgramSource(name, null, null, null, null, spliced, programSet, properties, null);
-                    Map<PatchShaderType, String> patched = TransformPatcher.patchDHTerrain(name, splicedVertex, null,
-                            null, null, spliced, irisPipeline.getTextureMap(),
+                    // A vertex stage Iris patches carries its smooth outputs to our fragment divided by w.
+                    boolean hook = source.vertexStage().hook();
+                    Map<PatchShaderType, String> patched = TransformPatcher.patchDHTerrain(name,
+                            hook ? null : splicedVertex, null, null, null, spliced, irisPipeline.getTextureMap(),
                             irisPipeline.getTextureOverrides(TextureStage.GBUFFERS_AND_SHADOW));
                     ShaderPrinter.printProgram(name).addSources(patched).print();
-                    return new ShaderSources(
-                            splicedVertex == null ? ours.vertex() : patched.get(PatchShaderType.VERTEX),
-                            patched.get(PatchShaderType.FRAGMENT));
+                    String vertex = splicedVertex == null ? ours.vertex()
+                            : hook ? CORE_VERSION.matcher(splicedVertex).replaceFirst(CORE_PROFILE)
+                                    : patched.get(PatchShaderType.VERTEX);
+                    return new ShaderSources(vertex, patched.get(PatchShaderType.FRAGMENT));
                 });
         if (!pipeline.compiles()) {
             return null;
@@ -171,7 +176,6 @@ public final class PackProgram {
     ProgramSource source() {
         return source;
     }
-
     void draw(FarDraw draw, GlFramebuffer framebuffer, boolean translucent) {
         FarTarget target = draw.target();
         try (Pass farPass = open(framebuffer, target.width(), target.height())) {
