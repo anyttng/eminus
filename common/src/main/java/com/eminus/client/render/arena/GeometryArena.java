@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Set;
 
 import com.eminus.Eminus;
-import com.eminus.api.v1.ArenaState;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.buffer.Buffer;
