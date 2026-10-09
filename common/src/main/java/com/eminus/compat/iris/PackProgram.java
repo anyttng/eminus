@@ -34,7 +34,6 @@ import net.irisshaders.iris.pipeline.transform.PatchShaderType;
 import net.irisshaders.iris.pipeline.transform.ShaderPrinter;
 import net.irisshaders.iris.pipeline.transform.TransformPatcher;
 import net.irisshaders.iris.samplers.IrisSamplers;
-import net.irisshaders.iris.shaderpack.preprocessor.JcppProcessor;
 import net.irisshaders.iris.shaderpack.programs.ProgramSet;
 import net.irisshaders.iris.shaderpack.programs.ProgramSource;
 import net.irisshaders.iris.shaderpack.properties.ShaderProperties;
@@ -82,15 +81,9 @@ final class PackProgram {
     private final Matrix3f normal = new Matrix3f();
 
     enum Kind {
-        OPAQUE("eminus_opaque"),
-        TRANSLUCENT("eminus_translucent"),
-        SHADOW("eminus_shadow");
-
-        private final String programName;
-
-        Kind(String programName) {
-            this.programName = programName;
-        }
+        OPAQUE,
+        TRANSLUCENT,
+        SHADOW
     }
 
     private PackProgram(Foreign foreign, Pipeline pipeline, ProgramSource source, Object pass,
@@ -113,20 +106,17 @@ final class PackProgram {
     }
 
     static @Nullable PackProgram build(FarDraw draw, Foreign foreign, IrisRenderingPipeline irisPipeline,
-            ProgramSet programSet, ShaderProperties properties, String file, String packSource,
-            @Nullable String packVertexSource, Kind kind) {
-        String name = kind.programName;
-        Location location = new Location(Eminus.MODID, LOCATION_PREFIX + file);
+            ProgramSet programSet, ShaderProperties properties, PackPath.Source source, Kind kind) {
+        String name = source.programName();
+        Location location = new Location(Eminus.MODID, LOCATION_PREFIX + source.file());
         ProgramSource[] built = new ProgramSource[1];
         Pipeline pipeline = foreign.pipeline(
-                kind == Kind.SHADOW ? draw.shadowPipeline(location, packVertexSource != null)
+                kind == Kind.SHADOW ? draw.shadowPipeline(location, source.vertex() != null)
                         : draw.packPipeline(location, kind == Kind.TRANSLUCENT),
                 FIRST_UNIT,
                 ours -> {
-                    String spliced = PackSources.splice(packSource,
-                            PackSources.header(JcppProcessor.glslPreprocessSource(ours.fragment(), List.of())));
-                    String splicedVertex = packVertexSource == null ? null : PackSources.spliceVertex(packVertexSource,
-                            PackSources.header(JcppProcessor.glslPreprocessSource(ours.vertex(), List.of())));
+                    String spliced = source.fragment().apply(ours.fragment());
+                    String splicedVertex = source.vertex() == null ? null : source.vertex().apply(ours.vertex());
                     built[0] = new ProgramSource(name, null, null, null, null, spliced, programSet, properties, null);
                     Map<PatchShaderType, String> patched = TransformPatcher.patchDHTerrain(name, splicedVertex, null,
                             null, null, spliced, irisPipeline.getTextureMap());
@@ -160,7 +150,7 @@ final class PackProgram {
             return new PackProgram(foreign, pipeline, built[0], pass, customUniforms, uniforms.buildUniforms(),
                     samplers.build(), images.build());
         } catch (RuntimeException refused) {
-            Eminus.LOGGER.error("Shader pack file {} did not bind to the pack: {}", file, refused.toString());
+            Eminus.LOGGER.error("Shader pack file {} did not bind to the pack: {}", source.file(), refused.toString());
             return null;
         } finally {
             GL20C.glUseProgram(NO_PROGRAM);
