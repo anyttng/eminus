@@ -133,6 +133,7 @@ final class PackLayer {
     @SuppressWarnings("ReferenceEquality")
     static void destroyed(Object pipeline) {
         if (current != null && current.pipeline == pipeline) {
+            current.release();
             current = null;
             IrisFarState.clear();
         }
@@ -154,6 +155,9 @@ final class PackLayer {
     @SuppressWarnings("ReferenceEquality")
     private static PackLayer of(IrisRenderingPipeline pipeline) {
         if (current == null || current.pipeline != pipeline) {
+            if (current != null) {
+                current.release();
+            }
             current = new PackLayer(pipeline, Iris.getCurrentPack().orElse(null), Iris.getCurrentDimension());
         }
         return current;
@@ -187,6 +191,9 @@ final class PackLayer {
         PackProgram builtTranslucent = builtOpaque == null ? null
                 : program(draw, foreign.get(), PackProgram.Kind.TRANSLUCENT);
         if (builtOpaque == null || builtTranslucent == null) {
+            if (builtOpaque != null) {
+                builtOpaque.release();
+            }
             return;
         }
 
@@ -199,6 +206,17 @@ final class PackLayer {
         opaque = builtOpaque;
         translucent = builtTranslucent;
         buildShadow(draw, foreign.get());
+    }
+
+    private void release() {
+        for (PackProgram program : new PackProgram[] {opaque, translucent, shadow}) {
+            if (program != null) {
+                program.release();
+            }
+        }
+        opaque = null;
+        translucent = null;
+        shadow = null;
     }
 
     private void buildShadow(FarDraw draw, Foreign foreign) {
