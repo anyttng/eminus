@@ -2,6 +2,7 @@ package com.eminus.compat.iris.contract;
 
 import java.util.List;
 
+import com.eminus.client.render.far.FarDraw;
 import com.eminus.compat.iris.PackContract;
 import com.eminus.compat.iris.PackSources;
 
@@ -26,5 +27,12 @@ final class ContractSources {
 
     static String spliceVertex(String packSource, String header) {
         return PackSources.insert(packSource, header, NO_MAIN);
+    }
+
+    static FarDraw.PackVertex shadowStage(boolean vertex, boolean shadowVertex) {
+        if (vertex) {
+            return FarDraw.PackVertex.HOOK;
+        }
+        return shadowVertex ? FarDraw.PackVertex.SHADOW_HOOK : FarDraw.PackVertex.OURS;
     }
 }
