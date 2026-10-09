@@ -38,8 +38,9 @@ opaque faces are drawn into your shadow map. If your `shadow` vertex program dis
 `eminus_shadow_vertex.glsl` too, with the same distortion — [Shadows](#shadows) has the details. Without
 `eminus_shadow.glsl` the LOD casts no shadow.
 
-The [example pack](example-pack/) is a complete minimal pack under the same MIT license as Eminus: textured, lit
-terrain, the contract file, and a fog composite that is step 2 in a dozen lines.
+The [example pack](example-pack/) is a complete minimal pack: textured, lit terrain, the contract file, and a fog
+composite that is step 2 in a dozen lines. It carries its own MIT [license](example-pack/LICENSE), so a pack may copy
+any part of it.
 
 ## Files
 
