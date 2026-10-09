@@ -44,9 +44,11 @@ struct EminusFragment {
 };
 
 EminusFragment eminus_fragment() {
+#ifndef DH_PROGRAM
     if (far_in_near_section(eminus_nearPoint)) {
         discard;
     }
+#endif
 
     ivec2 cell = eminus_atlasCell;
     if (eminus_variantInfo.y > 0) {

@@ -24,5 +24,9 @@
   "gui.eminus.settings.fog": "Brouillard",
   "gui.eminus.settings.fog.hint": "Brouillard sur le LOD, qui prolonge celui du jeu et devient complet à la distance du LOD. Désactivé, il retire aussi le brouillard en plein air des tronçons chargés : toute la vue reste nette. Le brouillard du Nether, d'un boss, sous l'eau ou dû à la cécité reste.",
   "gui.eminus.settings.fade": "Fondu",
-  "gui.eminus.settings.fade.hint": "Fait disparaître le LOD en fondu sur ses 512 derniers blocs au lieu d'un bord net."
+  "gui.eminus.settings.fade.hint": "Fait disparaître le LOD en fondu sur ses 512 derniers blocs au lieu d'un bord net.",
+  "gui.eminus.settings.shader_pack_lod": "LOD sous shaders",
+  "gui.eminus.settings.shader_pack_lod.hint": "Comment le LOD est dessiné sous un pack de shaders sans prise en charge d'Eminus. Par défaut le dessine par-dessus l'image du pack avec l'aspect propre à Eminus. Distant Horizons laisse un pack compatible avec Distant Horizons le dessiner lui-même, avec sa lumière et son brouillard, mais d'une seule couleur unie par bloc. Un pack conçu pour Eminus dessine toujours le LOD lui-même. Le changer recharge le pack de shaders.",
+  "gui.eminus.settings.shader_pack_lod.default": "Par défaut",
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
 }

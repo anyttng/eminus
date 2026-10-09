@@ -11,6 +11,8 @@ import com.eminus.gpu.pass.Pass;
 import com.eminus.gpu.pipeline.Blend;
 import com.eminus.gpu.pipeline.PipelineSpec;
 import com.eminus.gpu.texture.Texture;
+import com.eminus.model.BakedModel;
+import com.eminus.model.Mips;
 import com.eminus.model.port.VariantDraw;
 import com.eminus.render.backend.DepthConvention;
 
@@ -90,12 +92,15 @@ public final class FarDraw {
         return farBlocks;
     }
 
-    public PipelineSpec packPipeline(Location location, boolean translucent) {
+    public PipelineSpec packPipeline(Location location, boolean translucent, boolean packProgram) {
         PipelineSpec.Builder builder = FarQuads.pipeline(location, PACK_SHADER,
                         translucent ? TranslucentPass.ALPHA_CUTOUT : OpaquePass.ALPHA_CUTOUT, gpu.capabilities(),
                         variantDraw)
                 .withColourTarget(FarTarget.COLOUR_FORMAT, translucent ? Blend.TRANSLUCENT : null, true)
                 .withDepthTest(depth.compare(), true);
+        if (packProgram) {
+            builder.withDefine("DH_PROGRAM").withDefine("FACE_MEAN_LEVEL", Mips.levelCount(BakedModel.FACE_SIDE) - 1);
+        }
         return (translucent ? builder.withDefine("TRANSLUCENT_PASS") : builder.withDefine("FULL_COVERAGE")).build();
     }
 

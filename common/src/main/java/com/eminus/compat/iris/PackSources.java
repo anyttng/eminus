@@ -1,26 +1,21 @@
 package com.eminus.compat.iris;
 
-import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import org.jspecify.annotations.Nullable;
-
-final class PackSources {
-    static final String MAIN = "void main() {\n    " + PackContract.FUNCTION + "(eminus_fragment());\n}\n";
+public final class PackSources {
+    public static final String PACK_MAIN = "eminus_packMain";
 
     private static final String VERSION = "#version";
     private static final String EXTENSION = "#extension";
     private static final String LINE = "\n";
-    private static final String NO_MAIN = "";
+    private static final Pattern MAIN_SIGNATURE = Pattern.compile("\\bvoid\\s+main\\s*\\(\\s*(?:void\\s*)?\\)");
+    private static final String RENAMED_SIGNATURE = "void " + PACK_MAIN + "()";
 
     private PackSources() {
     }
 
-    static List<String> candidates(String file, @Nullable String folder) {
-        return folder == null || folder.isEmpty() ? List.of(PackContract.ROOT + file)
-                : List.of(PackContract.ROOT + folder + PackContract.ROOT + file, PackContract.ROOT + file);
-    }
-
-    static String header(String preprocessed) {
+    public static String header(String preprocessed) {
         StringBuilder header = new StringBuilder();
         for (String line : preprocessed.split(LINE, -1)) {
             if (!directive(line)) {
@@ -30,15 +25,7 @@ final class PackSources {
         return header.toString();
     }
 
-    static String splice(String packSource, String header) {
-        return splice(packSource, header, MAIN);
-    }
-
-    static String spliceVertex(String packSource, String header) {
-        return splice(packSource, header, NO_MAIN);
-    }
-
-    private static String splice(String packSource, String header, String main) {
+    public static String insert(String packSource, String header, String main) {
         String[] lines = packSource.split(LINE, -1);
         int insertAt = -1;
         for (int index = 0; index < lines.length; index++) {
@@ -64,6 +51,20 @@ final class PackSources {
             spliced.append(header);
         }
         return spliced.append(main).toString();
+    }
+
+    public static String renameMain(String packSource) {
+        Matcher main = MAIN_SIGNATURE.matcher(packSource);
+        if (!main.find()) {
+            throw new IllegalArgumentException("No main function in the pack program");
+        }
+
+        int start = main.start();
+        int end = main.end();
+        if (main.find()) {
+            throw new IllegalArgumentException("More than one main function in the pack program");
+        }
+        return packSource.substring(0, start) + RENAMED_SIGNATURE + packSource.substring(end);
     }
 
     private static boolean directive(String line) {

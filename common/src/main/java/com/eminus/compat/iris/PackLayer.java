@@ -8,6 +8,8 @@ import com.eminus.client.render.far.FarDraw;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.client.render.far.FarShadow;
 import com.eminus.client.render.far.FarTarget;
+import com.eminus.compat.iris.contract.ContractPath;
+import com.eminus.compat.iris.dh.DhPath;
 import com.eminus.compat.iris.mixin.ShaderPackAccessor;
 import com.eminus.gpu.Foreign;
 import com.eminus.settings.FarDistance;
@@ -61,7 +63,8 @@ final class PackLayer {
             return;
         }
 
-        path = ContractPath.detect(pack, dimension);
+        PackPath contract = ContractPath.detect(pack, dimension);
+        path = contract != null ? contract : DhPath.detect(pack, pipeline);
         programSet = pack.getProgramSet(dimension);
         properties = ((ShaderPackAccessor) pack).eminus$shaderProperties();
     }
@@ -87,6 +90,10 @@ final class PackLayer {
             IrisFarState.clear();
         }
         return ready;
+    }
+
+    static boolean throughDhPrograms() {
+        return current != null && current.path != null && current.path.distantHorizons();
     }
 
     static void draw(FarRenderer renderer, Object pipeline, boolean translucent) {
@@ -118,7 +125,7 @@ final class PackLayer {
     }
 
     static int shadowReach(int irisChunks) {
-        int ours = current == null || current.shadow == null ? NO_REACH
+        int ours = current == null || current.shadow == null && !IrisFarState.distantHorizons() ? NO_REACH
                 : Math.ceilDiv(IrisFarState.renderDistance(), FarDistance.BLOCKS_PER_CHUNK);
         return Math.max(irisChunks, ours);
     }
@@ -231,7 +238,7 @@ final class PackLayer {
         FarTarget target = draw.target();
         int depth = foreign.texture(target.depth());
         IrisFarState.write(depth, foreign.texture(target.opaqueDepth()), draw.projection(),
-                draw.previousProjection(), draw.farBlocks());
+                draw.previousProjection(), draw.farBlocks(), path.distantHorizons());
         opaqueAttached = attach(opaqueFramebuffer, opaqueAttached, depth);
         opaque.draw(draw, opaqueFramebuffer, false);
         foreign.copyDepth(target.colour(), target.depth(), target.opaqueDepth());

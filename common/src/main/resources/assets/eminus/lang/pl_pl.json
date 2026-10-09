@@ -24,5 +24,9 @@
   "gui.eminus.settings.fog": "Mgła",
   "gui.eminus.settings.fog.hint": "Mgła nad LOD, przejmująca mgłę samej gry i pełna na granicy zasięgu LOD. Wyłączona usuwa też mgłę pod gołym niebem z wczytanych chunków, więc cały widok pozostaje wyraźny. Mgła w Netherze, od bossa, pod wodą lub od ślepoty zostaje.",
   "gui.eminus.settings.fade": "Zanikanie",
-  "gui.eminus.settings.fade.hint": "Wygasza LOD na jego ostatnich 512 blokach zamiast kończyć go ostrą krawędzią."
+  "gui.eminus.settings.fade.hint": "Wygasza LOD na jego ostatnich 512 blokach zamiast kończyć go ostrą krawędzią.",
+  "gui.eminus.settings.shader_pack_lod": "LOD w shaderach",
+  "gui.eminus.settings.shader_pack_lod.hint": "Jak rysowany jest LOD pod paczką shaderów bez obsługi Eminus. Domyślnie rysuje go na obrazie paczki we własnym wyglądzie Eminus. Distant Horizons pozwala paczce obsługującej Distant Horizons rysować go samej, z jej światłem i mgłą, ale jednym płaskim kolorem na blok. Paczka stworzona dla Eminus zawsze rysuje LOD sama. Zmiana przeładowuje paczkę shaderów.",
+  "gui.eminus.settings.shader_pack_lod.default": "Domyślnie",
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
 }
