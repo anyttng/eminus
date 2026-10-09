@@ -218,6 +218,7 @@ public final class WorkerPool {
 
         private boolean retired;
 
+        @SuppressWarnings("ThreadPriorityCheck")
         private Worker(String name) {
             thread = new Thread(this, name);
             thread.setDaemon(true);

@@ -30,7 +30,7 @@ public final class ColumnCoverage {
     }
 
     public static long pack(int chunkX, int chunkZ) {
-        return (long) chunkX << Z_BITS | chunkZ & Z_MASK;
+        return (long) chunkX << Z_BITS | (chunkZ & Z_MASK);
     }
 
     public synchronized void load(long chunk) {

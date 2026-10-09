@@ -22,6 +22,7 @@ public final class BiomeColours {
     private static final int SAMPLE_COLUMN = 0;
     private static final int RGB_MASK = 0x00FF_FFFF;
 
+    @SuppressWarnings("ArrayRecordComponent")
     public record Colours(int[] values, TintSource source, BlockState state) implements Comparable<Colours> {
         public boolean uniform() {
             return Arrays.stream(values).allMatch(value -> value == values[0]);

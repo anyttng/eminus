@@ -69,7 +69,7 @@ class ColumnCoverageTest {
         assertTrue(coverage.cover(-5, 7));
         coverage.persist(-5, 7);
 
-        assertEquals(List.of(((long) -5 << 32) | 7L), persisted);
+        assertEquals(List.of((-5L << 32) | 7L), persisted);
     }
 
     @Test

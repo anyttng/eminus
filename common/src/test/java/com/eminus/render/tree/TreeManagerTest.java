@@ -246,8 +246,9 @@ class TreeManagerTest {
 
         manager.covered(BOUNDARY_CHUNK_X, INTERIOR_CHUNK_Z);
 
-        Set<Long> rebuilt = Set.of(builds.take().key(), builds.take().key());
-        assertEquals(Set.of(KEY, WEST), rebuilt);
+        long first = builds.take().key();
+        long second = builds.take().key();
+        assertEquals(Set.of(KEY, WEST), Set.of(first, second));
         assertTrue(builds.idle());
     }
 
@@ -506,6 +507,7 @@ class TreeManagerTest {
     }
 
     // A batch the tree built while the slot was full is offered only after its next message, and describing no rows changes nothing else.
+    @SuppressWarnings("FutureReturnValueIgnored")
     private TreeBatch awaitBatch(Predicate<TreeBatch> ready) {
         long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(AWAIT_MILLIS);
 

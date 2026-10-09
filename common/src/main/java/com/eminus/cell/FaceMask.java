@@ -15,7 +15,7 @@ public final class FaceMask {
     private static final int LAST_VOXEL = DetailLevel.VOXELS_PER_SIDE - 1;
 
     public static int bit(Direction face) {
-        return 1 << face.ordinal();
+        return 1 << face.get3DDataValue();
     }
 
     public static int of(int voxelX, int voxelY, int voxelZ) {

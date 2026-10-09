@@ -71,8 +71,6 @@ class CellFrameTest {
 
     @Test
     void aTopLevelCellSpansFiveHundredAndTwelveBlocks() {
-        CellFrame frame = new CellFrame(-64);
-
         assertEquals(0, CellFrame.cellX(0, DetailLevel.MAX));
         assertEquals(0, CellFrame.cellX(511, DetailLevel.MAX));
         assertEquals(1, CellFrame.cellX(512, DetailLevel.MAX));

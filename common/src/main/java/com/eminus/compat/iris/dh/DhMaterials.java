@@ -68,7 +68,7 @@ final class DhMaterials {
     }
 
     private static Map<MapColor, Integer> byMapColour() {
-        Map<MapColor, Integer> classes = new IdentityHashMap<>();
+        IdentityHashMap<MapColor, Integer> classes = new IdentityHashMap<>();
         put(classes, GRASS, MapColor.GRASS, MapColor.PLANT);
         put(classes, DIRT, MapColor.DIRT);
         put(classes, SAND, MapColor.SAND);
@@ -88,7 +88,7 @@ final class DhMaterials {
     }
 
     private static Map<SoundType, Integer> bySound() {
-        Map<SoundType, Integer> classes = new IdentityHashMap<>();
+        IdentityHashMap<SoundType, Integer> classes = new IdentityHashMap<>();
         put(classes, METAL, SoundType.METAL, SoundType.COPPER, SoundType.NETHERITE_BLOCK,
                 SoundType.ANVIL, SoundType.CHAIN);
         put(classes, SAND, SoundType.SAND, SoundType.SUSPICIOUS_SAND);

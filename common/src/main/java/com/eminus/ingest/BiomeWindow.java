@@ -74,6 +74,7 @@ public final class BiomeWindow implements BiomeManager.NoiseBiomeSource {
         return (y * SIDE + z) * SIDE + x;
     }
 
+    @SuppressWarnings("ReferenceEquality")
     private static boolean allSame(Holder<Biome>[] quarts) {
         for (Holder<Biome> quart : quarts) {
             if (quart != quarts[0]) {

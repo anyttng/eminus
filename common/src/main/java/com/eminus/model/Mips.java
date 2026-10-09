@@ -25,7 +25,7 @@ public final class Mips {
         levels[0] = face;
 
         for (int level = 1; level < levels.length; level++) {
-            levels[level] = halve(levels[level - 1], side >> level - 1, mean);
+            levels[level] = halve(levels[level - 1], side >> (level - 1), mean);
         }
 
         return levels;
@@ -52,7 +52,7 @@ public final class Mips {
 
     private static int colourMean(int first, int second, int third, int fourth) {
         return channel(first, second, third, fourth, ALPHA_SHIFT) << ALPHA_SHIFT
-                | Argb.meanGamma(first, second, third, fourth) & RGB_MASK;
+                | (Argb.meanGamma(first, second, third, fourth) & RGB_MASK);
     }
 
     private static int arithmeticMean(int first, int second, int third, int fourth) {

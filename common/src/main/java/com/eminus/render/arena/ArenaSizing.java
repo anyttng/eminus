@@ -10,7 +10,7 @@ public final class ArenaSizing {
     public static final long BLOCK_BYTES = (long) ArenaAllocator.QUADS_PER_BLOCK * QUAD_BYTES;
     public static final long MIN_BYTES = 32L * 1024 * 1024;
     public static final long UNREAD_TEXEL_BYTES = 2048L * 1024 * 1024;
-    public static final long VERTEX_INDEX_BYTES = (1L << Integer.SIZE - 1) / DrawCommands.VERTICES_PER_QUAD * QUAD_BYTES;
+    public static final long VERTEX_INDEX_BYTES = (1L << (Integer.SIZE - 1)) / DrawCommands.VERTICES_PER_QUAD * QUAD_BYTES;
     public static final int BLOCK_FILL_PERCENT = 95;
     public static final int DEVICE_SHARE = 4;
     public static final int FREE_MEMORY_SHARE = 2;

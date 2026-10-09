@@ -18,8 +18,11 @@ public final class ObjWriter {
         "border-north", "border-south", "border-west", "border-east"};
     private static final int[][] CORNER_STEPS = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
 
+    @SuppressWarnings("EnumOrdinal")
     private static final int X = Direction.Axis.X.ordinal();
+    @SuppressWarnings("EnumOrdinal")
     private static final int Y = Direction.Axis.Y.ordinal();
+    @SuppressWarnings("EnumOrdinal")
     private static final int Z = Direction.Axis.Z.ordinal();
 
     public static void write(CellMesh mesh, MeshModels models, Path file) throws IOException {
@@ -55,6 +58,7 @@ public final class ObjWriter {
         }
     }
 
+    @SuppressWarnings("EnumOrdinal")
     private static int quad(BufferedWriter out, long quad, Placed placed, int vertex) throws IOException {
         float[] origin = {
             Quad.x(quad) + QuadOffset.x(placed.offset()), Quad.y(quad) + QuadOffset.y(placed.offset()),

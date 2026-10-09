@@ -1,7 +1,6 @@
 package com.eminus.client.gpu.opengl;
 
 import java.nio.ByteBuffer;
-import java.util.function.IntConsumer;
 
 import com.eminus.gpu.Format;
 import com.eminus.gpu.texture.Texture;
@@ -14,7 +13,6 @@ final class OpenGlTexture implements Texture {
     private static final int BASE_MIP = 0;
     private static final int NO_BORDER = 0;
     private static final int PACKED_ROWS = 0;
-    private static final IntConsumer NOT_OURS = id -> { };
 
     private final OpenGlName name;
     private final Format format;
@@ -56,8 +54,11 @@ final class OpenGlTexture implements Texture {
         int width = GL11C.glGetTexLevelParameteri(GL11C.GL_TEXTURE_2D, BASE_MIP, GL11C.GL_TEXTURE_WIDTH);
         int height = GL11C.glGetTexLevelParameteri(GL11C.GL_TEXTURE_2D, BASE_MIP, GL11C.GL_TEXTURE_HEIGHT);
         GameHandles.bindTexture(previous);
-        return new OpenGlTexture(new OpenGlName(handle.id(), NOT_OURS), handle.format(), width, height,
-                handle.owner());
+        return new OpenGlTexture(new OpenGlName(handle.id(), OpenGlTexture::notOurs), handle.format(), width,
+                height, handle.owner());
+    }
+
+    private static void notOurs(int id) {
     }
 
     int id() {

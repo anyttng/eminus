@@ -68,6 +68,7 @@ public final class ModelBakery implements ModelSource {
         return start(baker, NO_PACK_IDS);
     }
 
+    @SuppressWarnings("ThreadPriorityCheck")
     public static ModelBakery start(StateBaker baker, ToIntFunction<BlockState> packIds) {
         ModelBakery bakery = new ModelBakery(baker, packIds);
         bakery.thread.setDaemon(true);
@@ -100,7 +101,7 @@ public final class ModelBakery implements ModelSource {
     }
 
     public int inwardModelId(int seabedModelId, int fluidModelId) {
-        long pair = (long) seabedModelId << Integer.SIZE | fluidModelId & LOW_WORD;
+        long pair = (long) seabedModelId << Integer.SIZE | (fluidModelId & LOW_WORD);
         return inwardIds.computeIfAbsent(pair,
                 key -> models.register(model(seabedModelId).inward(model(fluidModelId))));
     }

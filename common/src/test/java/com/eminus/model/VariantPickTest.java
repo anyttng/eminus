@@ -38,6 +38,7 @@ class VariantPickTest {
             Integer.MAX_VALUE};
     private static final int[] BOUNDS = {1, 4, 5, 7, 71};
 
+    @SuppressWarnings("ArrayRecordComponent")
     private record Variants(List<WeightedEntry.Wrapper<Integer>> entries, int[] table, int total) {
         static Variants of(int... weights) {
             List<WeightedEntry.Wrapper<Integer>> entries = new ArrayList<>();

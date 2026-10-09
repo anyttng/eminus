@@ -113,9 +113,9 @@ public final class DrawCommands {
             double cameraZ) {
         for (int group = 0; group < QuadGroups.COUNT; group++) {
             if (group == QuadGroups.TRANSLUCENT
-                    || QuadGroups.isBorder(group) && (borderFaces & 1 << QuadGroups.direction(group)) == 0
+                    || (QuadGroups.isBorder(group) && (borderFaces & 1 << QuadGroups.direction(group)) == 0)
                     || slot.groupCount(group) == 0
-                    || facing && !GroupFacing.visible(group, bounds, cameraX, cameraY, cameraZ)) {
+                    || (facing && !GroupFacing.visible(group, bounds, cameraX, cameraY, cameraZ))) {
                 continue;
             }
 

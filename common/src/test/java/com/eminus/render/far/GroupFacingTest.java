@@ -20,29 +20,29 @@ class GroupFacingTest {
 
     @Test
     void anUpwardGroupIsDroppedFromBelowTheCell() {
-        assertFalse(GroupFacing.visible(Direction.UP.ordinal(), bounds, INSIDE, BELOW, INSIDE));
+        assertFalse(GroupFacing.visible(Direction.UP.get3DDataValue(), bounds, INSIDE, BELOW, INSIDE));
     }
 
     @Test
     void anUpwardGroupIsKeptFromAboveTheCell() {
-        assertTrue(GroupFacing.visible(Direction.UP.ordinal(), bounds, INSIDE, ABOVE, INSIDE));
+        assertTrue(GroupFacing.visible(Direction.UP.get3DDataValue(), bounds, INSIDE, ABOVE, INSIDE));
     }
 
     @Test
     void aDownwardGroupIsDroppedFromAboveTheCell() {
-        assertFalse(GroupFacing.visible(Direction.DOWN.ordinal(), bounds, INSIDE, ABOVE, INSIDE));
+        assertFalse(GroupFacing.visible(Direction.DOWN.get3DDataValue(), bounds, INSIDE, ABOVE, INSIDE));
     }
 
     @Test
     void bothGroupsOfAnAxisAreKeptWhileTheCameraIsInsideTheCell() {
-        assertTrue(GroupFacing.visible(Direction.EAST.ordinal(), bounds, INSIDE, INSIDE, INSIDE));
-        assertTrue(GroupFacing.visible(Direction.WEST.ordinal(), bounds, INSIDE, INSIDE, INSIDE));
+        assertTrue(GroupFacing.visible(Direction.EAST.get3DDataValue(), bounds, INSIDE, INSIDE, INSIDE));
+        assertTrue(GroupFacing.visible(Direction.WEST.get3DDataValue(), bounds, INSIDE, INSIDE, INSIDE));
     }
 
     @Test
     void everyDirectionalGroupIsDroppedOnItsOwnAxisAlone() {
-        assertFalse(GroupFacing.visible(Direction.NORTH.ordinal(), bounds, BELOW, BELOW, ABOVE));
-        assertTrue(GroupFacing.visible(Direction.SOUTH.ordinal(), bounds, BELOW, BELOW, ABOVE));
+        assertFalse(GroupFacing.visible(Direction.NORTH.get3DDataValue(), bounds, BELOW, BELOW, ABOVE));
+        assertTrue(GroupFacing.visible(Direction.SOUTH.get3DDataValue(), bounds, BELOW, BELOW, ABOVE));
     }
 
     @Test

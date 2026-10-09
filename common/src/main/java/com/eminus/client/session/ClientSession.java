@@ -192,6 +192,7 @@ public final class ClientSession {
         return renderer;
     }
 
+    @SuppressWarnings("ReferenceEquality")
     public static void tick() {
         if (instance == null) {
             return;
@@ -252,6 +253,7 @@ public final class ClientSession {
         }
     }
 
+    @SuppressWarnings("ReferenceEquality")
     private static IngestService ingestFor(Level source) {
         if (runtime == null || source != level) {
             return null;
