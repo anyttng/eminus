@@ -34,6 +34,14 @@ repositories {
             includeGroup 'maven.modrinth'
         }
     }
+    // MixinSquared: the compat gate's checker fixtures carry its @TargetHandler.
+    maven {
+        name = 'Bawnorton'
+        url = 'https://maven.bawnorton.com/releases'
+        content {
+            includeGroup 'com.github.bawnorton.mixinsquared'
+        }
+    }
 }
 
 dependencies {
@@ -56,6 +64,19 @@ dependencies {
 neoForge.addModdingDependenciesTo(sourceSets.test)
 
 dependencies {
+    // A compat config plugin cannot even load without IMixinConfigPlugin.
+    testRuntimeOnly "net.fabricmc:sponge-mixin:${mixin_version}"
+    // The checker's fixture mixins carry the real annotations.
+    testCompileOnly "net.fabricmc:sponge-mixin:${mixin_version}"
+    testCompileOnly "io.github.llamalad7:mixinextras-common:${mixinextras_version}"
+    testCompileOnly "com.github.bawnorton.mixinsquared:mixinsquared-common:${mixinsquared_version}"
+    // CompatGatesTest checks both gates against the Sodium and Iris builds this module compiles against.
+    testRuntimeOnly("maven.modrinth:sodium:${sodium_version}") {
+        transitive = false
+    }
+    testRuntimeOnly("maven.modrinth:iris:${iris_version}") {
+        transitive = false
+    }
     testImplementation platform("org.junit:junit-bom:${junit_version}")
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation 'org.junit.platform:junit-platform-launcher'
@@ -72,7 +93,8 @@ test {
     doFirst { workingDir.mkdirs() }
     // The working directory is not the module, so a test that writes a report is told where the module's reports go.
     systemProperty 'eminus.reports', layout.buildDirectory.dir('reports').get().asFile.absolutePath
-    // ApiSurfaceTest lists the api sources, which are not on the classpath, so it is given the repo root.
+    // ApiSurfaceTest lists the api sources and CompatGatesTest the compat configs, read from the sources rather than
+    // the classpath, so both are given the repo root.
     systemProperty 'eminus.repoRoot', rootDir.absolutePath
 }
 
