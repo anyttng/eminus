@@ -28,7 +28,8 @@ class SettingsFileTest {
     @Test
     void anEditedValueLoadsBack() {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings edited = new Settings(false, 2, 24, 3, DetailDistance.HIGH, false, true);
+        Settings edited = new Settings(false, 2, 24, 3, DetailDistance.HIGH, false, true,
+                ShaderPackLod.DISTANT_HORIZONS);
 
         SettingsFile.save(file, edited);
 
@@ -38,7 +39,7 @@ class SettingsFileTest {
     @Test
     void theSavedFileCarriesTheSettingCommentsAndStillReadsBack() throws IOException {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings written = new Settings(true, 2, 24, 3, DetailDistance.LOW, false, false);
+        Settings written = new Settings(true, 2, 24, 3, DetailDistance.LOW, false, false, ShaderPackLod.DEFAULT);
 
         SettingsFile.save(file, written);
         String content = Files.readString(file, StandardCharsets.UTF_8);
@@ -49,6 +50,7 @@ class SettingsFileTest {
         assertTrue(content.contains("// How far out the finer detail levels reach"), content);
         assertTrue(content.contains("// Fog over LOD"), content);
         assertTrue(content.contains("// Whether LOD's outer edge fades out"), content);
+        assertTrue(content.contains("// How LOD is drawn under an Iris shader pack"), content);
         assertEquals(written, SettingsFile.load(file));
     }
 

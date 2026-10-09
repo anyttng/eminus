@@ -24,5 +24,9 @@
   "gui.eminus.settings.fog": "霧",
   "gui.eminus.settings.fog.hint": "LOD にかかる霧。ゲーム自身の霧を引き継ぎ、LOD 距離で最も濃くなります。オフにすると読み込まれたチャンクの屋外の霧も消え、景色全体がくっきりします。ネザー、ボス、水中、盲目による霧は残ります。",
   "gui.eminus.settings.fade": "フェード",
-  "gui.eminus.settings.fade.hint": "LOD をくっきりした縁で終わらせず、最後の 512 ブロックでフェードアウトさせます。"
+  "gui.eminus.settings.fade.hint": "LOD をくっきりした縁で終わらせず、最後の 512 ブロックでフェードアウトさせます。",
+  "gui.eminus.settings.shader_pack_lod": "シェーダーパックの LOD",
+  "gui.eminus.settings.shader_pack_lod.hint": "Eminus に対応していないシェーダーパックで LOD をどう描くか。デフォルトはパックの画像の上に Eminus 独自の見た目で描きます。Distant Horizons は Distant Horizons 対応のパックに描かせ、パックの光と霧が付きますが、ブロックごとに単色になります。Eminus 向けのパックは常に自分で LOD を描きます。変更するとシェーダーパックを再読み込みします。",
+  "gui.eminus.settings.shader_pack_lod.default": "デフォルト",
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
 }

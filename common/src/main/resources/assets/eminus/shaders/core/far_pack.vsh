@@ -24,6 +24,9 @@ flat out float eminus_emission;
 flat out int eminus_blockId;
 #ifdef PACK_VERTEX
 vec4 eminus_shadowPosition(vec4 shadowClipPosition);
+#elif defined DH_PROGRAM
+uniform sampler2D Atlas;
+uniform sampler2D TintMask;
 #else
 out vec3 iris_vBlockPos;
 flat out uvec2 iris_TexId;
@@ -35,11 +38,30 @@ const float LIGHT_LEVELS = 16.0;
 const float LIGHT_CENTRE = 0.5;
 const int LAST_AXIS_FACE = 5;
 
-void main() {
+#ifdef DH_PROGRAM
+bool eminus_culled;
+
+vec4 eminus_faceColour(ivec2 atlasCell, vec3 tint) {
+    vec4 colour = texelFetch(Atlas, atlasCell, FACE_MEAN_LEVEL);
+    colour.rgb *= mix(vec3(1.0), tint, texelFetch(TintMask, atlasCell, FACE_MEAN_LEVEL).r);
+#ifdef FULL_COVERAGE
+    colour.a = 1.0;
+#endif
+    return colour;
+}
+
+void eminus_cull() {
+    if (eminus_culled) {
+        gl_Position = CULLED_POSITION;
+    }
+}
+#endif
+
+void eminus_vertex() {
     FarVertex vertex = far_vertex(gl_VertexID);
 #ifdef PACK_VERTEX
     gl_Position = vertex.culled ? CULLED_POSITION : eminus_shadowPosition(FarProjView * vec4(vertex.position, 1.0));
-#else
+#elif !defined DH_PROGRAM
     gl_Position = vertex.culled ? CULLED_POSITION : FarProjView * vec4(vertex.position, 1.0);
 #endif
 
@@ -50,7 +72,8 @@ void main() {
     eminus_playerPos = vertex.position;
     eminus_lmcoord = (vec2(vertex.blockLight, vertex.skyLight) + LIGHT_CENTRE) / LIGHT_LEVELS;
     eminus_tint = vertex.tint;
-    eminus_normal = mat3(FarView) * (vertex.face < FIRST_BLADE_FACE ? far_face_normal(vertex.face) : BLADE_NORMAL);
+    vec3 normal = vertex.face < FIRST_BLADE_FACE ? far_face_normal(vertex.face) : BLADE_NORMAL;
+    eminus_normal = mat3(FarView) * normal;
     eminus_atlasCell = vertex.atlasCell;
     eminus_variantInfo = ivec4(vertex.variantStart, vertex.variantCount, vertex.faceSlot, vertex.level);
     eminus_cellOrigin = vertex.cellOrigin;
@@ -58,8 +81,21 @@ void main() {
     eminus_emission = float(vertex.emission) / float(MAX_EMISSION);
     eminus_blockId = int(texelFetch(ModelRecords, vertex.modelId * MODEL_TEXELS + PACK_ID_TEXEL).x);
 
-#ifndef PACK_VERTEX
+#ifdef DH_PROGRAM
+    eminus_culled = vertex.culled;
+    _vert_position = vertex.position;
+    _vert_normal = normal;
+    _vert_tex_light_coord = eminus_lmcoord;
+    _vert_color = eminus_faceColour(vertex.atlasCell, vertex.tint);
+    dhMaterialId = eminus_blockId;
+#elif !defined PACK_VERTEX
     iris_vBlockPos = vertex.voxelPoint;
     iris_TexId = uvec2(0u, uint(min(vertex.face, LAST_AXIS_FACE)));
 #endif
 }
+
+#if !defined DH_PROGRAM
+void main() {
+    eminus_vertex();
+}
+#endif

@@ -7,8 +7,10 @@ import java.util.function.UnaryOperator;
 import com.eminus.Eminus;
 import com.eminus.client.settings.SettingsText;
 import com.eminus.client.settings.SliderPositions;
+import com.eminus.compat.iris.IrisShaderPack;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
+import com.eminus.settings.ShaderPackLod;
 
 import net.caffeinemc.mods.sodium.api.config.ConfigEntryPoint;
 import net.caffeinemc.mods.sodium.api.config.structure.ConfigBuilder;
@@ -24,6 +26,7 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
     private static final String DETAIL_DISTANCE_ID = "detail_distance";
     private static final String FOG_ID = "fog";
     private static final String FADE_ID = "fade";
+    private static final String SHADER_PACK_LOD_ID = "shader_pack_lod";
 
     private static final int STEP = 1;
 
@@ -95,6 +98,16 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setDefaultValue(defaults.fade())
                         .setBinding(value -> edit(settings -> settings.withFade(value)),
                                 () -> current().fade()));
+        if (IrisShaderPack.installed()) {
+            group.addOption(builder.createEnumOption(id(SHADER_PACK_LOD_ID), ShaderPackLod.class)
+                    .setName(Component.translatable(SettingsText.SHADER_PACK_LOD_KEY))
+                    .setTooltip(SettingsText.hint(SettingsText.SHADER_PACK_LOD_KEY))
+                    .setStorageHandler(this::save)
+                    .setElementNameProvider(SettingsText::shaderPackLod)
+                    .setDefaultValue(defaults.shaderPackLod())
+                    .setBinding(value -> edit(settings -> settings.withShaderPackLod(value)),
+                            () -> current().shaderPackLod()));
+        }
 
         builder.registerOwnModOptions()
                 .addPage(builder.createOptionPage()

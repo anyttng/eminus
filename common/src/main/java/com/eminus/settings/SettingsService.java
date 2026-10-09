@@ -29,6 +29,10 @@ public final class SettingsService {
         service = chosen;
     }
 
+    public static boolean isSet() {
+        return service != null;
+    }
+
     public static SettingsService get() {
         if (service == null) {
             throw new IllegalStateException("Settings are not loaded — the loader entrypoint must call SettingsService.set first.");
