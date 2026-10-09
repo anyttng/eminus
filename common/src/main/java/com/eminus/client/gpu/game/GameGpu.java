@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import com.eminus.gpu.Capabilities;
+import com.eminus.gpu.Foreign;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.buffer.Buffer;
@@ -146,6 +147,11 @@ public final class GameGpu implements Gpu {
 
     @Override
     public Optional<Compute> compute() {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<Foreign> foreign() {
         return Optional.empty();
     }
 

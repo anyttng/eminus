@@ -24,5 +24,9 @@
   "gui.eminus.settings.fog": "안개",
   "gui.eminus.settings.fog.hint": "LOD에 드리우는 안개. 게임 자체의 안개를 이어받아 LOD 거리에서 가장 짙어집니다. 끄면 불러온 청크의 야외 안개도 사라져 시야 전체가 선명해집니다. 네더, 보스, 물속, 실명으로 생기는 안개는 남습니다.",
   "gui.eminus.settings.fade": "페이드",
-  "gui.eminus.settings.fade.hint": "LOD를 뚜렷한 경계로 끝내지 않고 마지막 512블록에 걸쳐 흐려지게 합니다."
+  "gui.eminus.settings.fade.hint": "LOD를 뚜렷한 경계로 끝내지 않고 마지막 512블록에 걸쳐 흐려지게 합니다.",
+  "gui.eminus.settings.shader_pack_lod": "셰이더 팩 LOD",
+  "gui.eminus.settings.shader_pack_lod.hint": "Eminus를 지원하지 않는 셰이더 팩에서 LOD를 그리는 방식입니다. 기본값은 팩의 화면 위에 Eminus 고유의 모습으로 그립니다. Distant Horizons는 Distant Horizons를 지원하는 팩이 직접 그리게 하여 팩의 빛과 안개가 적용되지만 블록마다 단색이 됩니다. Eminus용으로 만든 팩은 항상 LOD를 직접 그립니다. 변경하면 셰이더 팩을 다시 불러옵니다.",
+  "gui.eminus.settings.shader_pack_lod.default": "기본값",
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
 }

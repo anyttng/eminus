@@ -7,14 +7,19 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 
 import com.eminus.Eminus;
+import com.eminus.client.gpu.DeviceQueries;
 import com.eminus.gpu.Capabilities;
+import com.eminus.gpu.Foreign;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.ShaderSources;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.gpu.buffer.Staging;
@@ -30,8 +35,6 @@ import com.eminus.gpu.texture.TextureUsage;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
-import net.minecraft.client.Minecraft;
-
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.opengl.ARBClipControl;
 import org.lwjgl.opengl.GL;
@@ -43,7 +46,7 @@ import org.lwjgl.opengl.GL33C;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.system.MemoryUtil;
 
-public final class OpenGlGpu implements Gpu {
+public final class OpenGlGpu implements Gpu, Foreign {
     public static final String BACKEND = "own OpenGL";
 
     private static final String VERTEX_ARRAY_LABEL = "eminus-vertex-array";
@@ -96,7 +99,7 @@ public final class OpenGlGpu implements Gpu {
         return new OpenGlGpu(new Capabilities(BACKEND, zeroToOne, GameHandles.depthReversed(),
                 GameHandles.lightmapHalfTexel(),
                 gl.GL_ARB_draw_indirect, gl.GL_ARB_multi_draw_indirect, gl.GL_ARB_buffer_storage, NO_ALLOCATION_LIMIT,
-                OpenGlLimits.texelElements(), OpenGlLimits.freeBytes()));
+                DeviceQueries.openGlTexelElements(), DeviceQueries.openGlFreeBytes()));
     }
 
     OpenGlObjects objects() {
@@ -173,7 +176,7 @@ public final class OpenGlGpu implements Gpu {
             return kept;
         }
 
-        OpenGlTexture fresh = OpenGlTexture.borrowed(this, handle);
+        OpenGlTexture fresh = OpenGlTexture.borrowed(handle);
         if (kept != null) {
             textureClosed(kept.id());
         }
@@ -183,14 +186,59 @@ public final class OpenGlGpu implements Gpu {
 
     @Override
     public Pipeline pipeline(PipelineSpec spec) {
-        OpenGlPipeline pipeline = OpenGlPipeline.of(objects, Minecraft.getInstance().getResourceManager(), spec);
+        OpenGlPipeline pipeline = OpenGlPipeline.of(objects, spec);
         pipelines.add(pipeline);
         return pipeline;
     }
 
     @Override
+    public Pipeline pipeline(PipelineSpec spec, int firstTextureUnit, UnaryOperator<ShaderSources> sources) {
+        OpenGlPipeline pipeline = OpenGlPipeline.of(objects, spec, firstTextureUnit, sources);
+        pipelines.add(pipeline);
+        return pipeline;
+    }
+
+    @Override
+    public void release(Pipeline pipeline) {
+        OpenGlPipeline own = (OpenGlPipeline) pipeline;
+        if (pipelines.remove(own)) {
+            own.delete(objects);
+        }
+    }
+
+    @Override
+    public int program(Pipeline pipeline) {
+        return ((OpenGlPipeline) pipeline).program();
+    }
+
+    @Override
+    public int textureUnits(Pipeline pipeline) {
+        return ((OpenGlPipeline) pipeline).textureUnits();
+    }
+
+    @Override
+    public int texture(Texture texture) {
+        return ((OpenGlTexture) texture).id();
+    }
+
+    @Override
     public Pass pass(PassSpec spec) {
         return OpenGlPass.open(this, spec);
+    }
+
+    @Override
+    public Pass pass(int framebuffer, int width, int height, int colourTargets) {
+        return OpenGlPass.openForeign(this, framebuffer, width, height, colourTargets);
+    }
+
+    @Override
+    public void copyDepth(Texture colour, Texture from, Texture to) {
+        OpenGlTexture carrier = (OpenGlTexture) colour;
+        GameHandles.bindFramebuffers(framebuffer(carrier, (OpenGlTexture) from),
+                framebuffer(carrier, (OpenGlTexture) to));
+        GL30C.glBlitFramebuffer(0, 0, from.width(), from.height(), 0, 0, to.width(), to.height(),
+                GL11C.GL_DEPTH_BUFFER_BIT, GL11C.GL_NEAREST);
+        GameHandles.bindFramebuffer(UNBOUND);
     }
 
     @Override
@@ -201,6 +249,11 @@ public final class OpenGlGpu implements Gpu {
     @Override
     public Optional<Compute> compute() {
         return Optional.empty();
+    }
+
+    @Override
+    public Optional<Foreign> foreign() {
+        return Optional.of(this);
     }
 
     int sampler(Sampler sampler) {
@@ -227,7 +280,7 @@ public final class OpenGlGpu implements Gpu {
                 GL33C.glSamplerParameteri(id, GL11C.GL_TEXTURE_MAG_FILTER, GL11C.GL_NEAREST);
             }
         }
-        objects.created(OpenGlObjects.Kind.SAMPLER, id, SAMPLER_LABEL + sampler.name().toLowerCase());
+        objects.created(OpenGlObjects.Kind.SAMPLER, id, SAMPLER_LABEL + sampler.name().toLowerCase(Locale.ROOT));
         return id;
     }
 

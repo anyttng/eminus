@@ -36,7 +36,7 @@ class MeshBufferTest {
         buffer.colourIndex(WATER_BLUE, CORNERS);
         fill(buffer);
 
-        assertEquals(CORNERS, buffer.offsetAt(buffer.colourIndex(SWAMP_GREEN, CORNERS)));
+        assertEquals(CORNERS, buffer.placementAt(buffer.colourIndex(SWAMP_GREEN, CORNERS)));
         assertFalse(buffer.lostPlacements());
     }
 
@@ -49,7 +49,7 @@ class MeshBufferTest {
         buffer.resetReserving();
         fill(buffer);
 
-        assertEquals(CORNERS, buffer.offsetAt(buffer.colourIndex(WATER_BLUE, CORNERS)));
+        assertEquals(CORNERS, buffer.placementAt(buffer.colourIndex(WATER_BLUE, CORNERS)));
         assertFalse(buffer.lostPlacements());
     }
 

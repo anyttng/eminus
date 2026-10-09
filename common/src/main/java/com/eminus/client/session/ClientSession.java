@@ -2,8 +2,10 @@ package com.eminus.client.session;
 
 import java.nio.file.Path;
 import java.util.BitSet;
+import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
+import com.eminus.compat.iris.IrisShaderPack;
 import com.eminus.handoff.NearFieldOverride;
 import com.eminus.ingest.IngestService;
 import com.eminus.ingest.IngestTrigger;
@@ -13,6 +15,7 @@ import com.eminus.client.frame.GameFrames;
 import com.eminus.client.gpu.Gpus;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.gpu.Gpu;
+import com.eminus.model.ModelBakery;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 import com.eminus.session.StoreFolders;
@@ -28,6 +31,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -41,7 +45,11 @@ public final class ClientSession {
 
     private static boolean heldChunksPending;
     private static boolean renderedCutoutLeaves;
+    private static boolean overShaderPack;
+    private static boolean inShaderPack;
+    private static boolean throughDhPrograms;
     private static int renderedBiomeBlend;
+    private static @Nullable ToIntFunction<BlockState> renderedPackIds;
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
     private static FarRenderer renderer;
@@ -54,6 +62,7 @@ public final class ClientSession {
             return;
         }
 
+        IrisShaderPack.listenToShadowPass();
         Minecraft minecraft = Minecraft.getInstance();
         world = worldName(minecraft);
         Settings settings = SettingsService.get().settings();
@@ -83,6 +92,7 @@ public final class ClientSession {
     }
 
     public static void settingsChanged(Settings updated) {
+        IrisShaderPack.settingsChanged(updated);
         if (instance == null) {
             return;
         }
@@ -108,14 +118,40 @@ public final class ClientSession {
     }
 
     public static void drawFarLayer() {
-        if (renderer != null) {
+        if (renderer != null && !overShaderPack) {
             renderer.frame(Minecraft.getInstance());
         }
     }
 
+    public static void drawFarLayerOverShaderPack() {
+        if (renderer != null && overShaderPack && !inShaderPack) {
+            renderer.frame(Minecraft.getInstance());
+        }
+    }
+
+    public static void drawFarLayerInShaderPack(Object pipeline, boolean translucent) {
+        if (renderer != null && inShaderPack) {
+            IrisShaderPack.drawInPack(renderer, pipeline, translucent);
+        }
+    }
+
+    public static void drawFarLayerInShadowPass(Matrix4fc shadowView, Matrix4fc shadowProjection) {
+        if (renderer != null && inShaderPack) {
+            IrisShaderPack.drawShadow(renderer, shadowView, shadowProjection);
+        }
+    }
+
+    public static boolean drawsOverShaderPack() {
+        return overShaderPack;
+    }
+
     public static void overrideNearField() {
         Minecraft client = Minecraft.getInstance();
-        if (renderer == null || client.level == null) {
+        if (renderer != null) {
+            renderer.newFrame();
+        }
+        readShaderPack();
+        if (renderer == null || client.level == null || overShaderPack) {
             NearFieldOverride.skip();
             return;
         }
@@ -126,6 +162,22 @@ public final class ClientSession {
             NearFieldOverride.apply();
         } else {
             NearFieldOverride.skip();
+        }
+    }
+
+    private static void readShaderPack() {
+        boolean inUse = IrisShaderPack.inUse();
+        boolean inside = inUse && renderer != null && IrisShaderPack.packPathReady(renderer);
+        boolean dhPrograms = inside && IrisShaderPack.throughDhPrograms();
+        if (inUse != overShaderPack || inside != inShaderPack || dhPrograms != throughDhPrograms) {
+            overShaderPack = inUse;
+            inShaderPack = inside;
+            throughDhPrograms = dhPrograms;
+            Eminus.LOGGER.info(dhPrograms
+                    ? "Shader pack has no Eminus contract: the far layer draws through its Distant Horizons programs"
+                    : inside ? "Shader pack carries the Eminus contract: the far layer draws inside the pack"
+                    : inUse ? "Shader pack in use: the far layer draws over the pack's finished frame"
+                    : "No shader pack: the far layer draws in its own target");
         }
     }
 
@@ -141,6 +193,7 @@ public final class ClientSession {
         return renderer;
     }
 
+    @SuppressWarnings("ReferenceEquality")
     public static void tick() {
         if (instance == null) {
             return;
@@ -154,6 +207,11 @@ public final class ClientSession {
 
         if (renderer != null && (GameFrames.cutoutLeaves(minecraft) != renderedCutoutLeaves
                 || minecraft.options.biomeBlendRadius().get() != renderedBiomeBlend)) {
+            restartRenderer();
+        }
+
+        if (renderer != null && IrisShaderPack.packIds(renderedPackIds) != renderedPackIds) {
+            Eminus.LOGGER.info("Shader pack block ids changed: the far layer rebuilds");
             restartRenderer();
         }
 
@@ -196,6 +254,7 @@ public final class ClientSession {
         }
     }
 
+    @SuppressWarnings("ReferenceEquality")
     private static IngestService ingestFor(Level source) {
         if (runtime == null || source != level) {
             return null;
@@ -273,12 +332,14 @@ public final class ClientSession {
         rendered = SettingsService.get().settings();
         renderedCutoutLeaves = GameFrames.cutoutLeaves(minecraft);
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
+        renderedPackIds = IrisShaderPack.packIds(renderedPackIds);
         renderer = FarRenderer.start(minecraft, gpu, instance, runtime, level.getHeight(), rendered,
-                replacedArenaBytes);
+                replacedArenaBytes, renderedPackIds == null ? ModelBakery.NO_PACK_IDS : renderedPackIds);
     }
 
     private static void stopRenderer() {
         if (renderer != null) {
+            IrisShaderPack.rendererStopped();
             renderer.close();
             renderer = null;
         }

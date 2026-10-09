@@ -49,7 +49,7 @@ public final class Solidify {
 
         for (int index = 0; index < size; index++) {
             if (source[index] != UNREACHED && source[index] != index) {
-                argb[index] = argb[index] & ALPHA_MASK | argb[source[index]] & RGB_MASK;
+                argb[index] = (argb[index] & ALPHA_MASK) | (argb[source[index]] & RGB_MASK);
             }
         }
     }

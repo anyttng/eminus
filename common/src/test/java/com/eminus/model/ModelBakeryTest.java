@@ -20,6 +20,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.SingleThreadedRandomSource;
 
@@ -35,6 +36,10 @@ class ModelBakeryTest {
     private static final int RACED_STATES = 2000;
     private static final int LIGHT_WEIGHT = 1;
     private static final int HEAVY_WEIGHT = 3;
+    private static final int STONE_PACK_ID = 10_001;
+    private static final int DIRT_PACK_ID = 10_002;
+    private static final int SLAB_PACK_ID = 10_010;
+    private static final int WATER_PACK_ID = 10_020;
     private static final int[] PART_COLOURS = {0xFF11_1111, 0xFF22_2222, 0xFF33_3333, 0xFF44_4444};
     private static final int[][] POSITIONS = {{0, 70, 0}, {-17, 64, 31}, {1025, 12, -4000}, {-30_000, 200, 9}};
 
@@ -101,6 +106,7 @@ class ModelBakeryTest {
     }
 
     @Test
+    @SuppressWarnings("ReferenceEquality")
     void aThrowingBakeYieldsThePlaceholderAndLeavesTheThreadServing() throws InterruptedException {
         ModelBakery bakery = ModelBakery.start(state -> {
             if (state == stone) {
@@ -153,6 +159,7 @@ class ModelBakeryTest {
     }
 
     @Test
+    @SuppressWarnings("ReferenceEquality")
     void aSubmergedTwinAnswersForTheFluidModelAndEveryOtherModelAnswersItself() throws InterruptedException {
         ModelBakery bakery = ModelBakery.start(state -> state == stone
                 ? new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE), BakedModel.solid(GREEN))
@@ -183,6 +190,60 @@ class ModelBakeryTest {
             assertEquals(bakery.modelId(stone), bakery.modelId(dirt));
             assertEquals(bakery.fluidModelId(stone), bakery.fluidModelId(dirt));
             assertEquals(BOTH_MODELS, bakery.modelCount());
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("ReferenceEquality")
+    void twoStatesThePackTellsApartTakeTheirOwnModelsAndIds() throws InterruptedException {
+        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null),
+                state -> state == stone ? STONE_PACK_ID : DIRT_PACK_ID);
+
+        try {
+            awaitBake(bakery, stone);
+            awaitBake(bakery, dirt);
+
+            assertNotEquals(bakery.modelId(stone), bakery.modelId(dirt));
+            assertEquals(STONE_PACK_ID, bakery.model(bakery.modelId(stone)).packId());
+            assertEquals(DIRT_PACK_ID, bakery.model(bakery.modelId(dirt)).packId());
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void twoStatesThePackGivesOneIdShareOneModel() throws InterruptedException {
+        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null),
+                state -> STONE_PACK_ID);
+
+        try {
+            awaitBake(bakery, stone);
+            awaitBake(bakery, dirt);
+
+            assertEquals(bakery.modelId(stone), bakery.modelId(dirt));
+            assertEquals(1, bakery.modelCount());
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void aFluidModelAndItsSubmergedTwinTakeTheFluidsIdAndTheBlockModelTheStatesId() throws InterruptedException {
+        BlockState waterloggedSlab = Blocks.OAK_SLAB.defaultBlockState()
+                .setValue(BlockStateProperties.WATERLOGGED, true);
+        ModelBakery bakery = ModelBakery.start(
+                state -> new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE), BakedModel.solid(GREEN)),
+                state -> state.is(Blocks.WATER) ? WATER_PACK_ID : SLAB_PACK_ID);
+
+        try {
+            awaitBake(bakery, waterloggedSlab);
+
+            int fluid = bakery.fluidModelId(waterloggedSlab);
+            assertEquals(SLAB_PACK_ID, bakery.model(bakery.modelId(waterloggedSlab)).packId());
+            assertEquals(WATER_PACK_ID, bakery.model(fluid).packId());
+            assertEquals(WATER_PACK_ID, bakery.model(bakery.submergedModelId(fluid)).packId());
         } finally {
             bakery.stop();
         }

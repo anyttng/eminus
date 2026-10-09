@@ -9,14 +9,14 @@ public final class FaceNormals {
     private static final Vector3fc[] BY_FACE = normals();
 
     public static Vector3fc of(Direction face) {
-        return BY_FACE[face.ordinal()];
+        return BY_FACE[face.get3DDataValue()];
     }
 
     private static Vector3fc[] normals() {
         Direction[] faces = Direction.values();
         Vector3fc[] normals = new Vector3fc[faces.length];
         for (Direction face : faces) {
-            normals[face.ordinal()] = new Vector3f(face.getStepX(), face.getStepY(), face.getStepZ());
+            normals[face.get3DDataValue()] = new Vector3f(face.getStepX(), face.getStepY(), face.getStepZ());
         }
 
         return normals;

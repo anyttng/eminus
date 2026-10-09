@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
-import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.OccupancyMask;
@@ -30,11 +29,15 @@ final class TreeTraversal {
     private final NodeTable nodes;
     private final TreeExtent extent;
     private final FrustumIntersection frustum = new FrustumIntersection();
+    private final CellBox box = new CellBox();
     private final List<TreeNode> current = new ArrayList<>();
     private final List<TreeNode> next = new ArrayList<>();
     private final List<MeshSummary> drawn = new ArrayList<>();
     private final LongOpenHashSet drawnKeys = new LongOpenHashSet();
     private final LongOpenHashSet descendedKeys = new LongOpenHashSet();
+    private final List<MeshSummary> outOfViewDrawn = new ArrayList<>();
+    private final LongOpenHashSet outOfViewDrawnKeys = new LongOpenHashSet();
+    private final LongOpenHashSet outOfViewDescendedKeys = new LongOpenHashSet();
     private final List<TreeNode> outside = new ArrayList<>();
     private final List<Candidate> candidates = new ArrayList<>();
     private final List<TreeNode> requested = new ArrayList<>();
@@ -43,12 +46,6 @@ final class TreeTraversal {
     private final FloatArrayList outOfViewSizes = new FloatArrayList();
 
     private boolean starved;
-    private double minX;
-    private double minY;
-    private double minZ;
-    private double maxX;
-    private double maxY;
-    private double maxZ;
 
     private record Candidate(TreeNode node, float size) {
     }
@@ -58,7 +55,7 @@ final class TreeTraversal {
         this.extent = extent;
     }
 
-    RenderList walk(Collection<TreeNode> roots, CameraFrame camera, int budget, int outOfViewBudget, long walk) {
+    void walk(Collection<TreeNode> roots, CameraFrame camera, int budget, int outOfViewBudget, long walk) {
         frustum.set(camera.viewProjection());
         current.clear();
         current.addAll(roots);
@@ -92,13 +89,36 @@ final class TreeTraversal {
                 requestOutOfView(camera, farBlocks, outOfViewLeft);
             }
         }
-
-        return new RenderList(List.copyOf(drawn), borders(), camera);
     }
 
-    private Long2IntMap borders() {
+    RenderList list(CameraFrame camera) {
+        outOfViewDrawn.clear();
+        outOfViewDrawnKeys.clear();
+        outOfViewDescendedKeys.clear();
+        double farBlocks = (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
+        current.clear();
+        current.addAll(outside);
+
+        while (!current.isEmpty()) {
+            next.clear();
+
+            for (TreeNode node : current) {
+                listOutOfView(node, camera, farBlocks);
+            }
+
+            current.clear();
+            current.addAll(next);
+        }
+
+        List<MeshSummary> meshes = new ArrayList<>(drawn.size() + outOfViewDrawn.size());
+        meshes.addAll(drawn);
+        meshes.addAll(outOfViewDrawn);
+        return new RenderList(List.copyOf(meshes), borders(meshes), camera);
+    }
+
+    private Long2IntMap borders(List<MeshSummary> meshes) {
         Long2IntOpenHashMap borders = new Long2IntOpenHashMap();
-        for (MeshSummary mesh : drawn) {
+        for (MeshSummary mesh : meshes) {
             int faces = borderFaces(mesh.key());
             if (faces != RenderList.NO_BORDER_FACES) {
                 borders.put(mesh.key(), faces);
@@ -112,9 +132,8 @@ final class TreeTraversal {
         int faces = RenderList.NO_BORDER_FACES;
         for (Direction face : FACES) {
             long neighbour = CellKey.neighbour(key, face);
-            if (!drawnKeys.contains(neighbour)
-                    && (descendedKeys.contains(neighbour) || ancestorDrawn(neighbour))) {
-                faces |= 1 << face.ordinal();
+            if (!drawn(neighbour) && (descended(neighbour) || ancestorDrawn(neighbour))) {
+                faces |= 1 << face.get3DDataValue();
             }
         }
 
@@ -125,12 +144,20 @@ final class TreeTraversal {
         long ancestor = key;
         for (int level = CellKey.level(key) + 1; level <= DetailLevel.MAX; level++) {
             ancestor = CellKey.parent(ancestor);
-            if (drawnKeys.contains(ancestor)) {
+            if (drawn(ancestor)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private boolean drawn(long key) {
+        return drawnKeys.contains(key) || outOfViewDrawnKeys.contains(key);
+    }
+
+    private boolean descended(long key) {
+        return descendedKeys.contains(key) || outOfViewDescendedKeys.contains(key);
     }
 
     // Reused by the next walk; consumed before it.
@@ -157,20 +184,20 @@ final class TreeTraversal {
 
 
     private void visit(TreeNode node, CameraFrame camera, double farBlocks, long walk) {
-        box(node, camera);
+        box.set(extent.frame(), node.key(), camera);
 
-        if (ProjectedSize.horizontalDistance(minX, maxX, minZ, maxZ) > farBlocks) {
+        if (box.horizontalDistance() > farBlocks) {
             return;
         }
 
-        if (!frustum.testAab((float) minX, (float) minY, (float) minZ, (float) maxX, (float) maxY, (float) maxZ)) {
+        if (!box.meets(frustum)) {
             outside.add(node);
             return;
         }
 
         node.seen(walk);
 
-        float size = size(node, camera.inViewPixelsPerBlock());
+        float size = ProjectedSize.of(box, camera.inViewPixelsPerBlock());
         if (node.level() > extent.lowestLevel() && size > camera.subdivisionPixels()) {
             if (node.missingOctants() != OccupancyMask.EMPTY) {
                 candidates.add(new Candidate(node, size));
@@ -188,6 +215,28 @@ final class TreeTraversal {
         draw(node);
     }
 
+    private void listOutOfView(TreeNode node, CameraFrame camera, double farBlocks) {
+        box.set(extent.frame(), node.key(), camera);
+
+        if (box.horizontalDistance() > farBlocks) {
+            return;
+        }
+
+        if (node.level() > extent.lowestLevel() && ProjectedSize.of(box, camera.pixelsPerBlock()) > camera.subdivisionPixels()
+                && node.occupancy() != OccupancyMask.EMPTY && node.childrenReady()) {
+            node.markDescended();
+            outOfViewDescendedKeys.add(node.key());
+            descend(node);
+            return;
+        }
+
+        outOfViewDrawnKeys.add(node.key());
+        MeshSummary mesh = node.mesh();
+        if (mesh != null && !mesh.isEmpty()) {
+            outOfViewDrawn.add(mesh);
+        }
+    }
+
     private static void keepChildren(TreeNode node, long walk) {
         for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
             TreeNode child = node.child(octant);
@@ -195,13 +244,6 @@ final class TreeTraversal {
                 child.seen(walk);
             }
         }
-    }
-
-    private float size(TreeNode node, float pixelsPerBlock) {
-        double distance = Math.sqrt(ProjectedSize.axisDistanceSquared(minX, maxX)
-                + ProjectedSize.axisDistanceSquared(minY, maxY)
-                + ProjectedSize.axisDistanceSquared(minZ, maxZ));
-        return ProjectedSize.of(node.level(), distance, pixelsPerBlock);
     }
 
     private void requestOutOfView(CameraFrame camera, double farBlocks, int budget) {
@@ -224,13 +266,13 @@ final class TreeTraversal {
     }
 
     private void collectOutOfView(TreeNode node, CameraFrame camera, double farBlocks) {
-        box(node, camera);
+        box.set(extent.frame(), node.key(), camera);
 
-        if (ProjectedSize.horizontalDistance(minX, maxX, minZ, maxZ) > farBlocks) {
+        if (box.horizontalDistance() > farBlocks) {
             return;
         }
 
-        float size = size(node, camera.pixelsPerBlock());
+        float size = ProjectedSize.of(box, camera.pixelsPerBlock());
         if (node.level() <= extent.lowestLevel() || size <= camera.subdivisionPixels()) {
             return;
         }
@@ -291,19 +333,5 @@ final class TreeTraversal {
         if (mesh != null && !mesh.isEmpty()) {
             drawn.add(mesh);
         }
-    }
-
-    private void box(TreeNode node, CameraFrame camera) {
-        CellFrame frame = extent.frame();
-        long key = node.key();
-        int level = node.level();
-        int side = DetailLevel.blocksPerCell(level);
-
-        minX = frame.originBlockX(CellKey.x(key), level) - camera.eyeX();
-        minY = frame.originBlockY(CellKey.y(key), level) - camera.eyeY();
-        minZ = frame.originBlockZ(CellKey.z(key), level) - camera.eyeZ();
-        maxX = minX + side;
-        maxY = minY + side;
-        maxZ = minZ + side;
     }
 }

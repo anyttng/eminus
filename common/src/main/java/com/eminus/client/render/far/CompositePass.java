@@ -8,6 +8,7 @@ import java.util.Set;
 import com.eminus.Eminus;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Location;
 import com.eminus.gpu.Std140;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
@@ -22,8 +23,6 @@ import com.eminus.gpu.texture.Texture;
 import com.eminus.render.backend.DepthConvention;
 import com.eminus.render.far.CompositeFog;
 
-import net.minecraft.resources.Identifier;
-
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector4fc;
@@ -31,20 +30,28 @@ import org.lwjgl.system.MemoryStack;
 
 public final class CompositePass implements AutoCloseable {
     public static final float DEPTH_BIAS = 4.0F / (1 << 24);
+    public static final Location FULL_SCREEN_SHADER = new Location(Eminus.MODID, "core/far_composite");
+    public static final Std140.Block BLOCK = Std140.block("Composite");
 
-    private static final Identifier PIPELINE = Identifier.fromNamespaceAndPath(Eminus.MODID, "far_composite");
-    private static final Identifier SHADER = Identifier.fromNamespaceAndPath(Eminus.MODID, "core/far_composite");
+    private static final Std140.Member REPROJECT = BLOCK.add(Std140.Type.MAT4, "Reproject");
+    private static final Std140.Member FAR_INVERSE = BLOCK.add(Std140.Type.MAT4, "FarInverse");
+    private static final Std140.Member FOG_COLOUR = BLOCK.add(Std140.Type.VEC4, "FogColour");
+    private static final Std140.Member GAME_FOG_START = BLOCK.add(Std140.Type.FLOAT, "GameFogStart");
+    private static final Std140.Member GAME_FOG_END = BLOCK.add(Std140.Type.FLOAT, "GameFogEnd");
+    private static final Std140.Member FOG_REACH = BLOCK.add(Std140.Type.FLOAT, "FogReach");
+    private static final Std140.Member FOG_START = BLOCK.add(Std140.Type.FLOAT, "FogStart");
+    private static final Std140.Member FOG_END = BLOCK.add(Std140.Type.FLOAT, "FogEnd");
+    private static final Std140.Member FADE_START = BLOCK.add(Std140.Type.FLOAT, "FadeStart");
+    private static final Std140.Member FADE_END = BLOCK.add(Std140.Type.FLOAT, "FadeEnd");
+    private static final Std140.Member BIAS = BLOCK.add(Std140.Type.FLOAT, "DepthBias");
+    private static final int SIZE = BLOCK.size();
+
+    private static final Location PIPELINE = new Location(Eminus.MODID, "far_composite");
     private static final String PASS_LABEL = "eminus-far-composite";
     private static final String UNIFORM_LABEL = "eminus-composite";
-    private static final String COMPOSITE = "Composite";
     private static final String FAR_COLOUR = "FarColour";
     private static final String FAR_DEPTH = "FarDepth";
     private static final Set<BufferUsage> UNIFORM_USAGE = EnumSet.of(BufferUsage.UNIFORM, BufferUsage.COPY_DST);
-    private static final int SIZE = Std140.size()
-            .putMat4f().putMat4f().putVec4()
-            .putFloat().putFloat().putFloat()
-            .putFloat().putFloat().putFloat().putFloat().putFloat()
-            .get();
     private static final long START_OF_BUFFER = 0L;
     private static final int VERTICES = 3;
 
@@ -78,7 +85,7 @@ public final class CompositePass implements AutoCloseable {
         try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, gameColour, null)
                 .withDepth(gameDepth, OptionalDouble.empty()))) {
             pass.pipeline(pipeline);
-            pass.bind(COMPOSITE, uniform);
+            pass.bind(BLOCK.name(), uniform);
             pass.bind(FAR_COLOUR, far.colour(), Sampler.NEAREST);
             pass.bind(FAR_DEPTH, far.depth(), Sampler.NEAREST);
             pass.draw(VERTICES);
@@ -95,26 +102,26 @@ public final class CompositePass implements AutoCloseable {
         FarProjection.reproject(gameViewProjection, farViewProjection, farInverse, reproject);
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            ByteBuffer written = Std140.into(stack.malloc(SIZE))
-                    .putMat4f(reproject)
-                    .putMat4f(farInverse)
-                    .putVec4(fogColour)
-                    .putFloat(fog.gameFogStart())
-                    .putFloat(fog.gameFogEnd())
-                    .putFloat(fog.reach())
-                    .putFloat(fog.fogStart())
-                    .putFloat(fog.fogEnd())
-                    .putFloat(fog.fadeStart())
-                    .putFloat(fog.fadeEnd())
-                    .putFloat(DEPTH_BIAS)
+            ByteBuffer written = BLOCK.into(stack.malloc(SIZE))
+                    .putMat4(REPROJECT, reproject)
+                    .putMat4(FAR_INVERSE, farInverse)
+                    .putVec4(FOG_COLOUR, fogColour)
+                    .putFloat(GAME_FOG_START, fog.gameFogStart())
+                    .putFloat(GAME_FOG_END, fog.gameFogEnd())
+                    .putFloat(FOG_REACH, fog.reach())
+                    .putFloat(FOG_START, fog.fogStart())
+                    .putFloat(FOG_END, fog.fogEnd())
+                    .putFloat(FADE_START, fog.fadeStart())
+                    .putFloat(FADE_END, fog.fadeEnd())
+                    .putFloat(BIAS, DEPTH_BIAS)
                     .get();
             gpu.write(uniform, START_OF_BUFFER, written);
         }
     }
 
     private static PipelineSpec pipeline(DepthConvention depth, Format colourFormat) {
-        return depth.define(PipelineSpec.builder(PIPELINE, SHADER, SHADER)
-                        .withBinding(Binding.uniform(COMPOSITE))
+        return depth.define(PipelineSpec.builder(PIPELINE, FULL_SCREEN_SHADER, FULL_SCREEN_SHADER)
+                        .withBinding(Binding.uniform(BLOCK.name()))
                         .withBinding(Binding.sampled(FAR_COLOUR))
                         .withBinding(Binding.sampled(FAR_DEPTH)))
                 .withColourTarget(colourFormat, Blend.TRANSLUCENT_PREMULTIPLIED, true)

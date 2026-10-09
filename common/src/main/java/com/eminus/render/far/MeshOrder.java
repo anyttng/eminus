@@ -50,6 +50,7 @@ public final class MeshOrder {
         sorts++;
     }
 
+    @SuppressWarnings("ReferenceEquality")
     private boolean sameMembers(List<MeshSummary> meshes) {
         if (meshes == seen) {
             return true;
@@ -96,11 +97,10 @@ public final class MeshOrder {
     }
 
     private static float distanceSquared(long key, CellFrame frame, double cameraX, double cameraY, double cameraZ) {
-        int level = CellKey.level(key);
-        float half = DetailLevel.blocksPerCell(level) * HALF;
-        double dx = frame.originBlockX(CellKey.x(key), level) + half - cameraX;
-        double dy = frame.originBlockY(CellKey.y(key), level) + half - cameraY;
-        double dz = frame.originBlockZ(CellKey.z(key), level) + half - cameraZ;
+        float half = DetailLevel.blocksPerCell(CellKey.level(key)) * HALF;
+        double dx = CellFrame.originXOf(key) + half - cameraX;
+        double dy = frame.originYOf(key) + half - cameraY;
+        double dz = CellFrame.originZOf(key) + half - cameraZ;
 
         return (float) (dx * dx + dy * dy + dz * dz);
     }

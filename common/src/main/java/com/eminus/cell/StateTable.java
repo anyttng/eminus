@@ -11,13 +11,17 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CarpetBlock;
 import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class StateTable implements StateOpacity {
     public static final String DICTIONARY_NAME = "state";
     public static final int FULL_OPACITY = 15;
+    public static final int CLEAR_OPACITY = 0;
     public static final BlockState PLACEHOLDER = Blocks.CONCRETE.pick(DyeColor.MAGENTA).defaultBlockState();
 
     private static final int INITIAL_CAPACITY = 256;
@@ -27,9 +31,10 @@ public final class StateTable implements StateOpacity {
     private final Map<BlockState, Integer> byState = new ConcurrentHashMap<>();
     private final StateOpacity seeThroughLeaves = this::lightDampening;
 
+    private final IdTable opacities = new IdTable(INITIAL_CAPACITY, UNKNOWN_OPACITY);
+    private final IdTable dampenings = new IdTable(INITIAL_CAPACITY, UNKNOWN_OPACITY);
+
     private volatile BlockState[] states = new BlockState[INITIAL_CAPACITY];
-    private volatile int[] opacities = newOpacities(INITIAL_CAPACITY);
-    private volatile int[] dampenings = newOpacities(INITIAL_CAPACITY);
 
     public StateTable(Dictionary<String> ids) {
         this.ids = ids;
@@ -62,12 +67,14 @@ public final class StateTable implements StateOpacity {
 
     @Override
     public int opacity(int stateId) {
-        int[] snapshot = opacities;
-        if (stateId >= 0 && stateId < snapshot.length && snapshot[stateId] != UNKNOWN_OPACITY) {
-            return snapshot[stateId];
-        }
+        int known = opacities.get(stateId);
+        return known == UNKNOWN_OPACITY ? opacityOf(resolve(stateId)) : known;
+    }
 
-        return opacityOf(resolve(stateId));
+    @Override
+    public boolean cover(int stateId) {
+        Block block = state(stateId).getBlock();
+        return (block instanceof SnowLayerBlock || block instanceof CarpetBlock) && opacity(stateId) == CLEAR_OPACITY;
     }
 
     public StateOpacity seeThroughLeaves() {
@@ -79,12 +86,8 @@ public final class StateTable implements StateOpacity {
     }
 
     private int lightDampening(int stateId) {
-        int[] snapshot = dampenings;
-        if (stateId >= 0 && stateId < snapshot.length && snapshot[stateId] != UNKNOWN_OPACITY) {
-            return snapshot[stateId];
-        }
-
-        return resolve(stateId).getLightDampening();
+        int known = dampenings.get(stateId);
+        return known == UNKNOWN_OPACITY ? resolve(stateId).getLightDampening() : known;
     }
 
     private int register(BlockState state) {
@@ -110,23 +113,15 @@ public final class StateTable implements StateOpacity {
     }
 
     private synchronized void remember(int id, BlockState state) {
-        BlockState[] currentStates = states;
-        int[] currentOpacities = opacities;
-        int[] currentDampenings = dampenings;
-
-        if (id >= currentStates.length) {
-            int size = Math.max(currentStates.length * 2, id + 1);
-            currentStates = Arrays.copyOf(currentStates, size);
-            currentOpacities = grown(currentOpacities, size);
-            currentDampenings = grown(currentDampenings, size);
+        BlockState[] current = states;
+        if (id >= current.length) {
+            current = Arrays.copyOf(current, IdTable.grownLength(current.length, id));
         }
 
-        currentStates[id] = state;
-        currentOpacities[id] = opacityOf(state);
-        currentDampenings[id] = state.getLightDampening();
-        states = currentStates;
-        opacities = currentOpacities;
-        dampenings = currentDampenings;
+        current[id] = state;
+        states = current;
+        opacities.put(id, opacityOf(state));
+        dampenings.put(id, state.getLightDampening());
     }
 
     private static BlockState decode(String value) {
@@ -144,17 +139,5 @@ public final class StateTable implements StateOpacity {
 
     private static int opacityOf(BlockState state) {
         return state.getBlock() instanceof LeavesBlock ? FULL_OPACITY : state.getLightDampening();
-    }
-
-    private static int[] grown(int[] values, int size) {
-        int[] copy = Arrays.copyOf(values, size);
-        Arrays.fill(copy, values.length, size, UNKNOWN_OPACITY);
-        return copy;
-    }
-
-    private static int[] newOpacities(int capacity) {
-        int[] created = new int[capacity];
-        Arrays.fill(created, UNKNOWN_OPACITY);
-        return created;
     }
 }

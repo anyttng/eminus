@@ -78,6 +78,9 @@ class CellMesherTest {
     private static final int SEA = 39;
     private static final int SEA_MODEL = 40;
     private static final int SEA_SUBMERGED_MODEL = 41;
+    private static final int SNOW = 42;
+    private static final int SNOW_MODEL = 43;
+    private static final int GROUND_LEVEL = 2;
     private static final int SEA_FLUID = 2;
     private static final int SEABED_Y = 10;
     private static final int SEA_TOP_Y = 14;
@@ -127,7 +130,17 @@ class CellMesherTest {
     private final Map<Integer, Integer> opacities = new HashMap<>();
     private final FakeModels models = new FakeModels();
     private final FakeTints tints = new FakeTints();
-    private final StateOpacity opacity = stateId -> opacities.getOrDefault(stateId, 0);
+    private final StateOpacity opacity = new StateOpacity() {
+        @Override
+        public int opacity(int stateId) {
+            return opacities.getOrDefault(stateId, 0);
+        }
+
+        @Override
+        public boolean cover(int stateId) {
+            return stateId == SNOW;
+        }
+    };
 
     private int bakeRequests;
 
@@ -158,7 +171,7 @@ class CellMesherTest {
         defineBlocks();
         CellMesh mesh = mesh(floor(), ground(), 0);
 
-        assertEquals(4, mesh.groupCount(Direction.UP.ordinal()));
+        assertEquals(4, mesh.groupCount(Direction.UP.get3DDataValue()));
         assertEquals(4, mesh.groupStart(QuadGroups.FIRST_BORDER));
         for (int index = 0; index < mesh.groupStart(QuadGroups.FIRST_BORDER); index++) {
             long quad = mesh.quad(index);
@@ -208,8 +221,8 @@ class CellMesherTest {
         CellMesh fine = mesh(litFloor(), ground(), 0);
         CellMesh coarse = mesh(litFloor(), ground(), 2);
 
-        assertEquals(SIDE * 2, fine.groupCount(Direction.UP.ordinal()));
-        assertEquals(SIDE * 2, coarse.groupCount(Direction.UP.ordinal()));
+        assertEquals(SIDE * 2, fine.groupCount(Direction.UP.get3DDataValue()));
+        assertEquals(SIDE * 2, coarse.groupCount(Direction.UP.get3DDataValue()));
     }
 
     @Test
@@ -224,10 +237,10 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, ground(), 2);
 
-        assertEquals(4, mesh.groupCount(Direction.UP.ordinal()));
+        assertEquals(4, mesh.groupCount(Direction.UP.get3DDataValue()));
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
-            if (Quad.face(quad) == Direction.UP.ordinal()) {
+            if (Quad.face(quad) == Direction.UP.get3DDataValue()) {
                 assertEquals(VoxelEntry.light(FULL_SKY, TORCH_BLOCK_LIGHT), Quad.light(quad));
             }
         }
@@ -481,7 +494,7 @@ class CellMesherTest {
                 submergedInward));
         assertEquals(SEABED_LIGHT, lightAt(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, SEA_TOP_Y, 5,
                 surfaceInward));
-        assertEquals(Direction.WEST.ordinal(),
+        assertEquals(Direction.WEST.get3DDataValue(),
                 groupOf(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, SEABED_Y + 1, 5, submergedInward));
 
         CellMesh covered = mesh(cell, airAround(), coverage(FIRST_CHUNK, SECOND_CHUNK));
@@ -602,7 +615,7 @@ class CellMesherTest {
             CellMesh mesh = mesh(cell, around, level);
 
             assertEquals(QuadGroups.border(Direction.EAST), groupOf(mesh, Direction.EAST, LAST, 4, 4, STONE_MODEL));
-            assertEquals(Direction.WEST.ordinal(), groupOf(mesh, Direction.WEST, LAST, 4, 4, STONE_MODEL));
+            assertEquals(Direction.WEST.get3DDataValue(), groupOf(mesh, Direction.WEST, LAST, 4, 4, STONE_MODEL));
         }
     }
 
@@ -694,6 +707,38 @@ class CellMesherTest {
 
         assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
         assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+    }
+
+    @Test
+    void snowOverTheGroundHidesTheFacesTheGroundWouldHide() {
+        defineSnow();
+        Cell cell = blank();
+        cell.set(4, 4, 4, block(STONE));
+        cell.set(4, 5, 4, block(SNOW));
+        cell.set(5, 5, 4, block(SNOW));
+
+        CellMesh mesh = mesh(cell, airAround(), COARSE_LEVEL);
+
+        assertTrue(absent(mesh, Direction.UP, 4, 4, 4));
+        assertTrue(absent(mesh, Direction.EAST, 4, 5, 4));
+        assertTrue(absent(mesh, Direction.WEST, 5, 5, 4));
+        assertTrue(has(mesh, Direction.UP, 4, 5, 4, SNOW_MODEL));
+    }
+
+    @Test
+    void gappedSnowOverTheGroundHidesTheSidesBelowItsTop() {
+        defineSnow();
+        Cell cell = blank();
+        cell.set(4, 4, 4, VoxelEntry.withGaps(block(SNOW), 0, 1));
+        cell.set(5, 4, 4, VoxelEntry.withGaps(block(SNOW), 0, 1));
+        cell.set(4, 4, 5, VoxelEntry.withGaps(block(STONE), 0, 2));
+
+        CellMesh mesh = mesh(cell, airAround(), GROUND_LEVEL);
+
+        assertTrue(absent(mesh, Direction.EAST, 4, 4, 4));
+        assertTrue(absent(mesh, Direction.WEST, 5, 4, 4));
+        assertTrue(absent(mesh, Direction.NORTH, 4, 4, 5));
+        assertTrue(has(mesh, Direction.SOUTH, 4, 4, 4, SNOW_MODEL));
     }
 
     @Test
@@ -884,7 +929,7 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, ground(), 0);
 
-        int up = Direction.UP.ordinal();
+        int up = Direction.UP.get3DDataValue();
         assertEquals(6, mesh.groupCount(up));
         assertEquals(3, mesh.colours().length);
         for (int index = mesh.groupStart(up); index < mesh.groupStart(up) + mesh.groupCount(up); index++) {
@@ -976,7 +1021,7 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, airAround(), 0);
 
-        int up = Direction.UP.ordinal();
+        int up = Direction.UP.get3DDataValue();
         assertEquals(VARIED_ROW, mesh.groupCount(up));
         for (int index = mesh.groupStart(up); index < mesh.groupStart(up) + mesh.groupCount(up); index++) {
             long quad = mesh.quad(index);
@@ -995,8 +1040,8 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, airAround(), 0);
 
-        long top = mesh.quad(mesh.groupStart(Direction.UP.ordinal()));
-        assertEquals(1, mesh.groupCount(Direction.UP.ordinal()));
+        long top = mesh.quad(mesh.groupStart(Direction.UP.get3DDataValue()));
+        assertEquals(1, mesh.groupCount(Direction.UP.get3DDataValue()));
         assertEquals(VARIED_ROW, Quad.width(top));
     }
 
@@ -1027,7 +1072,7 @@ class CellMesherTest {
 
     private static void assertBladesOffset(CellMesh mesh, int x, int y, int z, Vec3 expected) {
         for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
-            int offset = mesh.offset(bladeAt(mesh, blade, x, y, z));
+            int offset = mesh.placement(bladeAt(mesh, blade, x, y, z));
             assertEquals(expected.x, QuadOffset.x(offset), OFFSET_TOLERANCE, "x of blade " + blade);
             assertEquals(expected.y, QuadOffset.y(offset), OFFSET_TOLERANCE, "y of blade " + blade);
             assertEquals(expected.z, QuadOffset.z(offset), OFFSET_TOLERANCE, "z of blade " + blade);
@@ -1083,6 +1128,13 @@ class CellMesherTest {
         opacities.put(GRASS_BLOCK, StateTable.FULL_OPACITY);
     }
 
+    private void defineSnow() {
+        defineBlocks();
+        models.define(SNOW, SNOW_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.DOWN, FaceMask.ALL & ~FaceMask.UP, 0, 0));
+        models.partialHeight(SNOW_MODEL);
+    }
+
     private void defineLava() {
         defineBlocks();
         int surface = ModelMetadata.pack(FaceMask.ALL, FaceMask.DOWN, FaceMask.ALL & ~FaceMask.UP,
@@ -1123,8 +1175,8 @@ class CellMesherTest {
     private static int cornersOf(CellMesh mesh, Direction face, int x, int y, int z) {
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
-            if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y && Quad.z(quad) == z) {
-                return mesh.offset(quad);
+            if (Quad.face(quad) == face.get3DDataValue() && Quad.x(quad) == x && Quad.y(quad) == y && Quad.z(quad) == z) {
+                return mesh.placement(quad);
             }
         }
 
@@ -1138,9 +1190,9 @@ class CellMesherTest {
         around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
         scratch.voxels().loadCoverage(coverage, key);
         scratch.voxels().loadBelow(around.get(Direction.DOWN));
-        scratch.blend().begin(scratch.voxels(), tints, key, NO_BLEND);
+        scratch.begin(FRAME, key, tints, NO_BLEND);
 
-        return new CellMesher(scratch, models, FRAME)
+        return new CellMesher(scratch, models)
                 .mesh(key, centre.occupancy(), opacity, () -> bakeRequests++);
     }
 
@@ -1158,9 +1210,9 @@ class CellMesherTest {
         scratch.voxels().load(centre);
         around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
         long key = CellKey.pack(level, 0, 0, 0);
-        scratch.blend().begin(scratch.voxels(), tints, key, NO_BLEND);
+        scratch.begin(FRAME, key, tints, NO_BLEND);
 
-        return new CellMesher(scratch, models, FRAME)
+        return new CellMesher(scratch, models)
                 .mesh(key, centre.occupancy(), opacity, () -> bakeRequests++);
     }
 
@@ -1267,7 +1319,7 @@ class CellMesherTest {
     private static boolean has(CellMesh mesh, Direction face, int x, int y, int z, int modelId) {
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
-            if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y
+            if (Quad.face(quad) == face.get3DDataValue() && Quad.x(quad) == x && Quad.y(quad) == y
                     && Quad.z(quad) == z && Quad.modelId(quad) == modelId) {
                 return true;
             }
@@ -1281,7 +1333,7 @@ class CellMesherTest {
             int start = mesh.groupStart(group);
             for (int index = start; index < start + mesh.groupCount(group); index++) {
                 long quad = mesh.quad(index);
-                if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y
+                if (Quad.face(quad) == face.get3DDataValue() && Quad.x(quad) == x && Quad.y(quad) == y
                         && Quad.z(quad) == z && Quad.modelId(quad) == modelId) {
                     return group;
                 }
@@ -1294,7 +1346,7 @@ class CellMesherTest {
     private static int lightAt(CellMesh mesh, Direction face, int x, int y, int z, int modelId) {
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
-            if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y
+            if (Quad.face(quad) == face.get3DDataValue() && Quad.x(quad) == x && Quad.y(quad) == y
                     && Quad.z(quad) == z && Quad.modelId(quad) == modelId) {
                 return Quad.light(quad);
             }
@@ -1306,7 +1358,7 @@ class CellMesherTest {
     private static boolean absent(CellMesh mesh, Direction face, int x, int y, int z) {
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
-            if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y
+            if (Quad.face(quad) == face.get3DDataValue() && Quad.x(quad) == x && Quad.y(quad) == y
                     && Quad.z(quad) == z) {
                 return false;
             }

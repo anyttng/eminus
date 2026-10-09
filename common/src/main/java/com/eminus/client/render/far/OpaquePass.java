@@ -3,9 +3,11 @@ package com.eminus.client.render.far;
 import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
+import com.eminus.client.model.ModelPublisher;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Location;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.TexelView;
 import com.eminus.gpu.pass.Pass;
@@ -16,15 +18,13 @@ import com.eminus.gpu.texture.Texture;
 import com.eminus.model.port.VariantDraw;
 import com.eminus.render.backend.DepthConvention;
 
-import net.minecraft.resources.Identifier;
-
 import org.joml.Vector4f;
 import org.joml.Vector4fc;
 
 public final class OpaquePass {
     public static final float ALPHA_CUTOUT = 0.5F;
 
-    private static final Identifier PIPELINE = Identifier.fromNamespaceAndPath(Eminus.MODID, "far_opaque");
+    private static final Location PIPELINE = new Location(Eminus.MODID, "far_opaque");
     private static final String PASS_LABEL = "eminus-far-opaque";
     private static final Vector4fc CLEAR_COLOUR = new Vector4f(0.0F, 0.0F, 0.0F, 0.0F);
 

@@ -1,9 +1,9 @@
 package com.eminus.gpu.pipeline;
 
-import net.minecraft.resources.Identifier;
+import com.eminus.gpu.Location;
 
 public interface Pipeline {
-    Identifier location();
+    Location location();
 
     boolean compiles();
 }

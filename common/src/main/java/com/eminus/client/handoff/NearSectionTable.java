@@ -88,11 +88,10 @@ public final class NearSectionTable implements AutoCloseable {
 
         for (MeshSummary mesh : meshes) {
             long key = mesh.key();
-            int level = CellKey.level(key);
-            int side = DetailLevel.blocksPerCell(level);
-            int minX = frame.originBlockX(CellKey.x(key), level);
-            int minY = frame.originBlockY(CellKey.y(key), level);
-            int minZ = frame.originBlockZ(CellKey.z(key), level);
+            int side = DetailLevel.blocksPerCell(CellKey.level(key));
+            int minX = CellFrame.originXOf(key);
+            int minY = frame.originYOf(key);
+            int minZ = CellFrame.originZOf(key);
             sections.queryBlocks(minX, minY, minZ, minX + side, minY + side, minZ + side, query);
         }
 
@@ -115,8 +114,8 @@ public final class NearSectionTable implements AutoCloseable {
 
         // The graph never lists an all-air section, yet the game still answers for its blocks.
         return drawn.contains(SectionPos.asLong(sectionX, sectionY, sectionZ))
-                || GameFrames.sectionEmpty(levelRenderer, pos) && NearSections.inVanillaViewDistance(cameraSectionX,
-                        cameraSectionY, cameraSectionZ, viewDistance, sectionX, sectionY, sectionZ);
+                || (GameFrames.sectionEmpty(levelRenderer, pos) && NearSections.inVanillaViewDistance(cameraSectionX,
+                        cameraSectionY, cameraSectionZ, viewDistance, sectionX, sectionY, sectionZ));
     }
 
     private void upload() {

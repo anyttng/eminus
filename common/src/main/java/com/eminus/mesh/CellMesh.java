@@ -2,6 +2,7 @@ package com.eminus.mesh;
 
 import com.eminus.cell.OccupancyMask;
 
+@SuppressWarnings("ArrayRecordComponent")
 public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, long[] colours) {
     public static CellMesh empty(long key) {
         return empty(key, OccupancyMask.EMPTY);
@@ -44,7 +45,7 @@ public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, 
         return MeshBuffer.colourOf(colours[Quad.colourIndex(quad)]);
     }
 
-    public int offset(long quad) {
-        return MeshBuffer.offsetOf(colours[Quad.colourIndex(quad)]);
+    public int placement(long quad) {
+        return MeshBuffer.placementOf(colours[Quad.colourIndex(quad)]);
     }
 }

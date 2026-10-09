@@ -5,6 +5,7 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.mesh.CellMesh;
 
+@SuppressWarnings("ArrayRecordComponent")
 public record MeshSlot(long key, int block, int quads, int colours, int[] groupStart, int[] groupCount) {
     public static final int MIN_X = 0;
     public static final int MIN_Y = 1;
@@ -36,12 +37,11 @@ public record MeshSlot(long key, int block, int quads, int colours, int[] groupS
     }
 
     public void bounds(CellFrame frame, float[] target) {
-        int level = CellKey.level(key);
-        int side = DetailLevel.blocksPerCell(level);
+        int side = DetailLevel.blocksPerCell(CellKey.level(key));
 
-        target[MIN_X] = frame.originBlockX(CellKey.x(key), level);
-        target[MIN_Y] = frame.originBlockY(CellKey.y(key), level);
-        target[MIN_Z] = frame.originBlockZ(CellKey.z(key), level);
+        target[MIN_X] = CellFrame.originXOf(key);
+        target[MIN_Y] = frame.originYOf(key);
+        target[MIN_Z] = CellFrame.originZOf(key);
         target[MAX_X] = target[MIN_X] + side;
         target[MAX_Y] = target[MIN_Y] + side;
         target[MAX_Z] = target[MIN_Z] + side;

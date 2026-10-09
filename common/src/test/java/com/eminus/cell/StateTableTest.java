@@ -1,6 +1,7 @@
 package com.eminus.cell;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -8,7 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.eminus.VanillaBootstrap;
 
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -18,6 +21,7 @@ class StateTableTest {
     private static final String DAMAGED_STATE = "nosuchmod:nosuchblock";
     private static final int DAMAGED_ID = 1;
     private static final int UNKNOWN_ID = 99;
+    private static final int ID_PAST_CAPACITY = 1000;
 
     @BeforeAll
     static void bootstrapVanilla() {
@@ -66,12 +70,37 @@ class StateTableTest {
     }
 
     @Test
+    void snowLayersAndCarpetsAreCoversAndFullOrRaisedBlocksAreNot() {
+        StateTable table = new StateTable(ids);
+
+        assertTrue(table.cover(table.idOf(Blocks.SNOW.defaultBlockState())));
+        assertTrue(table.cover(table.idOf(Blocks.CARPET.pick(DyeColor.WHITE).defaultBlockState())));
+        assertTrue(table.cover(table.idOf(Blocks.MOSS_CARPET.defaultBlockState())));
+        assertFalse(table.cover(table.idOf(
+                Blocks.SNOW.defaultBlockState().setValue(SnowLayerBlock.LAYERS, SnowLayerBlock.MAX_HEIGHT))));
+        assertFalse(table.cover(table.idOf(Blocks.STONE.defaultBlockState())));
+        assertFalse(table.cover(table.idOf(Blocks.STONE_SLAB.defaultBlockState())));
+    }
+
+    @Test
     void aStoredStateComesBackAsItself() {
         BlockState stone = Blocks.STONE.defaultBlockState();
         ids.load(VoxelEntry.AIR_STATE_ID, BlockStateParser.serialize(Blocks.AIR.defaultBlockState()));
         ids.load(DAMAGED_ID, BlockStateParser.serialize(stone));
 
         assertSame(stone, new StateTable(ids).state(DAMAGED_ID));
+    }
+
+    @Test
+    void aStoredStatePastTheInitialCapacityComesBackWithItsOpacity() {
+        BlockState glass = Blocks.GLASS.defaultBlockState();
+        ids.load(VoxelEntry.AIR_STATE_ID, BlockStateParser.serialize(Blocks.AIR.defaultBlockState()));
+        ids.load(ID_PAST_CAPACITY, BlockStateParser.serialize(glass));
+        StateTable table = new StateTable(ids);
+
+        assertSame(glass, table.state(ID_PAST_CAPACITY));
+        assertEquals(glass.getLightDampening(), table.opacity(ID_PAST_CAPACITY));
+        assertEquals(glass.getLightDampening(), table.seeThroughLeaves().opacity(ID_PAST_CAPACITY));
     }
 
     @Test

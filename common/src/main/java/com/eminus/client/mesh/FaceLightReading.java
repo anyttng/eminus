@@ -8,9 +8,11 @@ import java.util.concurrent.CompletableFuture;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
+import com.eminus.cell.VoxelEntry;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.client.session.ClientSession;
 import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.PlaneAxes;
 import com.eminus.mesh.Quad;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
@@ -33,7 +35,6 @@ public final class FaceLightReading {
     public static final int WIDTH = 9;
 
     private static final int TIMEOUT_SECONDS = 120;
-    private static final int BLOCK_LIGHT_MASK = 0xF;
 
     public static @Nullable CompletableFuture<List<int[]>> start(int level, int minX, int minY, int minZ, int maxX,
             int maxY, int maxZ) {
@@ -44,7 +45,7 @@ public final class FaceLightReading {
         }
 
         CellFrame frame = runtime.frame();
-        long[] keys = keys(frame, level, minX, minY, minZ, maxX, maxY, maxZ);
+        long[] keys = CellMeshing.keys(frame, level, level, minX, minY, minZ, maxX, maxY, maxZ);
         Box box = new Box(minX, minY, minZ, maxX, maxY, maxZ);
         ClientBakery baking = ClientBakery.start(Minecraft.getInstance());
 
@@ -57,20 +58,6 @@ public final class FaceLightReading {
         boolean overlaps(int fromX, int fromY, int fromZ, int toX, int toY, int toZ) {
             return fromX <= maxX && toX >= minX && fromY <= maxY && toY >= minY && fromZ <= maxZ && toZ >= minZ;
         }
-    }
-
-    private static long[] keys(CellFrame frame, int level, int minX, int minY, int minZ, int maxX, int maxY,
-            int maxZ) {
-        List<Long> keys = new ArrayList<>();
-        for (int cellX = frame.cellX(minX, level); cellX <= frame.cellX(maxX, level); cellX++) {
-            for (int cellY = frame.cellY(minY, level); cellY <= frame.cellY(maxY, level); cellY++) {
-                for (int cellZ = frame.cellZ(minZ, level); cellZ <= frame.cellZ(maxZ, level); cellZ++) {
-                    keys.add(CellKey.pack(level, cellX, cellY, cellZ));
-                }
-            }
-        }
-
-        return keys.stream().mapToLong(Long::longValue).toArray();
     }
 
     private static List<int[]> rows(CellFrame frame, long[] keys, Map<Long, CellMesh> meshes, Box box) {
@@ -98,28 +85,18 @@ public final class FaceLightReading {
             }
 
             Direction face = Direction.from3DDataValue(Quad.face(quad));
-            int spanX = switch (face.getAxis()) {
-                case X -> 1;
-                case Y, Z -> Quad.width(quad);
-            };
-            int spanY = switch (face.getAxis()) {
-                case X, Z -> Quad.height(quad);
-                case Y -> 1;
-            };
-            int spanZ = switch (face.getAxis()) {
-                case X -> Quad.width(quad);
-                case Y -> Quad.height(quad);
-                case Z -> 1;
-            };
-            int fromX = frame.blockXOf(key, Quad.x(quad));
+            int spanX = span(Direction.Axis.X, face.getAxis(), quad);
+            int spanY = span(Direction.Axis.Y, face.getAxis(), quad);
+            int spanZ = span(Direction.Axis.Z, face.getAxis(), quad);
+            int fromX = CellFrame.blockXOf(key, Quad.x(quad));
             int fromY = frame.blockYOf(key, Quad.y(quad));
-            int fromZ = frame.blockZOf(key, Quad.z(quad));
+            int fromZ = CellFrame.blockZOf(key, Quad.z(quad));
             if (!box.overlaps(fromX, fromY, fromZ, fromX + spanX * voxelBlocks - 1,
                     fromY + spanY * voxelBlocks - 1, fromZ + spanZ * voxelBlocks - 1)) {
                 continue;
             }
 
-            int blockLight = Quad.light(quad) & BLOCK_LIGHT_MASK;
+            int blockLight = VoxelEntry.blockLightOf(Quad.light(quad));
             if (face == Direction.UP) {
                 row[UP_QUADS]++;
                 row[UP_MAX_BLOCK_LIGHT] = Math.max(row[UP_MAX_BLOCK_LIGHT], blockLight);
@@ -135,6 +112,14 @@ public final class FaceLightReading {
         }
 
         return row;
+    }
+
+    private static int span(Direction.Axis axis, Direction.Axis normal, long quad) {
+        if (axis == PlaneAxes.width(normal)) {
+            return Quad.width(quad);
+        }
+
+        return axis == PlaneAxes.height(normal) ? Quad.height(quad) : 1;
     }
 
     private FaceLightReading() {

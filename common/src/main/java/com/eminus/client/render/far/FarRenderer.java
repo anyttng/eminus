@@ -2,8 +2,8 @@ package com.eminus.client.render.far;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
 import com.eminus.api.v1.ArenaState;
@@ -17,23 +17,23 @@ import com.eminus.ingest.IngestService;
 import com.eminus.handoff.NearSections;
 import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.client.handoff.NearSectionTable;
-import com.eminus.mesh.BakeryModels;
-import com.eminus.mesh.BakeryTints;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
-import com.eminus.model.ModelIndex;
+import com.eminus.client.mesh.MeshWiring;
 import com.eminus.client.model.ClientBakery;
+import com.eminus.client.model.ModelPublisher;
 import com.eminus.client.frame.GameFog;
 import com.eminus.client.frame.GameFrame;
 import com.eminus.client.frame.GameFrames;
-import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Location;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.render.arena.ArenaSizing;
 import com.eminus.render.arena.MeshSlot;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.render.backend.BackendSupport;
+import com.eminus.render.backend.DepthConvention;
 import com.eminus.client.render.backend.BackendCheck;
 import com.eminus.render.far.CameraOrigin;
 import com.eminus.render.far.CompositeFog;
@@ -57,20 +57,20 @@ import com.eminus.settings.SettingsService;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.state.BlockState;
 
+import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
+import org.joml.Vector4fc;
 import org.jspecify.annotations.Nullable;
 
 public final class FarRenderer implements AutoCloseable {
     public static final int START_COMMANDS = 32768;
     public static final String ARENA_CAP_PROPERTY = "eminus.arena.maxMiB";
     public static final String ARENA_FLOOR_PROPERTY = "eminus.arena.minMiB";
-
-    private static final long BYTES_PER_MIB = 1L << 20;
 
     private final Gpu gpu;
     private final DimensionRuntime runtime;
@@ -89,23 +89,32 @@ public final class FarRenderer implements AutoCloseable {
     private final MeshOrder order = new MeshOrder();
     private final FarProjection projection = new FarProjection();
     private final LevelProjection levelProjection = new LevelProjection();
+    private final Matrix4f farProjection = new Matrix4f();
     private final Matrix4f farViewProjection = new Matrix4f();
     private final Matrix4f gameViewProjection = new Matrix4f();
+    private final FrustumIntersection drawFrustum = new FrustumIntersection();
     private final TurnMargin turnMargin = new TurnMargin();
     private final TreeManager tree;
+    private final FarDraw draw;
+    private final FarShadow shadow;
 
     private IndirectCommands indirect;
+    private CompositeFog fog;
+    private Vector4fc fogColour;
     private volatile MeshService meshes;
     private RenderList renderList = RenderList.EMPTY;
     private @Nullable TreeBatch uploading;
+    private @Nullable GameFrame game;
     private int uploaded;
     private long frames;
+    private boolean framePending = true;
+    private boolean frameDrawn;
     private boolean stopped;
 
-    private FarRenderer(Gpu gpu, DimensionRuntime runtime, ClientBakery baking, ModelPublisher models,
-            GeometryArena arena, FarTarget target, FarFrame frame, NearMaskPass mask, NearSectionTable nearSections,
-            OpaquePass opaque, OcclusionPass occlusion, TranslucentPass translucent, CompositePass composite,
-            IndirectCommands indirect, int heightCells, int nodeCapacity) {
+    private FarRenderer(Gpu gpu, DepthConvention depth, DimensionRuntime runtime, ClientBakery baking,
+            ModelPublisher models, GeometryArena arena, FarTarget target, FarFrame frame, NearMaskPass mask,
+            NearSectionTable nearSections, OpaquePass opaque, OcclusionPass occlusion, TranslucentPass translucent,
+            CompositePass composite, IndirectCommands indirect, int heightCells, int nodeCapacity) {
         this.gpu = gpu;
         this.runtime = runtime;
         this.baking = baking;
@@ -120,20 +129,23 @@ public final class FarRenderer implements AutoCloseable {
         this.translucent = translucent;
         this.composite = composite;
         this.indirect = indirect;
-        tree = TreeManager.start(new Builds(),
+        draw = new FarDraw(gpu, depth, baking.variantDraw(), arena, models, frame, nearSections, target);
+        shadow = FarShadow.create(gpu);
+        tree =TreeManager.start(new Builds(),
                 new TreeExtent(runtime.frame(), heightCells, runtime.lowestStoredLevel()), nodeCapacity);
     }
 
     public static @Nullable FarRenderer start(Minecraft client, Gpu gpu, EminusInstance instance,
-            DimensionRuntime runtime, int levelHeight, Settings settings, long replacedArenaBytes) {
+            DimensionRuntime runtime, int levelHeight, Settings settings, long replacedArenaBytes,
+            ToIntFunction<BlockState> packIds) {
         gpu.assertRenderThread();
 
         Texture main = gpu.mainColour();
-        long ceiling = ceiling(gpu.capabilities(), replacedArenaBytes);
+        long ceiling = ArenaBudget.ceiling(gpu.capabilities(), replacedArenaBytes);
         float focal = FarProjection.focalPixels(client.options.fov().get(), main.height());
         long bytes = ArenaSizing.fitted(
-                bounded(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(), focal,
-                        runtime.lowestStoredLevel()), ceiling),
+                ArenaBudget.bounded(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
+                        focal, runtime.lowestStoredLevel()), ceiling),
                 ceiling);
         BackendSupport support = BackendCheck.run(gpu, bytes);
         GeometryArena arena = GeometryArena.create(gpu, support, bytes);
@@ -142,14 +154,14 @@ public final class FarRenderer implements AutoCloseable {
             return null;
         }
 
-        ClientBakery baking = ClientBakery.start(client);
+        ClientBakery baking = ClientBakery.start(client, packIds);
         NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOUR_FORMAT, support.depth(),
                 CompositePass.DEPTH_BIAS);
         OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw());
         OcclusionPass occlusion = OcclusionPass.create(gpu, support.depth());
         TranslucentPass translucent = TranslucentPass.create(gpu, support.depth(), baking.variantDraw());
         CompositePass composite = CompositePass.create(gpu, support.depth());
-        Identifier refused = refusedProgram(List.of(mask.pipeline(), opaque.pipeline(), occlusion.pipeline(),
+        Location refused = refusedProgram(List.of(mask.pipeline(), opaque.pipeline(), occlusion.pipeline(),
                 translucent.pipeline(), composite.pipeline()));
         if (refused != null) {
             Eminus.LOGGER.warn("Renderer disabled: program {} did not compile", refused);
@@ -162,7 +174,7 @@ public final class FarRenderer implements AutoCloseable {
             return null;
         }
 
-        FarRenderer renderer = new FarRenderer(gpu, runtime, baking,
+        FarRenderer renderer = new FarRenderer(gpu, support.depth(), runtime, baking,
                 ModelPublisher.start(gpu, baking.bakery()), arena,
                 FarTarget.create(gpu, support.depthFormat(), main.width(), main.height()), FarFrame.create(gpu),
                 mask, NearSectionTable.create(gpu), opaque, occlusion, translucent, composite,
@@ -171,17 +183,14 @@ public final class FarRenderer implements AutoCloseable {
                 NodeTable.capacity(runtime.lowestStoredLevel(), focal, settings.detailDistance().pixels(),
                         settings.farRenderCells(), levelHeight));
 
-        renderer.meshes = new MeshService(instance.build(), runtime.cells(), runtime.coverage(), runtime.frame(),
-                new BakeryModels(new ModelIndex(runtime.states(), baking.bakery()), baking.bakery()),
-                new BakeryTints(baking.colours(), runtime.biomes()), client.options.biomeBlendRadius().get(),
-                baking.opacity(runtime.states()), renderer.tree);
+        renderer.meshes = MeshWiring.service(client, runtime, instance, baking, renderer.tree);
         runtime.listenTo(renderer.tree);
         Eminus.LOGGER.info("Far renderer started for {}", runtime.identity().dimension());
 
         return renderer;
     }
 
-    static @Nullable Identifier refusedProgram(List<Pipeline> pipelines) {
+    static @Nullable Location refusedProgram(List<Pipeline> pipelines) {
         for (Pipeline pipeline : pipelines) {
             if (!pipeline.compiles()) {
                 return pipeline.location();
@@ -189,53 +198,6 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         return null;
-    }
-
-    private static long ceiling(Capabilities device, long replacedArenaBytes) {
-        OptionalLong texelBytes = device.texelElements().isPresent()
-                ? OptionalLong.of(device.texelElements().getAsLong() * ArenaSizing.QUAD_BYTES)
-                : OptionalLong.empty();
-        OptionalLong freeBytes = device.freeBytes().isPresent()
-                ? OptionalLong.of(device.freeBytes().getAsLong() + replacedArenaBytes)
-                : OptionalLong.empty();
-        long maxAllocation = device.maxAllocationBytes();
-        long ceiling = ArenaSizing.ceiling(texelBytes, maxAllocation, freeBytes);
-
-        Eminus.LOGGER.info("Geometry arena ceiling {} MiB: texel buffer {}, vertex index {} MiB, device share {}, "
-                + "free video memory {}", ceiling / BYTES_PER_MIB,
-                texelBytes.isPresent() ? texelBytes.getAsLong() / BYTES_PER_MIB + " MiB"
-                        : "unread, " + ArenaSizing.UNREAD_TEXEL_BYTES / BYTES_PER_MIB + " MiB in its place",
-                ArenaSizing.VERTEX_INDEX_BYTES / BYTES_PER_MIB,
-                maxAllocation == Long.MAX_VALUE ? "unbounded"
-                        : maxAllocation / ArenaSizing.DEVICE_SHARE / BYTES_PER_MIB + " MiB",
-                freeBytes.isPresent() ? freeBytes.getAsLong() / BYTES_PER_MIB + " MiB with the replaced arena's "
-                        + replacedArenaBytes / BYTES_PER_MIB + " MiB, "
-                        + freeBytes.getAsLong() / ArenaSizing.FREE_MEMORY_SHARE / BYTES_PER_MIB + " MiB taken"
-                        : "not reported");
-        return ceiling;
-    }
-
-    private static long bounded(long wanted, long ceiling) {
-        long bytes = wanted;
-        Long floorMiB = Long.getLong(ARENA_FLOOR_PROPERTY);
-        if (floorMiB != null) {
-            Eminus.LOGGER.info("Geometry arena raised to at least {} MiB by -D{}, {} MiB wanted", floorMiB,
-                    ARENA_FLOOR_PROPERTY, wanted / BYTES_PER_MIB);
-            bytes = Math.max(bytes, floorMiB * BYTES_PER_MIB);
-            if (bytes > ceiling) {
-                Eminus.LOGGER.info("Geometry arena floor of {} MiB is above the device ceiling: the arena starts at "
-                        + "{} MiB", floorMiB, ceiling / BYTES_PER_MIB);
-            }
-        }
-
-        Long capMiB = Long.getLong(ARENA_CAP_PROPERTY);
-        if (capMiB != null) {
-            Eminus.LOGGER.info("Geometry arena capped at {} MiB by -D{}, {} MiB wanted", capMiB, ARENA_CAP_PROPERTY,
-                    wanted / BYTES_PER_MIB);
-            bytes = Math.min(bytes, capMiB * BYTES_PER_MIB);
-        }
-
-        return bytes;
     }
 
     public long arenaBytes() {
@@ -264,11 +226,68 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     public void frame(Minecraft client) {
-        gpu.assertRenderThread();
-        if (stopped) {
+        if (!prepare(client)) {
             return;
         }
 
+        Texture main = gpu.mainColour();
+        Texture mainDepth = gpu.mainDepth();
+        Texture lightmap = draw.lightmap();
+        opaque.draw(target, arena, models, lightmap, indirect.buffer(), 0, commands.opaqueCount(), frame.buffer(),
+                nearSections.texels());
+        if (client.options.ambientOcclusion().get()) {
+            occlusion.draw(target, mainDepth, farViewProjection, gameViewProjection);
+        }
+        translucent.draw(target, arena, models, lightmap, indirect.buffer(), commands.opaqueCount(),
+                commands.translucentCount(), frame.buffer(), nearSections.texels());
+        composite.draw(target, main, mainDepth, farViewProjection, gameViewProjection, fog, fogColour);
+    }
+
+    public @Nullable FarDraw packFrame(Minecraft client) {
+        return prepare(client) ? draw : null;
+    }
+
+    public FarDraw farDraw() {
+        return draw;
+    }
+
+    public @Nullable FarShadow shadowFrame(Minecraft client, Matrix4fc shadowView, Matrix4fc shadowProjection) {
+        if (!prepareFrame(client) || game == null) {
+            return null;
+        }
+
+        return shadow.write(order.meshes(), renderList::borderFaces, arena, runtime.frame(), game,
+                models.atlas().cellsPerSide(), nearSections.sections(), shadowView, shadowProjection) ? shadow : null;
+    }
+
+    public void newFrame() {
+        framePending = true;
+    }
+
+    private boolean prepare(Minecraft client) {
+        if (!prepareFrame(client)) {
+            return false;
+        }
+
+        mask.draw(target.depth(), target.colour(), gpu.mainDepth(), farViewProjection, gameViewProjection);
+        return true;
+    }
+
+    // The shadow pass runs before the main pass: a second step would upload a second batch and post a second walk.
+    private boolean prepareFrame(Minecraft client) {
+        gpu.assertRenderThread();
+        if (stopped) {
+            return false;
+        }
+
+        if (framePending) {
+            framePending = false;
+            frameDrawn = stepFrame(client);
+        }
+        return frameDrawn;
+    }
+
+    private boolean stepFrame(Minecraft client) {
         TreeBatch batch = tree.batches().peek();
         if (batch != null) {
             upload(batch);
@@ -280,9 +299,11 @@ public final class FarRenderer implements AutoCloseable {
         target.resize(main.width(), main.height());
 
         GameFrame game = GameFrames.read(client);
+        this.game = game;
         int renderDistance = game.renderDistance();
-        projection.viewProjection(NearPlane.blocks(renderDistance), game.fov(), levelProjection.fold(),
-                game.viewRotation(), main.width(), main.height(), farViewProjection);
+        projection.projection(NearPlane.blocks(renderDistance), game.fov(), levelProjection.fold(), main.width(),
+                main.height(), farProjection);
+        farViewProjection.set(farProjection).mul(game.viewRotation());
         FarProjection.gameViewProjection(levelProjection.projection(), game.viewRotation(), gameViewProjection);
 
         frames++;
@@ -302,39 +323,34 @@ public final class FarRenderer implements AutoCloseable {
         ClientLevel level = client.level;
         float reachBlocks = NearReach.blocks(renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, game.eyeY(),
                 level.getMinY(), level.getMinY() + level.getHeight());
-        CompositeFog fog = CompositeFog.of(settings.fog(), settings.fade(), gameFog.environmentalStart(),
+        fog = CompositeFog.of(settings.fog(), settings.fade(), gameFog.environmentalStart(),
                 gameFog.environmentalEnd(), nearBlocks, reachBlocks, settings.farRenderCells());
+        fogColour = gameFog.colour();
         if (fog.skip()) {
-            return;
+            return false;
         }
 
         order.update(renderList, runtime.frame(), game.eyeX(), game.eyeY(), game.eyeZ());
         commands.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(),
-                game.eyeX(), game.eyeY(), game.eyeZ());
-
-        if (commands.count() > 0) {
-            if (indirect.capacity() < commands.capacity()) {
-                indirect.close();
-                indirect = IndirectCommands.create(gpu, commands.capacity());
-            }
-
-            indirect.write(commands);
-            fillNearSections(client, game);
-
-            frame.write(farViewProjection, runtime.frame().minBlockY(), models.atlas().cellsPerSide(),
-                    nearSections.sections(), game.shade(), CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
-            Texture mainDepth = gpu.mainDepth();
-            Texture lightmap = gpu.lightmap();
-            mask.draw(target.depth(), target.colour(), mainDepth, farViewProjection, gameViewProjection);
-            opaque.draw(target, arena, models, lightmap, indirect.buffer(), 0, commands.opaqueCount(),
-                    frame.buffer(), nearSections.texels());
-            if (client.options.ambientOcclusion().get()) {
-                occlusion.draw(target, mainDepth, farViewProjection, gameViewProjection);
-            }
-            translucent.draw(target, arena, models, lightmap, indirect.buffer(), commands.opaqueCount(),
-                    commands.translucentCount(), frame.buffer(), nearSections.texels());
-            composite.draw(target, main, mainDepth, farViewProjection, gameViewProjection, fog, gameFog.colour());
+                drawFrustum.set(farViewProjection), game.eyeX(), game.eyeY(), game.eyeZ());
+        if (commands.count() == 0) {
+            return false;
         }
+
+        if (indirect.capacity() < commands.capacity()) {
+            indirect.close();
+            indirect = IndirectCommands.create(gpu, commands.capacity());
+        }
+
+        indirect.write(commands);
+        fillNearSections(client, game);
+
+        frame.write(farViewProjection, game.viewRotation(), runtime.frame().minBlockY(),
+                models.atlas().cellsPerSide(), nearSections.sections(), game.shade(),
+                CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
+        draw.frame(indirect.buffer(), commands.opaqueCount(), commands.translucentCount(), gpu.lightmap(),
+                farProjection, game.viewRotation(), settings.farRenderCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL);
+        return true;
     }
 
     private void upload(TreeBatch batch) {
@@ -406,6 +422,7 @@ public final class FarRenderer implements AutoCloseable {
         baking.stop();
 
         indirect.close();
+        shadow.close();
         composite.close();
         occlusion.close();
         mask.close();

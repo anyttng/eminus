@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.IntFunction;
 
 import com.eminus.VanillaBootstrap;
 import com.eminus.cell.FaceMask;
@@ -15,6 +14,7 @@ import net.minecraft.core.Direction;
 
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -24,7 +24,6 @@ class ShapeDivergenceTest {
     private static final float HALF = 0.5F;
     private static final float BLADE_FROM = 0.8F * SIXTEENTH;
     private static final float BLADE_TO = 15.2F * SIXTEENTH;
-    private static final IntFunction<Tint> NO_TINTS = layer -> null;
     private static final QuadTexels OPAQUE_WHITE = (quad, u, v) -> 0xFFFF_FFFF;
     private static final ShapeDivergence.SpriteColumns SIXTEEN_COLUMNS =
             (quad, uSpan) -> uSpan * BakedModel.FACE_SIDE;
@@ -66,7 +65,7 @@ class ShapeDivergenceTest {
 
         ShapeDivergence divergence = measure(fence, bake(fence));
 
-        assertEquals(6 * SIXTEENTH, divergence.depth()[Direction.NORTH.ordinal()], EPSILON);
+        assertEquals(6 * SIXTEENTH, divergence.depth()[Direction.NORTH.get3DDataValue()], EPSILON);
         assertEquals(2, divergence.planes());
     }
 
@@ -77,7 +76,7 @@ class ShapeDivergenceTest {
 
         ShapeDivergence divergence = measure(stair, bake(box(0, 0, 0, 1, 1, 1)));
 
-        assertEquals(HALF, divergence.depth()[Direction.UP.ordinal()], EPSILON);
+        assertEquals(HALF, divergence.depth()[Direction.UP.get3DDataValue()], EPSILON);
     }
 
     @Test
@@ -114,7 +113,7 @@ class ShapeDivergenceTest {
     }
 
     private BakedModel bake(List<ModelQuad> quads) {
-        return rasterizer.rasterize(quads, OPAQUE_WHITE, NO_TINTS);
+        return rasterizer.rasterize(quads, OPAQUE_WHITE, ShapeDivergenceTest::noTints);
     }
 
     private static ShapeDivergence measure(List<ModelQuad> quads, BakedModel baked) {
@@ -146,5 +145,9 @@ class ShapeDivergenceTest {
             new Vector3f(positions[6], positions[7], positions[8]),
             new Vector3f(positions[9], positions[10], positions[11])},
                 FACE_UV.clone(), null, ModelQuad.NO_TINT, false, 0, Direction.UP);
+    }
+
+    private static @Nullable Tint noTints(int layer) {
+        return null;
     }
 }

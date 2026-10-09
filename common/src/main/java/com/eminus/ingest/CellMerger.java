@@ -41,9 +41,9 @@ public final class CellMerger {
         int blockY = sectionY * SectionPyramid.SECTION_SIDE;
         int blockZ = sectionZ * SectionPyramid.SECTION_SIDE;
         int side = SectionPyramid.sideOf(lowestStoredLevel);
-        int originX = frame.voxelX(blockX, lowestStoredLevel);
+        int originX = CellFrame.voxelX(blockX, lowestStoredLevel);
         int originY = frame.voxelY(blockY, lowestStoredLevel);
-        int originZ = frame.voxelZ(blockZ, lowestStoredLevel);
+        int originZ = CellFrame.voxelZ(blockZ, lowestStoredLevel);
         CellHandle handle = cells.open(frame.keyAt(lowestStoredLevel, blockX, blockY, blockZ));
 
         try {
@@ -71,9 +71,9 @@ public final class CellMerger {
         CellHandle handle = cells.open(frame.keyAt(level, blockX, blockY, blockZ));
         long[] source = pyramid.level(level);
         int side = SectionPyramid.sideOf(level);
-        int originX = frame.voxelX(blockX, level);
+        int originX = CellFrame.voxelX(blockX, level);
         int originY = frame.voxelY(blockY, level);
-        int originZ = frame.voxelZ(blockZ, level);
+        int originZ = CellFrame.voxelZ(blockZ, level);
 
         long reach = handle.withCell(cell -> writeLevel(cell, source, side, originX, originY, originZ));
 

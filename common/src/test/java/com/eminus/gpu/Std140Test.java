@@ -1,12 +1,13 @@
 package com.eminus.gpu;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.List;
 
-import com.mojang.blaze3d.buffers.Std140Builder;
-import com.mojang.blaze3d.buffers.Std140SizeCalculator;
+import com.eminus.client.render.far.FarFrame;
 
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
@@ -17,47 +18,67 @@ class Std140Test {
     private static final Vector4f VECTOR = new Vector4f(0.25F, 0.5F, 0.75F, 1.0F);
 
     @Test
-    void theFarFrameLayoutMatchesTheGame() {
-        int size = Std140.size().putMat4f().putInt().putInt().putInt().putInt().putIVec3()
-                .putFloat().putFloat().putFloat().putFloat().putFloat().putFloat().putIVec3().putVec3().get();
-        assertEquals(new Std140SizeCalculator().putMat4f().putInt().putInt().putInt().putInt().putIVec3()
-                .putFloat().putFloat().putFloat().putFloat().putFloat().putFloat().putIVec3().putVec3().get(), size);
-
-        ByteBuffer ours = Std140.into(direct(size)).putMat4f(MATRIX).putInt(-64).putInt(8).putInt(33).putInt(24)
-                .putIVec3(-512, -64, 256).putFloat(0.5F).putFloat(1.0F).putFloat(0.8F).putFloat(0.8F)
-                .putFloat(0.6F).putFloat(0.6F).putIVec3(-1, 70, 12).putVec3(-0.75F, -0.5F, -0.25F).get();
-        ByteBuffer game = Std140Builder.intoBuffer(direct(size)).putMat4f(MATRIX).putInt(-64).putInt(8).putInt(33)
-                .putInt(24).putIVec3(-512, -64, 256).putFloat(0.5F).putFloat(1.0F).putFloat(0.8F).putFloat(0.8F)
-                .putFloat(0.6F).putFloat(0.6F).putIVec3(-1, 70, 12).putVec3(-0.75F, -0.5F, -0.25F).get();
-        assertEquals(game, ours);
+    void theFarFrameOffsetsAreTheShaders() {
+        assertEquals(List.of(0, 64, 128, 132, 136, 140, 144, 156, 160, 164, 168, 172, 176, 192, 208),
+                FarFrame.BLOCK.members().stream().map(Std140.Member::offset).toList());
+        assertEquals(220, FarFrame.BLOCK.size());
     }
 
     @Test
-    void theCompositeLayoutMatchesTheGame() {
-        int size = Std140.size().putMat4f().putMat4f().putVec4().putFloat().putFloat().putFloat()
-                .putFloat().putFloat().putFloat().putFloat().putFloat().get();
-        assertEquals(new Std140SizeCalculator().putMat4f().putMat4f().putVec4().putFloat().putFloat().putFloat()
-                .putFloat().putFloat().putFloat().putFloat().putFloat().get(), size);
+    void eachMemberIsWrittenAtItsOffset() {
+        Std140.Block block = Std140.block("Written");
+        Std140.Member matrix = block.add(Std140.Type.MAT4, "Matrix");
+        Std140.Member count = block.add(Std140.Type.INT, "Count");
+        Std140.Member origin = block.add(Std140.Type.IVEC3, "Origin");
+        Std140.Member scale = block.add(Std140.Type.FLOAT, "Scale");
+        Std140.Member colour = block.add(Std140.Type.VEC4, "Colour");
+        Std140.Member offset = block.add(Std140.Type.VEC3, "Offset");
 
-        ByteBuffer ours = Std140.into(direct(size)).putMat4f(MATRIX).putMat4f(MATRIX).putVec4(VECTOR)
-                .putFloat(1.0F).putFloat(2.0F).putFloat(3.0F).putFloat(4.0F).putFloat(5.0F).putFloat(6.0F)
-                .putFloat(7.0F).putFloat(8.0F).get();
-        ByteBuffer game = Std140Builder.intoBuffer(direct(size)).putMat4f(MATRIX).putMat4f(MATRIX).putVec4(VECTOR)
-                .putFloat(1.0F).putFloat(2.0F).putFloat(3.0F).putFloat(4.0F).putFloat(5.0F).putFloat(6.0F)
-                .putFloat(7.0F).putFloat(8.0F).get();
-        assertEquals(game, ours);
+        ByteBuffer written = block.into(direct(block.size()))
+                .putVec3(offset, -0.75F, -0.5F, -0.25F)
+                .putVec4(colour, VECTOR)
+                .putFloat(scale, 0.5F)
+                .putIVec3(origin, -512, -64, 256)
+                .putInt(count, 33)
+                .putMat4(matrix, MATRIX)
+                .get();
+
+        assertEquals(0, written.position());
+        assertEquals(124, written.limit());
+        assertEquals(MATRIX, new Matrix4f().set(0, written));
+        assertEquals(33, written.getInt(64));
+        assertEquals(-512, written.getInt(80));
+        assertEquals(256, written.getInt(88));
+        assertEquals(0.5F, written.getFloat(92));
+        assertEquals(VECTOR, new Vector4f().set(96, written));
+        assertEquals(-0.25F, written.getFloat(120));
     }
 
     @Test
-    void theOcclusionLayoutMatchesTheGame() {
-        int size = Std140.size().putMat4f().putMat4f().putMat4f().putFloat().get();
-        assertEquals(new Std140SizeCalculator().putMat4f().putMat4f().putMat4f().putFloat().get(), size);
+    void aMemberOfAnotherBlockIsRefused() {
+        Std140.Block block = Std140.block("Own");
+        block.add(Std140.Type.FLOAT, "Value");
+        Std140.Member foreign = Std140.block("Other").add(Std140.Type.FLOAT, "Value");
 
-        ByteBuffer ours = Std140.into(direct(size)).putMat4f(MATRIX).putMat4f(MATRIX).putMat4f(MATRIX)
-                .putFloat(540.0F).get();
-        ByteBuffer game = Std140Builder.intoBuffer(direct(size)).putMat4f(MATRIX).putMat4f(MATRIX).putMat4f(MATRIX)
-                .putFloat(540.0F).get();
-        assertEquals(game, ours);
+        assertThrows(IllegalArgumentException.class, () -> block.into(direct(block.size())).putFloat(foreign, 1.0F));
+    }
+
+    @Test
+    void aMemberLeftUnwrittenIsRefused() {
+        Std140.Block block = Std140.block("Partial");
+        Std140.Member first = block.add(Std140.Type.FLOAT, "First");
+        block.add(Std140.Type.FLOAT, "Second");
+
+        assertThrows(IllegalStateException.class, () -> block.into(direct(block.size())).putFloat(first, 1.0F).get());
+    }
+
+    @Test
+    void aMemberAddedAfterSizingIsRefused() {
+        Std140.Block block = Std140.block("Sized");
+        block.add(Std140.Type.FLOAT, "First");
+        block.size();
+
+        assertThrows(IllegalStateException.class, () -> block.add(Std140.Type.FLOAT, "Late"));
     }
 
     private static ByteBuffer direct(int size) {

@@ -7,7 +7,7 @@
   "authors": [
     "Anyttng"
   ],
-  "license": "MIT",
+  "license": "PolyForm-Shield-1.0.0",
   "icon": "logo.png",
   "environment": "client",
   "entrypoints": {
@@ -23,7 +23,8 @@
   },
   "mixins": [
     "eminus.mixins.json",
-    "eminus.compat.sodium.mixins.json"
+    "eminus.compat.sodium.mixins.json",
+    "eminus.compat.iris.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.5",

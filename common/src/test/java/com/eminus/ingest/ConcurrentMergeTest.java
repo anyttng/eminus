@@ -97,9 +97,9 @@ class ConcurrentMergeTest {
         int mismatches = 0;
 
         for (int index = 0; index < SECTIONS; index++) {
-            int originX = frame.voxelX(sectionX(index) * SIDE, LOWEST_STORED_LEVEL);
+            int originX = CellFrame.voxelX(sectionX(index) * SIDE, LOWEST_STORED_LEVEL);
             int originY = frame.voxelY(sectionY(index) * SIDE, LOWEST_STORED_LEVEL);
-            int originZ = frame.voxelZ(sectionZ(index) * SIDE, LOWEST_STORED_LEVEL);
+            int originZ = CellFrame.voxelZ(sectionZ(index) * SIDE, LOWEST_STORED_LEVEL);
 
             for (int y = 0; y < SIDE; y++) {
                 for (int z = 0; z < SIDE; z++) {

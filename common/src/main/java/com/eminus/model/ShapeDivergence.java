@@ -9,17 +9,15 @@ import net.minecraft.core.Direction;
 
 import it.unimi.dsi.fastutil.floats.FloatOpenHashSet;
 
-import org.joml.GeometryUtils;
-import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
+@SuppressWarnings("ArrayRecordComponent")
 public record ShapeDivergence(int quads, float[] depth, float[] bounds, int planes, int tilted, int blades,
         int lostFaces, boolean bladed, float bladeScale) {
     public static final int AXES = 3;
     public static final float NO_BLADES = 1.0F;
 
     private static final float ALIGNED = 1.0F - 1.0E-3F;
-    private static final float MIN_FACING = 1.0E-3F;
     private static final float PLANE_STEPS = 1024.0F;
     private static final int NOT_ALIGNED = -1;
     private static final Direction[] FACES = Direction.values();
@@ -44,9 +42,8 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
             planes[face] = new FloatOpenHashSet();
         }
 
-        Vector3f normal = new Vector3f();
         for (ModelQuad quad : quads) {
-            GeometryUtils.normal(quad.corner(0), quad.corner(1), quad.corner(2), normal);
+            Vector3fc normal = FaceRasterizer.normal(quad);
             int face = alignedFace(normal);
 
             if (face != NOT_ALIGNED) {
@@ -57,7 +54,7 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
                 } else {
                     depth[face] = Math.max(depth[face], Math.abs(quadDepth - baked.insets()[face]));
                 }
-            } else if (blade(normal)) {
+            } else if (FaceRasterizer.blade(normal)) {
                 blades++;
                 float scale = bladeScale(quad, baked.bounds(), sprites);
                 if (Math.abs(scale - NO_BLADES) > Math.abs(bladeScale - NO_BLADES)) {
@@ -69,7 +66,7 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
         }
 
         if (!quads.isEmpty()) {
-            float[] game = boundsOf(quads);
+            float[] game = FaceRasterizer.bounds(quads);
             for (int axis = 0; axis < AXES; axis++) {
                 bounds[axis] = Math.max(Math.abs(game[axis] - baked.bounds()[axis]),
                         Math.abs(game[axis + AXES] - baked.bounds()[axis + AXES]));
@@ -108,11 +105,6 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
         return NOT_ALIGNED;
     }
 
-    private static boolean blade(Vector3fc normal) {
-        return Math.abs(normal.y()) <= MIN_FACING
-                && Math.abs(Math.abs(normal.x()) - Math.abs(normal.z())) <= MIN_FACING;
-    }
-
     private static float depthOf(ModelQuad quad, Direction face) {
         Vector3fc corner = quad.corner(0);
         float along = (float) face.getAxis().choose(corner.x(), corner.y(), corner.z());
@@ -137,23 +129,5 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
         float imageSpan = bakedBounds[BakedModel.MAX_X] - bakedBounds[BakedModel.MIN_X];
         return spriteColumns <= 0.0F || imageSpan <= 0.0F ? NO_BLADES
                 : (maxX - minX) / imageSpan * BakedModel.FACE_SIDE / spriteColumns;
-    }
-
-    private static float[] boundsOf(List<ModelQuad> quads) {
-        float[] bounds = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE,
-                -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
-
-        for (ModelQuad quad : quads) {
-            for (int vertex = 0; vertex < ModelQuad.CORNERS; vertex++) {
-                Vector3fc position = quad.corner(vertex);
-                for (int axis = 0; axis < AXES; axis++) {
-                    float value = axis == 0 ? position.x() : axis == 1 ? position.y() : position.z();
-                    bounds[axis] = Math.min(bounds[axis], value);
-                    bounds[axis + AXES] = Math.max(bounds[axis + AXES], value);
-                }
-            }
-        }
-
-        return bounds;
     }
 }

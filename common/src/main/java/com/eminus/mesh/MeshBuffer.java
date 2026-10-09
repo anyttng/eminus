@@ -18,12 +18,14 @@ public final class MeshBuffer {
     public static final int MAX_COLOURS = Quad.MAX_COLOUR_INDEX + 1;
     public static final int UNTINTED = 0;
     public static final int WHITE = 0xFF_FFFF;
+    public static final int CHANNEL_BITS = 8;
+    public static final int RED_SHIFT = 2 * CHANNEL_BITS;
+    public static final int GREEN_SHIFT = CHANNEL_BITS;
+    public static final int BLUE_SHIFT = 0;
 
     private static final int ABSENT = -1;
-    private static final int RED_SHIFT = 16;
-    private static final int GREEN_SHIFT = 8;
-    private static final int CHANNEL_MASK = 0xFF;
-    private static final int OFFSET_SHIFT = Integer.SIZE;
+    private static final int CHANNEL_MASK = (1 << CHANNEL_BITS) - 1;
+    private static final int PLACEMENT_SHIFT = Integer.SIZE;
     private static final long COLOUR_BITS = 0xFFFF_FFFFL;
 
     private final LongArrayList[] groups = new LongArrayList[QuadGroups.COUNT];
@@ -42,19 +44,19 @@ public final class MeshBuffer {
         }
 
         colourIndices.defaultReturnValue(ABSENT);
-        addColour(entry(WHITE, QuadOffset.NONE));
+        addColour(entry(WHITE, QuadPlacement.NONE));
     }
 
     public static int colourOf(long entry) {
         return (int) (entry & COLOUR_BITS);
     }
 
-    public static int offsetOf(long entry) {
-        return (int) (entry >>> OFFSET_SHIFT);
+    public static int placementOf(long entry) {
+        return (int) (entry >>> PLACEMENT_SHIFT);
     }
 
-    public int offsetAt(int colourIndex) {
-        return offsetOf(colours.getLong(colourIndex));
+    public int placementAt(int colourIndex) {
+        return placementOf(colours.getLong(colourIndex));
     }
 
     public int colourIndex(int colour, int placement) {
@@ -76,7 +78,7 @@ public final class MeshBuffer {
         }
 
         lost++;
-        return nearest(colour, QuadOffset.NONE);
+        return nearest(colour, QuadPlacement.NONE);
     }
 
     public boolean lostPlacements() {
@@ -147,7 +149,7 @@ public final class MeshBuffer {
 
         colours.clear();
         colourIndices.clear();
-        addColour(entry(WHITE, QuadOffset.NONE));
+        addColour(entry(WHITE, QuadPlacement.NONE));
 
         truncated = 0;
         unaddressable = 0;
@@ -155,8 +157,8 @@ public final class MeshBuffer {
         lost = 0;
     }
 
-    private static long entry(int colour, int offset) {
-        return (long) offset << OFFSET_SHIFT | colour & COLOUR_BITS;
+    private static long entry(int colour, int placement) {
+        return (long) placement << PLACEMENT_SHIFT | (colour & COLOUR_BITS);
     }
 
     private int addColour(long entry) {
@@ -171,7 +173,7 @@ public final class MeshBuffer {
         int bestDistance = Integer.MAX_VALUE;
         for (int index = 0; index < colours.size(); index++) {
             long candidate = colours.getLong(index);
-            if (offsetOf(candidate) == placement) {
+            if (placementOf(candidate) == placement) {
                 int distance = distance(colour, colourOf(candidate));
                 if (distance < bestDistance) {
                     best = index;
@@ -186,7 +188,7 @@ public final class MeshBuffer {
     private static int distance(int first, int second) {
         int red = ((first >> RED_SHIFT) & CHANNEL_MASK) - ((second >> RED_SHIFT) & CHANNEL_MASK);
         int green = ((first >> GREEN_SHIFT) & CHANNEL_MASK) - ((second >> GREEN_SHIFT) & CHANNEL_MASK);
-        int blue = (first & CHANNEL_MASK) - (second & CHANNEL_MASK);
+        int blue = ((first >> BLUE_SHIFT) & CHANNEL_MASK) - ((second >> BLUE_SHIFT) & CHANNEL_MASK);
         return red * red + green * green + blue * blue;
     }
 

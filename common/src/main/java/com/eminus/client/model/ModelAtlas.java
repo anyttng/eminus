@@ -126,7 +126,7 @@ public final class ModelAtlas implements AutoCloseable {
     private void writeFace(BakedModel model, int index, int slot) {
         System.arraycopy(model.faces(), index * BakedModel.FACE_TEXELS, faceColour, 0, BakedModel.FACE_TEXELS);
         for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
-            faceTint[texel] = faceColour[texel] & ALPHA_MASK | (model.tinted(index, texel) ? RGB_MASK : 0);
+            faceTint[texel] = (faceColour[texel] & ALPHA_MASK) | (model.tinted(index, texel) ? RGB_MASK : 0);
         }
 
         Solidify.apply(faceColour, BakedModel.FACE_SIDE, BakedModel.FACE_SIDE);

@@ -18,12 +18,12 @@ public final class CellVoxels {
     private static final int BIOME_MARGIN = TintBlend.MAX_RADIUS;
     private static final int BIOME_WINDOW = SIDE + 2 * BIOME_MARGIN;
 
-    private static final int DOWN = Direction.DOWN.ordinal();
-    private static final int UP = Direction.UP.ordinal();
-    private static final int NORTH = Direction.NORTH.ordinal();
-    private static final int SOUTH = Direction.SOUTH.ordinal();
-    private static final int WEST = Direction.WEST.ordinal();
-    private static final int EAST = Direction.EAST.ordinal();
+    private static final int DOWN = Direction.DOWN.get3DDataValue();
+    private static final int UP = Direction.UP.get3DDataValue();
+    private static final int NORTH = Direction.NORTH.get3DDataValue();
+    private static final int SOUTH = Direction.SOUTH.get3DDataValue();
+    private static final int WEST = Direction.WEST.get3DDataValue();
+    private static final int EAST = Direction.EAST.get3DDataValue();
 
     private final long[] voxels = new long[DetailLevel.VOXELS_PER_CELL];
     private final long[][] layers = new long[SIDES][LAYER_SIZE];
@@ -93,7 +93,7 @@ public final class CellVoxels {
     }
 
     public void loadNeighbour(Direction face, Cell neighbour) {
-        long[] layer = layers[face.ordinal()];
+        long[] layer = layers[face.get3DDataValue()];
         int at = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 0 : LAST;
 
         switch (face.getAxis()) {
@@ -145,7 +145,7 @@ public final class CellVoxels {
     }
 
     public void loadAboveSide(Direction side, Cell neighbour) {
-        long[] row = aboveSides[side.ordinal()];
+        long[] row = aboveSides[side.get3DDataValue()];
 
         for (int along = 0; along < SIDE; along++) {
             row[along] = side.getAxis() == Direction.Axis.X

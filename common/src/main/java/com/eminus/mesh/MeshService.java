@@ -102,7 +102,7 @@ public final class MeshService {
 
             for (Direction face : FACES) {
                 CellHandle handle = cells.open(CellKey.neighbour(task.key(), face));
-                handles[face.ordinal() + 1] = handle;
+                handles[face.get3DDataValue() + 1] = handle;
                 handle.withCell(cell -> {
                     scratch.voxels().loadNeighbour(face, cell);
                     if (face == Direction.DOWN && edgeFluidReachesBottom(scratch.voxels())) {
@@ -162,10 +162,10 @@ public final class MeshService {
                 }
             }
 
-            scratch.blend().begin(scratch.voxels(), tints, task.key(), blendRadius);
+            scratch.begin(frame, task.key(), tints, blendRadius);
 
             AtomicBoolean retried = new AtomicBoolean();
-            CellMesh mesh = new CellMesher(scratch, models, frame).mesh(task.key(), occupancy,
+            CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy,
                     opacity.at(CellKey.level(task.key())), () -> {
                 if (retried.compareAndSet(false, true)) {
                     submit(task.retry());

@@ -9,6 +9,7 @@ import com.eminus.cell.CellKey;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.client.session.ClientSession;
 import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.MeshModels;
 import com.eminus.mesh.ObjWriter;
 import com.eminus.mesh.QuadGroups;
 import com.eminus.session.DimensionRuntime;
@@ -43,13 +44,13 @@ public final class MeshReading {
         ClientBakery baking = ClientBakery.start(client);
 
         return CellMeshing.mesh(runtime, instance, baking, new long[] {key}, TIMEOUT_SECONDS)
-                .thenApply(meshes -> write(meshes.get(key), file))
+                .thenApply(meshes -> write(meshes.get(key), MeshWiring.models(runtime, baking), file))
                 .whenComplete((row, failure) -> baking.stop());
     }
 
-    private static long[] write(CellMesh mesh, Path file) {
+    private static long[] write(CellMesh mesh, MeshModels models, Path file) {
         try {
-            ObjWriter.write(mesh, file);
+            ObjWriter.write(mesh, models, file);
         } catch (IOException failure) {
             throw new UncheckedIOException(failure);
         }

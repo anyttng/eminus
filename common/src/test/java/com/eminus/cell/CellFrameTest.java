@@ -26,9 +26,9 @@ class CellFrameTest {
 
                             assertEquals(level, CellKey.level(key));
                             assertEquals(Math.floorDiv(blockX, voxelSize) * voxelSize,
-                                    frame.blockXOf(key, frame.voxelX(blockX, level)));
+                                    CellFrame.blockXOf(key, CellFrame.voxelX(blockX, level)));
                             assertEquals(Math.floorDiv(blockZ, voxelSize) * voxelSize,
-                                    frame.blockZOf(key, frame.voxelZ(blockZ, level)));
+                                    CellFrame.blockZOf(key, CellFrame.voxelZ(blockZ, level)));
                             assertEquals(minBlockY + Math.floorDiv(height, voxelSize) * voxelSize,
                                     frame.blockYOf(key, frame.voxelY(blockY, level)));
                         }
@@ -46,8 +46,8 @@ class CellFrameTest {
             for (int level = DetailLevel.MIN; level <= DetailLevel.MAX; level++) {
                 for (int blockX : HORIZONTALS) {
                     for (int height : HEIGHTS) {
-                        assertInsideTheCell(frame.voxelX(blockX, level));
-                        assertInsideTheCell(frame.voxelZ(blockX, level));
+                        assertInsideTheCell(CellFrame.voxelX(blockX, level));
+                        assertInsideTheCell(CellFrame.voxelZ(blockX, level));
                         assertInsideTheCell(frame.voxelY(minBlockY + height, level));
                     }
                 }
@@ -71,13 +71,11 @@ class CellFrameTest {
 
     @Test
     void aTopLevelCellSpansFiveHundredAndTwelveBlocks() {
-        CellFrame frame = new CellFrame(-64);
-
-        assertEquals(0, frame.cellX(0, DetailLevel.MAX));
-        assertEquals(0, frame.cellX(511, DetailLevel.MAX));
-        assertEquals(1, frame.cellX(512, DetailLevel.MAX));
-        assertEquals(-1, frame.cellX(-1, DetailLevel.MAX));
-        assertEquals(-512, frame.originBlockX(-1, DetailLevel.MAX));
+        assertEquals(0, CellFrame.cellX(0, DetailLevel.MAX));
+        assertEquals(0, CellFrame.cellX(511, DetailLevel.MAX));
+        assertEquals(1, CellFrame.cellX(512, DetailLevel.MAX));
+        assertEquals(-1, CellFrame.cellX(-1, DetailLevel.MAX));
+        assertEquals(-512, CellFrame.originBlockX(-1, DetailLevel.MAX));
     }
 
     private static void assertInsideTheCell(int voxel) {

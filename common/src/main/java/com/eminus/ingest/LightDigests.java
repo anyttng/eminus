@@ -25,9 +25,9 @@ public final class LightDigests {
             @Nullable DataLayer blockLight) {
         long skyDigest = digest(skyLight);
         long blockDigest = digest(blockLight);
-        boolean differs = sky.put(sectionNode, skyDigest) != skyDigest
-                | block.put(sectionNode, blockDigest) != blockDigest;
-        return differs;
+        boolean skyDiffers = sky.put(sectionNode, skyDigest) != skyDigest;
+        boolean blockDiffers = block.put(sectionNode, blockDigest) != blockDigest;
+        return skyDiffers || blockDiffers;
     }
 
     public synchronized void forgetColumn(int chunkX, int chunkZ, int minSectionY, int maxSectionY) {

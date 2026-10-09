@@ -1,0 +1,21 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.eminus.compat.iris.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "plugin": "com.eminus.compat.iris.IrisMixinPlugin",
+  "client": [
+    "CommonUniformsMixin",
+    "DepthTransformerMixin",
+    "DHCompatMixin",
+    "IrisRenderingPipelineAccessor",
+    "IrisRenderingPipelineMixin",
+    "IrisSamplersMixin",
+    "ShaderPackAccessor",
+    "ShaderPackMixin",
+    "StandardMacrosMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

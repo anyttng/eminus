@@ -24,5 +24,9 @@
   "gui.eminus.settings.fog": "Niebla",
   "gui.eminus.settings.fog.hint": "Niebla sobre el LOD, que continúa la niebla del propio juego y llega a su máximo en la distancia del LOD. Desactivada, también quita la niebla al aire libre de los chunks cargados, así que toda la vista queda nítida. La niebla del Nether, de un jefe, bajo el agua o por ceguera se mantiene.",
   "gui.eminus.settings.fade": "Desvanecido",
-  "gui.eminus.settings.fade.hint": "Desvanece el LOD en sus últimos 512 bloques en lugar de cortarlo con un borde duro."
+  "gui.eminus.settings.fade.hint": "Desvanece el LOD en sus últimos 512 bloques en lugar de cortarlo con un borde duro.",
+  "gui.eminus.settings.shader_pack_lod": "LOD con shaders",
+  "gui.eminus.settings.shader_pack_lod.hint": "Cómo se dibuja el LOD con un paquete de shaders sin soporte para Eminus. Predeterminado lo dibuja sobre la imagen del paquete con el aspecto propio de Eminus. Distant Horizons deja que un paquete compatible con Distant Horizons lo dibuje con su propia luz y niebla, pero con un color plano por bloque. Un paquete hecho para Eminus siempre dibuja el LOD por sí mismo. Cambiarlo recarga el paquete de shaders.",
+  "gui.eminus.settings.shader_pack_lod.default": "Predeterminado",
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
 }

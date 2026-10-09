@@ -14,16 +14,14 @@ final class OpenGlTexture implements Texture {
     private static final int NO_BORDER = 0;
     private static final int PACKED_ROWS = 0;
 
-    private final OpenGlGpu gpu;
-    private final int id;
+    private final OpenGlName name;
     private final Format format;
     private final int width;
     private final int height;
     private final @Nullable Object owner;
 
-    private OpenGlTexture(OpenGlGpu gpu, int id, Format format, int width, int height, @Nullable Object owner) {
-        this.gpu = gpu;
-        this.id = id;
+    private OpenGlTexture(OpenGlName name, Format format, int width, int height, @Nullable Object owner) {
+        this.name = name;
         this.format = format;
         this.width = width;
         this.height = height;
@@ -43,27 +41,36 @@ final class OpenGlTexture implements Texture {
         }
         OpenGlErrors.check("texture " + label + " " + width + "x" + height);
         gpu.objects().created(OpenGlObjects.Kind.TEXTURE, id, label);
-        return new OpenGlTexture(gpu, id, format, width, height, null);
+        return new OpenGlTexture(new OpenGlName(id, owned -> {
+            gpu.textureClosed(owned);
+            GameHandles.deleteTexture(owned);
+            gpu.objects().deleted(OpenGlObjects.Kind.TEXTURE);
+        }), format, width, height, null);
     }
 
-    static OpenGlTexture borrowed(OpenGlGpu gpu, GameHandles.Handle handle) {
+    static OpenGlTexture borrowed(GameHandles.Handle handle) {
         GameHandles.bindTexture(handle.id());
         int internalFormat = GL11C.glGetTexLevelParameteri(GL11C.GL_TEXTURE_2D, BASE_MIP, GL11C.GL_TEXTURE_INTERNAL_FORMAT);
         int width = GL11C.glGetTexLevelParameteri(GL11C.GL_TEXTURE_2D, BASE_MIP, GL11C.GL_TEXTURE_WIDTH);
         int height = GL11C.glGetTexLevelParameteri(GL11C.GL_TEXTURE_2D, BASE_MIP, GL11C.GL_TEXTURE_HEIGHT);
-        return new OpenGlTexture(gpu, handle.id(), OpenGlTypes.format(internalFormat), width, height, handle.owner());
+        return new OpenGlTexture(new OpenGlName(handle.id(), OpenGlTexture::notOurs),
+                OpenGlTypes.format(internalFormat), width, height, handle.owner());
+    }
+
+    private static void notOurs(int id) {
     }
 
     int id() {
-        return id;
+        return name.id();
     }
 
+    @SuppressWarnings("ReferenceEquality")
     boolean borrowedFrom(GameHandles.Handle handle) {
         return owner == handle.owner();
     }
 
     void write(int mip, int x, int y, int regionWidth, int regionHeight, ByteBuffer data) {
-        GameHandles.bindTexture(id);
+        GameHandles.bindTexture(name.id());
         GL11C.glPixelStorei(GL11C.GL_UNPACK_ROW_LENGTH, regionWidth);
         GL11C.glPixelStorei(GL11C.GL_UNPACK_SKIP_PIXELS, PACKED_ROWS);
         GL11C.glPixelStorei(GL11C.GL_UNPACK_SKIP_ROWS, PACKED_ROWS);
@@ -89,12 +96,6 @@ final class OpenGlTexture implements Texture {
 
     @Override
     public void close() {
-        if (owner != null) {
-            return;
-        }
-
-        gpu.textureClosed(id);
-        GameHandles.deleteTexture(id);
-        gpu.objects().deleted(OpenGlObjects.Kind.TEXTURE);
+        name.delete();
     }
 }

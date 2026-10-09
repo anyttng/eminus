@@ -7,13 +7,13 @@ public final class FluidCorners {
     public static final int LEVEL = DetailLevel.MIN;
     public static final int FLAT = 0;
     public static final int STEPS = 255;
+    public static final int BITS = 8;
+    public static final int NORTH_WEST_SHIFT = 0;
+    public static final int NORTH_EAST_SHIFT = BITS;
+    public static final int SOUTH_WEST_SHIFT = 2 * BITS;
+    public static final int SOUTH_EAST_SHIFT = 3 * BITS;
 
-    private static final int BITS = 8;
     private static final int MASK = (1 << BITS) - 1;
-    private static final int NORTH_WEST_SHIFT = 0;
-    private static final int NORTH_EAST_SHIFT = BITS;
-    private static final int SOUTH_WEST_SHIFT = 2 * BITS;
-    private static final int SOUTH_EAST_SHIFT = 3 * BITS;
 
     private static final double FULL = 1.0;
     private static final double OPEN = 0.0;
@@ -78,6 +78,13 @@ public final class FluidCorners {
 
     public static int southEast(int corners) {
         return corners >>> SOUTH_EAST_SHIFT & MASK;
+    }
+
+    public static float height(int corners, boolean east, boolean south) {
+        int steps = south
+                ? (east ? southEast(corners) : southWest(corners))
+                : (east ? northEast(corners) : northWest(corners));
+        return steps / (float) STEPS;
     }
 
     public static boolean full(int corners) {

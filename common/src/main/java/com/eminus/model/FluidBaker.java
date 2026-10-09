@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 
 public final class FluidBaker {
     private static final int ALPHA_MASK = 0xFF00_0000;
-    private static final int UP = Direction.UP.ordinal();
+    private static final int UP = Direction.UP.get3DDataValue();
     private static final float FULL_HEIGHT = 1.0F;
 
     private final FluidModels models;
@@ -50,7 +50,7 @@ public final class FluidBaker {
                 | (tintRow == BiomeColours.NO_ROW ? 0 : ModelMetadata.TINTED);
         float height = fluid.getOwnHeight();
         float[] bounds = surfaceBounds(height);
-        int metadata = ModelMetadata.pack(FaceMask.ALL, occluding(bounds, translucent || !opaque(side)),
+        int metadata = ModelMetadata.pack(FaceMask.ALL, occluding(bounds, seeThrough(flags, faces)),
                 occludable(bounds), 0, flags);
 
         return new BakedModel(faces, tintMask, surfaceInsets(height), bounds, metadata, tintRow);
@@ -59,9 +59,8 @@ public final class FluidBaker {
     public static BakedModel submerged(BakedModel surface) {
         int word = surface.metadata();
         float[] bounds = BakedModel.fullBounds();
-        boolean seeThrough = ModelMetadata.has(word, ModelMetadata.TRANSLUCENT) || !opaque(surface.faces());
-        int metadata = ModelMetadata.pack(ModelMetadata.present(word), occluding(bounds, seeThrough),
-                occludable(bounds), ModelMetadata.emission(word), word & ModelMetadata.FLAGS);
+        int metadata = ModelMetadata.pack(ModelMetadata.present(word),
+                occluding(bounds, seeThrough(word, surface.faces())), occludable(bounds), ModelMetadata.emission(word), word & ModelMetadata.FLAGS);
 
         return new BakedModel(surface.faces(), surface.tintMask(), new float[BakedModel.FACE_COUNT], bounds,
                 metadata, surface.tintRow());
@@ -111,6 +110,10 @@ public final class FluidBaker {
 
     private static float between(float start, float end, int step) {
         return start + (end - start) * (step + 0.5F) / BakedModel.FACE_SIDE;
+    }
+
+    private static boolean seeThrough(int flags, int[] faces) {
+        return ModelMetadata.has(flags, ModelMetadata.TRANSLUCENT) || !opaque(faces);
     }
 
     private static boolean opaque(int[] texels) {

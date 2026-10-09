@@ -6,23 +6,29 @@ public final class Quad {
     public static final int MAX_SIDE = 16;
     public static final int FIRST_BLADE_FACE = 6;
     public static final int BLADE_COUNT = 2;
-    public static final int MAX_MODEL_ID = (1 << 18) - 1;
-    public static final int MAX_COLOUR_INDEX = (1 << 12) - 1;
+    public static final int FACE_BITS = 3;
+    public static final int COORDINATE_BITS = DetailLevel.SIDE_BITS;
+    public static final int SIDE_BITS = 4;
+    public static final int LIGHT_BITS = 8;
+    public static final int MODEL_BITS = 18;
+    public static final int COLOUR_BITS = 12;
+    public static final int MAX_MODEL_ID = (1 << MODEL_BITS) - 1;
+    public static final int MAX_COLOUR_INDEX = (1 << COLOUR_BITS) - 1;
 
-    private static final int FACE_SHIFT = 0;
-    private static final int X_SHIFT = 3;
-    private static final int Y_SHIFT = 8;
-    private static final int Z_SHIFT = 13;
-    private static final int WIDTH_SHIFT = 18;
-    private static final int HEIGHT_SHIFT = 22;
-    private static final int LIGHT_SHIFT = 26;
-    private static final int MODEL_SHIFT = 34;
-    private static final int COLOUR_SHIFT = 52;
+    public static final int FACE_SHIFT = 0;
+    public static final int X_SHIFT = FACE_SHIFT + FACE_BITS;
+    public static final int Y_SHIFT = X_SHIFT + COORDINATE_BITS;
+    public static final int Z_SHIFT = Y_SHIFT + COORDINATE_BITS;
+    public static final int WIDTH_SHIFT = Z_SHIFT + COORDINATE_BITS;
+    public static final int HEIGHT_SHIFT = WIDTH_SHIFT + SIDE_BITS;
+    public static final int LIGHT_SHIFT = HEIGHT_SHIFT + SIDE_BITS;
+    public static final int MODEL_SHIFT = LIGHT_SHIFT + LIGHT_BITS;
+    public static final int COLOUR_SHIFT = MODEL_SHIFT + MODEL_BITS;
 
-    private static final long FACE_MASK = 0x7L;
-    private static final long COORDINATE_MASK = DetailLevel.VOXELS_PER_SIDE - 1;
-    private static final long SIDE_MASK = 0xFL;
-    private static final long LIGHT_MASK = 0xFFL;
+    private static final long FACE_MASK = (1L << FACE_BITS) - 1;
+    private static final long COORDINATE_MASK = (1L << COORDINATE_BITS) - 1;
+    private static final long SIDE_MASK = (1L << SIDE_BITS) - 1;
+    private static final long LIGHT_MASK = (1L << LIGHT_BITS) - 1;
     private static final long MODEL_MASK = MAX_MODEL_ID;
     private static final long COLOUR_MASK = MAX_COLOUR_INDEX;
 

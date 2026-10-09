@@ -1,6 +1,12 @@
 package com.eminus.client.gpu.opengl;
 
+import java.io.IOException;
+import java.util.Optional;
+
+import com.eminus.gpu.Location;
+
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.renderpearl.api.device.GpuOutOfMemoryException;
 import com.mojang.renderpearl.api.pipeline.CompareOp;
 import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import com.mojang.renderpearl.api.textures.GpuTextureView;
@@ -8,6 +14,8 @@ import com.mojang.renderpearl.backend.opengl.FrameBufferAttachment;
 import com.mojang.renderpearl.backend.opengl.GlStateManager;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.resources.Resource;
 
 import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL13C;
@@ -15,6 +23,8 @@ import org.lwjgl.opengl.GL14C;
 import org.lwjgl.opengl.GL30C;
 
 final class GameHandles {
+    static final int GAME_TRACKED_TEXTURE_UNITS = 12;
+
     private static final boolean LIGHTMAP_HALF_TEXEL = true;
 
     private GameHandles() {
@@ -43,6 +53,16 @@ final class GameHandles {
         return LIGHTMAP_HALF_TEXEL;
     }
 
+    static Optional<String> resource(Location file) throws IOException {
+        Optional<Resource> resource = Minecraft.getInstance().getResourceManager()
+                .getResource(Identifier.fromNamespaceAndPath(file.namespace(), file.path()));
+        return resource.isPresent() ? Optional.of(resource.get().readAllAsString()) : Optional.empty();
+    }
+
+    static RuntimeException outOfMemory(String message) {
+        return new GpuOutOfMemoryException(message);
+    }
+
     private static RenderTarget target() {
         return Minecraft.getInstance().gameRenderer.mainRenderTarget();
     }
@@ -69,6 +89,11 @@ final class GameHandles {
 
     static void bindFramebuffer(int framebuffer) {
         GlStateManager._glBindFramebuffer(GL30C.GL_FRAMEBUFFER, framebuffer);
+    }
+
+    static void bindFramebuffers(int read, int draw) {
+        GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, read);
+        GlStateManager._glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, draw);
     }
 
     static void deleteFramebuffer(int framebuffer) {
