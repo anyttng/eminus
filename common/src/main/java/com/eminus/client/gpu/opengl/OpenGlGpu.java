@@ -199,6 +199,14 @@ public final class OpenGlGpu implements Gpu, Foreign {
     }
 
     @Override
+    public void release(Pipeline pipeline) {
+        OpenGlPipeline own = (OpenGlPipeline) pipeline;
+        if (pipelines.remove(own)) {
+            own.delete(objects);
+        }
+    }
+
+    @Override
     public int program(Pipeline pipeline) {
         return ((OpenGlPipeline) pipeline).program();
     }
