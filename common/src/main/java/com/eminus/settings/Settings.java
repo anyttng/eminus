@@ -7,7 +7,8 @@ public record Settings(
         int workerThreads,
         DetailDistance detailDistance,
         boolean fog,
-        boolean fade) {
+        boolean fade,
+        ShaderPackLod shaderPackLod) {
 
     public static final boolean DEFAULT_INGESTION = true;
     public static final int DEFAULT_LOWEST_STORED_LEVEL = 0;
@@ -15,6 +16,7 @@ public record Settings(
     public static final DetailDistance DEFAULT_DETAIL_DISTANCE = DetailDistance.MEDIUM;
     public static final boolean DEFAULT_FOG = true;
     public static final boolean DEFAULT_FADE = true;
+    public static final ShaderPackLod DEFAULT_SHADER_PACK_LOD = ShaderPackLod.DEFAULT;
 
     public static final int MIN_DETAIL_LEVEL = 0;
     public static final int MAX_DETAIL_LEVEL = 4;
@@ -34,7 +36,8 @@ public record Settings(
                 defaultWorkerThreads(Runtime.getRuntime().availableProcessors()),
                 DEFAULT_DETAIL_DISTANCE,
                 DEFAULT_FOG,
-                DEFAULT_FADE);
+                DEFAULT_FADE,
+                DEFAULT_SHADER_PACK_LOD);
     }
 
     public static int defaultWorkerThreads(int cores) {
@@ -42,30 +45,42 @@ public record Settings(
     }
 
     public Settings withIngestion(boolean value) {
-        return new Settings(value, lowestStoredLevel, farRenderCells, workerThreads, detailDistance, fog, fade);
+        return new Settings(value, lowestStoredLevel, farRenderCells, workerThreads, detailDistance, fog, fade,
+                shaderPackLod);
     }
 
     public Settings withLowestStoredLevel(int value) {
-        return new Settings(ingestion, value, farRenderCells, workerThreads, detailDistance, fog, fade);
+        return new Settings(ingestion, value, farRenderCells, workerThreads, detailDistance, fog, fade,
+                shaderPackLod);
     }
 
     public Settings withFarRenderCells(int value) {
-        return new Settings(ingestion, lowestStoredLevel, value, workerThreads, detailDistance, fog, fade);
+        return new Settings(ingestion, lowestStoredLevel, value, workerThreads, detailDistance, fog, fade,
+                shaderPackLod);
     }
 
     public Settings withWorkerThreads(int value) {
-        return new Settings(ingestion, lowestStoredLevel, farRenderCells, value, detailDistance, fog, fade);
+        return new Settings(ingestion, lowestStoredLevel, farRenderCells, value, detailDistance, fog, fade,
+                shaderPackLod);
     }
 
     public Settings withDetailDistance(DetailDistance value) {
-        return new Settings(ingestion, lowestStoredLevel, farRenderCells, workerThreads, value, fog, fade);
+        return new Settings(ingestion, lowestStoredLevel, farRenderCells, workerThreads, value, fog, fade,
+                shaderPackLod);
     }
 
     public Settings withFog(boolean value) {
-        return new Settings(ingestion, lowestStoredLevel, farRenderCells, workerThreads, detailDistance, value, fade);
+        return new Settings(ingestion, lowestStoredLevel, farRenderCells, workerThreads, detailDistance, value, fade,
+                shaderPackLod);
     }
 
     public Settings withFade(boolean value) {
-        return new Settings(ingestion, lowestStoredLevel, farRenderCells, workerThreads, detailDistance, fog, value);
+        return new Settings(ingestion, lowestStoredLevel, farRenderCells, workerThreads, detailDistance, fog, value,
+                shaderPackLod);
+    }
+
+    public Settings withShaderPackLod(ShaderPackLod value) {
+        return new Settings(ingestion, lowestStoredLevel, farRenderCells, workerThreads, detailDistance, fog, fade,
+                value);
     }
 }

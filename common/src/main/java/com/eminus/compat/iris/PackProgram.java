@@ -47,9 +47,10 @@ import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL20C;
+import org.lwjgl.opengl.GL30C;
 import org.lwjgl.system.MemoryStack;
 
-final class PackProgram {
+public final class PackProgram {
     private static final int FIRST_UNIT = IrisSamplers.WORLD_RESERVED_TEXTURE_UNITS.stream()
             .mapToInt(Integer::intValue).max().orElseThrow() + 1;
     private static final String LOCATION_PREFIX = "pack";
@@ -58,7 +59,10 @@ final class PackProgram {
     private static final String PROJECTION = "iris_ProjectionMatrix";
     private static final String PROJECTION_INVERSE = "iris_ProjectionMatrixInverse";
     private static final String NORMAL_MATRIX = "iris_NormalMatrix";
+    private static final String DH_EXTRA = "irisExtra";
+    private static final String DH_POSITION = "vPosition";
     private static final int NO_PROGRAM = 0;
+    private static final int ZERO = 0;
     private static final int MAT4_FLOATS = 16;
     private static final int MAT3_FLOATS = 9;
     private static final boolean TRANSPOSE = false;
@@ -77,10 +81,12 @@ final class PackProgram {
     private final int projection;
     private final int projectionInverse;
     private final int normalMatrix;
+    private final int dhExtra;
+    private final int dhPosition;
     private final Matrix4f inverse = new Matrix4f();
     private final Matrix3f normal = new Matrix3f();
 
-    enum Kind {
+    public enum Kind {
         OPAQUE,
         TRANSLUCENT,
         SHADOW
@@ -103,6 +109,8 @@ final class PackProgram {
         projection = GL20C.glGetUniformLocation(program, PROJECTION);
         projectionInverse = GL20C.glGetUniformLocation(program, PROJECTION_INVERSE);
         normalMatrix = GL20C.glGetUniformLocation(program, NORMAL_MATRIX);
+        dhExtra = GL20C.glGetAttribLocation(program, DH_EXTRA);
+        dhPosition = GL20C.glGetAttribLocation(program, DH_POSITION);
     }
 
     static @Nullable PackProgram build(FarDraw draw, Foreign foreign, IrisRenderingPipeline irisPipeline,
@@ -112,7 +120,7 @@ final class PackProgram {
         ProgramSource[] built = new ProgramSource[1];
         Pipeline pipeline = foreign.pipeline(
                 kind == Kind.SHADOW ? draw.shadowPipeline(location, source.vertex() != null)
-                        : draw.packPipeline(location, kind == Kind.TRANSLUCENT),
+                        : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertex() != null),
                 FIRST_UNIT,
                 ours -> {
                     String spliced = source.fragment().apply(ours.fragment());
@@ -197,6 +205,8 @@ final class PackProgram {
         customUniforms.push(pass);
         images.update();
         matrices(view, projection);
+        zeroAttribute(dhExtra);
+        zeroAttribute(dhPosition);
         IrisRenderSystem.bindTextureToUnit(GL11C.GL_TEXTURE_2D, IrisSamplers.LIGHTMAP_TEXTURE_UNIT,
                 foreign.texture(lightmap));
         source.getDirectives().getBlendModeOverride().ifPresent(BlendModeOverride::apply);
@@ -220,6 +230,13 @@ final class PackProgram {
                 GL20C.glUniformMatrix3fv(normalMatrix, TRANSPOSE,
                         view.invert(inverse).transpose3x3(normal).get(stack.mallocFloat(MAT3_FLOATS)));
             }
+        }
+    }
+
+    // Iris's _vert_init reads iris_TexId from these; with no array bound, zero keeps dh_hasTexture() false.
+    private static void zeroAttribute(int location) {
+        if (location >= 0) {
+            GL30C.glVertexAttribI4ui(location, ZERO, ZERO, ZERO, ZERO);
         }
     }
 

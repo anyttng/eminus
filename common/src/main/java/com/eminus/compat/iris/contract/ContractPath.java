@@ -1,10 +1,12 @@
-package com.eminus.compat.iris;
+package com.eminus.compat.iris.contract;
 
-import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
+import com.eminus.compat.iris.PackContract;
+import com.eminus.compat.iris.PackPath;
+import com.eminus.compat.iris.PackProgram;
 import com.eminus.compat.iris.mixin.IrisRenderingPipelineAccessor;
 import com.eminus.compat.iris.mixin.ShaderPackAccessor;
 
@@ -13,13 +15,12 @@ import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.irisshaders.iris.shaderpack.include.AbsolutePackPath;
 import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
 import net.irisshaders.iris.shaderpack.materialmap.WorldRenderingSettings;
-import net.irisshaders.iris.shaderpack.preprocessor.JcppProcessor;
 
 import net.minecraft.world.level.block.state.BlockState;
 
 import org.jspecify.annotations.Nullable;
 
-final class ContractPath implements PackPath {
+public final class ContractPath implements PackPath {
     private static final NamespacedId ANY_DIMENSION = new NamespacedId("*", "*");
     private static final String NO_FOLDER = "";
     private static final String OPAQUE_PROGRAM = "eminus_opaque";
@@ -42,7 +43,7 @@ final class ContractPath implements PackPath {
         this.shadowVertex = shadowVertex;
     }
 
-    static @Nullable ContractPath detect(ShaderPack pack, NamespacedId dimension) {
+    public static @Nullable ContractPath detect(ShaderPack pack, NamespacedId dimension) {
         ShaderPackAccessor access = (ShaderPackAccessor) pack;
         String folder = folder(pack.getDimensionMap(), access, dimension);
         Function<AbsolutePackPath, String> sources = access.eminus$sourceProvider();
@@ -58,6 +59,11 @@ final class ContractPath implements PackPath {
     }
 
     @Override
+    public boolean distantHorizons() {
+        return false;
+    }
+
+    @Override
     public @Nullable ToIntFunction<BlockState> blockIds(IrisRenderingPipeline pipeline,
             @Nullable ToIntFunction<BlockState> rendered) {
         return ((IrisRenderingPipelineAccessor) pipeline).eminus$initializedBlockIds()
@@ -70,18 +76,15 @@ final class ContractPath implements PackPath {
             case OPAQUE -> fragmentOnly(OPAQUE_PROGRAM, opaque);
             case TRANSLUCENT -> fragmentOnly(TRANSLUCENT_PROGRAM, translucent == null ? opaque : translucent);
             case SHADOW -> shadow == null ? null : new Source(SHADOW_PROGRAM, shadow.path(),
-                    ours -> PackSources.splice(shadow.source(), header(ours)),
+                    ours -> ContractSources.splice(shadow.source(), PackPath.header(ours)),
                     shadowVertex == null ? null
-                            : ours -> PackSources.spliceVertex(shadowVertex.source(), header(ours)));
+                            : ours -> ContractSources.spliceVertex(shadowVertex.source(), PackPath.header(ours)));
         };
     }
 
     private static Source fragmentOnly(String programName, PackFile file) {
-        return new Source(programName, file.path(), ours -> PackSources.splice(file.source(), header(ours)), null);
-    }
-
-    private static String header(String ours) {
-        return PackSources.header(JcppProcessor.glslPreprocessSource(ours, List.of()));
+        return new Source(programName, file.path(),
+                ours -> ContractSources.splice(file.source(), PackPath.header(ours)), null);
     }
 
     private static String folder(Map<NamespacedId, String> dimensions, ShaderPackAccessor access,
@@ -92,7 +95,7 @@ final class ContractPath implements PackPath {
     }
 
     private static @Nullable PackFile read(Function<AbsolutePackPath, String> sources, String file, String folder) {
-        for (String path : PackSources.candidates(file, folder)) {
+        for (String path : ContractSources.candidates(file, folder)) {
             String source = sources.apply(AbsolutePackPath.fromAbsolutePath(path));
             if (source != null) {
                 return new PackFile(path, source);

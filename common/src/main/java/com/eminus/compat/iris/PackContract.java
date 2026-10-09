@@ -23,7 +23,7 @@ public final class PackContract {
             RENDER_DISTANCE);
     public static final List<String> SAMPLERS = List.of(DEPTH_SAMPLER, OPAQUE_DEPTH_SAMPLER);
 
-    static final String ROOT = "/";
+    public static final String ROOT = "/";
 
     private PackContract() {
     }

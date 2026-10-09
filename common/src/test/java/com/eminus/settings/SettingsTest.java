@@ -41,15 +41,17 @@ class SettingsTest {
 
     @Test
     void eachWitherChangesItsOwnFieldAlone() {
-        Settings base = new Settings(true, 1, 16, 4, DetailDistance.MEDIUM, true, true);
+        Settings base = new Settings(true, 1, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT);
 
-        assertEquals(new Settings(false, 1, 16, 4, DetailDistance.MEDIUM, true, true), base.withIngestion(false));
-        assertEquals(new Settings(true, 3, 16, 4, DetailDistance.MEDIUM, true, true), base.withLowestStoredLevel(3));
-        assertEquals(new Settings(true, 1, 40, 4, DetailDistance.MEDIUM, true, true), base.withFarRenderCells(40));
-        assertEquals(new Settings(true, 1, 16, 9, DetailDistance.MEDIUM, true, true), base.withWorkerThreads(9));
-        assertEquals(new Settings(true, 1, 16, 4, DetailDistance.LOW, true, true),
+        assertEquals(new Settings(false, 1, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT), base.withIngestion(false));
+        assertEquals(new Settings(true, 3, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT), base.withLowestStoredLevel(3));
+        assertEquals(new Settings(true, 1, 40, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT), base.withFarRenderCells(40));
+        assertEquals(new Settings(true, 1, 16, 9, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT), base.withWorkerThreads(9));
+        assertEquals(new Settings(true, 1, 16, 4, DetailDistance.LOW, true, true, ShaderPackLod.DEFAULT),
                 base.withDetailDistance(DetailDistance.LOW));
-        assertEquals(new Settings(true, 1, 16, 4, DetailDistance.MEDIUM, false, true), base.withFog(false));
-        assertEquals(new Settings(true, 1, 16, 4, DetailDistance.MEDIUM, true, false), base.withFade(false));
+        assertEquals(new Settings(true, 1, 16, 4, DetailDistance.MEDIUM, false, true, ShaderPackLod.DEFAULT), base.withFog(false));
+        assertEquals(new Settings(true, 1, 16, 4, DetailDistance.MEDIUM, true, false, ShaderPackLod.DEFAULT), base.withFade(false));
+        assertEquals(new Settings(true, 1, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DISTANT_HORIZONS),
+                base.withShaderPackLod(ShaderPackLod.DISTANT_HORIZONS));
     }
 }
