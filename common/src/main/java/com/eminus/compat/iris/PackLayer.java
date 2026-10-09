@@ -216,8 +216,7 @@ final class PackLayer {
     private @Nullable PackProgram program(FarDraw draw, Foreign foreign, PackProgram.Kind kind) {
         PackPath.Source source = path.source(kind);
         return source == null ? null
-                : PackProgram.build(draw, foreign, pipeline, programSet, properties, source, kind,
-                        path.distantHorizons());
+                : PackProgram.build(draw, foreign, pipeline, programSet, properties, source, kind);
     }
 
     private void drawOpaque(FarRenderer renderer) {

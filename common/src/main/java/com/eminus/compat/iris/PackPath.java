@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.function.ToIntFunction;
 import java.util.function.UnaryOperator;
 
+import com.eminus.client.render.far.FarDraw;
+
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.shaderpack.preprocessor.JcppProcessor;
 
@@ -26,6 +28,6 @@ public interface PackPath {
     }
 
     record Source(String programName, String file, UnaryOperator<String> fragment,
-            @Nullable UnaryOperator<String> vertex) {
+            @Nullable UnaryOperator<String> vertex, FarDraw.PackVertex vertexStage) {
     }
 }

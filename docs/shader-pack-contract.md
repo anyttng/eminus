@@ -1,13 +1,13 @@
-# Eminus shader-pack contract, version 3
+# Eminus shader-pack contract, version 4
 
 Eminus draws the terrain past the render distance as a level-of-detail layer (LOD). Under an Iris shader pack that
 does not know Eminus, the LOD is drawn over the pack's finished frame in Eminus's own shading
 ([A pack without the contract](#a-pack-without-the-contract)). A pack that ships the contract below shades the LOD itself: Eminus runs the geometry, your code colours each pixel and writes it into your
 own buffers, so your lighting, fog and post-processing apply to the LOD the way they apply to near terrain.
 
-The contract is one fragment function.
+The contract is one fragment function, and optionally one vertex function.
 
-## Support in three steps
+## Support in four steps
 
 ### 1. Shade the LOD with your terrain code
 
@@ -34,9 +34,15 @@ that already supports Distant Horizons makes the same change where it reads `dhD
 ### 3. Cast shadows from the LOD
 
 Add `eminus_shadow.glsl` beside `eminus_opaque.glsl`, with the body of your `shadow` fragment code, and the LOD's
-opaque faces are drawn into your shadow map. If your `shadow` vertex program distorts the shadow map, add
-`eminus_shadow_vertex.glsl` too, with the same distortion — [Shadows](#shadows) has the details. Without
-`eminus_shadow.glsl` the LOD casts no shadow.
+opaque faces are drawn into your shadow map. If your `shadow` vertex program distorts the shadow map, apply the same
+distortion in `eminus_vertex.glsl` (step 4); [Shadows](#shadows) has the details. Without `eminus_shadow.glsl` the LOD
+casts no shadow.
+
+### 4. Move the LOD's vertices with your vertex code
+
+If your `gbuffers_terrain` vertex program changes the position it projects (temporal anti-aliasing jitter, a render
+scale, a shadow distortion), add `eminus_vertex.glsl` with the same code, so the LOD reaches your later passes where
+they expect your terrain. [The vertex hook](#the-vertex-hook) has the details.
 
 The [example pack](example-pack/) is a complete minimal pack: textured, lit terrain, the contract file, and a fog
 composite that is step 2 in a dozen lines. It carries its own MIT [license](example-pack/LICENSE), so a pack may copy
@@ -49,13 +55,14 @@ any part of it.
 | `eminus_opaque.glsl` | yes | Opaque and cutout LOD faces. Its presence turns the contract on. |
 | `eminus_translucent.glsl` | no | Translucent LOD faces (water, stained glass, ice). Without it, `eminus_opaque.glsl` runs for them too, with `fragment.translucent` set. |
 | `eminus_shadow.glsl` | no | Opaque and cutout LOD faces in your shadow pass. Since version 3. Without it, the LOD casts no shadow. |
-| `eminus_shadow_vertex.glsl` | no | The vertex stage's hook of the shadow program: your shadow-map distortion. Since version 3. Without it, LOD positions reach the shadow map undistorted. |
+| `eminus_vertex.glsl` | no | The vertex stage's hook of all three programs: your jitter, your render scale, your shadow-map distortion. Since version 4. Without it, LOD positions reach your buffers as Eminus projects them. |
+| `eminus_shadow_vertex.glsl` | no | The version 3 form of the shadow program's vertex hook: your shadow-map distortion. Read only while `eminus_vertex.glsl` is absent. |
 
 A file is looked up in the folder Iris uses for the current dimension (`world0`, `world-1`, `world1`, or the folder
 `dimension.properties` maps it to) and, when that folder does not carry it, in `shaders/` itself. One file at the
 root therefore serves every dimension; a copy in a dimension folder overrides it for that dimension alone.
 
-Each file but `eminus_shadow_vertex.glsl` is a fragment-stage source in your pack's dialect:
+Each file but the two vertex files is a fragment-stage source in your pack's dialect:
 
 - it opens with `#version 330` or later;
 - it may `#include` your pack's files and use your options, macros and `#ifdef`s like any other program;
@@ -72,7 +79,7 @@ Defined in every program of the pack while Eminus is installed:
 | Macro | Value |
 | --- | --- |
 | `EMINUS` | defined, empty |
-| `EMINUS_CONTRACT_VERSION` | `3` |
+| `EMINUS_CONTRACT_VERSION` | `4` |
 
 ## The function
 
@@ -124,6 +131,59 @@ Do not declare a name that begins with `eminus`, `Eminus`, `far_`, `FAR_` or `Fa
 `ShadeUp`, `ShadeNorth`, `ShadeSouth`, `ShadeWest`, `ShadeEast`, `CameraBlockPos`, `CameraOffset`,
 `MIN_AXIS_LENGTH` — Eminus declares them in front of your code. Iris reserves `iris_`, `dh_` and `dhBlockAtlas`.
 
+## The vertex hook
+
+`eminus_vertex.glsl` is a vertex-stage source in your pack's dialect: it opens with `#version`, may `#include` your
+files, and defines
+
+```glsl
+vec4 eminus_vertexPosition(inout EminusVertex vertex);
+```
+
+and no `main`. Since version 4. Eminus calls it once per LOD vertex in all three programs and writes what it returns to
+`gl_Position`, so its body is what your terrain vertex code does once it has a position: project it, then apply your
+jitter or your render scale; in the shadow program, your shadow distortion.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `playerPos` | `vec3` | Position relative to the camera on the world axes, in the shadow program as well. |
+| `blockId` | `int` | As `fragment.blockId`. |
+| `face` | `int` | As `fragment.face`. |
+| `blade` | `bool` | As `fragment.blade`. |
+| `top` | `bool` | `true` on the upper edge of a side face or a plant blade; `false` on up and down faces. |
+| `lmcoord` | `vec2` | As `fragment.lmcoord`. |
+| `level` | `int` | The LOD cell's detail level: a voxel spans `2^level` blocks along each axis. |
+| `shadow` | `bool` | `true` in the shadow program. |
+
+Eminus compiles this file as you wrote it, in the core profile of its `#version`: Iris does not patch it, so the renames
+Iris applies to your `gbuffers` programs (`gl_ProjectionMatrix`, `gl_ModelViewMatrix`, `texture2D`, `attribute`) do
+not happen here. Your uniforms and custom uniforms are available; build the position with `eminus_project`.
+
+`vec4 eminus_project(vec3 playerPos)` takes a position to the clip space the LOD is drawn in: through the LOD's
+projection and the camera's rotation in the opaque and translucent programs, and through
+`shadowProjection * shadowModelView` in the shadow program. In the opaque and translucent programs add your jitter or
+your render scale to `x` and `y` and leave `z` and `w` as they come: the LOD's depth follows the device's convention,
+not the -1..1 one. In the shadow program the position is in the -1..1 range your `shadow` program writes, so your
+distortion applies to it as it does there. Your function may move `vertex.playerPos`; Eminus then derives `fragment.playerPos` and `fragment.viewPos` from
+the moved position, while the texture and the test against the near field keep the unmoved one. Your uniforms and
+custom uniforms are available as in the fragment files, so a pack applies its own jitter:
+
+```glsl
+uniform vec2 taa_offset;
+
+vec4 eminus_vertexPosition(inout EminusVertex vertex) {
+    vec4 clip = eminus_project(vertex.playerPos);
+    if (!vertex.shadow) {
+        clip.xy += taa_offset * clip.w;
+    }
+    return clip;
+}
+```
+
+Besides the names of [Inside the contract files](#inside-the-contract-files), do not declare any of `Quads`,
+`MeshRecords`, `ModelRecords`, `CULLED_POSITION`, `BLADE_NORMAL`, `LIGHT_LEVELS`, `LIGHT_CENTRE` or `LAST_AXIS_FACE` in
+this file: Eminus declares them in front of your code.
+
 ## When the LOD is drawn
 
 - **Opaque:** at the start of the translucent phase — after the solid `gbuffers` programs and the hand, before your
@@ -141,17 +201,20 @@ shadow view's space, so the body of your `shadow` fragment code moves over the w
 `gl_ProjectionMatrix` and `gl_ModelViewMatrix` are the shadow pass's own, and everything Iris hands your `shadow`
 program is available.
 
-Your shadow sampling reads the map through your distortion, so the LOD has to be written through it too.
-`eminus_shadow_vertex.glsl` is a vertex-stage source in your pack's dialect: it opens with `#version`, may `#include`
-your files, and defines
+Your shadow sampling reads the map through your distortion, so the LOD has to be written through it too: where
+`vertex.shadow` is `true`, `eminus_vertexPosition` returns `eminus_project(vertex.playerPos)` with the distortion your
+`shadow` vertex program applies to its own clip position ([The vertex hook](#the-vertex-hook)). A pack whose shadow map
+is not distorted returns the projected position as it is.
+
+A pack written for version 3 carries the distortion in `eminus_shadow_vertex.glsl` instead, which Eminus reads only
+while `eminus_vertex.glsl` is absent. It is a vertex-stage source like `eminus_vertex.glsl` and defines
 
 ```glsl
 vec4 eminus_shadowPosition(vec4 shadowClipPosition);
 ```
 
-and no `main`. Eminus hands it each LOD vertex in shadow clip space — `shadowProjection * shadowModelView` applied —
-and writes what it returns to `gl_Position`, so the body is the distortion your `shadow` vertex program applies to its
-own clip position. A pack whose shadow map is not distorted leaves the file out.
+and no `main`. Eminus hands it each LOD vertex in shadow clip space (`shadowProjection * shadowModelView` applied) and
+writes what it returns to `gl_Position`.
 
 Faces are drawn whichever way they face, as Iris draws the near terrain into the shadow map. The LOD reaches your
 shadow map only as far as your `shadowDistance` does: Iris's shadow map is a square of that half-width around the
@@ -193,8 +256,11 @@ read `depthtex0` first and fall back to the LOD depth only where `depthtex0` hol
 ## When a file does not build
 
 A compile or link error writes one line to the game log naming the pack file and carrying the GLSL error, and the LOD
-goes back to being drawn over the pack's finished frame until the next reload. An `eminus_shadow.glsl` or
-`eminus_shadow_vertex.glsl` that does not build leaves the other two programs running and the LOD without shadows. Fix the file and reload shaders.
+goes back to being drawn over the pack's finished frame until the next reload. An `eminus_vertex.glsl` that does not
+build does the same, since the opaque and translucent programs carry it. An `eminus_shadow.glsl` or
+`eminus_shadow_vertex.glsl` that does not build, or an `eminus_vertex.glsl` that builds in the other two programs but
+not in the shadow one, leaves the other two programs running and the LOD without shadows. Fix the file and reload
+shaders.
 
 With Iris's debug options on, the source Eminus compiled — your file, Eminus's declarations in front of it and the
 generated `main` — is written to `patched_shaders/` in the game folder, under the program name `eminus_opaque`,
