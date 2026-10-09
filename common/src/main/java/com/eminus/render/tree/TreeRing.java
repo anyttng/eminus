@@ -102,8 +102,8 @@ public final class TreeRing {
     }
 
     private long distanceSquared(long column) {
-        long dx = cellX(column) - centreX;
-        long dz = cellZ(column) - centreZ;
+        long dx = (long) cellX(column) - centreX;
+        long dz = (long) cellZ(column) - centreZ;
         return dx * dx + dz * dz;
     }
 

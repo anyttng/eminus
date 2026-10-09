@@ -5,6 +5,7 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.mesh.CellMesh;
 
+@SuppressWarnings("ArrayRecordComponent")
 public record MeshSlot(long key, int block, int quads, int colours, int[] groupStart, int[] groupCount) {
     public static final int MIN_X = 0;
     public static final int MIN_Y = 1;

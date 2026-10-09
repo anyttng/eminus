@@ -68,12 +68,13 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
     public boolean stacks(long data) {
         int placement = scratch.buffer().placementAt(Quad.colourIndex(data));
         return !coarse || face.getAxis() == Direction.Axis.Y
-                || QuadPlacement.gaps(level, placement) == VoxelEntry.NO_GAPS && models.fillsHeight(Quad.modelId(data));
+                || (QuadPlacement.gaps(level, placement) == VoxelEntry.NO_GAPS
+                        && models.fillsHeight(Quad.modelId(data)));
     }
 
     private long placed(long data, int u, int v, int width, int height) {
         Direction.Axis normal = face.getAxis();
-        return Quad.of(data, face.ordinal(), PlaneAxes.x(normal, u, v, plane), PlaneAxes.y(normal, u, v, plane),
+        return Quad.of(data, face.get3DDataValue(), PlaneAxes.x(normal, u, v, plane), PlaneAxes.y(normal, u, v, plane),
                 PlaneAxes.z(normal, u, v, plane), width, height);
     }
 }

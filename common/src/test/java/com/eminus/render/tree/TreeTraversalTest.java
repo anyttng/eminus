@@ -229,9 +229,9 @@ class TreeTraversalTest {
         RenderList after = traversal.walk(nodes.roots(), inside(), BUDGET, NO_OUT_OF_VIEW, WALK + 1);
 
         assertFalse(after.meshes().contains(split.mesh()));
-        assertEquals(1 << Direction.WEST.ordinal(), after.borderFaces(wholeKey));
+        assertEquals(1 << Direction.WEST.get3DDataValue(), after.borderFaces(wholeKey));
         for (TreeNode child : children) {
-            assertEquals(1 << Direction.EAST.ordinal(), after.borderFaces(child.key()));
+            assertEquals(1 << Direction.EAST.get3DDataValue(), after.borderFaces(child.key()));
         }
     }
 

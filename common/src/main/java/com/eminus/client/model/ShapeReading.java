@@ -122,7 +122,7 @@ public final class ShapeReading {
                     fluidHeight = fluid.getOwnHeight();
                     int fluidId = bakery.fluidModelId(state);
                     BakedModel surface = fluidId >= 0 ? bakery.model(fluidId) : baked;
-                    fluidTop = 1.0F - surface.insets()[Direction.UP.ordinal()];
+                    fluidTop = 1.0F - surface.insets()[Direction.UP.get3DDataValue()];
                 }
 
                 writeState(writer, state, modelId, positional, divergence, fluidHeight, fluidTop);
@@ -250,7 +250,7 @@ public final class ShapeReading {
     private static String faces(int mask) {
         StringJoiner names = new StringJoiner(FACE_SEPARATOR);
         for (Direction face : FACES) {
-            if ((mask & 1 << face.ordinal()) != 0) {
+            if ((mask & 1 << face.get3DDataValue()) != 0) {
                 names.add(face.getSerializedName());
             }
         }

@@ -1,5 +1,8 @@
 package com.eminus.client.gpu.opengl;
 
+import java.util.EnumMap;
+import java.util.Map;
+
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL11C;
@@ -33,23 +36,23 @@ final class OpenGlObjects {
         }
     }
 
-    private final int[] live = new int[Kind.values().length];
+    private final Map<Kind, Integer> live = new EnumMap<>(Kind.class);
     private final boolean labels = GL.getCapabilities().GL_KHR_debug;
 
     void created(Kind kind, int id, String label) {
-        live[kind.ordinal()]++;
+        live.merge(kind, 1, Integer::sum);
         if (labels) {
             KHRDebug.glObjectLabel(kind.labelTarget, id, label);
         }
     }
 
     void deleted(Kind kind) {
-        live[kind.ordinal()]--;
+        live.merge(kind, -1, Integer::sum);
     }
 
     int liveTotal() {
         int total = 0;
-        for (int count : live) {
+        for (int count : live.values()) {
             total += count;
         }
         return total;
@@ -58,7 +61,7 @@ final class OpenGlObjects {
     String report() {
         StringBuilder report = new StringBuilder();
         for (Kind kind : Kind.values()) {
-            report.append(' ').append(kind.key).append('=').append(live[kind.ordinal()]);
+            report.append(' ').append(kind.key).append('=').append(live.getOrDefault(kind, 0));
         }
         return report.toString();
     }

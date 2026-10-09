@@ -50,6 +50,7 @@ public final class MeshOrder {
         sorts++;
     }
 
+    @SuppressWarnings("ReferenceEquality")
     private boolean sameMembers(List<MeshSummary> meshes) {
         if (meshes == seen) {
             return true;

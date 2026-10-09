@@ -7,6 +7,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -271,7 +272,7 @@ public final class OpenGlGpu implements Gpu, Foreign {
                 GL33C.glSamplerParameteri(id, GL11C.GL_TEXTURE_MAG_FILTER, GL11C.GL_NEAREST);
             }
         }
-        objects.created(OpenGlObjects.Kind.SAMPLER, id, SAMPLER_LABEL + sampler.name().toLowerCase());
+        objects.created(OpenGlObjects.Kind.SAMPLER, id, SAMPLER_LABEL + sampler.name().toLowerCase(Locale.ROOT));
         return id;
     }
 

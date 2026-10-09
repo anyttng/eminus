@@ -45,7 +45,7 @@ class DrawCommandsTest {
     private static final double FAR_BELOW = -4096.0;
     private static final double INSIDE = 16.0;
     private static final int BORDER_QUADS = 3;
-    private static final int EAST_BIT = 1 << Direction.EAST.ordinal();
+    private static final int EAST_BIT = 1 << Direction.EAST.get3DDataValue();
     private static final Long2IntFunction NO_BORDERS = key -> RenderList.NO_BORDER_FACES;
     private static final float WIDE = 1.0E6F;
     private static final float NARROW = 1.0F;
@@ -302,9 +302,9 @@ class DrawCommandsTest {
     private static MeshSlot slot(long key, int block) {
         int[] groupStart = new int[QuadGroups.COUNT];
         int[] groupCount = new int[QuadGroups.COUNT];
-        groupCount[Direction.DOWN.ordinal()] = DOWN_QUADS;
-        groupStart[Direction.UP.ordinal()] = DOWN_QUADS;
-        groupCount[Direction.UP.ordinal()] = UP_QUADS;
+        groupCount[Direction.DOWN.get3DDataValue()] = DOWN_QUADS;
+        groupStart[Direction.UP.get3DDataValue()] = DOWN_QUADS;
+        groupCount[Direction.UP.get3DDataValue()] = UP_QUADS;
         return new MeshSlot(key, block, DOWN_QUADS + UP_QUADS, NO_COLOURS, groupStart, groupCount);
     }
 

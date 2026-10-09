@@ -114,8 +114,8 @@ public final class NearSectionTable implements AutoCloseable {
 
         // The graph never lists an all-air section, yet the game still answers for its blocks.
         return drawn.contains(SectionPos.asLong(sectionX, sectionY, sectionZ))
-                || GameFrames.sectionEmpty(levelRenderer, pos) && NearSections.inVanillaViewDistance(cameraSectionX,
-                        cameraSectionY, cameraSectionZ, viewDistance, sectionX, sectionY, sectionZ);
+                || (GameFrames.sectionEmpty(levelRenderer, pos) && NearSections.inVanillaViewDistance(cameraSectionX,
+                        cameraSectionY, cameraSectionZ, viewDistance, sectionX, sectionY, sectionZ));
     }
 
     private void upload() {

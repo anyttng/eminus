@@ -4,6 +4,7 @@ import net.minecraft.core.Direction;
 
 import org.joml.Vector3fc;
 
+@SuppressWarnings("ArrayRecordComponent")
 public record ModelQuad(Vector3fc[] corners, float[] uvs, Sprite sprite, int tintLayer, boolean translucent,
         int emission, Direction face) {
     public static final int CORNERS = 4;
