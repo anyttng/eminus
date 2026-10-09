@@ -24,5 +24,9 @@
   "gui.eminus.settings.fog": "Nebel",
   "gui.eminus.settings.fog.hint": "Nebel über dem LOD, fortgesetzt aus dem Nebel des Spiels und voll bei der LOD-Sichtweite. Aus entfernt auch den Nebel unter freiem Himmel aus den geladenen Chunks, sodass die ganze Sicht klar bleibt. Nebel im Nether, von einem Boss, unter Wasser oder durch Blindheit bleibt.",
   "gui.eminus.settings.fade": "Ausblenden",
-  "gui.eminus.settings.fade.hint": "Das LOD auf seinen letzten 512 Blöcken ausblenden, statt es mit einer harten Kante enden zu lassen."
+  "gui.eminus.settings.fade.hint": "Das LOD auf seinen letzten 512 Blöcken ausblenden, statt es mit einer harten Kante enden zu lassen.",
+  "gui.eminus.settings.shader_pack_lod": "LOD unter Shaderpacks",
+  "gui.eminus.settings.shader_pack_lod.hint": "Wie das LOD unter einem Shaderpack ohne Eminus-Unterstützung gezeichnet wird. Standard zeichnet es im eigenen Aussehen von Eminus über das Bild des Packs. Distant Horizons lässt ein Pack mit Distant-Horizons-Unterstützung es selbst zeichnen, mit dessen Licht und Nebel, aber mit einer flachen Farbe pro Block. Ein für Eminus gemachtes Pack zeichnet das LOD immer selbst. Eine Änderung lädt das Shaderpack neu.",
+  "gui.eminus.settings.shader_pack_lod.default": "Standard",
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
 }

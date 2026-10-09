@@ -1,9 +1,15 @@
 package com.eminus.compat.iris;
 
+import java.io.IOException;
 import java.util.function.ToIntFunction;
 
+import com.eminus.Eminus;
 import com.eminus.client.render.far.FarRenderer;
+import com.eminus.settings.Settings;
+import com.eminus.settings.SettingsService;
+import com.eminus.settings.ShaderPackLod;
 
+import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.api.v0.IrisApi;
 
 import net.minecraft.world.level.block.state.BlockState;
@@ -14,6 +20,24 @@ import org.jspecify.annotations.Nullable;
 public final class IrisShaderPack {
     private static final boolean IRIS_PRESENT = IrisMixinPlugin.irisPresent();
     public static final String SHADOW_OFF_PROPERTY = "eminus.shadow.off";
+
+    private static @Nullable ShaderPackLod packReadWith;
+
+    public static boolean installed() {
+        return IRIS_PRESENT;
+    }
+
+    public static boolean distantHorizonsChosen() {
+        packReadWith = SettingsService.isSet() ? SettingsService.get().settings().shaderPackLod()
+                : Settings.DEFAULT_SHADER_PACK_LOD;
+        return packReadWith == ShaderPackLod.DISTANT_HORIZONS;
+    }
+
+    public static void settingsChanged(Settings updated) {
+        if (IRIS_PRESENT && packReadWith != null && updated.shaderPackLod() != packReadWith) {
+            Api.reloadPack();
+        }
+    }
 
     public static boolean inUse() {
         return IRIS_PRESENT && Api.inUse();
@@ -27,8 +51,12 @@ public final class IrisShaderPack {
         return IRIS_PRESENT ? PackLayer.packIds(rendered) : null;
     }
 
-    public static boolean contractReady(FarRenderer renderer) {
+    public static boolean packPathReady(FarRenderer renderer) {
         return IRIS_PRESENT && PackLayer.readyFor(renderer);
+    }
+
+    public static boolean throughDhPrograms() {
+        return IRIS_PRESENT && PackLayer.throughDhPrograms();
     }
 
     public static void drawInPack(FarRenderer renderer, Object pipeline, boolean translucent) {
@@ -61,6 +89,15 @@ public final class IrisShaderPack {
 
         static boolean renderingShadowPass() {
             return IrisApi.getInstance().isRenderingShadowPass();
+        }
+
+        static void reloadPack() {
+            try {
+                Iris.reload();
+                Eminus.LOGGER.info("Shader pack reloaded: LOD under shader packs changed");
+            } catch (IOException unreadable) {
+                Eminus.LOGGER.error("Shader pack could not be reloaded: {}", unreadable.toString());
+            }
         }
     }
 

@@ -1,11 +1,11 @@
 # Eminus shader-pack contract, version 3
 
 Eminus draws the terrain past the render distance as a level-of-detail layer (LOD). Under an Iris shader pack that
-does not know Eminus, the LOD is drawn over the pack's finished frame in Eminus's own shading. A pack that ships the
-contract below shades the LOD itself: Eminus runs the geometry, your code colours each pixel and writes it into your
+does not know Eminus, the LOD is drawn over the pack's finished frame in Eminus's own shading
+([A pack without the contract](#a-pack-without-the-contract)). A pack that ships the contract below shades the LOD itself: Eminus runs the geometry, your code colours each pixel and writes it into your
 own buffers, so your lighting, fog and post-processing apply to the LOD the way they apply to near terrain.
 
-The contract is one fragment function. Eminus reads no other LOD mod's pack files.
+The contract is one fragment function.
 
 ## Support in three steps
 
@@ -197,3 +197,31 @@ goes back to being drawn over the pack's finished frame until the next reload. A
 With Iris's debug options on, the source Eminus compiled — your file, Eminus's declarations in front of it and the
 generated `main` — is written to `patched_shaders/` in the game folder, under the program name `eminus_opaque`,
 `eminus_translucent` or `eminus_shadow`; the line numbers in the log refer to it.
+
+## A pack without the contract
+
+Eminus's setting **Shader pack LOD** decides what a pack without the contract gets. On **Default** the LOD is drawn
+over the pack's finished frame. On **Distant Horizons**, a pack that ships no contract file anywhere, but ships
+`dh_terrain.vsh` and `dh_terrain.fsh` in its root or a dimension folder, has the LOD drawn through its Distant Horizons
+programs while Distant Horizons itself is not installed (with it installed, Iris runs its own path). Changing the
+setting reloads the pack. On that path:
+
+- `DISTANT_HORIZONS` is defined for the pack; `DISTANT_HORIZONS_TEXTURES` is not. A pack that ships a contract file
+  never gets `DISTANT_HORIZONS`, so `#if defined EMINUS && !defined DISTANT_HORIZONS` tells the contract apart from
+  this path.
+- `dh_terrain` draws the opaque LOD, `dh_water` the translucent one (`dh_terrain` where the pack has no `dh_water`).
+  `dh_shadow` is not used: the LOD casts no shadow in such a pack.
+- `gl_Color` is each face's mean texture colour with its biome tint, so far terrain comes out one flat colour per
+  block face; `dhMaterialId` is one of the 16 `DH_BLOCK_*` classes; `gl_MultiTexCoord1` carries block and sky light.
+- `dhDepthTex0`, `dhDepthTex1`, `dhProjection`, `dhNearPlane`, `dhFarPlane` and `dhRenderDistance` describe the LOD,
+  as `eminusDepthTex0`, `eminusDepthTex1`, `eminusProjection` and `eminusRenderDistance` do. A pack whose shadow
+  planes are `-1.0` has them span the LOD's render distance, as under Distant Horizons.
+- The LOD lies under the whole near field, as under Distant Horizons: a pixel the near field drew keeps the near
+  surface, and where your terrain program thins the near field towards the render distance, the LOD shows through.
+  Eminus still discards the cut-out texels of leaves and plants before the pack's own `main` runs.
+
+The names Eminus declares in front of the pack's code are those of
+[Inside the contract files](#inside-the-contract-files), plus `eminus_packMain`, which the pack's `main` is renamed
+to. A program that does not build logs one line and the LOD goes back over the pack's finished frame, as in
+[When a file does not build](#when-a-file-does-not-build); its source is written under `eminus_dh_terrain` or
+`eminus_dh_water`.

@@ -24,5 +24,9 @@
   "gui.eminus.settings.fog": "Névoa",
   "gui.eminus.settings.fog.hint": "Névoa sobre o LOD, que continua a névoa do próprio jogo e fica total na distância do LOD. Desligada, também remove a névoa ao ar livre dos chunks carregados, deixando toda a vista nítida. A névoa do Nether, de um chefe, debaixo d'água ou da cegueira permanece.",
   "gui.eminus.settings.fade": "Esmaecimento",
-  "gui.eminus.settings.fade.hint": "Esmaece o LOD nos seus últimos 512 blocos em vez de terminá-lo com uma borda dura."
+  "gui.eminus.settings.fade.hint": "Esmaece o LOD nos seus últimos 512 blocos em vez de terminá-lo com uma borda dura.",
+  "gui.eminus.settings.shader_pack_lod": "LOD com shaders",
+  "gui.eminus.settings.shader_pack_lod.hint": "Como o LOD é desenhado com um pacote de shaders sem suporte ao Eminus. Padrão o desenha sobre a imagem do pacote com a aparência própria do Eminus. Distant Horizons deixa um pacote compatível com o Distant Horizons desenhá-lo, com a luz e a névoa do pacote, mas com uma cor lisa por bloco. Um pacote feito para o Eminus sempre desenha o LOD sozinho. Mudar isto recarrega o pacote de shaders.",
+  "gui.eminus.settings.shader_pack_lod.default": "Padrão",
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
 }

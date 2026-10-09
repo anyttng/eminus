@@ -4,6 +4,7 @@ import com.eminus.client.render.far.FarRenderer;
 import com.eminus.client.session.ClientSession;
 import com.eminus.settings.DetailDistance;
 import com.eminus.settings.FarDistance;
+import com.eminus.settings.ShaderPackLod;
 
 import net.minecraft.network.chat.Component;
 
@@ -16,6 +17,7 @@ public final class SettingsText {
     public static final String DETAIL_DISTANCE_KEY = "gui.eminus.settings.detail_distance";
     public static final String FOG_KEY = "gui.eminus.settings.fog";
     public static final String FADE_KEY = "gui.eminus.settings.fade";
+    public static final String SHADER_PACK_LOD_KEY = "gui.eminus.settings.shader_pack_lod";
 
     private static final String HINT_SUFFIX = ".hint";
     private static final String LIMITED_SUFFIX = ".limited";
@@ -43,6 +45,10 @@ public final class SettingsText {
 
     public static Component detailDistance(DetailDistance distance) {
         return Component.translatable(DETAIL_DISTANCE_KEY + "." + distance.key());
+    }
+
+    public static Component shaderPackLod(ShaderPackLod lod) {
+        return Component.translatable(SHADER_PACK_LOD_KEY + "." + lod.key());
     }
 
     public static Component farRenderDistance(int cells) {

@@ -47,6 +47,7 @@ public final class ClientSession {
     private static boolean renderedCutoutLeaves;
     private static boolean overShaderPack;
     private static boolean inShaderPack;
+    private static boolean throughDhPrograms;
     private static int renderedBiomeBlend;
     private static @Nullable ToIntFunction<BlockState> renderedPackIds;
     private static EminusInstance instance;
@@ -90,6 +91,7 @@ public final class ClientSession {
     }
 
     public static void settingsChanged(Settings updated) {
+        IrisShaderPack.settingsChanged(updated);
         if (instance == null) {
             return;
         }
@@ -164,11 +166,15 @@ public final class ClientSession {
 
     private static void readShaderPack() {
         boolean inUse = IrisShaderPack.inUse();
-        boolean contract = inUse && renderer != null && IrisShaderPack.contractReady(renderer);
-        if (inUse != overShaderPack || contract != inShaderPack) {
+        boolean inside = inUse && renderer != null && IrisShaderPack.packPathReady(renderer);
+        boolean dhPrograms = inside && IrisShaderPack.throughDhPrograms();
+        if (inUse != overShaderPack || inside != inShaderPack || dhPrograms != throughDhPrograms) {
             overShaderPack = inUse;
-            inShaderPack = contract;
-            Eminus.LOGGER.info(contract ? "Shader pack carries the Eminus contract: the far layer draws inside the pack"
+            inShaderPack = inside;
+            throughDhPrograms = dhPrograms;
+            Eminus.LOGGER.info(dhPrograms
+                    ? "Shader pack has no Eminus contract: the far layer draws through its Distant Horizons programs"
+                    : inside ? "Shader pack carries the Eminus contract: the far layer draws inside the pack"
                     : inUse ? "Shader pack in use: the far layer draws over the pack's finished frame"
                     : "No shader pack: the far layer draws in its own target");
         }

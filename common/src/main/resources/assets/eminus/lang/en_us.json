@@ -24,5 +24,9 @@
   "gui.eminus.settings.fog": "Fog",
   "gui.eminus.settings.fog.hint": "Fog over LOD, carried on from the game's own fog and full at the LOD distance. Off also clears the open-air fog from the loaded chunks, so the whole view stays clear. Fog in the Nether, from a boss, under water or from blindness stays.",
   "gui.eminus.settings.fade": "Fade",
-  "gui.eminus.settings.fade.hint": "Fade LOD out over its last 512 blocks instead of ending it in a hard line."
+  "gui.eminus.settings.fade.hint": "Fade LOD out over its last 512 blocks instead of ending it in a hard line.",
+  "gui.eminus.settings.shader_pack_lod": "Shader pack LOD",
+  "gui.eminus.settings.shader_pack_lod.hint": "How LOD is drawn under a shader pack without Eminus support. Default draws it over the pack's image in Eminus's own look. Distant Horizons lets a pack that supports Distant Horizons draw it with the pack's light and fog, but one flat colour per block. A pack made for Eminus always draws LOD itself. Changing this reloads the shader pack.",
+  "gui.eminus.settings.shader_pack_lod.default": "Default",
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
 }

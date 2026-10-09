@@ -24,5 +24,9 @@
   "gui.eminus.settings.fog": "Туман",
   "gui.eminus.settings.fog.hint": "Туман над LOD: продовжує власний туман гри й стає повним на межі далекості LOD. Вимкнений прибирає й туман просто неба із завантажених чанків, тож увесь краєвид чіткий. Туман у Незері, від боса, під водою чи від сліпоти лишається.",
   "gui.eminus.settings.fade": "Згасання",
-  "gui.eminus.settings.fade.hint": "Розчиняти LOD в останніх 512 блоках замість різкого обриву."
+  "gui.eminus.settings.fade.hint": "Розчиняти LOD в останніх 512 блоках замість різкого обриву.",
+  "gui.eminus.settings.shader_pack_lod": "LOD під шейдер-паком",
+  "gui.eminus.settings.shader_pack_lod.hint": "Як LOD малюється під шейдер-паком без підтримки Eminus. «Стандартно» малює його поверх зображення пака у власному вигляді Eminus. «Distant Horizons» дає паку з підтримкою Distant Horizons малювати його самому, з освітленням і туманом пака, але одним пласким кольором на блок. Пак, зроблений для Eminus, завжди малює LOD сам. Зміна перезавантажує шейдер-пак.",
+  "gui.eminus.settings.shader_pack_lod.default": "Стандартно",
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
 }

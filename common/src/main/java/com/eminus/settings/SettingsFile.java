@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import com.eminus.Eminus;
 import com.google.gson.Gson;
@@ -23,6 +24,7 @@ public final class SettingsFile {
     public static final String DETAIL_DISTANCE_KEY = "detail_distance";
     public static final String FOG_KEY = "fog";
     public static final String FADE_KEY = "fade";
+    public static final String SHADER_PACK_LOD_KEY = "shader_pack_lod";
 
     private static final String LOWEST_STORED_LEVEL_COMMENT = """
             Finest detail level kept on disk, 0..4: one voxel covers 2^level blocks
@@ -61,6 +63,13 @@ public final class SettingsFile {
             Whether LOD's outer edge fades out over its last 512 blocks, or
             ends in a hard line.""";
 
+    private static final String SHADER_PACK_LOD_COMMENT = """
+            How LOD is drawn under an Iris shader pack that does not ship the Eminus
+            contract: default draws it over the pack's finished image in Eminus's own
+            shading; distant_horizons lets a pack with Distant Horizons programs draw it,
+            with the pack's light and fog but one flat colour per block. A pack that
+            ships the contract always draws LOD itself.""";
+
     private static final Gson GSON = new Gson();
     private static final String INDENT = "  ";
 
@@ -84,9 +93,10 @@ public final class SettingsFile {
                         Settings.MIN_FAR_RENDER_CELLS, Settings.MAX_FAR_RENDER_CELLS),
                 bounded(json, WORKER_THREADS_KEY, defaults.workerThreads(),
                         Settings.MIN_WORKER_THREADS, Settings.MAX_WORKER_THREADS),
-                detailDistance(json, defaults.detailDistance()),
+                keyed(json, DETAIL_DISTANCE_KEY, defaults.detailDistance(), DetailDistance::fromKey),
                 bool(json, FOG_KEY, defaults.fog()),
-                bool(json, FADE_KEY, defaults.fade()));
+                bool(json, FADE_KEY, defaults.fade()),
+                keyed(json, SHADER_PACK_LOD_KEY, defaults.shaderPackLod(), ShaderPackLod::fromKey));
     }
 
     public static void save(Path file, Settings settings) {
@@ -102,6 +112,8 @@ public final class SettingsFile {
                 DETAIL_DISTANCE_COMMENT));
         entries.add(entry(FOG_KEY, new JsonPrimitive(settings.fog()), FOG_COMMENT));
         entries.add(entry(FADE_KEY, new JsonPrimitive(settings.fade()), FADE_COMMENT));
+        entries.add(entry(SHADER_PACK_LOD_KEY, new JsonPrimitive(settings.shaderPackLod().key()),
+                SHADER_PACK_LOD_COMMENT));
 
         try {
             Path parent = file.getParent();
@@ -164,16 +176,16 @@ public final class SettingsFile {
         return fellBack(key, value, fallback);
     }
 
-    private static DetailDistance detailDistance(JsonObject json, DetailDistance fallback) {
-        JsonElement value = json.get(DETAIL_DISTANCE_KEY);
+    private static <T> T keyed(JsonObject json, String key, T fallback, Function<String, Optional<T>> fromKey) {
+        JsonElement value = json.get(key);
         if (value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
-            Optional<DetailDistance> distance = DetailDistance.fromKey(value.getAsString());
-            if (distance.isPresent()) {
-                return distance.get();
+            Optional<T> parsed = fromKey.apply(value.getAsString());
+            if (parsed.isPresent()) {
+                return parsed.get();
             }
         }
 
-        return fellBack(DETAIL_DISTANCE_KEY, value, fallback);
+        return fellBack(key, value, fallback);
     }
 
     private static <T> T fellBack(String key, JsonElement value, T fallback) {

@@ -1,16 +1,22 @@
 package com.eminus.client.settings;
 
+import java.util.List;
+
 import static com.eminus.client.settings.SettingsText.DETAIL_DISTANCE_KEY;
 import static com.eminus.client.settings.SettingsText.FADE_KEY;
 import static com.eminus.client.settings.SettingsText.FAR_RENDER_CELLS_KEY;
 import static com.eminus.client.settings.SettingsText.FOG_KEY;
 import static com.eminus.client.settings.SettingsText.INGESTION_KEY;
 import static com.eminus.client.settings.SettingsText.LOWEST_STORED_LEVEL_KEY;
+import static com.eminus.client.settings.SettingsText.SHADER_PACK_LOD_KEY;
 import static com.eminus.client.settings.SettingsText.TITLE_KEY;
 import static com.eminus.client.settings.SettingsText.WORKER_THREADS_KEY;
 
+import com.eminus.compat.iris.IrisShaderPack;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
+import com.eminus.settings.ShaderPackLod;
+import com.mojang.serialization.Codec;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
@@ -30,6 +36,7 @@ public class SettingsScreen extends OptionsSubScreen {
     private final OptionInstance<Integer> detailDistancePosition;
     private final OptionInstance<Boolean> fog;
     private final OptionInstance<Boolean> fade;
+    private final OptionInstance<ShaderPackLod> shaderPackLod;
 
     public SettingsScreen(Screen lastScreen) {
         super(lastScreen, Minecraft.getInstance().options, Component.translatable(TITLE_KEY));
@@ -61,6 +68,12 @@ public class SettingsScreen extends OptionsSubScreen {
                 SliderPositions.detailDistancePosition(settings.detailDistance()), value -> this.apply());
         this.fog = OptionInstance.createBoolean(FOG_KEY, hint(FOG_KEY), settings.fog(), value -> this.apply());
         this.fade = OptionInstance.createBoolean(FADE_KEY, hint(FADE_KEY), settings.fade(), value -> this.apply());
+        this.shaderPackLod = new OptionInstance<>(SHADER_PACK_LOD_KEY, hint(SHADER_PACK_LOD_KEY),
+                (caption, value) -> Options.genericValueLabel(caption, SettingsText.shaderPackLod(value)),
+                new OptionInstance.Enum<>(List.of(ShaderPackLod.values()),
+                        Codec.STRING.xmap(key -> ShaderPackLod.fromKey(key).orElse(Settings.DEFAULT_SHADER_PACK_LOD),
+                                ShaderPackLod::key)),
+                settings.shaderPackLod(), value -> this.apply());
     }
 
     @Override
@@ -72,6 +85,9 @@ public class SettingsScreen extends OptionsSubScreen {
         this.list.addBig(this.detailDistancePosition);
         this.list.addBig(this.fog);
         this.list.addBig(this.fade);
+        if (IrisShaderPack.installed()) {
+            this.list.addBig(this.shaderPackLod);
+        }
     }
 
     // Vanilla's OptionsSubScreen rewrites options.txt here, and this screen owns no vanilla option.
@@ -87,7 +103,8 @@ public class SettingsScreen extends OptionsSubScreen {
                 this.workerThreads.get(),
                 SliderPositions.detailDistance(this.detailDistancePosition.get()),
                 this.fog.get(),
-                this.fade.get()));
+                this.fade.get(),
+                this.shaderPackLod.get()));
     }
 
     private static <T> OptionInstance.TooltipSupplier<T> hint(String captionKey) {
