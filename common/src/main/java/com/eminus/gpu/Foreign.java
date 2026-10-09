@@ -10,6 +10,8 @@ import com.eminus.gpu.texture.Texture;
 public interface Foreign {
     Pipeline pipeline(PipelineSpec spec, int firstTextureUnit, UnaryOperator<ShaderSources> sources);
 
+    void release(Pipeline pipeline);
+
     int program(Pipeline pipeline);
 
     int textureUnits(Pipeline pipeline);

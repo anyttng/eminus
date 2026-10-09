@@ -140,6 +140,7 @@ public final class PackProgram {
                     return new ShaderSources(vertex, patched.get(PatchShaderType.FRAGMENT));
                 });
         if (!pipeline.compiles()) {
+            foreign.release(pipeline);
             return null;
         }
 
@@ -165,6 +166,7 @@ public final class PackProgram {
                     samplers.build(), images.build());
         } catch (RuntimeException refused) {
             Eminus.LOGGER.error("Shader pack file {} did not bind to the pack: {}", source.file(), refused.toString());
+            foreign.release(pipeline);
             return null;
         } finally {
             GL20C.glUseProgram(NO_PROGRAM);
@@ -174,6 +176,11 @@ public final class PackProgram {
     ProgramSource source() {
         return source;
     }
+
+    void release() {
+        foreign.release(pipeline);
+    }
+
     void draw(FarDraw draw, GlFramebuffer framebuffer, boolean translucent) {
         FarTarget target = draw.target();
         try (Pass farPass = open(framebuffer, target.width(), target.height())) {
