@@ -56,7 +56,7 @@ public final class TintBlend {
     }
 
     public int colour(int row, int x, int y, int z) {
-        RowLayers layers = rows.computeIfAbsent(row, unused -> new RowLayers());
+        RowLayers layers = rows.computeIfAbsent(row, _ -> new RowLayers());
         long bit = 1L << y;
         if ((layers.built & bit) == 0L) {
             build(row, y, layers.colours[y]);

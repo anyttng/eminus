@@ -13,10 +13,21 @@ import org.junit.jupiter.api.Test;
 class ContractSourcesTest {
     private static final String NETHER = "world-1";
     private static final String HEADER = "struct EminusFragment { vec4 color; };\n";
-    private static final String PACK = "#version 330 compatibility\n#extension GL_ARB_shader_texture_lod : enable\n\n"
-            + "/* RENDERTARGETS: 0,1 */\nvoid eminus_emitFragment(EminusFragment fragment) {\n}\n";
-    private static final String SHADOW_VERTEX = "#version 400 compatibility\n\n"
-            + "vec4 eminus_shadowPosition(vec4 shadowClipPosition) {\n    return shadowClipPosition;\n}\n";
+    private static final String PACK = """
+            #version 330 compatibility
+            #extension GL_ARB_shader_texture_lod : enable
+
+            /* RENDERTARGETS: 0,1 */
+            void eminus_emitFragment(EminusFragment fragment) {
+            }
+            """;
+    private static final String SHADOW_VERTEX = """
+            #version 400 compatibility
+
+            vec4 eminus_shadowPosition(vec4 shadowClipPosition) {
+                return shadowClipPosition;
+            }
+            """;
 
     @Test
     void theDimensionFolderIsReadBeforeTheRoot() {

@@ -158,7 +158,7 @@ public final class MeshBuffer {
     }
 
     private static long entry(int colour, int placement) {
-        return (long) placement << PLACEMENT_SHIFT | colour & COLOUR_BITS;
+        return (long) placement << PLACEMENT_SHIFT | (colour & COLOUR_BITS);
     }
 
     private int addColour(long entry) {

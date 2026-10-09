@@ -77,6 +77,7 @@ record GamePipeline(RenderPipeline pipeline, Location location) implements Pipel
         return RenderSystem.getDevice().precompilePipeline(pipeline).isValid();
     }
 
+    @SuppressWarnings("ReferenceEquality")
     void release(GpuDeviceBackend backend) {
         if (backend instanceof VulkanDevice vulkan) {
             VulkanRenderPipeline compiled = ((VulkanDeviceAccessor) vulkan).eminus$pipelineCache().remove(pipeline);

@@ -11,6 +11,7 @@ import it.unimi.dsi.fastutil.floats.FloatOpenHashSet;
 
 import org.joml.Vector3fc;
 
+@SuppressWarnings("ArrayRecordComponent")
 public record ShapeDivergence(int quads, float[] depth, float[] bounds, int planes, int tilted, int blades,
         int lostFaces, boolean bladed, float bladeScale) {
     public static final int AXES = 3;

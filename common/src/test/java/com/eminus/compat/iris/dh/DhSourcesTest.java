@@ -8,8 +8,15 @@ import org.junit.jupiter.api.Test;
 
 class DhSourcesTest {
     private static final String HEADER = "struct EminusFragment { vec4 color; };\n";
-    private static final String DH_PROGRAM = "#version 120\n\nvarying vec4 color;\n\nvoid main() {\n"
-            + "    gl_FragData[0] = color;\n}\n";
+    private static final String DH_PROGRAM = """
+            #version 120
+
+            varying vec4 color;
+
+            void main() {
+                gl_FragData[0] = color;
+            }
+            """;
 
     @Test
     void theDhFragmentRunsOurCutoutBeforeThePackMain() {

@@ -102,7 +102,7 @@ public final class MeshService {
 
             for (Direction face : FACES) {
                 CellHandle handle = cells.open(CellKey.neighbour(task.key(), face));
-                handles[face.ordinal() + 1] = handle;
+                handles[face.get3DDataValue() + 1] = handle;
                 handle.withCell(cell -> {
                     scratch.voxels().loadNeighbour(face, cell);
                     if (face == Direction.DOWN && edgeFluidReachesBottom(scratch.voxels())) {

@@ -171,7 +171,7 @@ class CellMesherTest {
         defineBlocks();
         CellMesh mesh = mesh(floor(), ground(), 0);
 
-        assertEquals(4, mesh.groupCount(Direction.UP.ordinal()));
+        assertEquals(4, mesh.groupCount(Direction.UP.get3DDataValue()));
         assertEquals(4, mesh.groupStart(QuadGroups.FIRST_BORDER));
         for (int index = 0; index < mesh.groupStart(QuadGroups.FIRST_BORDER); index++) {
             long quad = mesh.quad(index);
@@ -221,8 +221,8 @@ class CellMesherTest {
         CellMesh fine = mesh(litFloor(), ground(), 0);
         CellMesh coarse = mesh(litFloor(), ground(), 2);
 
-        assertEquals(SIDE * 2, fine.groupCount(Direction.UP.ordinal()));
-        assertEquals(SIDE * 2, coarse.groupCount(Direction.UP.ordinal()));
+        assertEquals(SIDE * 2, fine.groupCount(Direction.UP.get3DDataValue()));
+        assertEquals(SIDE * 2, coarse.groupCount(Direction.UP.get3DDataValue()));
     }
 
     @Test
@@ -237,10 +237,10 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, ground(), 2);
 
-        assertEquals(4, mesh.groupCount(Direction.UP.ordinal()));
+        assertEquals(4, mesh.groupCount(Direction.UP.get3DDataValue()));
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
-            if (Quad.face(quad) == Direction.UP.ordinal()) {
+            if (Quad.face(quad) == Direction.UP.get3DDataValue()) {
                 assertEquals(VoxelEntry.light(FULL_SKY, TORCH_BLOCK_LIGHT), Quad.light(quad));
             }
         }
@@ -494,7 +494,7 @@ class CellMesherTest {
                 submergedInward));
         assertEquals(SEABED_LIGHT, lightAt(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, SEA_TOP_Y, 5,
                 surfaceInward));
-        assertEquals(Direction.WEST.ordinal(),
+        assertEquals(Direction.WEST.get3DDataValue(),
                 groupOf(uncovered, Direction.WEST, LAST_IN_FIRST_CHUNK, SEABED_Y + 1, 5, submergedInward));
 
         CellMesh covered = mesh(cell, airAround(), coverage(FIRST_CHUNK, SECOND_CHUNK));
@@ -615,7 +615,7 @@ class CellMesherTest {
             CellMesh mesh = mesh(cell, around, level);
 
             assertEquals(QuadGroups.border(Direction.EAST), groupOf(mesh, Direction.EAST, LAST, 4, 4, STONE_MODEL));
-            assertEquals(Direction.WEST.ordinal(), groupOf(mesh, Direction.WEST, LAST, 4, 4, STONE_MODEL));
+            assertEquals(Direction.WEST.get3DDataValue(), groupOf(mesh, Direction.WEST, LAST, 4, 4, STONE_MODEL));
         }
     }
 
@@ -929,7 +929,7 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, ground(), 0);
 
-        int up = Direction.UP.ordinal();
+        int up = Direction.UP.get3DDataValue();
         assertEquals(6, mesh.groupCount(up));
         assertEquals(3, mesh.colours().length);
         for (int index = mesh.groupStart(up); index < mesh.groupStart(up) + mesh.groupCount(up); index++) {
@@ -1021,7 +1021,7 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, airAround(), 0);
 
-        int up = Direction.UP.ordinal();
+        int up = Direction.UP.get3DDataValue();
         assertEquals(VARIED_ROW, mesh.groupCount(up));
         for (int index = mesh.groupStart(up); index < mesh.groupStart(up) + mesh.groupCount(up); index++) {
             long quad = mesh.quad(index);
@@ -1040,8 +1040,8 @@ class CellMesherTest {
 
         CellMesh mesh = mesh(cell, airAround(), 0);
 
-        long top = mesh.quad(mesh.groupStart(Direction.UP.ordinal()));
-        assertEquals(1, mesh.groupCount(Direction.UP.ordinal()));
+        long top = mesh.quad(mesh.groupStart(Direction.UP.get3DDataValue()));
+        assertEquals(1, mesh.groupCount(Direction.UP.get3DDataValue()));
         assertEquals(VARIED_ROW, Quad.width(top));
     }
 
@@ -1175,7 +1175,7 @@ class CellMesherTest {
     private static int cornersOf(CellMesh mesh, Direction face, int x, int y, int z) {
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
-            if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y && Quad.z(quad) == z) {
+            if (Quad.face(quad) == face.get3DDataValue() && Quad.x(quad) == x && Quad.y(quad) == y && Quad.z(quad) == z) {
                 return mesh.placement(quad);
             }
         }
@@ -1319,7 +1319,7 @@ class CellMesherTest {
     private static boolean has(CellMesh mesh, Direction face, int x, int y, int z, int modelId) {
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
-            if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y
+            if (Quad.face(quad) == face.get3DDataValue() && Quad.x(quad) == x && Quad.y(quad) == y
                     && Quad.z(quad) == z && Quad.modelId(quad) == modelId) {
                 return true;
             }
@@ -1333,7 +1333,7 @@ class CellMesherTest {
             int start = mesh.groupStart(group);
             for (int index = start; index < start + mesh.groupCount(group); index++) {
                 long quad = mesh.quad(index);
-                if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y
+                if (Quad.face(quad) == face.get3DDataValue() && Quad.x(quad) == x && Quad.y(quad) == y
                         && Quad.z(quad) == z && Quad.modelId(quad) == modelId) {
                     return group;
                 }
@@ -1346,7 +1346,7 @@ class CellMesherTest {
     private static int lightAt(CellMesh mesh, Direction face, int x, int y, int z, int modelId) {
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
-            if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y
+            if (Quad.face(quad) == face.get3DDataValue() && Quad.x(quad) == x && Quad.y(quad) == y
                     && Quad.z(quad) == z && Quad.modelId(quad) == modelId) {
                 return Quad.light(quad);
             }
@@ -1358,7 +1358,7 @@ class CellMesherTest {
     private static boolean absent(CellMesh mesh, Direction face, int x, int y, int z) {
         for (int index = 0; index < mesh.quadCount(); index++) {
             long quad = mesh.quad(index);
-            if (Quad.face(quad) == face.ordinal() && Quad.x(quad) == x && Quad.y(quad) == y
+            if (Quad.face(quad) == face.get3DDataValue() && Quad.x(quad) == x && Quad.y(quad) == y
                     && Quad.z(quad) == z) {
                 return false;
             }

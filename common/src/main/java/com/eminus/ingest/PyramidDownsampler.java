@@ -66,7 +66,7 @@ public final class PyramidDownsampler {
                     boolean cover = value == CLEAR && opacity.cover(state);
                     lowest = Math.min(lowest, from);
                     highest = Math.max(highest, to);
-                    if (value > CLEAR || cover && opacity.coversGround(entry, sourceBlocks)) {
+                    if (value > CLEAR || (cover && opacity.coversGround(entry, sourceBlocks))) {
                         denseLowest = Math.min(denseLowest, from);
                         denseHighest = Math.max(denseHighest, cover ? to - 1 : to);
                         gappedDenseLight += gapped ? lightOf(entry) : 0L;

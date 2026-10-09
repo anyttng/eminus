@@ -106,6 +106,7 @@ class ModelBakeryTest {
     }
 
     @Test
+    @SuppressWarnings("ReferenceEquality")
     void aThrowingBakeYieldsThePlaceholderAndLeavesTheThreadServing() throws InterruptedException {
         ModelBakery bakery = ModelBakery.start(state -> {
             if (state == stone) {
@@ -158,6 +159,7 @@ class ModelBakeryTest {
     }
 
     @Test
+    @SuppressWarnings("ReferenceEquality")
     void aSubmergedTwinAnswersForTheFluidModelAndEveryOtherModelAnswersItself() throws InterruptedException {
         ModelBakery bakery = ModelBakery.start(state -> state == stone
                 ? new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE), BakedModel.solid(GREEN))
@@ -194,6 +196,7 @@ class ModelBakeryTest {
     }
 
     @Test
+    @SuppressWarnings("ReferenceEquality")
     void twoStatesThePackTellsApartTakeTheirOwnModelsAndIds() throws InterruptedException {
         ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null),
                 state -> state == stone ? STONE_PACK_ID : DIRT_PACK_ID);

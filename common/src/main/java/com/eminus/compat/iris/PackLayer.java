@@ -125,11 +125,12 @@ final class PackLayer {
     }
 
     static int shadowReach(int irisChunks) {
-        int ours = current == null || current.shadow == null && !IrisFarState.distantHorizons() ? NO_REACH
+        int ours = current == null || (current.shadow == null && !IrisFarState.distantHorizons()) ? NO_REACH
                 : Math.ceilDiv(IrisFarState.renderDistance(), FarDistance.BLOCKS_PER_CHUNK);
         return Math.max(irisChunks, ours);
     }
 
+    @SuppressWarnings("ReferenceEquality")
     static void destroyed(Object pipeline) {
         if (current != null && current.pipeline == pipeline) {
             current = null;
@@ -150,6 +151,7 @@ final class PackLayer {
         }
     }
 
+    @SuppressWarnings("ReferenceEquality")
     private static PackLayer of(IrisRenderingPipeline pipeline) {
         if (current == null || current.pipeline != pipeline) {
             current = new PackLayer(pipeline, Iris.getCurrentPack().orElse(null), Iris.getCurrentDimension());

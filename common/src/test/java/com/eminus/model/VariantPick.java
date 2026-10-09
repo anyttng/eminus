@@ -125,7 +125,7 @@ final class VariantPick {
         int highLow = aHigh * bLow;
         int highHigh = aHigh * bHigh;
         int middle = (lowLow >>> HALF_BITS) + (lowHigh & HALF_MASK) + (highLow & HALF_MASK);
-        int low = lowLow & HALF_MASK | middle << HALF_BITS;
+        int low = (lowLow & HALF_MASK) | (middle << HALF_BITS);
         int high = highHigh + (lowHigh >>> HALF_BITS) + (highLow >>> HALF_BITS) + (middle >>> HALF_BITS);
         return words(low, high);
     }

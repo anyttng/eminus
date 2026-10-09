@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.IntFunction;
 
 import com.eminus.VanillaBootstrap;
 import com.eminus.cell.FaceMask;
@@ -17,6 +16,7 @@ import net.minecraft.core.Direction;
 
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -49,7 +49,6 @@ class FaceRasterizerTest {
     private static final int TINT_COLOUR = 0x0033_6699;
     private static final int TINTED_WHITE = 0xFF33_6699;
     private static final int ROW = 3;
-    private static final IntFunction<Tint> NO_TINTS = layer -> null;
 
     private static final float[] NO_UV = {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
     private static final float[] FACE_UV = {0.0F, 0.0F, 1.0F, 0.0F, 1.0F, 1.0F, 0.0F, 1.0F};
@@ -76,7 +75,7 @@ class FaceRasterizerTest {
 
     @Test
     void aFullCubeFillsEverySideAndOccludesOnEveryFace() {
-        BakedModel model = rasterizer.rasterize(cube(), OPAQUE_WHITE, NO_TINTS);
+        BakedModel model = rasterizer.rasterize(cube(), OPAQUE_WHITE, FaceRasterizerTest::noTints);
 
         assertEquals(FaceMask.ALL, ModelMetadata.present(model.metadata()));
         assertEquals(FaceMask.ALL, ModelMetadata.occluding(model.metadata()));
@@ -93,9 +92,9 @@ class FaceRasterizerTest {
 
     @Test
     void everyTexelSamplesItsOwnPlaceInTheQuad() {
-        BakedModel model = rasterizer.rasterize(cube(), COORDINATES, NO_TINTS);
+        BakedModel model = rasterizer.rasterize(cube(), COORDINATES, FaceRasterizerTest::noTints);
 
-        int face = Direction.SOUTH.ordinal();
+        int face = Direction.SOUTH.get3DDataValue();
         for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
             for (int column = 0; column < BakedModel.FACE_SIDE; column++) {
                 int texel = row * BakedModel.FACE_SIDE + column;
@@ -107,17 +106,17 @@ class FaceRasterizerTest {
 
     @Test
     void aBottomSlabOccludesDownwardsOnlyAndSetsItsTopInset() {
-        BakedModel model = rasterizer.rasterize(bottomSlab(), OPAQUE_WHITE, NO_TINTS);
+        BakedModel model = rasterizer.rasterize(bottomSlab(), OPAQUE_WHITE, FaceRasterizerTest::noTints);
 
         assertEquals(FaceMask.ALL, ModelMetadata.present(model.metadata()));
         assertEquals(FaceMask.DOWN, ModelMetadata.occluding(model.metadata()));
         assertEquals(FaceMask.ALL & ~FaceMask.UP, ModelMetadata.occludable(model.metadata()));
-        assertEquals(0.0F, model.insets()[Direction.DOWN.ordinal()]);
-        assertEquals(BAND_TOP, model.insets()[Direction.UP.ordinal()]);
-        assertEquals(0.0F, model.insets()[Direction.NORTH.ordinal()]);
+        assertEquals(0.0F, model.insets()[Direction.DOWN.get3DDataValue()]);
+        assertEquals(BAND_TOP, model.insets()[Direction.UP.get3DDataValue()]);
+        assertEquals(0.0F, model.insets()[Direction.NORTH.get3DDataValue()]);
         assertArrayEquals(new float[] {0.0F, 0.0F, 0.0F, 1.0F, BAND_TOP, 1.0F}, model.bounds());
 
-        int face = Direction.SOUTH.ordinal();
+        int face = Direction.SOUTH.get3DDataValue();
         for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
             int expected = row < BAND_ROWS ? WHITE : TRANSPARENT;
             for (int column = 0; column < BakedModel.FACE_SIDE; column++) {
@@ -128,7 +127,7 @@ class FaceRasterizerTest {
 
     @Test
     void aSlopedQuadIsKeptOnOneFaceOnly() {
-        BakedModel model = rasterizer.rasterize(List.of(ramp()), OPAQUE_WHITE, NO_TINTS);
+        BakedModel model = rasterizer.rasterize(List.of(ramp()), OPAQUE_WHITE, FaceRasterizerTest::noTints);
 
         assertFalse(ModelMetadata.has(model.metadata(), ModelMetadata.BLADED));
         assertEquals(FaceMask.UP, ModelMetadata.present(model.metadata()));
@@ -136,9 +135,9 @@ class FaceRasterizerTest {
 
     @Test
     void aRaisedRailKeepsItsSlopeOnItsUpAndDownFacesAlone() {
-        BakedModel model = rasterizer.rasterize(raisedRail(), OPAQUE_WHITE, NO_TINTS);
-        int down = Direction.DOWN.ordinal();
-        int up = Direction.UP.ordinal();
+        BakedModel model = rasterizer.rasterize(raisedRail(), OPAQUE_WHITE, FaceRasterizerTest::noTints);
+        int down = Direction.DOWN.get3DDataValue();
+        int up = Direction.UP.get3DDataValue();
 
         assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.SLOPED));
         assertEquals(FaceMask.DOWN | FaceMask.UP, ModelMetadata.present(model.metadata()));
@@ -149,14 +148,14 @@ class FaceRasterizerTest {
         assertEquals(0.0F, model.slopeAlongWidth(down), SLOPE_TOLERANCE);
         assertEquals(-1.0F, model.slopeAlongHeight(down), SLOPE_TOLERANCE);
         assertEquals(RAIL_HIGH, model.insets()[down], SLOPE_TOLERANCE);
-        assertEquals(BakedModel.EMPTY_INSET, model.insets()[Direction.NORTH.ordinal()]);
-        assertEquals(BakedModel.EMPTY_INSET, model.insets()[Direction.SOUTH.ordinal()]);
+        assertEquals(BakedModel.EMPTY_INSET, model.insets()[Direction.NORTH.get3DDataValue()]);
+        assertEquals(BakedModel.EMPTY_INSET, model.insets()[Direction.SOUTH.get3DDataValue()]);
     }
 
     @Test
     void aFullCubeAndABottomSlabAreNotSloped() {
         for (List<ModelQuad> quads : List.of(cube(), bottomSlab())) {
-            BakedModel model = rasterizer.rasterize(quads, OPAQUE_WHITE, NO_TINTS);
+            BakedModel model = rasterizer.rasterize(quads, OPAQUE_WHITE, FaceRasterizerTest::noTints);
 
             assertFalse(ModelMetadata.has(model.metadata(), ModelMetadata.SLOPED));
             assertArrayEquals(new float[BakedModel.SLOPES_LENGTH], model.slopes());
@@ -167,8 +166,8 @@ class FaceRasterizerTest {
     void aFaceWhoseQuadsLieInTwoPlanesIsNotSloped() {
         List<ModelQuad> quads = List.of(ramp(),
                 quad(Direction.UP, new float[] {0, FLOOR, 1, 1, FLOOR, 1, 1, FLOOR, 0, 0, FLOOR, 0}, NO_UV));
-        BakedModel model = rasterizer.rasterize(quads, OPAQUE_WHITE, NO_TINTS);
-        int up = Direction.UP.ordinal();
+        BakedModel model = rasterizer.rasterize(quads, OPAQUE_WHITE, FaceRasterizerTest::noTints);
+        int up = Direction.UP.get3DDataValue();
 
         assertTrue((ModelMetadata.present(model.metadata()) & FaceMask.UP) != 0);
         assertEquals(0.0F, model.slopeAlongWidth(up));
@@ -177,7 +176,7 @@ class FaceRasterizerTest {
 
     @Test
     void aCrossBakesTwoBladesAndNoBoxFaceAtAll() {
-        BakedModel model = rasterizer.rasterize(cross(), OPAQUE_WHITE, NO_TINTS);
+        BakedModel model = rasterizer.rasterize(cross(), OPAQUE_WHITE, FaceRasterizerTest::noTints);
 
         assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.BLADED));
         assertEquals(FaceMask.NONE, ModelMetadata.present(model.metadata()));
@@ -212,7 +211,7 @@ class FaceRasterizerTest {
 
     @Test
     void aCrossWithATiltedHeadKeepsItsBladesAndPaintsTheHeadOntoTheSidesItFaces() {
-        BakedModel model = rasterizer.rasterize(sunflowerTop(), HEAD_FRONT_YELLOW_BACK_GREEN, NO_TINTS);
+        BakedModel model = rasterizer.rasterize(sunflowerTop(), HEAD_FRONT_YELLOW_BACK_GREEN, FaceRasterizerTest::noTints);
 
         assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.BLADED));
         assertEquals(FaceMask.EAST | FaceMask.WEST, ModelMetadata.present(model.metadata()));
@@ -224,8 +223,8 @@ class FaceRasterizerTest {
             assertFalse(paints(model, blade, GREEN), "blade " + blade);
         }
 
-        int east = Direction.EAST.ordinal();
-        int west = Direction.WEST.ordinal();
+        int east = Direction.EAST.get3DDataValue();
+        int west = Direction.WEST.get3DDataValue();
         assertTrue(paints(model, east, YELLOW));
         assertFalse(paints(model, east, WHITE));
         assertTrue(paints(model, west, GREEN));
@@ -234,11 +233,11 @@ class FaceRasterizerTest {
 
     @Test
     void aTiltedHeadKeepsItsTiltOnTheSidesItFaces() {
-        BakedModel model = rasterizer.rasterize(sunflowerTop(), HEAD_FRONT_YELLOW_BACK_GREEN, NO_TINTS);
+        BakedModel model = rasterizer.rasterize(sunflowerTop(), HEAD_FRONT_YELLOW_BACK_GREEN, FaceRasterizerTest::noTints);
         float tilt = (float) Math.tan(HEAD_TILT);
         float[] centre = tilted(new float[] {HEAD_PLANE, CENTRE, CENTRE});
-        int east = Direction.EAST.ordinal();
-        int west = Direction.WEST.ordinal();
+        int east = Direction.EAST.get3DDataValue();
+        int west = Direction.WEST.get3DDataValue();
 
         assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.SLOPED));
         assertEquals(0.0F, model.slopeAlongWidth(east), SLOPE_TOLERANCE);
@@ -255,12 +254,12 @@ class FaceRasterizerTest {
         quads.add(quad(Direction.NORTH, new float[] {1, 1, CENTRE, 1, 0, CENTRE, 0, 0, CENTRE, 0, 1, CENTRE}, FACE_UV));
         quads.add(quad(Direction.SOUTH, new float[] {0, 1, CENTRE, 0, 0, CENTRE, 1, 0, CENTRE, 1, 1, CENTRE}, FACE_UV));
 
-        BakedModel model = rasterizer.rasterize(quads, OPAQUE_WHITE, NO_TINTS);
+        BakedModel model = rasterizer.rasterize(quads, OPAQUE_WHITE, FaceRasterizerTest::noTints);
 
         assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.BLADED));
         assertEquals(FaceMask.NORTH | FaceMask.SOUTH, ModelMetadata.present(model.metadata()));
         assertFalse(ModelMetadata.has(model.metadata(), ModelMetadata.SLOPED));
-        assertEquals(CENTRE, model.insets()[Direction.NORTH.ordinal()], SLOPE_TOLERANCE);
+        assertEquals(CENTRE, model.insets()[Direction.NORTH.get3DDataValue()], SLOPE_TOLERANCE);
     }
 
     @Test
@@ -268,21 +267,21 @@ class FaceRasterizerTest {
         List<ModelQuad> quads = new ArrayList<>(cross());
         quads.add(quad(Direction.UP, new float[] {0, FLOOR, 1, 1, FLOOR, 1, 1, FLOOR, 0, 0, FLOOR, 0}, NO_UV));
 
-        assertFalse(ModelMetadata.has(rasterizer.rasterize(quads, OPAQUE_WHITE, NO_TINTS).metadata(),
+        assertFalse(ModelMetadata.has(rasterizer.rasterize(quads, OPAQUE_WHITE, FaceRasterizerTest::noTints).metadata(),
                 ModelMetadata.BLADED));
     }
 
     @Test
     void aFullCubeIsNotBladed() {
-        assertFalse(ModelMetadata.has(rasterizer.rasterize(cube(), OPAQUE_WHITE, NO_TINTS).metadata(),
+        assertFalse(ModelMetadata.has(rasterizer.rasterize(cube(), OPAQUE_WHITE, FaceRasterizerTest::noTints).metadata(),
                 ModelMetadata.BLADED));
     }
 
     @Test
     void aTintedOverlayMarksItsOwnTexelsAndLeavesEveryOtherFaceUntinted() {
-        BakedModel model = rasterizer.rasterize(cubeWithTintedOverlay(), GREEN_WHERE_TINTED, NO_TINTS);
+        BakedModel model = rasterizer.rasterize(cubeWithTintedOverlay(), GREEN_WHERE_TINTED, FaceRasterizerTest::noTints);
 
-        int overlaid = Direction.SOUTH.ordinal();
+        int overlaid = Direction.SOUTH.get3DDataValue();
         for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
             boolean tinted = row >= BAND_ROWS;
             for (int column = 0; column < BakedModel.FACE_SIDE; column++) {
@@ -306,7 +305,7 @@ class FaceRasterizerTest {
         BakedModel model = rasterizer.rasterize(cubeWithTintedOverlay(), OPAQUE_WHITE,
                 layer -> Tint.constant(TINT_COLOUR));
 
-        int overlaid = Direction.SOUTH.ordinal();
+        int overlaid = Direction.SOUTH.get3DDataValue();
         for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
             int expected = row < BAND_ROWS ? WHITE : TINTED_WHITE;
             for (int column = 0; column < BakedModel.FACE_SIDE; column++) {
@@ -324,7 +323,7 @@ class FaceRasterizerTest {
     void aRowTintKeepsTheMaskAndCarriesTheRow() {
         BakedModel model = rasterizer.rasterize(cubeWithTintedOverlay(), OPAQUE_WHITE, layer -> Tint.row(ROW));
 
-        int overlaid = Direction.SOUTH.ordinal();
+        int overlaid = Direction.SOUTH.get3DDataValue();
         assertTrue(model.tinted(overlaid, BakedModel.FACE_TEXELS - 1));
         assertEquals(WHITE, model.argb(overlaid, BakedModel.FACE_TEXELS - 1));
         assertEquals(ROW, model.tintRow());
@@ -333,9 +332,9 @@ class FaceRasterizerTest {
 
     @Test
     void aCoplanarQuadPaintsOverTheOneBeforeIt() {
-        BakedModel model = rasterizer.rasterize(cubeWithTintedOverlay(), GREEN_WHERE_TINTED, NO_TINTS);
+        BakedModel model = rasterizer.rasterize(cubeWithTintedOverlay(), GREEN_WHERE_TINTED, FaceRasterizerTest::noTints);
 
-        int overlaid = Direction.SOUTH.ordinal();
+        int overlaid = Direction.SOUTH.get3DDataValue();
         for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
             int expected = row < BAND_ROWS ? WHITE : GREEN;
             for (int column = 0; column < BakedModel.FACE_SIDE; column++) {
@@ -346,7 +345,7 @@ class FaceRasterizerTest {
 
     @Test
     void aFullyTransparentTextureLeavesNoFaceBehind() {
-        BakedModel model = rasterizer.rasterize(cube(), FULLY_TRANSPARENT, NO_TINTS);
+        BakedModel model = rasterizer.rasterize(cube(), FULLY_TRANSPARENT, FaceRasterizerTest::noTints);
 
         assertEquals(FaceMask.NONE, ModelMetadata.present(model.metadata()));
         assertEquals(FaceMask.NONE, ModelMetadata.occludable(model.metadata()));
@@ -375,7 +374,7 @@ class FaceRasterizerTest {
     }
 
     private void assertSpriteFillsBladeImage(List<ModelQuad> quads) {
-        BakedModel model = rasterizer.rasterize(quads, COORDINATES, NO_TINTS);
+        BakedModel model = rasterizer.rasterize(quads, COORDINATES, FaceRasterizerTest::noTints);
 
         assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.BLADED));
         for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
@@ -475,5 +474,9 @@ class FaceRasterizerTest {
             new Vector3f(positions[6], positions[7], positions[8]),
             new Vector3f(positions[9], positions[10], positions[11])},
                 uvs.clone(), null, tintLayer, false, 0, direction);
+    }
+
+    private static @Nullable Tint noTints(int layer) {
+        return null;
     }
 }

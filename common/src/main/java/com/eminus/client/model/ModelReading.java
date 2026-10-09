@@ -154,7 +154,7 @@ public final class ModelReading {
                     ModelMetadata.occluding(model.metadata()),
                     ModelMetadata.occludable(model.metadata()),
                     model.tintRow() != BiomeColours.NO_ROW ? 1 : 0,
-                    Float.floatToIntBits(model.insets()[Direction.UP.ordinal()])});
+                    Float.floatToIntBits(model.insets()[Direction.UP.get3DDataValue()])});
         }
 
         return rows;

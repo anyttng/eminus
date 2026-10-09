@@ -2,6 +2,7 @@ package com.eminus.mesh;
 
 import com.eminus.cell.OccupancyMask;
 
+@SuppressWarnings("ArrayRecordComponent")
 public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, long[] colours) {
     public static CellMesh empty(long key) {
         return empty(key, OccupancyMask.EMPTY);
