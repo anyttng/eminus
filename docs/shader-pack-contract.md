@@ -210,7 +210,8 @@ setting reloads the pack. On that path:
   never gets `DISTANT_HORIZONS`, so `#if defined EMINUS && !defined DISTANT_HORIZONS` tells the contract apart from
   this path.
 - `dh_terrain` draws the opaque LOD, `dh_water` the translucent one (`dh_terrain` where the pack has no `dh_water`).
-  `dh_shadow` is not used: the LOD casts no shadow in such a pack.
+  `dh_shadow` draws the LOD into the shadow map, with the same inputs as `dh_terrain`, unless the pack sets
+  `dhShadow.enabled = false`; without `dh_shadow` the LOD casts no shadow.
 - `gl_Color` is each face's mean texture colour with its biome tint, so far terrain comes out one flat colour per
   block face; `dhMaterialId` is one of the 16 `DH_BLOCK_*` classes; `gl_MultiTexCoord1` carries block and sky light.
 - `dhDepthTex0`, `dhDepthTex1`, `dhProjection`, `dhNearPlane`, `dhFarPlane` and `dhRenderDistance` describe the LOD,
@@ -224,4 +225,5 @@ The names Eminus declares in front of the pack's code are those of
 [Inside the contract files](#inside-the-contract-files), plus `eminus_packMain`, which the pack's `main` is renamed
 to. A program that does not build logs one line and the LOD goes back over the pack's finished frame, as in
 [When a file does not build](#when-a-file-does-not-build); its source is written under `eminus_dh_terrain` or
-`eminus_dh_water`.
+`eminus_dh_water`. A `dh_shadow` that does not build leaves the LOD drawn without a shadow, its source written under
+`eminus_dh_shadow`.
