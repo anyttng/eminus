@@ -1,0 +1,14 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.eminus.compat.vitrail.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "plugin": "com.eminus.compat.vitrail.VitrailMixinPlugin",
+  "client": [
+    "EngineStagesMixin",
+    "PackChainInvoker"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

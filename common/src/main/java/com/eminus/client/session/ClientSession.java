@@ -6,6 +6,7 @@ import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
 import com.eminus.compat.iris.IrisShaderPack;
+import com.eminus.compat.vitrail.VitrailShaderPack;
 import com.eminus.handoff.NearFieldOverride;
 import com.eminus.ingest.IngestService;
 import com.eminus.ingest.IngestTrigger;
@@ -166,8 +167,9 @@ public final class ClientSession {
     }
 
     private static void readShaderPack() {
-        boolean inUse = IrisShaderPack.inUse();
-        boolean inside = inUse && renderer != null && IrisShaderPack.packPathReady(renderer);
+        boolean irisInUse = IrisShaderPack.inUse();
+        boolean inUse = irisInUse || VitrailShaderPack.inUse();
+        boolean inside = irisInUse && renderer != null && IrisShaderPack.packPathReady(renderer);
         boolean dhPrograms = inside && IrisShaderPack.throughDhPrograms();
         if (inUse != overShaderPack || inside != inShaderPack || dhPrograms != throughDhPrograms) {
             overShaderPack = inUse;

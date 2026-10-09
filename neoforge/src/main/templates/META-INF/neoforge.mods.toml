@@ -54,3 +54,6 @@ config="eminus.compat.sodium.mixins.json"
 
 [[mixins]]
 config="eminus.compat.iris.mixins.json"
+
+[[mixins]]
+config="eminus.compat.vitrail.mixins.json"

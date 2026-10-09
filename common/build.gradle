@@ -51,6 +51,9 @@ dependencies {
     compileOnly("maven.modrinth:iris:${iris_version}") {
         transitive = false
     }
+    compileOnly("maven.modrinth:vitrail-shaders:${vitrail_version}") {
+        transitive = false
+    }
 }
 
 // The cell store's fixed stack. This module compiles and tests against them; the loader modules bundle them.
@@ -70,11 +73,14 @@ dependencies {
     testCompileOnly "net.fabricmc:sponge-mixin:${mixin_version}"
     testCompileOnly "io.github.llamalad7:mixinextras-common:${mixinextras_version}"
     testCompileOnly "com.github.bawnorton.mixinsquared:mixinsquared-common:${mixinsquared_version}"
-    // CompatGatesTest checks both gates against the Sodium and Iris builds this module compiles against.
+    // CompatGatesTest checks every gate against the Sodium, Iris and Vitrail builds this module compiles against.
     testRuntimeOnly("maven.modrinth:sodium:${sodium_version}") {
         transitive = false
     }
     testRuntimeOnly("maven.modrinth:iris:${iris_version}") {
+        transitive = false
+    }
+    testRuntimeOnly("maven.modrinth:vitrail-shaders:${vitrail_version}") {
         transitive = false
     }
     testImplementation platform("org.junit:junit-bom:${junit_version}")
