@@ -114,12 +114,13 @@ public final class PackProgram {
     }
 
     static @Nullable PackProgram build(FarDraw draw, Foreign foreign, IrisRenderingPipeline irisPipeline,
-            ProgramSet programSet, ShaderProperties properties, PackPath.Source source, Kind kind) {
+            ProgramSet programSet, ShaderProperties properties, PackPath.Source source, Kind kind,
+            boolean distantHorizons) {
         String name = source.programName();
         Location location = new Location(Eminus.MODID, LOCATION_PREFIX + source.file());
         ProgramSource[] built = new ProgramSource[1];
         Pipeline pipeline = foreign.pipeline(
-                kind == Kind.SHADOW ? draw.shadowPipeline(location, source.vertex() != null)
+                kind == Kind.SHADOW ? draw.shadowPipeline(location, source.vertex() != null, distantHorizons)
                         : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertex() != null),
                 FIRST_UNIT,
                 ours -> {
