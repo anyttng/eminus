@@ -12,12 +12,14 @@ import com.eminus.mesh.MeshSummary;
 import com.eminus.render.arena.MeshSlots;
 import com.eminus.render.far.CameraOrigin;
 import com.eminus.render.far.DrawCommands;
+import com.eminus.render.far.ShadowCasterVolume;
 
 import it.unimi.dsi.fastutil.longs.Long2IntFunction;
 
 import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+import org.joml.Vector3f;
 
 public final class FarShadow implements AutoCloseable {
     private static final int FIRST_COMMAND = 0;
@@ -29,6 +31,8 @@ public final class FarShadow implements AutoCloseable {
     private final Matrix4f viewProjection = new Matrix4f();
     private final Matrix4f view = new Matrix4f();
     private final Matrix4f projection = new Matrix4f();
+    private final ShadowCasterVolume casters = new ShadowCasterVolume();
+    private final Vector3f lightTravel = new Vector3f();
 
     private IndirectCommands indirect;
 
@@ -43,12 +47,15 @@ public final class FarShadow implements AutoCloseable {
     }
 
     boolean write(List<MeshSummary> meshes, Long2IntFunction borderFaces, MeshSlots slots, CellFrame cells,
-            GameFrame game, int atlasCells, NearSections near, Matrix4fc shadowView, Matrix4fc shadowProjection) {
+            GameFrame game, int atlasCells, NearSections near, Matrix4fc cameraViewProjection, Matrix4fc shadowView,
+            Matrix4fc shadowProjection) {
         view.set(shadowView);
         projection.set(shadowProjection);
         projection.mul(view, viewProjection);
-        commands.writeShadow(meshes, borderFaces, slots, cells, frustum.set(viewProjection), game.eyeX(),
-                game.eyeY(), game.eyeZ());
+        frustum.set(viewProjection);
+        casters.set(cameraViewProjection, view.positiveZ(lightTravel).negate());
+        commands.writeShadow(meshes, borderFaces, slots, cells, frustum, casters, game.eyeX(), game.eyeY(),
+                game.eyeZ());
         if (commands.opaqueCount() == 0) {
             return false;
         }
