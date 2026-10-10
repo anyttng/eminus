@@ -9,29 +9,31 @@ import com.eminus.cell.CellFrame;
 import com.eminus.cell.OccupancyMask;
 import com.eminus.settings.FarDistance;
 
+import org.jspecify.annotations.Nullable;
+
 final class TreeCleaner {
     static final int PRESSURE_EVICTIONS = 64;
 
     private static final Comparator<Candidate> OLDEST_FIRST = Comparator.comparingLong(Candidate::lastSeen)
             .thenComparingDouble(Candidate::size)
             .thenComparingLong(Candidate::key);
-    private static final Comparator<Candidate> SMALLEST_FIRST = Comparator.comparingDouble(Candidate::size)
-            .thenComparingLong(Candidate::key);
+    private static final Comparator<Candidate> FARTHEST_FIRST =
+            Comparator.comparingDouble(Candidate::reach).reversed().thenComparingLong(Candidate::key);
 
     private final List<Candidate> unwanted = new ArrayList<>();
-    private final List<Candidate> outOfView = new ArrayList<>();
+    private final List<Candidate> far = new ArrayList<>();
     private final List<TreeNode> picked = new ArrayList<>();
     private final CellBox box = new CellBox();
 
     private int unwantedPicked;
 
-    private record Candidate(TreeNode parent, long lastSeen, float size) {
+    private record Candidate(TreeNode parent, long lastSeen, float size, double reach) {
         long key() {
             return parent.key();
         }
     }
 
-    List<TreeNode> pick(Collection<TreeNode> all, CameraFrame camera, CellFrame frame, long walk) {
+    List<TreeNode> pick(Collection<TreeNode> all, CameraFrame camera, CellFrame frame, TreeHorizon horizon) {
         picked.clear();
         unwantedPicked = 0;
         if (!camera.pressure()) {
@@ -39,18 +41,18 @@ final class TreeCleaner {
         }
 
         unwanted.clear();
-        outOfView.clear();
+        far.clear();
         double farBlocks = (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
         for (TreeNode node : all) {
-            classify(node, camera, frame, walk, farBlocks);
+            classify(node, camera, frame, horizon, farBlocks);
         }
 
         unwanted.sort(OLDEST_FIRST);
-        outOfView.sort(SMALLEST_FIRST);
+        far.sort(FARTHEST_FIRST);
 
-        take(unwanted);
+        take(unwanted, null);
         unwantedPicked = picked.size();
-        take(outOfView);
+        take(far, horizon);
 
         return List.copyOf(picked);
     }
@@ -59,22 +61,17 @@ final class TreeCleaner {
         return unwantedPicked;
     }
 
-    private void classify(TreeNode parent, CameraFrame camera, CellFrame frame, long walk, double farBlocks) {
+    private void classify(TreeNode parent, CameraFrame camera, CellFrame frame, TreeHorizon horizon,
+            double farBlocks) {
         long lastSeen = 0;
         boolean meshed = false;
 
         for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
             TreeNode child = parent.child(octant);
-            if (child == null) {
-                continue;
+            if (child != null) {
+                lastSeen = Math.max(lastSeen, child.lastSeen());
+                meshed |= child.mesh() != null;
             }
-
-            if (child.lastSeen() >= walk) {
-                return;
-            }
-
-            lastSeen = Math.max(lastSeen, child.lastSeen());
-            meshed |= child.mesh() != null;
         }
 
         if (!meshed) {
@@ -82,19 +79,25 @@ final class TreeCleaner {
         }
 
         float size = ProjectedSize.of(box.set(frame, parent.key(), camera), camera.pixelsPerBlock());
-        Candidate candidate = new Candidate(parent, lastSeen, size);
-        if (size > camera.subdivisionPixels() && box.horizontalDistance() <= farBlocks) {
-            outOfView.add(candidate);
+        double reach = TreeHorizon.key(box.horizontalDistance(), parent.level());
+        Candidate candidate = new Candidate(parent, lastSeen, size, reach);
+        if (size > camera.subdivisionPixels() && box.horizontalDistance() <= farBlocks && horizon.refines(reach)) {
+            far.add(candidate);
         } else {
             unwanted.add(candidate);
         }
     }
 
-    private int take(List<Candidate> candidates) {
+    private void take(List<Candidate> candidates, @Nullable TreeHorizon lowered) {
         int taken = 0;
 
         while (taken < candidates.size() && picked.size() < PRESSURE_EVICTIONS) {
-            TreeNode parent = candidates.get(taken++).parent();
+            Candidate candidate = candidates.get(taken++);
+            if (lowered != null) {
+                lowered.lower(candidate.reach());
+            }
+
+            TreeNode parent = candidate.parent();
             for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
                 TreeNode child = parent.child(octant);
                 if (child != null) {
@@ -102,7 +105,5 @@ final class TreeCleaner {
                 }
             }
         }
-
-        return taken;
     }
 }

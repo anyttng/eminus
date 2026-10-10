@@ -5,6 +5,7 @@ import java.util.BitSet;
 import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
+import com.eminus.box.BoxRegistry;
 import com.eminus.compat.iris.IrisShaderPack;
 import com.eminus.compat.vitrail.VitrailShaderPack;
 import com.eminus.handoff.NearFieldOverride;
@@ -77,6 +78,11 @@ public final class ClientSession {
     }
 
     public static void disconnect() {
+        BoxRegistry.get().clear();
+        endSession();
+    }
+
+    private static void endSession() {
         if (instance == null) {
             return;
         }
@@ -320,7 +326,7 @@ public final class ClientSession {
     }
 
     private static void restartSession() {
-        disconnect();
+        endSession();
         login();
     }
 
