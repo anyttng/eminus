@@ -45,6 +45,7 @@ class ContractSourcesTest {
     void everyContractFileIsLookedForAtTheRootAndInEachDimensionFolder() {
         assertEquals(List.of("/eminus_opaque.glsl", "/world-1/eminus_opaque.glsl", "/eminus_translucent.glsl",
                 "/world-1/eminus_translucent.glsl", "/eminus_shadow.glsl", "/world-1/eminus_shadow.glsl",
+                "/eminus_shadow_translucent.glsl", "/world-1/eminus_shadow_translucent.glsl",
                 "/eminus_shadow_vertex.glsl", "/world-1/eminus_shadow_vertex.glsl", "/eminus_vertex.glsl",
                 "/world-1/eminus_vertex.glsl"),
                 PackContract.paths(List.of(NETHER)));

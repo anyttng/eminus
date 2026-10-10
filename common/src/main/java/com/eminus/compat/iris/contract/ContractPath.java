@@ -27,10 +27,12 @@ public final class ContractPath implements PackPath {
     private static final String OPAQUE_PROGRAM = "eminus_opaque";
     private static final String TRANSLUCENT_PROGRAM = "eminus_translucent";
     private static final String SHADOW_PROGRAM = "eminus_shadow";
+    private static final String SHADOW_TRANSLUCENT_PROGRAM = "eminus_shadow_translucent";
 
     private final PackFile opaque;
     private final @Nullable PackFile translucent;
     private final @Nullable PackFile shadow;
+    private final @Nullable PackFile shadowTranslucent;
     private final @Nullable PackFile shadowVertex;
     private final @Nullable PackFile vertex;
 
@@ -38,10 +40,11 @@ public final class ContractPath implements PackPath {
     }
 
     private ContractPath(PackFile opaque, @Nullable PackFile translucent, @Nullable PackFile shadow,
-            @Nullable PackFile shadowVertex, @Nullable PackFile vertex) {
+            @Nullable PackFile shadowTranslucent, @Nullable PackFile shadowVertex, @Nullable PackFile vertex) {
         this.opaque = opaque;
         this.translucent = translucent;
         this.shadow = shadow;
+        this.shadowTranslucent = shadowTranslucent;
         this.shadowVertex = shadowVertex;
         this.vertex = vertex;
     }
@@ -53,6 +56,7 @@ public final class ContractPath implements PackPath {
         PackFile opaque = read(sources, PackContract.OPAQUE_FILE, folder);
         return opaque == null ? null : new ContractPath(opaque,
                 read(sources, PackContract.TRANSLUCENT_FILE, folder), read(sources, PackContract.SHADOW_FILE, folder),
+                read(sources, PackContract.SHADOW_TRANSLUCENT_FILE, folder),
                 read(sources, PackContract.SHADOW_VERTEX_FILE, folder), read(sources, PackContract.VERTEX_FILE, folder));
     }
 
@@ -79,13 +83,15 @@ public final class ContractPath implements PackPath {
         return switch (kind) {
             case OPAQUE -> source(OPAQUE_PROGRAM, opaque, vertex, stage);
             case TRANSLUCENT -> source(TRANSLUCENT_PROGRAM, translucent == null ? opaque : translucent, vertex, stage);
-            case SHADOW -> shadow == null ? null : shadowSource(shadow);
+            case SHADOW -> shadow == null ? null : shadowSource(SHADOW_PROGRAM, shadow);
+            case SHADOW_TRANSLUCENT -> shadowTranslucent == null ? null
+                    : shadowSource(SHADOW_TRANSLUCENT_PROGRAM, shadowTranslucent);
         };
     }
 
-    private Source shadowSource(PackFile file) {
+    private Source shadowSource(String programName, PackFile file) {
         FarDraw.PackVertex stage = ContractSources.shadowStage(vertex != null, shadowVertex != null);
-        return source(SHADOW_PROGRAM, file, stage == FarDraw.PackVertex.HOOK ? vertex : shadowVertex, stage);
+        return source(programName, file, stage == FarDraw.PackVertex.HOOK ? vertex : shadowVertex, stage);
     }
 
     private static Source source(String programName, PackFile file, @Nullable PackFile vertexFile,

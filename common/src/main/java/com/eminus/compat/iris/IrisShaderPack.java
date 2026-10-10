@@ -22,6 +22,7 @@ import org.jspecify.annotations.Nullable;
 public final class IrisShaderPack {
     private static final boolean IRIS_PRESENT = IrisMixinPlugin.irisPresent();
     public static final String SHADOW_OFF_PROPERTY = "eminus.shadow.off";
+    public static final String SHADOW_TRANSLUCENT_OFF_PROPERTY = "eminus.shadow.translucent.off";
 
     private static final String SHADOW_CALLBACK = "registerShadowRenderCallback";
 
@@ -93,6 +94,10 @@ public final class IrisShaderPack {
 
     public static void drawShadow(FarRenderer renderer, Matrix4fc shadowView, Matrix4fc shadowProjection) {
         PackLayer.drawShadow(renderer, shadowView, shadowProjection);
+    }
+
+    public static void drawShadowTranslucent(FarRenderer renderer) {
+        PackLayer.drawShadowTranslucent(renderer);
     }
 
     public static int shadowReach(int irisChunks) {

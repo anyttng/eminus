@@ -72,20 +72,26 @@ public final class DrawCommands {
             MeshSlots slots, CellFrame frame, FrustumIntersection frustum, double cameraX, double cameraY,
             double cameraZ) {
         writeOpaque(opaque, borderFaces, slots, frame, frustum, null, true, cameraX, cameraY, cameraZ);
+        writeTranslucent(translucent, slots, frame, frustum, null, cameraX, cameraY, cameraZ);
+    }
 
+    public void writeShadow(List<MeshSummary> opaque, List<MeshSummary> translucent, Long2IntFunction borderFaces,
+            MeshSlots slots, CellFrame frame, FrustumIntersection frustum, ShadowCasterVolume casters,
+            double cameraX, double cameraY, double cameraZ) {
+        writeOpaque(opaque, borderFaces, slots, frame, frustum, casters, false, cameraX, cameraY, cameraZ);
+        writeTranslucent(translucent, slots, frame, frustum, casters, cameraX, cameraY, cameraZ);
+    }
+
+    private void writeTranslucent(List<MeshSummary> translucent, MeshSlots slots, CellFrame frame,
+            FrustumIntersection frustum, @Nullable ShadowCasterVolume casters, double cameraX, double cameraY,
+            double cameraZ) {
         for (MeshSummary mesh : translucent) {
             MeshSlot slot = slots.slot(mesh.key());
             if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)
-                    && put(slot, QuadGroups.TRANSLUCENT)) {
+                    && (casters == null || casts(casters)) && put(slot, QuadGroups.TRANSLUCENT)) {
                 translucentCount++;
             }
         }
-    }
-
-    public void writeShadow(List<MeshSummary> opaque, Long2IntFunction borderFaces, MeshSlots slots,
-            CellFrame frame, FrustumIntersection frustum, ShadowCasterVolume casters, double cameraX,
-            double cameraY, double cameraZ) {
-        writeOpaque(opaque, borderFaces, slots, frame, frustum, casters, false, cameraX, cameraY, cameraZ);
     }
 
     private void writeOpaque(List<MeshSummary> opaque, Long2IntFunction borderFaces, MeshSlots slots,
