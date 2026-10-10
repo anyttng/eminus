@@ -7,12 +7,15 @@ import java.util.Set;
 import com.eminus.Eminus;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Sparse;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
+import com.eminus.gpu.buffer.SparseBuffer;
 import com.eminus.gpu.buffer.Staging;
 import com.eminus.gpu.buffer.TexelView;
 import com.eminus.mesh.CellMesh;
 import com.eminus.render.arena.ArenaAllocator;
+import com.eminus.render.arena.ArenaPages;
 import com.eminus.render.arena.ArenaPressure;
 import com.eminus.render.arena.ArenaSizing;
 import com.eminus.render.arena.MeshSlot;
@@ -33,9 +36,13 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
             EnumSet.of(BufferUsage.VERTEX, BufferUsage.TEXEL, BufferUsage.COPY_DST);
     private static final long WARNING_PERIOD_NANOS = 1_000_000_000L;
     private static final int MIB_SHIFT = 20;
+    private static final int KIB_SHIFT = 10;
+    private static final long PLAIN = 0L;
 
     private final Gpu gpu;
     private final Buffer quads;
+    private final @Nullable SparseBuffer sparseQuads;
+    private final @Nullable ArenaPages pages;
     private final TexelView quadTexels;
     private final long bytes;
     private final ArenaAllocator allocator;
@@ -51,10 +58,12 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     private long lastWarning = System.nanoTime() - WARNING_PERIOD_NANOS;
     private boolean announcedPressure;
 
-    private GeometryArena(Gpu gpu, Buffer quads, long bytes, ArenaAllocator allocator, MeshRecords records,
-            ArenaUploader uploader) {
+    private GeometryArena(Gpu gpu, Buffer quads, @Nullable SparseBuffer sparseQuads, @Nullable ArenaPages pages,
+            long bytes, ArenaAllocator allocator, MeshRecords records, ArenaUploader uploader) {
         this.gpu = gpu;
         this.quads = quads;
+        this.sparseQuads = sparseQuads;
+        this.pages = pages;
         this.bytes = bytes;
         this.allocator = allocator;
         this.records = records;
@@ -62,7 +71,8 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         quadTexels = gpu.texelView(quads, QUAD_FORMAT);
     }
 
-    public static @Nullable GeometryArena create(Gpu gpu, BackendSupport support, long bytes) {
+    public static @Nullable GeometryArena create(Gpu gpu, BackendSupport support, long bytes,
+            @Nullable Sparse sparse) {
         gpu.assertRenderThread();
 
         if (!support.accepted()) {
@@ -70,12 +80,21 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         }
 
         int blocks = ArenaSizing.blocks(bytes);
-        Buffer quads = gpu.buffer(LABEL, USAGE, bytes);
-        Eminus.LOGGER.info("Geometry arena of {} MiB: {} blocks of {} quads",
-                bytes >> MIB_SHIFT, blocks, ArenaAllocator.QUADS_PER_BLOCK);
+        ArenaAllocator allocator = new ArenaAllocator(blocks);
+        MeshRecords records = MeshRecords.create(gpu, blocks);
+        if (sparse == null) {
+            Buffer quads = gpu.buffer(LABEL, USAGE, bytes);
+            Eminus.LOGGER.info("Geometry arena of {} MiB: {} blocks of {} quads",
+                    bytes >> MIB_SHIFT, blocks, ArenaAllocator.QUADS_PER_BLOCK);
+            return new GeometryArena(gpu, quads, null, null, bytes, allocator, records, ArenaUploader.create(gpu));
+        }
 
-        return new GeometryArena(gpu, quads, bytes, new ArenaAllocator(blocks), MeshRecords.create(gpu, blocks),
-                ArenaUploader.create(gpu));
+        SparseBuffer quads = sparse.reserve(LABEL, USAGE, bytes);
+        ArenaPages pages = new ArenaPages(blocks, ArenaSizing.blocksPerPage(sparse.pageBytes()));
+        Eminus.LOGGER.info("Geometry arena reserved {} MiB as a sparse buffer: {} blocks of {} quads in {} pages of {}"
+                        + " KiB, 0 MiB committed", bytes >> MIB_SHIFT, blocks, ArenaAllocator.QUADS_PER_BLOCK,
+                pages.pages(), sparse.pageBytes() >> KIB_SHIFT);
+        return new GeometryArena(gpu, quads, quads, pages, bytes, allocator, records, ArenaUploader.create(gpu));
     }
 
     public TexelView quads() {
@@ -95,8 +114,13 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     }
 
     public ArenaState state() {
-        return new ArenaState(bytes, allocator.blocks(), held.size(), allocator.usedBlocks(), allocator.freeBlocks(),
-                allocator.largestFreeRun(), allocator.freeRuns(), refusedTotal, pressure());
+        return new ArenaState(bytes, committedBytes(), pages == null ? PLAIN : pageBytes(pages, 1),
+                allocator.blocks(), held.size(), allocator.usedBlocks(),
+                allocator.freeBlocks(), allocator.largestFreeRun(), allocator.freeRuns(), refusedTotal, pressure());
+    }
+
+    public long committedBytes() {
+        return pages == null ? bytes : pageBytes(pages, pages.committed());
     }
 
     public boolean pressure() {
@@ -167,6 +191,12 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         }
 
         MeshSlot placed = MeshSlot.of(mesh, block);
+        if (pages != null && sparseQuads != null) {
+            ArenaPages.PageRun run = pages.place(block, ArenaAllocator.blocksFor(mesh.slotCount()));
+            if (!run.isEmpty()) {
+                sparseQuads.commit(pageBytes(pages, run.first()), pageBytes(pages, run.count()));
+            }
+        }
         held.put(mesh.key(), placed);
         records.write(placed);
 
@@ -197,9 +227,21 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
 
     private void release(long key) {
         MeshSlot released = held.remove(key);
-        if (released != null) {
-            allocator.free(released.block(), released.slots());
+        if (released == null) {
+            return;
         }
+
+        allocator.free(released.block(), released.slots());
+        if (pages != null && sparseQuads != null) {
+            ArenaPages.PageRun run = pages.free(released.block(), ArenaAllocator.blocksFor(released.slots()));
+            if (!run.isEmpty()) {
+                sparseQuads.decommit(pageBytes(pages, run.first()), pageBytes(pages, run.count()));
+            }
+        }
+    }
+
+    private static long pageBytes(ArenaPages pages, int count) {
+        return (long) count * pages.blocksPerPage() * ArenaSizing.BLOCK_BYTES;
     }
 
     @Override

@@ -51,6 +51,8 @@ public interface Gpu extends AutoCloseable {
 
     Optional<Foreign> foreign();
 
+    Optional<Sparse> sparse();
+
     @Override
     void close();
 }
