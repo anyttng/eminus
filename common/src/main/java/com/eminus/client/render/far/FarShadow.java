@@ -46,17 +46,17 @@ public final class FarShadow implements AutoCloseable {
         return new FarShadow(gpu, FarFrame.create(gpu), IndirectCommands.create(gpu, FarRenderer.START_COMMANDS));
     }
 
-    boolean write(List<MeshSummary> meshes, Long2IntFunction borderFaces, MeshSlots slots, CellFrame cells,
-            GameFrame game, int atlasCells, NearSections near, Matrix4fc cameraViewProjection, Matrix4fc shadowView,
-            Matrix4fc shadowProjection) {
+    boolean write(List<MeshSummary> meshes, List<MeshSummary> translucent, Long2IntFunction borderFaces,
+            MeshSlots slots, CellFrame cells, GameFrame game, int atlasCells, NearSections near,
+            Matrix4fc cameraViewProjection, Matrix4fc shadowView, Matrix4fc shadowProjection) {
         view.set(shadowView);
         projection.set(shadowProjection);
         projection.mul(view, viewProjection);
         frustum.set(viewProjection);
         casters.set(cameraViewProjection, view.positiveZ(lightTravel).negate());
-        commands.writeShadow(meshes, borderFaces, slots, cells, frustum, casters, game.eyeX(), game.eyeY(),
-                game.eyeZ());
-        if (commands.opaqueCount() == 0) {
+        commands.writeShadow(meshes, translucent, borderFaces, slots, cells, frustum, casters, game.eyeX(),
+                game.eyeY(), game.eyeZ());
+        if (commands.count() == 0) {
             return false;
         }
 
@@ -83,8 +83,20 @@ public final class FarShadow implements AutoCloseable {
         return frame.buffer();
     }
 
+    public int opaqueCount() {
+        return commands.opaqueCount();
+    }
+
+    public int translucentCount() {
+        return commands.translucentCount();
+    }
+
     public void draw(Pass pass) {
         pass.drawIndexedIndirect(indirect.buffer(), FIRST_COMMAND, commands.opaqueCount());
+    }
+
+    public void drawTranslucent(Pass pass) {
+        pass.drawIndexedIndirect(indirect.buffer(), commands.opaqueCount(), commands.translucentCount());
     }
 
     @Override
