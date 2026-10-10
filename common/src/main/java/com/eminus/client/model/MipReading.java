@@ -12,7 +12,6 @@ import com.eminus.model.FaceMips;
 import com.eminus.model.Mips;
 import com.eminus.model.ModelBakery;
 import com.eminus.model.ModelMetadata;
-import com.eminus.model.Tint;
 import com.eminus.model.port.ModelQuad;
 import com.eminus.model.port.Sprite;
 
@@ -33,12 +32,11 @@ public final class MipReading {
     public static final int CUTOUT_LEAVES = 1;
     public static final int FACE = 2;
     public static final int STRATEGY = 3;
-    public static final int CONSTANT_TINT = 4;
-    public static final int OPAQUE = 5;
-    public static final int WHOLE_SPRITE = 6;
-    public static final int SYMMETRY = 7;
-    public static final int LEVELS = 8;
-    public static final int FIRST_OFF = 9;
+    public static final int OPAQUE = 4;
+    public static final int WHOLE_SPRITE = 5;
+    public static final int SYMMETRY = 6;
+    public static final int LEVELS = 7;
+    public static final int FIRST_OFF = 8;
     public static final int OFF_LEVEL = FIRST_OFF + Mips.levelCount(BakedModel.FACE_SIDE);
     public static final int OFF_TEXEL = OFF_LEVEL + 1;
     public static final int OFF_OURS = OFF_TEXEL + 1;
@@ -92,7 +90,7 @@ public final class MipReading {
                 game.blocks().model(state).quads(RandomSource.create(state.getSeed(BlockPos.ZERO)), quads);
 
                 for (Direction face : FACES) {
-                    rows.add(row(state, face, model, quads, game, baking, cutoutLeaves));
+                    rows.add(row(state, face, model, quads, cutoutLeaves));
                 }
             }
         } finally {
@@ -116,7 +114,7 @@ public final class MipReading {
 
     @SuppressWarnings("EnumOrdinal")
     private static long[] row(BlockState state, Direction face, BakedModel model, List<ModelQuad> quads,
-            GameModels game, ClientBakery baking, boolean cutoutLeaves) {
+            boolean cutoutLeaves) {
         int index = face.get3DDataValue();
         boolean opaque = ModelMetadata.has(model.metadata(), ModelMetadata.OPAQUE);
         long[] row = new long[ROW_WIDTH];
@@ -133,11 +131,6 @@ public final class MipReading {
         if (quad == null) {
             return row;
         }
-
-        Tint tint = quad.tinted()
-                ? baking.colours().resolve(game.tints().source(state, quad.tintLayer()), state)
-                : null;
-        row[CONSTANT_TINT] = tint != null && !tint.hasRow() && !tint.equals(Tint.UNTINTED) ? 1 : 0;
 
         int[][] gameLevels = SpriteMips.levels(quad.sprite());
         if (gameLevels[0].length != BakedModel.FACE_TEXELS) {

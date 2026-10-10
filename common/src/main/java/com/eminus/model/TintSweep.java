@@ -56,7 +56,7 @@ public final class TintSweep {
             return;
         }
 
-        if (sampled.values().length > 0 && !sampled.uniform()) {
+        if (sampled.values().length > 0 && !sampled.blank()) {
             users.computeIfAbsent(sampled, set -> new HashSet<>()).add(block);
         }
     }
