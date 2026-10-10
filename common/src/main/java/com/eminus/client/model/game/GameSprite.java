@@ -1,6 +1,7 @@
 package com.eminus.client.model.game;
 
 import com.eminus.mixin.SpriteContentsAccessor;
+import com.eminus.model.port.MipStrategy;
 import com.eminus.model.port.Sprite;
 
 import com.mojang.blaze3d.platform.NativeImage;
@@ -11,6 +12,7 @@ import net.minecraft.util.FastColor;
 
 record GameSprite(TextureAtlasSprite sprite) implements Sprite {
     private static final int BASE_MIP_LEVEL = 0;
+    private static final int ALPHA_MASK = 0xFF00_0000;
 
     @Override
     public int width() {
@@ -57,5 +59,20 @@ record GameSprite(TextureAtlasSprite sprite) implements Sprite {
         }
 
         return texels;
+    }
+
+    @Override
+    public MipStrategy mipStrategy() {
+        NativeImage image = ((SpriteContentsAccessor) sprite.contents()).eminus$byMipLevel()[BASE_MIP_LEVEL];
+        // MipmapGenerator picks its cutout blend from a clear texel anywhere in the sheet, every frame included.
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if ((image.getPixelRGBA(x, y) & ALPHA_MASK) == 0) {
+                    return MipStrategy.CUTOUT;
+                }
+            }
+        }
+
+        return MipStrategy.MEAN;
     }
 }

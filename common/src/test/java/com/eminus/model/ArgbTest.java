@@ -20,6 +20,8 @@ class ArgbTest {
     private static final int RED_SHIFT = 16;
     private static final int GREEN_SHIFT = 8;
     private static final String GAME_BLEND = "alphaBlend";
+    private static final int CORNERS = 4;
+    private static final int RGB_MASK = 0x00FF_FFFF;
 
     @Test
     void multiplyAndOpaqueMatchTheGames() {
@@ -55,6 +57,24 @@ class ArgbTest {
             int fourth = random.nextInt();
             assertEquals(blend.invoke(null, first, second, third, fourth, false),
                     Argb.meanGamma(first, second, third, fourth));
+        }
+    }
+
+    @Test
+    void alphaBlendMatchesTheGamesBlendForASpriteWithEmptyTexels() throws ReflectiveOperationException {
+        Method blend = MipmapGenerator.class.getDeclaredMethod(GAME_BLEND,
+                int.class, int.class, int.class, int.class, boolean.class);
+        blend.setAccessible(true);
+        Random random = new Random(SEED);
+
+        for (int sample = 0; sample < SAMPLES; sample++) {
+            int[] colours = new int[CORNERS];
+            for (int corner = 0; corner < CORNERS; corner++) {
+                colours[corner] = random.nextBoolean() ? random.nextInt() & RGB_MASK : random.nextInt();
+            }
+
+            assertEquals(blend.invoke(null, colours[0], colours[1], colours[2], colours[3], true),
+                    Argb.alphaBlend(colours[0], colours[1], colours[2], colours[3]));
         }
     }
 }

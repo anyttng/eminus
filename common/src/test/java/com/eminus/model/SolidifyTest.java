@@ -38,6 +38,15 @@ class SolidifyTest {
     }
 
     @Test
+    void aTieGoesToTheColourTheGamesColumnFirstSeedingReachesFirst() {
+        int[] image = {TRANSPARENT, RED, BLUE, TRANSPARENT};
+
+        Solidify.apply(image, 2, 2);
+
+        assertArrayEquals(new int[] {TRANSPARENT_BLUE, RED, BLUE, TRANSPARENT_BLUE}, image);
+    }
+
+    @Test
     void anImageWithoutADrawnPixelIsLeftAlone() {
         int[] image = new int[4];
 
