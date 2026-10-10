@@ -1,6 +1,7 @@
 package com.eminus.render.tree;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import com.eminus.cell.cache.CellHandle;
@@ -23,5 +24,8 @@ public sealed interface TreeMessage {
     }
 
     record Snapshot(CompletableFuture<TreeState> answer) implements TreeMessage {
+    }
+
+    record Churn(CompletableFuture<Map<String, Long>> answer) implements TreeMessage {
     }
 }
