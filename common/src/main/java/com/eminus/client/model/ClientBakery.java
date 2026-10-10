@@ -10,7 +10,7 @@ import com.eminus.model.BiomeColours;
 import com.eminus.model.FluidBaker;
 import com.eminus.model.ModelBaker;
 import com.eminus.model.ModelBakery;
-import com.eminus.model.SolidSprites;
+import com.eminus.model.SpriteTexels;
 import com.eminus.model.port.VariantDraw;
 
 import net.minecraft.client.Minecraft;
@@ -31,7 +31,7 @@ public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cut
 
     private static ClientBakery start(Minecraft client, boolean cutoutLeaves, ToIntFunction<BlockState> packIds) {
         GameModels game = GameModels.of(client, cutoutLeaves);
-        SolidSprites sprites = new SolidSprites();
+        SpriteTexels sprites = new SpriteTexels();
         BiomeColours colours = new BiomeColours(game.biomes());
         ModelBakery bakery = ModelBakery.start(new ModelBaker(game.blocks(), game.tints(),
                 new FluidBaker(game.fluids(), sprites), sprites, colours), packIds);

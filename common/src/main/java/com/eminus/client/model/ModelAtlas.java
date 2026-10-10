@@ -11,7 +11,9 @@ import com.eminus.gpu.Gpu;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.gpu.texture.TextureUsage;
 import com.eminus.model.BakedModel;
+import com.eminus.model.FaceMips;
 import com.eminus.model.Mips;
+import com.eminus.model.ModelMetadata;
 import com.eminus.model.ModelSource;
 import com.eminus.model.Solidify;
 
@@ -129,10 +131,10 @@ public final class ModelAtlas implements AutoCloseable {
             faceTint[texel] = (faceColour[texel] & ALPHA_MASK) | (model.tinted(index, texel) ? RGB_MASK : 0);
         }
 
-        Solidify.apply(faceColour, BakedModel.FACE_SIDE, BakedModel.FACE_SIDE);
         Solidify.apply(faceTint, BakedModel.FACE_SIDE, BakedModel.FACE_SIDE);
 
-        int[][] colourLevels = Mips.colourChain(faceColour, BakedModel.FACE_SIDE);
+        int[][] colourLevels = FaceMips.colourLevels(faceColour, BakedModel.FACE_SIDE, model.mips()[index],
+                ModelMetadata.has(model.metadata(), ModelMetadata.OPAQUE));
         int[][] tintLevels = Mips.maskChain(faceTint, BakedModel.FACE_SIDE);
         int cellX = slot % cellsPerSide;
         int cellY = slot / cellsPerSide;

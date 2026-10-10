@@ -355,6 +355,16 @@ class FaceRasterizerTest {
         }
     }
 
+    @Test
+    void aForcedOpaqueTextureKeepsItsHolesAndOccludesOnEveryFace() {
+        BakedModel model = rasterizer.rasterize(cube(), FULLY_TRANSPARENT, FaceRasterizerTest::noTints, true);
+
+        assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.OPAQUE));
+        assertEquals(FaceMask.ALL, ModelMetadata.occluding(model.metadata()));
+        assertTrue(paints(model, Direction.UP.get3DDataValue(), TRANSPARENT));
+        assertFalse(paints(model, Direction.UP.get3DDataValue(), WHITE));
+    }
+
     private static List<ModelQuad> cross() {
         return cross(1.0F);
     }

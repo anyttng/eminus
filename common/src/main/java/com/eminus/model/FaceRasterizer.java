@@ -7,6 +7,7 @@ import java.util.function.IntFunction;
 
 import com.eminus.cell.FaceMask;
 import com.eminus.model.port.ModelQuad;
+import com.eminus.model.port.Sprite;
 
 import net.minecraft.core.Direction;
 
@@ -55,6 +56,8 @@ public final class FaceRasterizer {
     private final float[] textureU = new float[ModelQuad.CORNERS];
     private final float[] textureV = new float[ModelQuad.CORNERS];
     private final float[] depth = new float[BakedModel.FACE_TEXELS];
+    private final Sprite[] painters = new Sprite[BakedModel.FACE_TEXELS];
+    private final FaceMip[] mips = new FaceMip[BakedModel.FACE_COUNT];
     private final Vector3f planeNormal = new Vector3f();
     private final Vector3f planePoint = new Vector3f();
     private final Vector3f[] planeNormals = vectors();
@@ -62,8 +65,15 @@ public final class FaceRasterizer {
     private int present;
     private int occluding;
     private int occludable;
+    private boolean forceOpaque;
 
     public BakedModel rasterize(List<ModelQuad> quads, QuadTexels texels, IntFunction<Tint> tints) {
+        return rasterize(quads, texels, tints, false);
+    }
+
+    public BakedModel rasterize(List<ModelQuad> quads, QuadTexels texels, IntFunction<Tint> tints, boolean opaque) {
+        forceOpaque = opaque;
+        Arrays.fill(mips, FaceMip.MEAN);
         List<Facing> facings = new ArrayList<>(quads.size());
         for (ModelQuad quad : quads) {
             facings.add(new Facing(quad, normal(quad)));
@@ -102,6 +112,7 @@ public final class FaceRasterizer {
 
         for (int blade = 0; blade < BLADE_COUNT; blade++) {
             Arrays.fill(depth, Float.MAX_VALUE);
+            Arrays.fill(painters, null);
             int offset = blade * BakedModel.FACE_TEXELS;
 
             for (Facing facing : facings) {
@@ -112,6 +123,7 @@ public final class FaceRasterizer {
             }
 
             insets[blade] = CENTRE;
+            mips[blade] = FaceMip.drawnBy(painters);
         }
 
         float[] slopes = new float[BakedModel.SLOPES_LENGTH];
@@ -167,6 +179,7 @@ public final class FaceRasterizer {
         slopes[index] = 0.0F;
         slopes[index + 1] = 0.0F;
         insets[face] = BakedModel.EMPTY_INSET;
+        mips[face] = FaceMip.MEAN;
         present &= ~bit(face);
     }
 
@@ -229,6 +242,7 @@ public final class FaceRasterizer {
     private void boxFace(List<Facing> quads, int face, int[] faces, long[] tintMask, float[] insets,
             QuadTexels texels) {
         Arrays.fill(depth, Float.MAX_VALUE);
+        Arrays.fill(painters, null);
         int offset = face * BakedModel.FACE_TEXELS;
 
         for (Facing quad : quads) {
@@ -237,6 +251,8 @@ public final class FaceRasterizer {
                         texels);
             }
         }
+
+        mips[face] = FaceMip.drawnBy(painters);
 
         float nearest = Float.MAX_VALUE;
         float furthest = 0.0F;
@@ -251,7 +267,7 @@ public final class FaceRasterizer {
             drawn++;
             nearest = Math.min(nearest, depth[texel]);
             furthest = Math.max(furthest, depth[texel]);
-            if ((faces[offset + texel] & ALPHA_MASK) == ALPHA_MASK) {
+            if (forceOpaque || (faces[offset + texel] & ALPHA_MASK) == ALPHA_MASK) {
                 opaque++;
             }
         }
@@ -288,8 +304,8 @@ public final class FaceRasterizer {
         }
 
         int metadata = ModelMetadata.pack(present, occluding, occludable, emission(quads),
-                flags(quads, tintRow) | extraFlags);
-        return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow);
+                flags(quads, tintRow) | extraFlags | (forceOpaque ? ModelMetadata.OPAQUE : 0));
+        return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, mips.clone());
     }
 
     private static boolean bladed(List<Facing> quads) {
@@ -366,11 +382,12 @@ public final class FaceRasterizer {
                 int argb = texels.argb(quad,
                         weightA * textureU[a] + weightB * textureU[b] + weightC * textureU[c],
                         weightA * textureV[a] + weightB * textureV[b] + weightC * textureV[c]);
-                if ((argb & ALPHA_MASK) == 0) {
+                if (!forceOpaque && (argb & ALPHA_MASK) == 0) {
                     continue;
                 }
 
                 faces[offset + texel] = argb;
+                painters[texel] = quad.sprite();
                 BakedModel.mark(tintMask, offset + texel, tinted);
                 depth[texel] = hit;
             }

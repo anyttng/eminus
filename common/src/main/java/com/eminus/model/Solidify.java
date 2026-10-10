@@ -14,10 +14,12 @@ public final class Solidify {
 
         int[] queue = new int[size];
         int tail = 0;
-        for (int index = 0; index < size; index++) {
-            if ((argb[index] & ALPHA_MASK) != 0) {
-                source[index] = index;
-                queue[tail++] = index;
+        for (int column = 0; column < width; column++) {
+            for (int index = column; index < size; index += width) {
+                if ((argb[index] & ALPHA_MASK) != 0) {
+                    source[index] = index;
+                    queue[tail++] = index;
+                }
             }
         }
 
@@ -30,20 +32,20 @@ public final class Solidify {
             int drawn = source[index];
             int x = index % width;
 
-            if (x > 0) {
-                tail = spread(queue, tail, source, index - 1, drawn);
-            }
-
             if (x < width - 1) {
                 tail = spread(queue, tail, source, index + 1, drawn);
             }
 
-            if (index >= width) {
-                tail = spread(queue, tail, source, index - width, drawn);
+            if (x > 0) {
+                tail = spread(queue, tail, source, index - 1, drawn);
             }
 
             if (index < size - width) {
                 tail = spread(queue, tail, source, index + width, drawn);
+            }
+
+            if (index >= width) {
+                tail = spread(queue, tail, source, index - width, drawn);
             }
         }
 

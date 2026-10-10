@@ -1,6 +1,7 @@
 package com.eminus.client.model.game;
 
 import com.eminus.mixin.SpriteContentsAccessor;
+import com.eminus.model.port.MipStrategy;
 import com.eminus.model.port.Sprite;
 
 import com.mojang.blaze3d.platform.NativeImage;
@@ -56,5 +57,22 @@ record GameSprite(TextureAtlasSprite sprite) implements Sprite {
         }
 
         return texels;
+    }
+
+    @Override
+    public MipStrategy mipStrategy() {
+        SpriteContents contents = sprite.contents();
+        return switch (((SpriteContentsAccessor) contents).eminus$mipmapStrategy()) {
+            case AUTO -> contents.transparency().hasTransparent() ? MipStrategy.CUTOUT : MipStrategy.MEAN;
+            case MEAN -> MipStrategy.MEAN;
+            case CUTOUT -> MipStrategy.CUTOUT;
+            case STRICT_CUTOUT -> MipStrategy.STRICT_CUTOUT;
+            case DARK_CUTOUT -> MipStrategy.DARK_CUTOUT;
+        };
+    }
+
+    @Override
+    public float alphaCutoffBias() {
+        return ((SpriteContentsAccessor) sprite.contents()).eminus$alphaCutoffBias();
     }
 }

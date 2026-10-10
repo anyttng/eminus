@@ -21,12 +21,11 @@ import org.jspecify.annotations.Nullable;
 
 public final class ModelBaker implements StateBaker {
     private static final long BAKE_SEED = 0L;
-    private static final int ALPHA_MASK = 0xFF00_0000;
 
     private final BlockModels blockModels;
     private final BlockTints blockTints;
     private final FluidBaker fluids;
-    private final SolidSprites sprites;
+    private final SpriteTexels sprites;
     private final BiomeColours colours;
     private final FaceRasterizer rasterizer = new FaceRasterizer();
     private final CountingRandom random = new CountingRandom();
@@ -34,7 +33,7 @@ public final class ModelBaker implements StateBaker {
 
     private boolean swept;
 
-    public ModelBaker(BlockModels blockModels, BlockTints blockTints, FluidBaker fluids, SolidSprites sprites,
+    public ModelBaker(BlockModels blockModels, BlockTints blockTints, FluidBaker fluids, SpriteTexels sprites,
             BiomeColours colours) {
         this.blockModels = blockModels;
         this.blockTints = blockTints;
@@ -116,8 +115,8 @@ public final class ModelBaker implements StateBaker {
     }
 
     private BakedModel rasterize(BlockState shape) {
-        return rasterizer.rasterize(quads, texels(shape),
-                layer -> colours.resolve(blockTints.source(shape, layer), shape));
+        return rasterizer.rasterize(quads, (quad, u, v) -> sprites.argb(quad.sprite(), u, v),
+                layer -> colours.resolve(blockTints.source(shape, layer), shape), blockModels.forceOpaque(shape));
     }
 
     private BakedModel fluidModel(FluidState fluid, BlockState state) {
@@ -136,12 +135,6 @@ public final class ModelBaker implements StateBaker {
         }
 
         return random.drew();
-    }
-
-    private QuadTexels texels(BlockState state) {
-        return blockModels.forceOpaque(state)
-                ? (quad, u, v) -> sprites.argb(quad.sprite(), u, v) | ALPHA_MASK
-                : (quad, u, v) -> sprites.argb(quad.sprite(), u, v);
     }
 
     private static BlockState baseOf(BlockState state) {
