@@ -1,7 +1,9 @@
 package com.eminus.api.v1;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import com.eminus.box.BoxRegistry;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.client.session.ClientSession;
 import com.eminus.settings.FarDistance;
@@ -10,7 +12,7 @@ import com.eminus.settings.SettingsService;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Entry point for reading the far layer on the client.
+ * Entry point for reading the far layer on the client and handing it boxes to draw.
  */
 public final class EminusApi {
 
@@ -51,6 +53,21 @@ public final class EminusApi {
         FarRenderer renderer = ClientSession.renderer();
         return renderer == null ? null
                 : renderer.state().thenApply(state -> new FarLayerState(state.dimension(), state.settled()));
+    }
+
+    /**
+     * Registers a group of boxes the far layer draws in the given dimension, at every distance from the camera out to
+     * {@link #farDistanceBlocks}: fogged as the terrain around them is, faded with the far layer at its far end, and
+     * hidden behind any terrain nearer than they are. Call on any thread, whether or not a far renderer runs; the
+     * group is drawn from the next frame on, and lives until {@link FarBoxGroup#remove} or until the client leaves
+     * the world. Boxes of one frame blend in the order their groups were registered. Under a shader pack that ships
+     * the Eminus contract, or one drawn through its Distant Horizons programs, no group is drawn.
+     *
+     * @param dimension the dimension's identifier, such as {@code minecraft:overworld}
+     * @throws NullPointerException when the dimension, the list or one of its boxes is {@code null}
+     */
+    public static FarBoxGroup registerBoxes(String dimension, List<FarBox> boxes) {
+        return BoxRegistry.get().register(dimension, boxes);
     }
 
     private EminusApi() {
