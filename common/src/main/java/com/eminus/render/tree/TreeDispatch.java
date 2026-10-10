@@ -26,6 +26,10 @@ final class TreeDispatch {
         return Math.min(RequestBudget.perWalk(refinements + outOfViewRefinements), free);
     }
 
+    int inFlight() {
+        return refinements + outOfViewRefinements;
+    }
+
     float priority(TreeNode node, @Nullable CameraFrame camera) {
         return camera == null
                 ? ProjectedSize.UNKNOWN
