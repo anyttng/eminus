@@ -10,6 +10,7 @@ import com.eminus.gpu.Capabilities;
 import com.eminus.gpu.Foreign;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Sparse;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.gpu.buffer.Staging;
@@ -152,6 +153,11 @@ public final class GameGpu implements Gpu {
 
     @Override
     public Optional<Foreign> foreign() {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<Sparse> sparse() {
         return Optional.empty();
     }
 

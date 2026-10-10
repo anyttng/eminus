@@ -27,6 +27,7 @@ import com.eminus.client.frame.GameFrame;
 import com.eminus.client.frame.GameFrames;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.Location;
+import com.eminus.gpu.Sparse;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.render.arena.ArenaSizing;
@@ -150,12 +151,11 @@ public final class FarRenderer implements AutoCloseable {
         Texture main = gpu.mainColour();
         long ceiling = ArenaBudget.ceiling(gpu.capabilities(), replacedArenaBytes);
         float focal = FarProjection.focalPixels(client.options.fov().get(), main.height());
-        long bytes = ArenaSizing.fitted(
-                ArenaBudget.bounded(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
-                        focal, runtime.lowestStoredLevel()), ceiling),
-                ceiling);
+        @Nullable Sparse sparse = ArenaBudget.sparse(gpu);
+        long bytes = ArenaBudget.bytes(ArenaSizing.wanted(settings.farRenderCells(),
+                settings.detailDistance().pixels(), focal, runtime.lowestStoredLevel()), ceiling, sparse);
         BackendSupport support = BackendCheck.run(gpu, bytes);
-        GeometryArena arena = GeometryArena.create(gpu, support, bytes);
+        GeometryArena arena = GeometryArena.create(gpu, support, bytes, sparse);
         if (arena == null) {
             gpu.close();
             return FarStart.refused(support.reason());
@@ -213,7 +213,7 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     public long arenaBytes() {
-        return arena.state().bytes();
+        return arena.committedBytes();
     }
 
     public static boolean recreates(Settings built, Settings updated) {

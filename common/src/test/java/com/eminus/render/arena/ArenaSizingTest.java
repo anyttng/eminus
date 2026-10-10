@@ -26,6 +26,7 @@ class ArenaSizingTest {
     private static final long WHOLE_PERCENT = 100L;
     private static final long HIGH_WATER_PERCENT = 85L;
     private static final long FILL_PERCENT = 95L;
+    private static final long SPARSE_PAGE_BYTES = 64L * 1024;
 
     @Test
     void aBudgetBelowTheFloorIsLiftedToIt() {
@@ -161,5 +162,20 @@ class ArenaSizingTest {
 
         assertEquals(0L, fitted % ArenaSizing.BLOCK_BYTES);
         assertEquals(fitted / ArenaSizing.BLOCK_BYTES, ArenaSizing.blocks(fitted));
+    }
+
+    @Test
+    void aSparsePageOfWholeBlocksHoldsThemAndAnyOtherPageIsUnusable() {
+        assertEquals(32, ArenaSizing.blocksPerPage(SPARSE_PAGE_BYTES));
+        assertEquals(ArenaSizing.NO_PAGES, ArenaSizing.blocksPerPage(SPARSE_PAGE_BYTES + 1L));
+        assertEquals(ArenaSizing.NO_PAGES, ArenaSizing.blocksPerPage(0L));
+    }
+
+    @Test
+    void theSparseReservationIsAWholeNumberOfPages() {
+        long ceiling = TEXEL_LIMITED + 3L * ArenaSizing.BLOCK_BYTES;
+
+        assertEquals(TEXEL_LIMITED, ArenaSizing.reserved(ceiling, SPARSE_PAGE_BYTES));
+        assertEquals(ArenaSizing.REFUSED, ArenaSizing.reserved(SPARSE_PAGE_BYTES, SPARSE_PAGE_BYTES));
     }
 }
