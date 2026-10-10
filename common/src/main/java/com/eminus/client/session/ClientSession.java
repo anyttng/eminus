@@ -150,6 +150,12 @@ public final class ClientSession {
         }
     }
 
+    public static void drawTranslucentFarLayerInShadowPass() {
+        if (renderer != null && inShaderPack) {
+            IrisShaderPack.drawShadowTranslucent(renderer);
+        }
+    }
+
     public static boolean drawsOverShaderPack() {
         return overShaderPack;
     }

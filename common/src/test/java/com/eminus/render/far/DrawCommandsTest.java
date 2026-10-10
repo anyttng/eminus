@@ -239,52 +239,65 @@ class DrawCommandsTest {
 
     @Test
     void aShadowWriteDrawsTheGroupFacingAwayFromTheCamera() {
-        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(slot(key, BLOCK)), frame, EVERYWHERE,
-                EVERY_CASTER, INSIDE, FAR_BELOW, INSIDE);
+        shadow(slots(slot(key, BLOCK)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, FAR_BELOW);
 
         assertEquals(2, commands.opaqueCount());
         assertEquals(UP_QUADS + DOWN_QUADS, commands.quads());
     }
 
     @Test
-    void aShadowWriteLeavesTheTranslucentGroupOut() {
-        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(both(key, BLOCK)), frame, EVERYWHERE,
-                EVERY_CASTER, INSIDE, INSIDE, INSIDE);
+    void aShadowWriteKeepsTheTranslucentGroupOutOfTheOpaqueRange() {
+        shadow(slots(both(key, BLOCK)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, INSIDE);
 
         assertEquals(0, commands.translucentCount());
         assertEquals(UP_QUADS + DOWN_QUADS, commands.quads());
     }
 
     @Test
+    void aShadowWriteDrawsTheTranslucentListAfterTheOpaqueRange() {
+        shadow(slots(both(key, BLOCK)), List.of(mesh(key)), EVERYWHERE, EVERY_CASTER, INSIDE, INSIDE);
+
+        assertEquals(2, commands.opaqueCount());
+        assertEquals(1, commands.translucentCount());
+        assertEquals(UP_QUADS + DOWN_QUADS + WATER_QUADS, commands.quads());
+        IntBuffer written = commands.buffer().asIntBuffer();
+        assertEquals(WATER_QUADS * INDICES_PER_QUAD, written.get(2 * COMMAND_INTS + INDEX_COUNT));
+        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * CORNERS_PER_QUAD,
+                written.get(2 * COMMAND_INTS + VERTEX_OFFSET));
+    }
+
+    @Test
     void aShadowWriteKeepsABorderGroupWithoutItsMarkOut() {
-        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(border(key, BLOCK)), frame, EVERYWHERE,
-                EVERY_CASTER, INSIDE, INSIDE, INSIDE);
+        shadow(slots(border(key, BLOCK)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
     }
 
     @Test
     void aShadowWriteLeavesAMeshOutsideItsFrustumOut() {
-        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(slot(key, BLOCK)), frame, FAR_EAST,
-                EVERY_CASTER, INSIDE, INSIDE, INSIDE);
+        shadow(slots(both(key, BLOCK)), List.of(mesh(key)), FAR_EAST, EVERY_CASTER, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
     }
 
     @Test
     void aShadowWriteKeepsAMeshWhoseLightFallsIntoView() {
-        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(slot(key, BLOCK)), frame, EVERYWHERE,
-                casters(-1.0F), FAR_EAST_CAMERA, INSIDE, INSIDE);
+        shadow(slots(both(key, BLOCK)), List.of(mesh(key)), EVERYWHERE, casters(-1.0F), FAR_EAST_CAMERA, INSIDE);
 
-        assertEquals(UP_QUADS + DOWN_QUADS, commands.quads());
+        assertEquals(UP_QUADS + DOWN_QUADS + WATER_QUADS, commands.quads());
     }
 
     @Test
     void aShadowWriteLeavesAMeshWhoseLightNeverReachesTheViewOut() {
-        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(slot(key, BLOCK)), frame, EVERYWHERE,
-                casters(1.0F), FAR_EAST_CAMERA, INSIDE, INSIDE);
+        shadow(slots(both(key, BLOCK)), List.of(mesh(key)), EVERYWHERE, casters(1.0F), FAR_EAST_CAMERA, INSIDE);
 
         assertEquals(0, commands.count());
+    }
+
+    private void shadow(MeshSlots slots, List<MeshSummary> translucent, FrustumIntersection frustum,
+            ShadowCasterVolume casters, double cameraX, double cameraY) {
+        commands.writeShadow(List.of(mesh(key)), translucent, NO_BORDERS, slots, frame, frustum, casters, cameraX,
+                cameraY, INSIDE);
     }
 
     private static ShadowCasterVolume casters(float lookX) {

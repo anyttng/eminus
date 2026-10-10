@@ -13,6 +13,7 @@
     "IrisSamplersMixin",
     "ShaderPackAccessor",
     "ShaderPackMixin",
+    "ShadowRendererMixin",
     "StandardMacrosMixin",
     "TransformPatcherMixin"
   ],

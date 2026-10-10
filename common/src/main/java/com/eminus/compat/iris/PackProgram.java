@@ -93,7 +93,12 @@ public final class PackProgram {
     public enum Kind {
         OPAQUE,
         TRANSLUCENT,
-        SHADOW
+        SHADOW,
+        SHADOW_TRANSLUCENT;
+
+        boolean shadow() {
+            return this == SHADOW || this == SHADOW_TRANSLUCENT;
+        }
     }
 
     private PackProgram(Foreign foreign, Pipeline pipeline, ProgramSource source, Object pass,
@@ -124,7 +129,9 @@ public final class PackProgram {
         ProgramSource[] built = new ProgramSource[1];
         boolean animated = IrisShaderPack.lodAnimationsChosen();
         Pipeline pipeline = foreign.pipeline(
-                kind == Kind.SHADOW ? draw.shadowPipeline(location, source.vertexStage(), animated)
+                kind.shadow()
+                        ? draw.shadowPipeline(location, kind == Kind.SHADOW_TRANSLUCENT, source.vertexStage(),
+                                animated)
                         : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertexStage(), animated),
                 FIRST_UNIT,
                 ours -> {
@@ -161,8 +168,8 @@ public final class PackProgram {
             irisPipeline.addGbufferOrShadowSamplers(samplers, images, switch (kind) {
                 case OPAQUE -> irisPipeline::getFlippedAfterPrepare;
                 case TRANSLUCENT -> irisPipeline::getFlippedAfterTranslucent;
-                case SHADOW -> irisPipeline::getFlippedBeforeShadow;
-            }, kind == Kind.SHADOW, false, true, false);
+                case SHADOW, SHADOW_TRANSLUCENT -> irisPipeline::getFlippedBeforeShadow;
+            }, kind.shadow(), false, true, false);
             Object pass = new Object();
             customUniforms.mapholderToPass(uniforms, pass);
             return new PackProgram(foreign, pipeline, built[0], pass, customUniforms, uniforms.buildUniforms(),
@@ -199,11 +206,15 @@ public final class PackProgram {
         }
     }
 
-    void drawShadow(FarDraw draw, FarShadow shadow, GlFramebuffer framebuffer, int resolution) {
+    void drawShadow(FarDraw draw, FarShadow shadow, GlFramebuffer framebuffer, int resolution, boolean translucent) {
         try (Pass farPass = open(framebuffer, resolution, resolution)) {
             use(farPass, shadow.view(), shadow.projection(), draw.lightmap());
             draw.bindShadow(farPass, shadow);
-            shadow.draw(farPass);
+            if (translucent) {
+                shadow.drawTranslucent(farPass);
+            } else {
+                shadow.draw(farPass);
+            }
         } finally {
             restore();
         }

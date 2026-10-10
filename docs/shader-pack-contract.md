@@ -1,4 +1,4 @@
-# Eminus shader-pack contract, version 5
+# Eminus shader-pack contract, version 6
 
 Eminus draws the terrain past the render distance as a level-of-detail layer (LOD). Under an Iris shader pack that
 does not know Eminus, the LOD is drawn over the pack's finished frame in Eminus's own shading
@@ -45,6 +45,9 @@ opaque faces are drawn into your shadow map. If your `shadow` vertex program dis
 distortion in `eminus_vertex.glsl` (step 4); [Shadows](#shadows) has the details. Without `eminus_shadow.glsl` the LOD
 casts no shadow.
 
+If your `shadow` program colours the shadow of stained glass or water, add `eminus_shadow_translucent.glsl` too, with
+the same body, and the LOD's translucent faces cast those shadows as well.
+
 ### 4. Move the LOD's vertices with your vertex code
 
 If your `gbuffers_terrain` vertex program changes the position it projects (temporal anti-aliasing jitter, a render
@@ -62,7 +65,8 @@ any part of it.
 | `eminus_opaque.glsl` | yes | Opaque and cutout LOD faces. Its presence turns the contract on. |
 | `eminus_translucent.glsl` | no | Translucent LOD faces (water, stained glass, ice). Without it, `eminus_opaque.glsl` runs for them too, with `fragment.translucent` set. |
 | `eminus_shadow.glsl` | no | Opaque and cutout LOD faces in your shadow pass. Since version 3. Without it, the LOD casts no shadow. |
-| `eminus_vertex.glsl` | no | The vertex stage's hook of all three programs: your vertex animation, your jitter, your render scale, your shadow-map distortion. Since version 4. Without it, LOD positions reach your buffers as Eminus projects them. |
+| `eminus_shadow_translucent.glsl` | no | Translucent LOD faces in your shadow pass. Since version 6. Read only beside `eminus_shadow.glsl`. Without it, translucent LOD faces cast no shadow. |
+| `eminus_vertex.glsl` | no | The vertex stage's hook of every program: your vertex animation, your jitter, your render scale, your shadow-map distortion. Since version 4. Without it, LOD positions reach your buffers as Eminus projects them. |
 | `eminus_shadow_vertex.glsl` | no | The version 3 form of the shadow program's vertex hook: your shadow-map distortion. Read only while `eminus_vertex.glsl` is absent. |
 
 A file is looked up in the folder Iris uses for the current dimension (`world0`, `world-1`, `world1`, or the folder
@@ -76,8 +80,10 @@ Each file but the two vertex files is a fragment-stage source in your pack's dia
 - it declares its outputs under its own `/* RENDERTARGETS: … */` (or `DRAWBUFFERS`) directive;
 - it defines `void eminus_emitFragment(EminusFragment fragment)` and no `main` — Eminus supplies `main`.
 
-`blend.eminus_opaque`, `blend.eminus_translucent` and `blend.eminus_shadow` in `shaders.properties` set the blending
-of the three programs as `blend.<program>` does for any other.
+`blend.eminus_opaque`, `blend.eminus_translucent`, `blend.eminus_shadow` and `blend.eminus_shadow_translucent` in
+`shaders.properties` set the blending of the four programs as `blend.<program>` does for any other. Without one, the
+translucent program blends as the game's translucent terrain does, and the other three do not blend, as Iris's own
+shadow programs do not.
 
 ## Macros
 
@@ -147,20 +153,20 @@ files, and defines
 vec4 eminus_vertexPosition(inout EminusVertex vertex);
 ```
 
-and no `main`. Since version 4. Eminus calls it once per LOD vertex in all three programs and writes what it returns to
+and no `main`. Since version 4. Eminus calls it once per LOD vertex in every program and writes what it returns to
 `gl_Position`, so its body is what your terrain vertex code does once it has a position: project it, then apply your
-jitter or your render scale; in the shadow program, your shadow distortion.
+jitter or your render scale; in the shadow programs, your shadow distortion.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `playerPos` | `vec3` | Position relative to the camera on the world axes, in the shadow program as well. |
+| `playerPos` | `vec3` | Position relative to the camera on the world axes, in the shadow programs as well. |
 | `blockId` | `int` | As `fragment.blockId`; `-1` past `level` 0 and while the player has LOD animations off. |
 | `face` | `int` | As `fragment.face`. |
 | `blade` | `bool` | As `fragment.blade`; `false` past `level` 0 and while the player has LOD animations off. |
 | `top` | `bool` | `true` on the upper edge of a side face or a plant blade; `false` on up and down faces. A face Eminus merged over several voxels has vertices at its corners alone, so `top` is `true` on the two corners above its whole span. `false` past `level` 0 and while the player has LOD animations off. |
 | `lmcoord` | `vec2` | As `fragment.lmcoord`. |
 | `level` | `int` | The LOD cell's detail level: a voxel spans `2^level` blocks along each axis. |
-| `shadow` | `bool` | `true` in the shadow program. |
+| `shadow` | `bool` | `true` in both shadow programs. |
 
 Eminus compiles this file as you wrote it, in the core profile of its `#version`: Iris does not patch it, so the renames
 Iris applies to your `gbuffers` programs (`gl_ProjectionMatrix`, `gl_ModelViewMatrix`, `texture2D`, `attribute`) do
@@ -168,15 +174,15 @@ not happen here. Your uniforms and custom uniforms are available; build the posi
 
 `vec4 eminus_project(vec3 playerPos)` takes a position to the clip space the LOD is drawn in: through the LOD's
 projection and the camera's rotation in the opaque and translucent programs, and through
-`shadowProjection * shadowModelView` in the shadow program. In the opaque and translucent programs add your jitter or
+`shadowProjection * shadowModelView` in the shadow programs. In the opaque and translucent programs add your jitter or
 your render scale to `x` and `y` and leave `z` and `w` as they come: the LOD's depth follows the device's convention,
-not the -1..1 one. In the shadow program the position is in the -1..1 range your `shadow` program writes, so your
+not the -1..1 one. In the shadow programs the position is in the -1..1 range your `shadow` program writes, so your
 distortion applies to it as it does there. Your function may move `vertex.playerPos`; Eminus then derives `fragment.playerPos` and `fragment.viewPos` from
 the moved position, while the texture and the test against the near field keep the unmoved one. Move it the way your
 terrain vertex code moves a vertex, before you project it: plants on `top`, leaves and the water surface on every
-vertex, in the shadow program as well so the shadows follow. Eminus moves nothing on its own.
+vertex, in the shadow programs as well so the shadows follow. Eminus moves nothing on its own.
 
-Moving the LOD costs your animation's work on every drawn LOD vertex in all three programs, the shadow one included,
+Moving the LOD costs your animation's work on every drawn LOD vertex in every program, the shadow ones included,
 for a motion that is about a pixel at the LOD's near edge. Eminus keeps that work where it can be seen. LOD out of view
 is not drawn, so it is never animated; the shadow program draws what can cast a shadow into view. Past `level` 0, and
 everywhere while the player has Eminus's setting LOD animations off, the hook gets `blockId` `-1` and `top` and
@@ -216,14 +222,24 @@ this file: Eminus declares them in front of your code.
   flip state your `gbuffers_water` sees.
 - **Shadow:** inside your shadow pass, after the near field's opaque terrain, into `shadowcolor0`, `shadowcolor1` and
   `shadowtex0` in the flip state your `shadow` program sees.
+- **Translucent shadow:** inside your shadow pass, after Iris copies the opaque shadow depth into `shadowtex1`, beside
+  the near field's translucent terrain, into `shadowcolor0`, `shadowcolor1` and `shadowtex0`. Only while your pack
+  draws translucent terrain into its shadow map: `shadowTranslucent` in `shaders.properties`, on unless you set it
+  `false`.
 
 ## Shadows
 
-`eminus_shadow.glsl` runs for the LOD's opaque and cutout faces in your shadow pass; translucent LOD faces cast no
-shadow. Its `fragment` carries the same fields as in the other two programs, with `viewPos` and `normal` in the
+`eminus_shadow.glsl` runs for the LOD's opaque and cutout faces in your shadow pass, and
+`eminus_shadow_translucent.glsl` for its translucent ones, with `fragment.translucent` set. Without the second file
+translucent LOD faces cast no shadow, so an `eminus_shadow.glsl` written before version 6 never receives a translucent
+fragment. Both files' `fragment` carries the same fields as in the other two programs, with `viewPos` and `normal` in the
 shadow view's space, so the body of your `shadow` fragment code moves over the way your terrain code did in step 1.
 `gl_ProjectionMatrix` and `gl_ModelViewMatrix` are the shadow pass's own, and everything Iris hands your `shadow`
 program is available.
+
+The translucent faces are drawn after Iris has copied the opaque shadow depth into `shadowtex1`, as the near field's
+translucent terrain is, so `shadowtex1` holds the opaque casters alone, near and LOD alike, and `shadowtex0` the
+translucent ones in front of them. Both shadow programs take the same vertex hook.
 
 Your shadow sampling reads the map through your distortion, so the LOD has to be written through it too: where
 `vertex.shadow` is `true`, `eminus_vertexPosition` returns `eminus_project(vertex.playerPos)` with the distortion your
@@ -308,12 +324,13 @@ A compile or link error writes one line to the game log naming the pack file and
 goes back to being drawn over the pack's finished frame until the next reload. An `eminus_vertex.glsl` that does not
 build does the same, since the opaque and translucent programs carry it. An `eminus_shadow.glsl` or
 `eminus_shadow_vertex.glsl` that does not build, or an `eminus_vertex.glsl` that builds in the other two programs but
-not in the shadow one, leaves the other two programs running and the LOD without shadows. Fix the file and reload
-shaders.
+not in the shadow one, leaves the other two programs running and the LOD without shadows. An
+`eminus_shadow_translucent.glsl` that does not build leaves every other program running and the LOD's translucent
+faces without shadows. Fix the file and reload shaders.
 
 With Iris's debug options on, the source Eminus compiled — your file, Eminus's declarations in front of it and the
 generated `main` — is written to `patched_shaders/` in the game folder, under the program name `eminus_opaque`,
-`eminus_translucent` or `eminus_shadow`; the line numbers in the log refer to it.
+`eminus_translucent`, `eminus_shadow` or `eminus_shadow_translucent`; the line numbers in the log refer to it.
 
 ## A pack without the contract
 
