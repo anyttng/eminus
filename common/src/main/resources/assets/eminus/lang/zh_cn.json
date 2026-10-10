@@ -28,5 +28,7 @@
   "gui.eminus.settings.shader_pack_lod": "光影包下的 LOD",
   "gui.eminus.settings.shader_pack_lod.hint": "在不支持 Eminus 的光影包下如何绘制 LOD。默认：以 Eminus 自己的外观绘制在光影包画面之上。Distant Horizons：让支持 Distant Horizons 的光影包自行绘制，带有光影包的光照和雾，但每个方块只有一种纯色。为 Eminus 制作的光影包总是自行绘制 LOD。更改后会重新加载光影包。",
   "gui.eminus.settings.shader_pack_lod.default": "默认",
-  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
+  "gui.eminus.settings.lod_animations": "LOD 动画",
+  "gui.eminus.settings.lod_animations.hint": "允许为 Eminus 制作的光影包像近处一样让 LOD 中的草、树叶和水摆动。关闭可节省其消耗的 GPU 时间。更改会重新加载光影包。"
 }

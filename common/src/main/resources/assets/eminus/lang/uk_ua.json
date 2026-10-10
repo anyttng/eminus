@@ -28,5 +28,7 @@
   "gui.eminus.settings.shader_pack_lod": "LOD під шейдер-паком",
   "gui.eminus.settings.shader_pack_lod.hint": "Як LOD малюється під шейдер-паком без підтримки Eminus. «Стандартно» малює його поверх зображення пака у власному вигляді Eminus. «Distant Horizons» дає паку з підтримкою Distant Horizons малювати його самому, з освітленням і туманом пака, але одним пласким кольором на блок. Пак, зроблений для Eminus, завжди малює LOD сам. Зміна перезавантажує шейдер-пак.",
   "gui.eminus.settings.shader_pack_lod.default": "Стандартно",
-  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
+  "gui.eminus.settings.lod_animations": "Анімації LOD",
+  "gui.eminus.settings.lod_animations.hint": "Дозволяє шейдер-паку, зробленому для Eminus, гойдати траву, листя й воду в LOD, як поблизу. Вимкнення заощаджує час GPU, який на це йде. Зміна перезавантажує шейдер-пак."
 }
