@@ -41,7 +41,8 @@ class GameTintsTest {
     private static final int TWO_BIOMES = 2;
     private static final int THREE_BIOMES = 3;
     private static final int GRASS_RESOLVER = 0;
-    private static final int VANILLA_ROWS = 3;
+    private static final int VANILLA_ROWS = 30;
+    private static final int SPRUCE_LEAVES = -10380959;
     private static final int FIRST_LAYER = 0;
     private static final int SECOND_LAYER = 1;
     private static final int SAMPLE_COLUMN = 0;
@@ -87,12 +88,13 @@ class GameTintsTest {
         TintSource redstone = new GameTintSource(colors, FIRST_LAYER);
         BlockState unpowered = Blocks.REDSTONE_WIRE.defaultBlockState().setValue(RedStoneWireBlock.POWER, UNPOWERED);
         BlockState powered = unpowered.setValue(RedStoneWireBlock.POWER, FULL_POWER);
+        colours.assign(List.of(colours.sample(redstone, unpowered), colours.sample(redstone, powered)));
 
         assertNotEquals(colours.resolve(redstone, unpowered), colours.resolve(redstone, powered));
     }
 
     @Test
-    void vanillaColoursNeedThreeRows() {
+    void vanillaColoursNeedARowPerBiomeSetAndPerConstant() {
         GameTints tints = new GameTints(colors, new LayerModels(FIRST_LAYER));
         TintSource water = (state, biome, blockX, blockZ) ->
                 BiomeColors.getAverageWaterColor((BlockAndTintGetter) biome, BlockPos.ZERO);
@@ -103,6 +105,11 @@ class GameTintsTest {
 
         assertEquals(VANILLA_ROWS, colours.rowCount());
         assertTrue(colours.resolve(tints.source(grassBlock, FIRST_LAYER), grassBlock).hasRow());
+
+        BlockState spruce = Blocks.SPRUCE_LEAVES.defaultBlockState();
+        Tint spruceTint = colours.resolve(tints.source(spruce, FIRST_LAYER), spruce);
+        assertTrue(spruceTint.hasRow());
+        assertEquals(SPRUCE_LEAVES & RGB_MASK, colours.constant(spruceTint.row()));
     }
 
     @Test

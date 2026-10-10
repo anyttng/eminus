@@ -41,7 +41,7 @@ public final class FluidBaker {
         long[] tintMask = tint == null ? BakedModel.untintedMask() : BakedModel.tintedMask();
         int tintRow = BiomeColours.NO_ROW;
         if (tint != null) {
-            tint.apply(faces, tintMask);
+            tint.apply(tintMask);
             tintRow = tint.row();
         }
 

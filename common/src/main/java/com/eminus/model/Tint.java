@@ -1,33 +1,21 @@
 package com.eminus.model;
 
-public record Tint(int row, int colour) {
-    private static final int WHITE = 0xFFFF_FFFF;
+import java.util.Arrays;
 
-    public static final Tint UNTINTED = new Tint(BiomeColours.NO_ROW, WHITE);
+public record Tint(int row) {
+    public static final Tint UNTINTED = new Tint(BiomeColours.NO_ROW);
 
     public static Tint row(int row) {
-        return new Tint(row, WHITE);
-    }
-
-    public static Tint constant(int colour) {
-        return new Tint(BiomeColours.NO_ROW, colour);
+        return new Tint(row);
     }
 
     public boolean hasRow() {
         return row != BiomeColours.NO_ROW;
     }
 
-    public void apply(int[] faces, long[] tintMask) {
-        if (hasRow()) {
-            return;
-        }
-
-        int opaque = Argb.opaque(colour);
-        for (int index = 0; index < faces.length; index++) {
-            if (BakedModel.tinted(tintMask, index)) {
-                faces[index] = Argb.multiply(faces[index], opaque);
-                BakedModel.mark(tintMask, index, false);
-            }
+    public void apply(long[] tintMask) {
+        if (!hasRow()) {
+            Arrays.fill(tintMask, 0L);
         }
     }
 }
