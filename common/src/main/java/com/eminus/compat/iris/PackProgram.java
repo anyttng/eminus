@@ -122,9 +122,10 @@ public final class PackProgram {
         String name = source.programName();
         Location location = new Location(Eminus.MODID, LOCATION_PREFIX + source.file());
         ProgramSource[] built = new ProgramSource[1];
+        boolean animated = IrisShaderPack.lodAnimationsChosen();
         Pipeline pipeline = foreign.pipeline(
-                kind == Kind.SHADOW ? draw.shadowPipeline(location, source.vertexStage())
-                        : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertexStage()),
+                kind == Kind.SHADOW ? draw.shadowPipeline(location, source.vertexStage(), animated)
+                        : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertexStage(), animated),
                 FIRST_UNIT,
                 ours -> {
                     String spliced = source.fragment().apply(ours.fragment());

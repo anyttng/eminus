@@ -28,5 +28,7 @@
   "gui.eminus.settings.shader_pack_lod": "Shader pack LOD",
   "gui.eminus.settings.shader_pack_lod.hint": "How LOD is drawn under a shader pack without Eminus support. Default draws it over the pack's image in Eminus's own look. Distant Horizons lets a pack that supports Distant Horizons draw it with the pack's light and fog, but one flat colour per block. A pack made for Eminus always draws LOD itself. Changing this reloads the shader pack.",
   "gui.eminus.settings.shader_pack_lod.default": "Default",
-  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
+  "gui.eminus.settings.lod_animations": "LOD animations",
+  "gui.eminus.settings.lod_animations.hint": "Lets a shader pack made for Eminus sway grass, leaves and water in LOD, as it does nearby. Turning it off saves the GPU time this costs. Changing this reloads the shader pack."
 }

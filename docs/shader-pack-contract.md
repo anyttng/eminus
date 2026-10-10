@@ -62,7 +62,7 @@ any part of it.
 | `eminus_opaque.glsl` | yes | Opaque and cutout LOD faces. Its presence turns the contract on. |
 | `eminus_translucent.glsl` | no | Translucent LOD faces (water, stained glass, ice). Without it, `eminus_opaque.glsl` runs for them too, with `fragment.translucent` set. |
 | `eminus_shadow.glsl` | no | Opaque and cutout LOD faces in your shadow pass. Since version 3. Without it, the LOD casts no shadow. |
-| `eminus_vertex.glsl` | no | The vertex stage's hook of all three programs: your jitter, your render scale, your shadow-map distortion. Since version 4. Without it, LOD positions reach your buffers as Eminus projects them. |
+| `eminus_vertex.glsl` | no | The vertex stage's hook of all three programs: your vertex animation, your jitter, your render scale, your shadow-map distortion. Since version 4. Without it, LOD positions reach your buffers as Eminus projects them. |
 | `eminus_shadow_vertex.glsl` | no | The version 3 form of the shadow program's vertex hook: your shadow-map distortion. Read only while `eminus_vertex.glsl` is absent. |
 
 A file is looked up in the folder Iris uses for the current dimension (`world0`, `world-1`, `world1`, or the folder
@@ -154,10 +154,10 @@ jitter or your render scale; in the shadow program, your shadow distortion.
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `playerPos` | `vec3` | Position relative to the camera on the world axes, in the shadow program as well. |
-| `blockId` | `int` | As `fragment.blockId`. |
+| `blockId` | `int` | As `fragment.blockId`; `-1` past `level` 0 and while the player has LOD animations off. |
 | `face` | `int` | As `fragment.face`. |
-| `blade` | `bool` | As `fragment.blade`. |
-| `top` | `bool` | `true` on the upper edge of a side face or a plant blade; `false` on up and down faces. |
+| `blade` | `bool` | As `fragment.blade`; `false` past `level` 0 and while the player has LOD animations off. |
+| `top` | `bool` | `true` on the upper edge of a side face or a plant blade; `false` on up and down faces. A face Eminus merged over several voxels has vertices at its corners alone, so `top` is `true` on the two corners above its whole span. `false` past `level` 0 and while the player has LOD animations off. |
 | `lmcoord` | `vec2` | As `fragment.lmcoord`. |
 | `level` | `int` | The LOD cell's detail level: a voxel spans `2^level` blocks along each axis. |
 | `shadow` | `bool` | `true` in the shadow program. |
@@ -172,13 +172,30 @@ projection and the camera's rotation in the opaque and translucent programs, and
 your render scale to `x` and `y` and leave `z` and `w` as they come: the LOD's depth follows the device's convention,
 not the -1..1 one. In the shadow program the position is in the -1..1 range your `shadow` program writes, so your
 distortion applies to it as it does there. Your function may move `vertex.playerPos`; Eminus then derives `fragment.playerPos` and `fragment.viewPos` from
-the moved position, while the texture and the test against the near field keep the unmoved one. Your uniforms and
-custom uniforms are available as in the fragment files, so a pack applies its own jitter:
+the moved position, while the texture and the test against the near field keep the unmoved one. Move it the way your
+terrain vertex code moves a vertex, before you project it: plants on `top`, leaves and the water surface on every
+vertex, in the shadow program as well so the shadows follow. Eminus moves nothing on its own.
+
+Moving the LOD costs your animation's work on every drawn LOD vertex in all three programs, the shadow one included,
+for a motion that is about a pixel at the LOD's near edge. Eminus keeps that work where it can be seen. LOD out of view
+is not drawn, so it is never animated; the shadow program draws what can cast a shadow into view. Past `level` 0, and
+everywhere while the player has Eminus's setting LOD animations off, the hook gets `blockId` `-1` and `top` and
+`blade` `false`, so code that picks what to move by block moves nothing there; the fragment still gets the real
+`blockId`. Past `level` 0 a block covers at most a few pixels: Eminus splits a node into finer ones once it looks larger
+than the Detail distance setting's 16 to 256 pixels, so a level-1 cell of 64 blocks is drawn only while it spans no
+more than that, and a motion smaller than a block there moves a pixel or less. Pick what you move by `blockId`, as your
+`gbuffers_terrain` picks it by `mc_Entity`, and both limits work for your pack. Your uniforms and custom uniforms are available as in the
+fragment files, so a pack applies its own animation (here `animateVertex`, the function your terrain vertex code
+calls) and jitter:
 
 ```glsl
+uniform vec3 cameraPosition;
 uniform vec2 taa_offset;
 
 vec4 eminus_vertexPosition(inout EminusVertex vertex) {
+    vec3 worldPos = vertex.playerPos + cameraPosition;
+    vertex.playerPos = animateVertex(worldPos, vertex.top, vertex.blockId) - cameraPosition;
+
     vec4 clip = eminus_project(vertex.playerPos);
     if (!vertex.shadow) {
         clip.xy += taa_offset * clip.w;

@@ -28,5 +28,7 @@
   "gui.eminus.settings.shader_pack_lod": "셰이더 팩 LOD",
   "gui.eminus.settings.shader_pack_lod.hint": "Eminus를 지원하지 않는 셰이더 팩에서 LOD를 그리는 방식입니다. 기본값은 팩의 화면 위에 Eminus 고유의 모습으로 그립니다. Distant Horizons는 Distant Horizons를 지원하는 팩이 직접 그리게 하여 팩의 빛과 안개가 적용되지만 블록마다 단색이 됩니다. Eminus용으로 만든 팩은 항상 LOD를 직접 그립니다. 변경하면 셰이더 팩을 다시 불러옵니다.",
   "gui.eminus.settings.shader_pack_lod.default": "기본값",
-  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
+  "gui.eminus.settings.lod_animations": "LOD 애니메이션",
+  "gui.eminus.settings.lod_animations.hint": "Eminus용으로 만든 셰이더 팩이 가까운 곳처럼 LOD의 풀, 잎, 물을 흔들 수 있게 합니다. 끄면 그만큼의 GPU 시간을 아낍니다. 변경하면 셰이더 팩을 다시 불러옵니다."
 }

@@ -103,33 +103,34 @@ public final class FarDraw {
         return farBlocks;
     }
 
-    public PipelineSpec packPipeline(Location location, boolean translucent, PackVertex vertex) {
+    public PipelineSpec packPipeline(Location location, boolean translucent, PackVertex vertex, boolean animated) {
         PipelineSpec.Builder builder = withVertex(FarQuads.pipeline(location, PACK_SHADER,
                         translucent ? TranslucentPass.ALPHA_CUTOUT : OpaquePass.ALPHA_CUTOUT, gpu.capabilities(),
                         variantDraw)
                 .withColourTarget(FarTarget.COLOUR_FORMAT, translucent ? Blend.TRANSLUCENT : null, true)
-                .withDepthTest(depth.compare(), true), vertex);
+                .withDepthTest(depth.compare(), true), vertex, animated);
         return (translucent ? builder.withDefine("TRANSLUCENT_PASS") : builder.withDefine("FULL_COVERAGE")).build();
     }
 
     // Under a pack Iris clears the shadow depth to 1.0 and draws it forward, whatever the game's own direction.
-    public PipelineSpec shadowPipeline(Location location, PackVertex vertex) {
+    public PipelineSpec shadowPipeline(Location location, PackVertex vertex, boolean animated) {
         PipelineSpec.Builder builder = withVertex(FarQuads.pipeline(location, PACK_SHADER, OpaquePass.ALPHA_CUTOUT,
                         gpu.capabilities(), variantDraw)
                 .withColourTarget(FarTarget.COLOUR_FORMAT, null, true)
                 .withDepthTest(DepthConvention.of(depth.zeroToOne(), false).compare(), true)
                 .withDefine("FULL_COVERAGE")
-                .withDefine("SHADOW_PASS"), vertex);
+                .withDefine("SHADOW_PASS"), vertex, animated);
         if (vertex.hook() && depth.zeroToOne()) {
             builder.withDefine("SHADOW_ZERO_TO_ONE");
         }
         return builder.build();
     }
 
-    private static PipelineSpec.Builder withVertex(PipelineSpec.Builder builder, PackVertex vertex) {
+    private static PipelineSpec.Builder withVertex(PipelineSpec.Builder builder, PackVertex vertex, boolean animated) {
         return switch (vertex) {
             case OURS -> builder;
-            case HOOK -> builder.withDefine("PACK_VERTEX");
+            case HOOK -> animated ? builder.withDefine("PACK_VERTEX")
+                    : builder.withDefine("PACK_VERTEX").withDefine("STILL");
             case SHADOW_HOOK -> builder.withDefine("PACK_SHADOW_VERTEX");
             case PROGRAM -> builder.withDefine("DH_PROGRAM")
                     .withDefine("FACE_MEAN_LEVEL", Mips.levelCount(BakedModel.FACE_SIDE) - 1);

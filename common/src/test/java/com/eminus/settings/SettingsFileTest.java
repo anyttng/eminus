@@ -29,7 +29,7 @@ class SettingsFileTest {
     void anEditedValueLoadsBack() {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
         Settings edited = new Settings(false, 2, 24, 3, DetailDistance.HIGH, false, true,
-                ShaderPackLod.DISTANT_HORIZONS);
+                ShaderPackLod.DISTANT_HORIZONS, false);
 
         SettingsFile.save(file, edited);
 
@@ -39,7 +39,8 @@ class SettingsFileTest {
     @Test
     void theSavedFileCarriesTheSettingCommentsAndStillReadsBack() throws IOException {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings written = new Settings(true, 2, 24, 3, DetailDistance.LOW, false, false, ShaderPackLod.DEFAULT);
+        Settings written = new Settings(true, 2, 24, 3, DetailDistance.LOW, false, false, ShaderPackLod.DEFAULT,
+                true);
 
         SettingsFile.save(file, written);
         String content = Files.readString(file, StandardCharsets.UTF_8);
@@ -51,6 +52,7 @@ class SettingsFileTest {
         assertTrue(content.contains("// Fog over LOD"), content);
         assertTrue(content.contains("// Whether LOD's outer edge fades out"), content);
         assertTrue(content.contains("// How LOD is drawn under an Iris shader pack"), content);
+        assertTrue(content.contains("// Whether a shader pack that ships the Eminus contract may sway"), content);
         assertEquals(written, SettingsFile.load(file));
     }
 

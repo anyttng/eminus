@@ -10,6 +10,7 @@ import static com.eminus.client.settings.SettingsText.FADE_KEY;
 import static com.eminus.client.settings.SettingsText.FAR_RENDER_CELLS_KEY;
 import static com.eminus.client.settings.SettingsText.FOG_KEY;
 import static com.eminus.client.settings.SettingsText.INGESTION_KEY;
+import static com.eminus.client.settings.SettingsText.LOD_ANIMATIONS_KEY;
 import static com.eminus.client.settings.SettingsText.LOWEST_STORED_LEVEL_KEY;
 import static com.eminus.client.settings.SettingsText.SHADER_PACK_LOD_KEY;
 import static com.eminus.client.settings.SettingsText.TITLE_KEY;
@@ -42,6 +43,7 @@ public class SettingsScreen extends OptionsSubScreen {
     private final OptionInstance<Boolean> fog;
     private final OptionInstance<Boolean> fade;
     private final OptionInstance<ShaderPackLod> shaderPackLod;
+    private final OptionInstance<Boolean> lodAnimations;
 
     public SettingsScreen(Screen lastScreen) {
         super(lastScreen, Minecraft.getInstance().options, Component.translatable(TITLE_KEY));
@@ -79,6 +81,8 @@ public class SettingsScreen extends OptionsSubScreen {
                         Codec.STRING.xmap(key -> ShaderPackLod.fromKey(key).orElse(Settings.DEFAULT_SHADER_PACK_LOD),
                                 ShaderPackLod::key)),
                 settings.shaderPackLod(), value -> this.apply());
+        this.lodAnimations = OptionInstance.createBoolean(LOD_ANIMATIONS_KEY, hint(LOD_ANIMATIONS_KEY),
+                settings.lodAnimations(), value -> this.apply());
     }
 
     @Override
@@ -92,6 +96,7 @@ public class SettingsScreen extends OptionsSubScreen {
         this.list.addBig(this.fade);
         if (IrisShaderPack.installed()) {
             this.list.addBig(this.shaderPackLod);
+            this.list.addBig(this.lodAnimations);
         }
     }
 
@@ -109,7 +114,8 @@ public class SettingsScreen extends OptionsSubScreen {
                 this.detailDistance.get(),
                 this.fog.get(),
                 this.fade.get(),
-                this.shaderPackLod.get()));
+                this.shaderPackLod.get(),
+                this.lodAnimations.get()));
     }
 
     private static <T> OptionInstance.TooltipSupplier<T> hint(String captionKey) {
