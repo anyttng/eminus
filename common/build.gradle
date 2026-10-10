@@ -74,6 +74,8 @@ dependencies {
 neoForge.addModdingDependenciesTo(sourceSets.test)
 
 dependencies {
+    // A compat config plugin cannot even load without IMixinConfigPlugin.
+    testRuntimeOnly "net.fabricmc:sponge-mixin:${mixin_version}"
     testImplementation platform("org.junit:junit-bom:${junit_version}")
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation 'org.junit.platform:junit-platform-launcher'
