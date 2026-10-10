@@ -216,8 +216,8 @@ public final class FarRenderer implements AutoCloseable {
         this.levelProjection.capture(levelProjection, cameraProjection);
     }
 
-    public boolean underPressure() {
-        return !stopped && arena.pressure();
+    public boolean detailLimited() {
+        return !stopped && (arena.pressure() || tree.horizonBounded());
     }
 
     public boolean covers(GameFog gameFog, int renderDistanceChunks) {
