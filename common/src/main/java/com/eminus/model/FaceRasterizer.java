@@ -299,7 +299,7 @@ public final class FaceRasterizer {
         Tint tint = tintLayer == ModelQuad.NO_TINT ? null : tints.apply(tintLayer);
         int tintRow = BiomeColours.NO_ROW;
         if (tint != null) {
-            tint.apply(faces, tintMask);
+            tint.apply(tintMask);
             tintRow = tint.row();
         }
 

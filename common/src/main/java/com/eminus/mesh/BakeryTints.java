@@ -11,6 +11,11 @@ public record BakeryTints(BiomeColours colours, Dictionary<String> biomes) imple
     }
 
     @Override
+    public int constant(int row) {
+        return colours.constant(row);
+    }
+
+    @Override
     public int colour(int row, int biomeId, int blockX, int blockZ) {
         int index = index(biomeId);
         if (index == BiomeColours.NO_BIOME || row < 0 || row >= colours.rowCount()) {
