@@ -28,6 +28,7 @@ final class TreeTraversal {
 
     private final NodeTable nodes;
     private final TreeExtent extent;
+    private final TreeHorizon horizon;
     private final FrustumIntersection frustum = new FrustumIntersection();
     private final CellBox box = new CellBox();
     private final List<TreeNode> current = new ArrayList<>();
@@ -50,9 +51,10 @@ final class TreeTraversal {
     private record Candidate(TreeNode node, float size) {
     }
 
-    TreeTraversal(NodeTable nodes, TreeExtent extent) {
+    TreeTraversal(NodeTable nodes, TreeExtent extent, TreeHorizon horizon) {
         this.nodes = nodes;
         this.extent = extent;
+        this.horizon = horizon;
     }
 
     void walk(Collection<TreeNode> roots, CameraFrame camera, int budget, int outOfViewBudget, long walk) {
@@ -198,7 +200,7 @@ final class TreeTraversal {
         node.seen(walk);
 
         float size = ProjectedSize.of(box, camera.inViewPixelsPerBlock());
-        if (node.level() > extent.lowestLevel() && size > camera.subdivisionPixels()) {
+        if (node.level() > extent.lowestLevel() && size > camera.subdivisionPixels() && withinHorizon(node)) {
             if (node.missingOctants() != OccupancyMask.EMPTY) {
                 candidates.add(new Candidate(node, size));
             }
@@ -223,7 +225,7 @@ final class TreeTraversal {
         }
 
         if (node.level() > extent.lowestLevel() && ProjectedSize.of(box, camera.pixelsPerBlock()) > camera.subdivisionPixels()
-                && node.occupancy() != OccupancyMask.EMPTY && node.childrenReady()) {
+                && withinHorizon(node) && node.occupancy() != OccupancyMask.EMPTY && node.childrenReady()) {
             node.markDescended();
             outOfViewDescendedKeys.add(node.key());
             descend(node);
@@ -273,7 +275,7 @@ final class TreeTraversal {
         }
 
         float size = ProjectedSize.of(box, camera.pixelsPerBlock());
-        if (node.level() <= extent.lowestLevel() || size <= camera.subdivisionPixels()) {
+        if (node.level() <= extent.lowestLevel() || size <= camera.subdivisionPixels() || !withinHorizon(node)) {
             return;
         }
 
@@ -287,6 +289,11 @@ final class TreeTraversal {
                 next.add(child);
             }
         }
+    }
+
+    // Reads the box the caller has just set for this node.
+    private boolean withinHorizon(TreeNode node) {
+        return horizon.refines(TreeHorizon.key(box.horizontalDistance(), node.level()));
     }
 
     private int hand(List<Candidate> from, int budget, List<TreeNode> into, FloatArrayList sizes) {

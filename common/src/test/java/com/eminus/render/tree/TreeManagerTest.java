@@ -338,27 +338,20 @@ class TreeManagerTest {
     }
 
     @Test
-    void afterAWalkUnderPressureNothingOutOfViewIsRequestedUntilTheCameraMoves() {
+    void afterAWalkUnderPressureTheOutOfViewPassRequestsOnAStillCamera() {
         startRing();
         manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
         manager.meshed(TestMeshes.of(WEST, ONE_OCTANT), rootRequests.get(WEST));
         manager.frame(FakeCameras.underPressure(east(EYE_X + ONE_BLOCK)));
         awaitWalks(2);
+        assertTrue(builds.idle());
 
         manager.frame(east(EYE_X + ONE_BLOCK));
-        awaitWalks(3);
-        assertTrue(builds.idle());
-
-        manager.frame(east(EYE_X + 2 * ONE_BLOCK));
-        awaitWalks(4);
-        assertTrue(builds.idle());
-
-        manager.frame(east(EYE_X + 2 * ONE_BLOCK));
         assertEquals(CellKey.child(WEST, 0), builds.take().key());
     }
 
     @Test
-    void underArenaPressureATreeInViewEvictsNothingAndRequestsNothingAgain() throws Exception {
+    void underArenaPressureASetInViewIsEvictedAndNotRequestedAgain() throws Exception {
         startRing();
         manager.meshed(TestMeshes.of(KEY, ONE_OCTANT), rootRequests.get(KEY));
         manager.frame(close(EYE_X, EYE_Z));
@@ -368,14 +361,30 @@ class TreeManagerTest {
         awaitRenderList(close(EYE_X + ONE_BLOCK, EYE_Z), list -> list.meshes().contains(child.summary()),
                 meshes -> { });
 
-        CameraFrame pressed = FakeCameras.underPressure(close(EYE_X + 2 * ONE_BLOCK, EYE_Z));
-        manager.frame(pressed);
+        manager.frame(FakeCameras.underPressure(close(EYE_X + 2 * ONE_BLOCK, EYE_Z)));
         manager.snapshot().get(AWAIT_MILLIS, TimeUnit.MILLISECONDS);
-        manager.frame(pressed);
+        manager.frame(close(EYE_X + 2 * ONE_BLOCK, EYE_Z));
         TreeState state = manager.snapshot().get(AWAIT_MILLIS, TimeUnit.MILLISECONDS);
+        Map<String, Long> churn = manager.churn().get(AWAIT_MILLIS, TimeUnit.MILLISECONDS);
 
-        assertEquals(0L, state.pressureEvictions());
+        assertEquals(1L, state.pressureEvictions());
         assertTrue(builds.idle());
+        assertEquals(0L, churn.get(TreeChurn.REQUESTED_AGAIN));
+        assertEquals(1L, churn.get(TreeChurn.EVICTED_FAR));
+        assertEquals(0L, churn.get(TreeChurn.HORIZON));
+    }
+
+    @Test
+    void anArenaPressureLiftedOnAStillCameraStartsAWalkThatRequests() {
+        startRing();
+        manager.meshed(TestMeshes.of(KEY, ONE_OCTANT), rootRequests.get(KEY));
+        manager.frame(FakeCameras.underPressure(close(EYE_X, EYE_Z)));
+        awaitWalks(2);
+        assertTrue(builds.idle());
+
+        manager.frame(close(EYE_X, EYE_Z));
+        assertEquals(KEY, CellKey.parent(builds.take().key()));
+        awaitWalks(3);
     }
 
     @Test

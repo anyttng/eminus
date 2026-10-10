@@ -48,7 +48,7 @@ class TreeTraversalTest {
 
     private final NodeTable nodes = new NodeTable(NodeTable.CAPACITY);
     private final TreeExtent extent = new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN);
-    private final TreeTraversal traversal = new TreeTraversal(nodes, extent);
+    private final TreeTraversal traversal = new TreeTraversal(nodes, extent, new TreeHorizon());
     private final long rootKey = CellKey.pack(DetailLevel.MAX, 0, 0, 0);
 
     @Test
@@ -268,7 +268,7 @@ class TreeTraversalTest {
     void aWiderCameraFovWalksAsTheSetFov() {
         meshedRoot(rootKey, ALL_OCTANTS);
         NodeTable widerNodes = new NodeTable(NodeTable.CAPACITY);
-        TreeTraversal widerTraversal = new TreeTraversal(widerNodes, extent);
+        TreeTraversal widerTraversal = new TreeTraversal(widerNodes, extent, new TreeHorizon());
         widerNodes.root(rootKey).meshed(TestMeshes.summary(rootKey, ALL_OCTANTS));
         CameraFrame set = behindAt(QUARTER_ABOVE_THRESHOLD);
         CameraFrame wider = FakeCameras.zoomed(set, set.pixelsPerBlock() / WIDER_FOV);
@@ -302,7 +302,8 @@ class TreeTraversalTest {
 
     @Test
     void nothingSubdividesBelowTheLowestStoredLevel() {
-        TreeTraversal capped = new TreeTraversal(nodes, new TreeExtent(new CellFrame(0), 1, LOWEST_IS_TOP));
+        TreeTraversal capped = new TreeTraversal(nodes, new TreeExtent(new CellFrame(0), 1, LOWEST_IS_TOP),
+                new TreeHorizon());
         TreeNode root = meshedRoot(rootKey, ALL_OCTANTS);
 
         assertEquals(List.of(root.mesh()), listed(capped, nodes.roots(), inside(), BUDGET, NO_OUT_OF_VIEW, WALK).meshes());
@@ -312,7 +313,7 @@ class TreeTraversalTest {
     @Test
     void anExhaustedTableRefusesRequestsQuietly() {
         NodeTable tiny = new NodeTable(TINY_TABLE);
-        TreeTraversal starved = new TreeTraversal(tiny, extent);
+        TreeTraversal starved = new TreeTraversal(tiny, extent, new TreeHorizon());
         TreeNode root = tiny.root(rootKey);
         root.meshed(TestMeshes.summary(rootKey, ALL_OCTANTS));
 
@@ -426,7 +427,7 @@ class TreeTraversalTest {
     @Test
     void aFullTableStopsTheOutOfViewPassWithoutStarving() {
         NodeTable small = new NodeTable(ROOTS_AND_ONE_CHILD);
-        TreeTraversal limited = new TreeTraversal(small, extent);
+        TreeTraversal limited = new TreeTraversal(small, extent, new TreeHorizon());
         small.root(rootKey).meshed(TestMeshes.summary(rootKey, ALL_OCTANTS));
         small.root(aheadKey()).meshed(TestMeshes.summary(aheadKey(), OccupancyMask.EMPTY));
 
