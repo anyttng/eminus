@@ -16,7 +16,7 @@ import com.eminus.settings.ShaderPackLod;
 import org.junit.jupiter.api.Test;
 
 class FarRendererTest {
-    private static final Settings BUILT = new Settings(true, 0, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT);
+    private static final Settings BUILT = new Settings(true, 0, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true);
     private static final Location MASK = new Location("eminus", "near_mask");
     private static final Location OPAQUE = new Location("eminus", "far_opaque");
     private static final Location TRANSLUCENT = new Location("eminus", "far_translucent");
@@ -38,21 +38,21 @@ class FarRendererTest {
 
     @Test
     void aFarDistanceChangeRecreatesTheRenderer() {
-        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, 0, 32, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT)));
+        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, 0, 32, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true)));
     }
 
     @Test
     void aDetailDistanceChangeRecreatesTheRenderer() {
-        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, 0, 16, 4, DetailDistance.HIGH, true, true, ShaderPackLod.DEFAULT)));
+        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, 0, 16, 4, DetailDistance.HIGH, true, true, ShaderPackLod.DEFAULT, true)));
     }
 
     @Test
     void aFogOrFadeChangeKeepsTheRenderer() {
-        assertFalse(FarRenderer.recreates(BUILT, new Settings(true, 0, 16, 4, DetailDistance.MEDIUM, false, false, ShaderPackLod.DEFAULT)));
+        assertFalse(FarRenderer.recreates(BUILT, new Settings(true, 0, 16, 4, DetailDistance.MEDIUM, false, false, ShaderPackLod.DEFAULT, true)));
     }
 
     @Test
     void anIngestionOrWorkerChangeKeepsTheRenderer() {
-        assertFalse(FarRenderer.recreates(BUILT, new Settings(false, 0, 16, 8, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT)));
+        assertFalse(FarRenderer.recreates(BUILT, new Settings(false, 0, 16, 8, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true)));
     }
 }

@@ -27,6 +27,7 @@ public final class IrisShaderPack {
 
     private static boolean listening;
     private static @Nullable ShaderPackLod packReadWith;
+    private static @Nullable Boolean animationsBuiltWith;
 
     public static boolean installed() {
         return IRIS_PRESENT;
@@ -38,8 +39,19 @@ public final class IrisShaderPack {
         return packReadWith == ShaderPackLod.DISTANT_HORIZONS;
     }
 
+    static boolean lodAnimationsChosen() {
+        animationsBuiltWith = SettingsService.isSet() ? SettingsService.get().settings().lodAnimations()
+                : Settings.DEFAULT_LOD_ANIMATIONS;
+        return animationsBuiltWith;
+    }
+
     public static void settingsChanged(Settings updated) {
-        if (IRIS_PRESENT && packReadWith != null && updated.shaderPackLod() != packReadWith) {
+        if (!IRIS_PRESENT) {
+            return;
+        }
+
+        if ((packReadWith != null && updated.shaderPackLod() != packReadWith)
+                || (animationsBuiltWith != null && updated.lodAnimations() != animationsBuiltWith)) {
             Api.reloadPack();
         }
     }
@@ -106,7 +118,7 @@ public final class IrisShaderPack {
         static void reloadPack() {
             try {
                 Iris.reload();
-                Eminus.LOGGER.info("Shader pack reloaded: LOD under shader packs changed");
+                Eminus.LOGGER.info("Shader pack reloaded: LOD under shader packs or LOD animations changed");
             } catch (IOException unreadable) {
                 Eminus.LOGGER.error("Shader pack could not be reloaded: {}", unreadable.toString());
             }
