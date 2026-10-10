@@ -1,6 +1,6 @@
 # Eminus from Another Mod
 
-Eminus exposes one package to other mods: `com.eminus.api.v1`. It answers three questions about the far layer, the terrain Eminus draws past the game's render distance: whether it runs on this client and, if not, why; how far it reaches; and whether it has finished loading for the camera.
+Eminus exposes one package to other mods: `com.eminus.api.v1`. It answers three questions about the far layer, the terrain Eminus draws past the game's render distance: whether it runs on this client and, if not, why; how far it reaches; and whether it has finished loading for the camera. It also takes boxes from your mod and draws them with the far layer.
 
 Everything outside that package is internal: it moves between releases without notice, and mixins into it are unsupported.
 
@@ -70,3 +70,29 @@ if (reading != null) {
 ```
 
 A reading answers for the camera the far layer last saw, so a mod that waits for it polls again after the camera moves.
+
+## Drawing boxes
+
+The game stops drawing at its render distance, and so does whatever your mod draws there. A waypoint, a claim border or a marker over a structure can go to Eminus instead: `EminusApi.registerBoxes(dimension, boxes)` takes a list of `FarBox` in world coordinates and draws them at every distance from the camera out to `farDistanceBlocks()`, fogged like the terrain around them, faded with the far layer at its far end, and hidden behind any terrain nearer than they are. One call covers the near field too, so your mod draws nothing of its own for them.
+
+A `FarBox` carries:
+
+- **the bounds**: `minX`, `minY`, `minZ`, `maxX`, `maxY`, `maxZ`, in blocks, each minimum no greater than its maximum;
+- **`argb`**: the colour as `0xAARRGGBB`; an alpha below `0xFF` blends the box over what lies behind it, and boxes blend in the order their groups were registered;
+- **`emissive`**: `true` keeps the colour in the dark; `false` lights the box as daylight lights the open terrain, so it dims at night.
+
+`registerBoxes` hands back a `FarBoxGroup`. `update(boxes)` replaces its boxes, `remove()` takes it away; both apply from the next frame. Every call may come from any thread, and none needs a far renderer running: a group registered before the renderer starts, or while it is refused, is drawn once it runs.
+
+A group belongs to one dimension, named by its identifier, and is drawn only while the client is there; a change of dimension keeps it for when the client comes back. Leaving the world drops every group, after which the old handles do nothing, so register yours again when the player joins a world.
+
+```java
+FarBoxGroup marker = EminusApi.registerBoxes("minecraft:overworld", List.of(
+        new FarBox(1000, 64, -2000, 1001, 320, -1999, 0xFFFF4040, true)));
+
+marker.update(List.of(
+        new FarBox(1000, 64, -2000, 1001, 256, -1999, 0xFF40FF40, true)));
+
+marker.remove();
+```
+
+Under a shader pack, the boxes come with the far layer over the pack's finished frame. A pack that ships the Eminus contract, or one Eminus draws through its Distant Horizons programs, shades the far layer itself, and no group is drawn there.
