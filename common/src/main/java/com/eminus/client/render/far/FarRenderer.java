@@ -2,6 +2,7 @@ package com.eminus.client.render.far;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.ToIntFunction;
 
@@ -412,6 +413,10 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         return tree.describe(rows);
+    }
+
+    public CompletableFuture<Map<String, Long>> churn() {
+        return tree.churn();
     }
 
     @Override

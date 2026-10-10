@@ -30,9 +30,14 @@ class TreeCleanerTest {
     private static final int ONE_FAR_CELL = 1;
     private static final int MANY_FAR_CELLS = 64;
     private static final float ONE_PIXEL_PER_BLOCK = 1.0F;
+    private static final double NEAR_ROOT_DISTANCE = NEAR_CELL * CELL - INSIDE;
+    private static final double NEAR_ROOT_REACH = NEAR_ROOT_DISTANCE / (1.5 * 1.5 * 1.5);
+    private static final double REACH_TOLERANCE = 0.001;
+    private static final double LOW_HORIZON = 100.0;
 
     private final NodeTable nodes = new NodeTable(NodeTable.CAPACITY);
     private final TreeCleaner cleaner = new TreeCleaner();
+    private final TreeHorizon horizon = new TreeHorizon();
     private final CellFrame frame = new CellFrame(0);
 
     @Test
@@ -40,15 +45,35 @@ class TreeCleanerTest {
         children(root(0), WHOLE_SET, OLD);
 
         assertTrue(cleaner.pick(nodes.all(), FakeCameras.everything(INSIDE, INSIDE, INSIDE, MANY_FAR_CELLS,
-                ONE_PIXEL_PER_BLOCK), frame, WALK).isEmpty());
+                ONE_PIXEL_PER_BLOCK), frame, horizon).isEmpty());
     }
 
     @Test
-    void aSetWithAChildTheWalkUsedIsNoCandidate() {
+    void aSetTheWalkUsedIsTakenLikeAnyOther() {
         List<TreeNode> set = children(root(0), HALF_SET, OLD);
         set.get(1).seen(WALK);
 
-        assertTrue(pick(ONE_PIXEL_PER_BLOCK, MANY_FAR_CELLS).isEmpty());
+        assertEquals(set, pick(ONE_PIXEL_PER_BLOCK, MANY_FAR_CELLS));
+    }
+
+    @Test
+    void eachFarPickLowersTheHorizonToItsReach() {
+        children(root(NEAR_CELL), WHOLE_SET, WALK);
+
+        pick(FakeCameras.CLOSE_PIXELS_PER_BLOCK, WIDE_FAR_CELLS);
+
+        assertEquals(NEAR_ROOT_REACH, horizon.horizon(), REACH_TOLERANCE);
+    }
+
+    @Test
+    void aSetPastTheHorizonIsUnwantedAndLowersNothing() {
+        horizon.lower(LOW_HORIZON);
+        children(root(NEAR_CELL), WHOLE_SET, WALK);
+
+        pick(FakeCameras.CLOSE_PIXELS_PER_BLOCK, WIDE_FAR_CELLS);
+
+        assertEquals(WHOLE_SET, cleaner.unwantedPicked());
+        assertEquals(LOW_HORIZON, horizon.horizon());
     }
 
     @Test
@@ -82,7 +107,7 @@ class TreeCleanerTest {
     }
 
     @Test
-    void theOutOfViewSetsWaitWhileAnUnwantedOneIsLeft() {
+    void theRefinableSetsWaitWhileAnUnwantedOneIsLeft() {
         List<TreeNode> unwanted = new ArrayList<>();
         for (int x = 0; x < TreeCleaner.PRESSURE_EVICTIONS / WHOLE_SET; x++) {
             unwanted.addAll(children(root(FIRST_FAR_CELL + x), WHOLE_SET, OLD));
@@ -97,7 +122,7 @@ class TreeCleanerTest {
     }
 
     @Test
-    void theOutOfViewSetsFollowOnceTheUnwantedRunOut() {
+    void theRefinableSetsFollowOnceTheUnwantedRunOut() {
         List<TreeNode> unwanted = children(root(FIRST_FAR_CELL), WHOLE_SET, OLD);
         List<TreeNode> outOfView = children(root(0), WHOLE_SET, OLD);
 
@@ -108,7 +133,7 @@ class TreeCleanerTest {
     }
 
     @Test
-    void aFartherOutOfViewParentGoesBeforeANearerOne() {
+    void aFartherParentGoesBeforeANearerOne() {
         List<TreeNode> nearer = children(root(0), WHOLE_SET, OLD);
         List<TreeNode> farther = children(root(NEAR_CELL), WHOLE_SET, OLD);
 
@@ -144,7 +169,7 @@ class TreeCleanerTest {
         CameraFrame zoomed = FakeCameras.zoomed(FakeCameras.underPressure(FakeCameras.everything(INSIDE, INSIDE,
                 INSIDE, MANY_FAR_CELLS, ONE_PIXEL_PER_BLOCK)), FakeCameras.CLOSE_PIXELS_PER_BLOCK);
 
-        assertEquals(concat(zoomOnly, outOfView), cleaner.pick(nodes.all(), zoomed, frame, WALK));
+        assertEquals(concat(zoomOnly, outOfView), cleaner.pick(nodes.all(), zoomed, frame, horizon));
         assertEquals(WHOLE_SET, cleaner.unwantedPicked());
     }
 
@@ -156,12 +181,12 @@ class TreeCleanerTest {
         }
 
         assertTrue(cleaner.pick(full.all(), FakeCameras.everything(INSIDE, INSIDE, INSIDE, MANY_FAR_CELLS,
-                ONE_PIXEL_PER_BLOCK), frame, WALK).isEmpty());
+                ONE_PIXEL_PER_BLOCK), frame, horizon).isEmpty());
     }
 
     private List<TreeNode> pick(float pixelsPerBlock, int farCells) {
         return cleaner.pick(nodes.all(), FakeCameras.underPressure(
-                FakeCameras.everything(INSIDE, INSIDE, INSIDE, farCells, pixelsPerBlock)), frame, WALK);
+                FakeCameras.everything(INSIDE, INSIDE, INSIDE, farCells, pixelsPerBlock)), frame, horizon);
     }
 
     private TreeNode root(int cellX) {
