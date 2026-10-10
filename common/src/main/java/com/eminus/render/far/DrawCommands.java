@@ -15,6 +15,7 @@ import com.eminus.render.arena.MeshSlots;
 import it.unimi.dsi.fastutil.longs.Long2IntFunction;
 
 import org.joml.FrustumIntersection;
+import org.jspecify.annotations.Nullable;
 
 public final class DrawCommands {
     public static final int VERTICES_PER_QUAD = 4;
@@ -26,6 +27,7 @@ public final class DrawCommands {
     private static final int GROWTH = 2;
 
     private final float[] bounds = new float[MeshSlot.BOUNDS];
+    private final float[] relative = new float[MeshSlot.BOUNDS];
 
     private int capacity;
     private ByteBuffer bytes;
@@ -69,7 +71,7 @@ public final class DrawCommands {
     public void write(List<MeshSummary> opaque, List<MeshSummary> translucent, Long2IntFunction borderFaces,
             MeshSlots slots, CellFrame frame, FrustumIntersection frustum, double cameraX, double cameraY,
             double cameraZ) {
-        writeOpaque(opaque, borderFaces, slots, frame, frustum, true, cameraX, cameraY, cameraZ);
+        writeOpaque(opaque, borderFaces, slots, frame, frustum, null, true, cameraX, cameraY, cameraZ);
 
         for (MeshSummary mesh : translucent) {
             MeshSlot slot = slots.slot(mesh.key());
@@ -81,13 +83,14 @@ public final class DrawCommands {
     }
 
     public void writeShadow(List<MeshSummary> opaque, Long2IntFunction borderFaces, MeshSlots slots,
-            CellFrame frame, FrustumIntersection frustum, double cameraX, double cameraY, double cameraZ) {
-        writeOpaque(opaque, borderFaces, slots, frame, frustum, false, cameraX, cameraY, cameraZ);
+            CellFrame frame, FrustumIntersection frustum, ShadowCasterVolume casters, double cameraX,
+            double cameraY, double cameraZ) {
+        writeOpaque(opaque, borderFaces, slots, frame, frustum, casters, false, cameraX, cameraY, cameraZ);
     }
 
     private void writeOpaque(List<MeshSummary> opaque, Long2IntFunction borderFaces, MeshSlots slots,
-            CellFrame frame, FrustumIntersection frustum, boolean facing, double cameraX, double cameraY,
-            double cameraZ) {
+            CellFrame frame, FrustumIntersection frustum, @Nullable ShadowCasterVolume casters, boolean facing,
+            double cameraX, double cameraY, double cameraZ) {
         commands.clear();
         opaqueCount = 0;
         translucentCount = 0;
@@ -95,7 +98,8 @@ public final class DrawCommands {
 
         for (MeshSummary mesh : opaque) {
             MeshSlot slot = slots.slot(mesh.key());
-            if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)) {
+            if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)
+                    && (casters == null || casts(casters))) {
                 writeGroups(slot, borderFaces.get(mesh.key()), facing, cameraX, cameraY, cameraZ);
             }
         }
@@ -104,9 +108,19 @@ public final class DrawCommands {
     private boolean inView(MeshSlot slot, CellFrame frame, FrustumIntersection frustum, double cameraX,
             double cameraY, double cameraZ) {
         slot.bounds(frame, bounds);
-        return frustum.testAab((float) (bounds[MeshSlot.MIN_X] - cameraX), (float) (bounds[MeshSlot.MIN_Y] - cameraY),
-                (float) (bounds[MeshSlot.MIN_Z] - cameraZ), (float) (bounds[MeshSlot.MAX_X] - cameraX),
-                (float) (bounds[MeshSlot.MAX_Y] - cameraY), (float) (bounds[MeshSlot.MAX_Z] - cameraZ));
+        relative[MeshSlot.MIN_X] = (float) (bounds[MeshSlot.MIN_X] - cameraX);
+        relative[MeshSlot.MIN_Y] = (float) (bounds[MeshSlot.MIN_Y] - cameraY);
+        relative[MeshSlot.MIN_Z] = (float) (bounds[MeshSlot.MIN_Z] - cameraZ);
+        relative[MeshSlot.MAX_X] = (float) (bounds[MeshSlot.MAX_X] - cameraX);
+        relative[MeshSlot.MAX_Y] = (float) (bounds[MeshSlot.MAX_Y] - cameraY);
+        relative[MeshSlot.MAX_Z] = (float) (bounds[MeshSlot.MAX_Z] - cameraZ);
+        return frustum.testAab(relative[MeshSlot.MIN_X], relative[MeshSlot.MIN_Y], relative[MeshSlot.MIN_Z],
+                relative[MeshSlot.MAX_X], relative[MeshSlot.MAX_Y], relative[MeshSlot.MAX_Z]);
+    }
+
+    private boolean casts(ShadowCasterVolume casters) {
+        return casters.testAab(relative[MeshSlot.MIN_X], relative[MeshSlot.MIN_Y], relative[MeshSlot.MIN_Z],
+                relative[MeshSlot.MAX_X], relative[MeshSlot.MAX_Y], relative[MeshSlot.MAX_Z]);
     }
 
     private void writeGroups(MeshSlot slot, int borderFaces, boolean facing, double cameraX, double cameraY,

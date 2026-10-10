@@ -281,7 +281,8 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         return shadow.write(order.meshes(), renderList::borderFaces, arena, runtime.frame(), game,
-                models.atlas().cellsPerSide(), nearSections.sections(), shadowView, shadowProjection) ? shadow : null;
+                models.atlas().cellsPerSide(), nearSections.sections(), farViewProjection, shadowView,
+                shadowProjection) ? shadow : null;
     }
 
     public void newFrame() {
