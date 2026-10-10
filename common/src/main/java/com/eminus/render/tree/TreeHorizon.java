@@ -69,7 +69,11 @@ final class TreeHorizon {
     }
 
     boolean settled() {
-        return horizon == UNBOUNDED || locked;
+        return !bounded() || locked;
+    }
+
+    boolean bounded() {
+        return horizon != UNBOUNDED;
     }
 
     double horizon() {

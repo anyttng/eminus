@@ -70,6 +70,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private double lastEyeZ;
 
     private volatile long walks;
+    private volatile boolean horizonBounded;
     private volatile boolean running = true;
 
     private TreeManager(TreeBuilds builds, TreeExtent extent, int capacity) {
@@ -126,6 +127,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
 
     public long walks() {
         return walks;
+    }
+
+    public boolean horizonBounded() {
+        return horizonBounded;
     }
 
     public CompletableFuture<TreeState> snapshot() {
@@ -367,6 +372,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         lastEyeY = camera.eyeY();
         lastEyeZ = camera.eyeZ();
         lastViewProjection.set(camera.viewProjection());
+        horizonBounded = horizon.bounded();
         walks = walk;
     }
 

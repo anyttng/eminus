@@ -31,7 +31,7 @@ public final class SettingsText {
     public static Component detailDistanceHint() {
         Component hint = hint(DETAIL_DISTANCE_KEY);
         FarRenderer renderer = ClientSession.renderer();
-        if (renderer == null || !renderer.underPressure()) {
+        if (renderer == null || !renderer.detailLimited()) {
             return hint;
         }
 
