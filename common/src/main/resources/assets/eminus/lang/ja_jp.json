@@ -28,5 +28,7 @@
   "gui.eminus.settings.shader_pack_lod": "シェーダーパックの LOD",
   "gui.eminus.settings.shader_pack_lod.hint": "Eminus に対応していないシェーダーパックで LOD をどう描くか。デフォルトはパックの画像の上に Eminus 独自の見た目で描きます。Distant Horizons は Distant Horizons 対応のパックに描かせ、パックの光と霧が付きますが、ブロックごとに単色になります。Eminus 向けのパックは常に自分で LOD を描きます。変更するとシェーダーパックを再読み込みします。",
   "gui.eminus.settings.shader_pack_lod.default": "デフォルト",
-  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
+  "gui.eminus.settings.lod_animations": "LOD のアニメーション",
+  "gui.eminus.settings.lod_animations.hint": "Eminus 対応のシェーダーパックが、近くと同じように LOD の草・葉・水を揺らせるようにします。オフにすると、その分の GPU 時間を節約できます。変更するとシェーダーパックを再読み込みします。"
 }
