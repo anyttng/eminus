@@ -14,6 +14,8 @@ class TintBlendTest {
     private static final int SIDE = DetailLevel.VOXELS_PER_SIDE;
     private static final int LAST = SIDE - 1;
     private static final int ROW = 0;
+    private static final int CONSTANT_ROW = 1;
+    private static final int SPRUCE_GREEN = 0x619961;
     private static final int PLAINS = 1;
     private static final int SWAMP = 2;
     private static final int PLAINS_GREEN = 0x91BD59;
@@ -104,6 +106,16 @@ class TintBlendTest {
         blend.begin(voxels, tints, KEY, NO_RADIUS);
 
         assertNotEquals(blend.colour(ROW, MIDDLE, LAYER, MIDDLE), blend.colour(ROW, MIDDLE + 1, LAYER, MIDDLE));
+    }
+
+    @Test
+    void aConstantRowAnswersItsColourWhereNoColumnHoldsABiome() {
+        tints.fix(CONSTANT_ROW, SPRUCE_GREEN);
+        voxels.load(filled(PLAINS, BORDER));
+        blend.begin(voxels, tints, KEY, GAME_RADIUS);
+
+        assertEquals(SPRUCE_GREEN, blend.colour(CONSTANT_ROW, LAST, LAYER, MIDDLE));
+        assertEquals(SPRUCE_GREEN, blend.colour(CONSTANT_ROW, 0, LAYER, MIDDLE));
     }
 
     private static int gameAverage(int first, int firstColumns, int second, int secondColumns) {
