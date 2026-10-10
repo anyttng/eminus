@@ -15,6 +15,7 @@ public final class ArenaSizing {
     public static final int DEVICE_SHARE = 4;
     public static final int FREE_MEMORY_SHARE = 2;
     public static final long REFUSED = 0L;
+    public static final int NO_PAGES = 0;
 
     private static final int[] BUDGETED_QUADS_PER_CELL = {6600, 9500, 11400, 7200, 5700};
     private static final long WHOLE_PERCENT = 100L;
@@ -53,5 +54,14 @@ public final class ArenaSizing {
 
     public static int blocks(long bytes) {
         return (int) (bytes / BLOCK_BYTES);
+    }
+
+    public static int blocksPerPage(long pageBytes) {
+        return pageBytes > 0 && Math.floorMod(pageBytes, BLOCK_BYTES) == 0 ? blocks(pageBytes) : NO_PAGES;
+    }
+
+    public static long reserved(long fitted, long pageBytes) {
+        long aligned = fitted - Math.floorMod(fitted, pageBytes);
+        return aligned < MIN_BYTES ? REFUSED : aligned;
     }
 }

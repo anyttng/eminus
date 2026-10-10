@@ -8,14 +8,14 @@ import org.lwjgl.opengl.ARBBufferStorage;
 import org.lwjgl.opengl.GL15C;
 import org.lwjgl.opengl.GL31C;
 
-final class OpenGlBuffer implements Buffer {
-    private static final int TARGET = GL31C.GL_COPY_WRITE_BUFFER;
-    private static final int UNBOUND = 0;
+class OpenGlBuffer implements Buffer {
+    static final int TARGET = GL31C.GL_COPY_WRITE_BUFFER;
+    static final int UNBOUND = 0;
 
     private final OpenGlName name;
     private final long size;
 
-    private OpenGlBuffer(OpenGlName name, long size) {
+    OpenGlBuffer(OpenGlName name, long size) {
         this.name = name;
         this.size = size;
     }
@@ -33,6 +33,10 @@ final class OpenGlBuffer implements Buffer {
     }
 
     private static OpenGlBuffer create(OpenGlObjects objects, String label, long bytes, Runnable store) {
+        return new OpenGlBuffer(allocate(objects, label, store), bytes);
+    }
+
+    static OpenGlName allocate(OpenGlObjects objects, String label, Runnable store) {
         OpenGlErrors.clear();
         int handle = GL15C.glGenBuffers();
         GL15C.glBindBuffer(TARGET, handle);
@@ -40,10 +44,10 @@ final class OpenGlBuffer implements Buffer {
         GL15C.glBindBuffer(TARGET, UNBOUND);
         OpenGlErrors.check("buffer " + label);
         objects.created(OpenGlObjects.Kind.BUFFER, handle, label);
-        return new OpenGlBuffer(new OpenGlName(handle, id -> {
+        return new OpenGlName(handle, id -> {
             GL15C.glDeleteBuffers(id);
             objects.deleted(OpenGlObjects.Kind.BUFFER);
-        }), bytes);
+        });
     }
 
     int handle() {

@@ -1,10 +1,15 @@
 package com.eminus.client.render.far;
 
+import java.util.Optional;
 import java.util.OptionalLong;
 
 import com.eminus.Eminus;
 import com.eminus.gpu.Capabilities;
+import com.eminus.gpu.Gpu;
+import com.eminus.gpu.Sparse;
 import com.eminus.render.arena.ArenaSizing;
+
+import org.jspecify.annotations.Nullable;
 
 final class ArenaBudget {
     private static final long BYTES_PER_MIB = 1L << 20;
@@ -34,6 +39,28 @@ final class ArenaBudget {
                         + freeBytes.getAsLong() / ArenaSizing.FREE_MEMORY_SHARE / BYTES_PER_MIB + " MiB taken"
                         : "not reported");
         return ceiling;
+    }
+
+    static @Nullable Sparse sparse(Gpu gpu) {
+        Optional<Sparse> sparse = gpu.sparse();
+        if (sparse.isEmpty()) {
+            return null;
+        }
+
+        long pageBytes = sparse.get().pageBytes();
+        if (ArenaSizing.blocksPerPage(pageBytes) == ArenaSizing.NO_PAGES) {
+            Eminus.LOGGER.info("Sparse pages of {} bytes do not hold whole arena blocks of {} bytes: the arena is a"
+                    + " plain buffer", pageBytes, ArenaSizing.BLOCK_BYTES);
+            return null;
+        }
+
+        return sparse.get();
+    }
+
+    static long bytes(long wanted, long ceiling, @Nullable Sparse sparse) {
+        return sparse == null
+                ? ArenaSizing.fitted(bounded(wanted, ceiling), ceiling)
+                : ArenaSizing.reserved(ArenaSizing.fitted(bounded(ceiling, ceiling), ceiling), sparse.pageBytes());
     }
 
     static long bounded(long wanted, long ceiling) {
