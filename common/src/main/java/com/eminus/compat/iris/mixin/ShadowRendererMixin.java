@@ -16,15 +16,29 @@ import net.irisshaders.iris.shadows.ShadowRenderer;
 @Mixin(ShadowRenderer.class)
 public class ShadowRendererMixin {
     private static final String TERRAIN_DRAWN = "Lnet/irisshaders/iris/uniforms/CapturedRenderingState;getTickDelta()F";
+    private static final String COPY_PRE_TRANSLUCENT_DEPTH = "Lnet/irisshaders/iris/shadows/ShadowRenderer;"
+            + "copyPreTranslucentDepth(Lnet/irisshaders/iris/mixin/LevelRendererAccessor;)V";
 
     @Shadow
     @Final
     private IrisRenderingPipeline pipeline;
+
+    @Shadow
+    @Final
+    private boolean shouldRenderTranslucent;
 
     @Inject(method = "renderShadows", at = @At(value = "INVOKE", target = TERRAIN_DRAWN, ordinal = 0))
     private void eminus$drawFarLayerInShadowPass(CallbackInfo callback) {
         pipeline.setPhase(WorldRenderingPhase.TERRAIN_CUTOUT);
         ClientSession.drawFarLayerInShadowPass(ShadowRenderer.MODELVIEW, ShadowRenderer.PROJECTION);
         pipeline.setPhase(WorldRenderingPhase.NONE);
+    }
+
+    @Inject(method = "renderShadows", at = @At(value = "INVOKE", target = COPY_PRE_TRANSLUCENT_DEPTH,
+            shift = At.Shift.AFTER))
+    private void eminus$drawTranslucentFarLayer(CallbackInfo callback) {
+        if (shouldRenderTranslucent) {
+            ClientSession.drawTranslucentFarLayerInShadowPass();
+        }
     }
 }

@@ -17,6 +17,7 @@ import com.eminus.settings.FarDistance;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
+import net.irisshaders.iris.pipeline.WorldRenderingPhase;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
@@ -45,12 +46,14 @@ final class PackLayer {
     private @Nullable PackProgram opaque;
     private @Nullable PackProgram translucent;
     private @Nullable PackProgram shadow;
+    private @Nullable PackProgram shadowTranslucent;
     private @Nullable GlFramebuffer opaqueFramebuffer;
     private @Nullable GlFramebuffer translucentFramebuffer;
     private @Nullable GlFramebuffer shadowFramebuffer;
     private int opaqueAttached = NO_TEXTURE;
     private int translucentAttached = NO_TEXTURE;
     private @Nullable FarDraw drawn;
+    private @Nullable FarShadow shadowDrawn;
 
     private PackLayer(IrisRenderingPipeline pipeline, @Nullable ShaderPack pack, NamespacedId dimension) {
         this.pipeline = pipeline;
@@ -109,14 +112,43 @@ final class PackLayer {
         }
 
         PackLayer layer = of(pipeline);
+        layer.shadowDrawn = null;
         if (!layer.ready(renderer) || layer.shadow == null
                 || Boolean.getBoolean(IrisShaderPack.SHADOW_OFF_PROPERTY)) {
             return;
         }
 
         FarShadow drawn = renderer.shadowFrame(Minecraft.getInstance(), shadowView, shadowProjection);
-        if (drawn != null) {
-            layer.shadow.drawShadow(renderer.farDraw(), drawn, layer.shadowFramebuffer, ShadowRenderer.RESOLUTION);
+        if (drawn == null) {
+            return;
+        }
+
+        if (drawn.opaqueCount() > 0) {
+            layer.shadow.drawShadow(renderer.farDraw(), drawn, layer.shadowFramebuffer, ShadowRenderer.RESOLUTION,
+                    false);
+        }
+        layer.shadowDrawn = drawn;
+    }
+
+    static void drawShadowTranslucent(FarRenderer renderer) {
+        if (!(Iris.getPipelineManager().getPipelineNullable() instanceof IrisRenderingPipeline pipeline)) {
+            return;
+        }
+
+        PackLayer layer = of(pipeline);
+        FarShadow drawn = layer.shadowDrawn;
+        layer.shadowDrawn = null;
+        if (drawn == null || drawn.translucentCount() == 0 || layer.shadowTranslucent == null
+                || layer.builtFor != renderer || Boolean.getBoolean(IrisShaderPack.SHADOW_TRANSLUCENT_OFF_PROPERTY)) {
+            return;
+        }
+
+        pipeline.setPhase(WorldRenderingPhase.TERRAIN_TRANSLUCENT);
+        try {
+            layer.shadowTranslucent.drawShadow(renderer.farDraw(), drawn, layer.shadowFramebuffer,
+                    ShadowRenderer.RESOLUTION, true);
+        } finally {
+            pipeline.setPhase(WorldRenderingPhase.NONE);
         }
     }
 
@@ -142,7 +174,9 @@ final class PackLayer {
             current.opaque = null;
             current.translucent = null;
             current.shadow = null;
+            current.shadowTranslucent = null;
             current.drawn = null;
+            current.shadowDrawn = null;
             current.opaqueAttached = NO_TEXTURE;
             current.translucentAttached = NO_TEXTURE;
         }
@@ -175,6 +209,8 @@ final class PackLayer {
         opaque = null;
         translucent = null;
         shadow = null;
+        shadowTranslucent = null;
+        shadowDrawn = null;
         FarDraw draw = renderer.farDraw();
         Optional<Foreign> foreign = draw.gpu().foreign();
         if (foreign.isEmpty()) {
@@ -205,7 +241,7 @@ final class PackLayer {
     }
 
     private void release() {
-        for (PackProgram program : new PackProgram[] {opaque, translucent, shadow}) {
+        for (PackProgram program : new PackProgram[] {opaque, translucent, shadow, shadowTranslucent}) {
             if (program != null) {
                 program.release();
             }
@@ -213,6 +249,8 @@ final class PackLayer {
         opaque = null;
         translucent = null;
         shadow = null;
+        shadowTranslucent = null;
+        shadowDrawn = null;
     }
 
     private void buildShadow(FarDraw draw, Foreign foreign) {
@@ -229,6 +267,7 @@ final class PackLayer {
             shadowFramebuffer = pipeline.createDHFramebufferShadow(built.source());
         }
         shadow = built;
+        shadowTranslucent = program(draw, foreign, PackProgram.Kind.SHADOW_TRANSLUCENT);
     }
 
     private @Nullable PackProgram program(FarDraw draw, Foreign foreign, PackProgram.Kind kind) {
