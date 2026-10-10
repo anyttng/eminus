@@ -375,6 +375,28 @@ class TreeManagerTest {
     }
 
     @Test
+    void aSetEvictedUnderPressureLeavesTheHorizonBoundedOnceThePressureLifts() throws Exception {
+        startRing();
+        manager.meshed(TestMeshes.of(KEY, ONE_OCTANT), rootRequests.get(KEY));
+        manager.frame(close(EYE_X, EYE_Z));
+        FakeBuilds.Call request = builds.take();
+        CellMesh child = TestMeshes.of(request.key(), OccupancyMask.EMPTY);
+        manager.meshed(child, request.request());
+        awaitRenderList(close(EYE_X + ONE_BLOCK, EYE_Z), list -> list.meshes().contains(child.summary()),
+                meshes -> { });
+        manager.snapshot().get(AWAIT_MILLIS, TimeUnit.MILLISECONDS);
+        assertFalse(manager.horizonBounded());
+
+        manager.frame(FakeCameras.underPressure(close(EYE_X + 2 * ONE_BLOCK, EYE_Z)));
+        manager.snapshot().get(AWAIT_MILLIS, TimeUnit.MILLISECONDS);
+        manager.frame(close(EYE_X + 2 * ONE_BLOCK, EYE_Z));
+        TreeState state = manager.snapshot().get(AWAIT_MILLIS, TimeUnit.MILLISECONDS);
+
+        assertEquals(1L, state.pressureEvictions());
+        assertTrue(manager.horizonBounded());
+    }
+
+    @Test
     void anArenaPressureLiftedOnAStillCameraStartsAWalkThatRequests() {
         startRing();
         manager.meshed(TestMeshes.of(KEY, ONE_OCTANT), rootRequests.get(KEY));
