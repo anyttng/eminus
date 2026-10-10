@@ -1,5 +1,7 @@
 package com.eminus.model;
 
+import net.minecraft.util.Mth;
+
 public final class Argb {
     private static final int ALPHA_MASK = 0xFF00_0000;
     private static final int ALPHA_SHIFT = 24;
@@ -47,6 +49,34 @@ public final class Argb {
                 | linearMean(first, second, third, fourth, RED_SHIFT) << RED_SHIFT
                 | linearMean(first, second, third, fourth, GREEN_SHIFT) << GREEN_SHIFT
                 | linearMean(first, second, third, fourth, 0);
+    }
+
+    public static int darkenedAlphaBlend(int first, int second, int third, int fourth) {
+        return darkenedMean(first, second, third, fourth, ALPHA_SHIFT) << ALPHA_SHIFT
+                | darkenedMean(first, second, third, fourth, RED_SHIFT) << RED_SHIFT
+                | darkenedMean(first, second, third, fourth, GREEN_SHIFT) << GREEN_SHIFT
+                | darkenedMean(first, second, third, fourth, 0);
+    }
+
+    public static float alphaFloat(int argb) {
+        return channel(argb, ALPHA_SHIFT) / (float) CHANNEL_MAX;
+    }
+
+    public static int withAlpha(float alpha, int argb) {
+        return Mth.floor(alpha * CHANNEL_MAX) << ALPHA_SHIFT | (argb & ~ALPHA_MASK);
+    }
+
+    private static int darkenedMean(int first, int second, int third, int fourth, int shift) {
+        float total = 0.0F;
+        total += drawnLinear(first, shift);
+        total += drawnLinear(second, shift);
+        total += drawnLinear(third, shift);
+        total += drawnLinear(fourth, shift);
+        return LINEAR_TO_SRGB[Mth.floor(total / CORNERS * LINEAR_MAX)] & CHANNEL_MASK;
+    }
+
+    private static float drawnLinear(int argb, int shift) {
+        return channel(argb, ALPHA_SHIFT) == 0 ? 0.0F : SRGB_TO_LINEAR[channel(argb, shift)] / LINEAR_MAX;
     }
 
     private static int linearMean(int first, int second, int third, int fourth, int shift) {

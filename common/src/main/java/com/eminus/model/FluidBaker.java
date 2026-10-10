@@ -17,9 +17,9 @@ public final class FluidBaker {
     private static final float FULL_HEIGHT = 1.0F;
 
     private final FluidModels models;
-    private final SolidSprites sprites;
+    private final SpriteTexels sprites;
 
-    public FluidBaker(FluidModels models, SolidSprites sprites) {
+    public FluidBaker(FluidModels models, SpriteTexels sprites) {
         this.models = models;
         this.sprites = sprites;
     }
@@ -53,7 +53,8 @@ public final class FluidBaker {
         int metadata = ModelMetadata.pack(FaceMask.ALL, occluding(bounds, seeThrough(flags, faces)),
                 occludable(bounds), 0, flags);
 
-        return new BakedModel(faces, tintMask, surfaceInsets(height), bounds, metadata, tintRow);
+        return new BakedModel(faces, tintMask, surfaceInsets(height), bounds, metadata, tintRow,
+                FaceMip.uniform(FaceMip.of(model.still())));
     }
 
     public static BakedModel submerged(BakedModel surface) {
@@ -63,7 +64,7 @@ public final class FluidBaker {
                 occluding(bounds, seeThrough(word, surface.faces())), occludable(bounds), ModelMetadata.emission(word), word & ModelMetadata.FLAGS);
 
         return new BakedModel(surface.faces(), surface.tintMask(), new float[BakedModel.FACE_COUNT], bounds,
-                metadata, surface.tintRow());
+                metadata, surface.tintRow(), surface.mips());
     }
 
     static float[] surfaceInsets(float height) {
