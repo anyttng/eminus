@@ -56,6 +56,7 @@ final class GameHandles {
     record Handle(Object owner, int id, Format format) {
     }
 
+    @SuppressWarnings("ArrayRecordComponent")
     record Bindings(int drawFramebuffer, int readFramebuffer, int program, int vertexArray, int[] viewport,
             boolean scissor, int[] scissorBox, PipelineState pipeline) {
     }

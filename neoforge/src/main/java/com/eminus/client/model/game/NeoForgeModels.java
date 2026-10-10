@@ -16,6 +16,7 @@ import net.neoforged.neoforge.client.textures.FluidSpriteCache;
 
 public final class NeoForgeModels implements LoaderModels {
     @Override
+    @SuppressWarnings("ReferenceEquality")
     public void quads(BlockState state, BakedModel model, RandomSource random, List<? super LayeredQuad> into) {
         ReplayRandom replay = new ReplayRandom(random);
         for (RenderType type : model.getRenderTypes(state, replay, ModelData.EMPTY)) {

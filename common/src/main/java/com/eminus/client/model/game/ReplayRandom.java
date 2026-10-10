@@ -37,7 +37,7 @@ public final class ReplayRandom implements BitRandomSource {
             drawn.add(source.nextInt());
         }
 
-        return drawn.getInt(cursor++) >>> Integer.SIZE - bits;
+        return drawn.getInt(cursor++) >>> (Integer.SIZE - bits);
     }
 
     @Override

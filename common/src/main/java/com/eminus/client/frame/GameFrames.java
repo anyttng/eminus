@@ -67,6 +67,7 @@ public final class GameFrames {
     }
 
     // isSectionCompiled answers for whatever section fills the ring slot.
+    @SuppressWarnings("ReferenceEquality")
     public static boolean gridSectionDrawable(LevelRenderer renderer, BlockPos pos) {
         ViewArea viewArea = ((LevelRendererAccessor) renderer).eminus$viewArea();
         SectionRenderDispatcher.RenderSection section =

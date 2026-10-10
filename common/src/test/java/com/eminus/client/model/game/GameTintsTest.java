@@ -139,6 +139,7 @@ class GameTintsTest {
         return new BiomeColours(biomes);
     }
 
+    @SuppressWarnings("ArrayRecordComponent")
     private record LayerModels(int... layers) implements BlockModels {
         @Override
         public BlockModel model(BlockState state) {

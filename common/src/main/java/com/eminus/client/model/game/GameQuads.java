@@ -43,6 +43,7 @@ public final class GameQuads {
         }
     }
 
+    @SuppressWarnings("ReferenceEquality")
     public static void gatherByBlockLayer(BlockState state, BakedModel model, RandomSource random,
             List<? super LayeredQuad> into) {
         boolean translucent = ItemBlockRenderTypes.getChunkRenderType(state) == RenderType.translucent();
