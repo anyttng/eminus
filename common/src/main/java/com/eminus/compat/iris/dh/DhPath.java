@@ -6,6 +6,7 @@ import java.util.function.ToIntFunction;
 import com.eminus.client.render.far.FarDraw;
 import com.eminus.compat.iris.PackPath;
 import com.eminus.compat.iris.PackProgram;
+import com.eminus.compat.iris.PackSources;
 
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.shaderpack.ShaderPack;
@@ -80,7 +81,7 @@ public final class DhPath implements PackPath {
         String vertex = program.getVertexSource().orElseThrow();
         String fragment = program.getFragmentSource().orElseThrow();
         return new Source(PROGRAM_PREFIX + program.getName(), FILE_ROOT + program.getName(),
-                ours -> DhSources.spliceFragmentProgram(fragment, PackPath.header(ours)),
-                ours -> DhSources.spliceVertexProgram(vertex, PackPath.header(ours)), FarDraw.PackVertex.PROGRAM);
+                ours -> PackSources.spliceFragmentProgram(fragment, PackPath.header(ours)),
+                ours -> PackSources.spliceVertexProgram(vertex, PackPath.header(ours)), FarDraw.PackVertex.PROGRAM);
     }
 }
