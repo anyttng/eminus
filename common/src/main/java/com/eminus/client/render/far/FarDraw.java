@@ -18,6 +18,7 @@ import com.eminus.render.backend.DepthConvention;
 
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+import org.jspecify.annotations.Nullable;
 
 public final class FarDraw {
     private static final Location PACK_SHADER = new Location(Eminus.MODID, "core/far_pack");
@@ -104,12 +105,23 @@ public final class FarDraw {
     }
 
     public PipelineSpec packPipeline(Location location, boolean translucent, PackVertex vertex, boolean animated) {
-        PipelineSpec.Builder builder = withVertex(FarQuads.pipeline(location, PACK_SHADER,
-                        translucent ? TranslucentPass.ALPHA_CUTOUT : OpaquePass.ALPHA_CUTOUT, gpu.capabilities(),
-                        variantDraw)
-                .withColourTarget(FarTarget.COLOUR_FORMAT, translucent ? Blend.TRANSLUCENT : null, true)
-                .withDepthTest(depth.compare(), true), vertex, animated);
-        return (translucent ? builder.withDefine("TRANSLUCENT_PASS") : builder.withDefine("FULL_COVERAGE")).build();
+        return translucent
+                ? pack(location, TranslucentPass.ALPHA_CUTOUT, Blend.TRANSLUCENT, true, false, vertex, animated)
+                        .withDefine("TRANSLUCENT_PASS").build()
+                : pack(location, OpaquePass.ALPHA_CUTOUT, null, true, true, vertex, animated)
+                        .withDefine("FULL_COVERAGE").build();
+    }
+
+    public PipelineSpec packDepthPipeline(Location location, PackVertex vertex, boolean animated) {
+        return pack(location, TranslucentPass.ALPHA_CUTOUT, null, false, true, vertex, animated)
+                .withDefine("TRANSLUCENT_PASS").build();
+    }
+
+    private PipelineSpec.Builder pack(Location location, float alphaCutout, @Nullable Blend blend,
+            boolean writesColour, boolean writesDepth, PackVertex vertex, boolean animated) {
+        return withVertex(FarQuads.pipeline(location, PACK_SHADER, alphaCutout, gpu.capabilities(), variantDraw)
+                .withColourTarget(FarTarget.COLOUR_FORMAT, blend, writesColour)
+                .withDepthTest(depth.compare(), writesDepth), vertex, animated);
     }
 
     // Under a pack Iris clears the shadow depth to 1.0 and draws it forward, whatever the game's own direction.
