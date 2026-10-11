@@ -140,7 +140,8 @@ public final class MipReading {
         row[WHOLE_SPRITE] = 1;
         int[] face0 = new int[BakedModel.FACE_TEXELS];
         System.arraycopy(model.faces(), index * BakedModel.FACE_TEXELS, face0, 0, BakedModel.FACE_TEXELS);
-        int[][] ours = FaceMips.colourLevels(face0, BakedModel.FACE_SIDE, model.mips()[index], opaque);
+        int[][] ours = FaceMips.colourLevels(face0, BakedModel.FACE_SIDE, model.mips()[index], opaque,
+                SpriteMips::blend);
         int levels = Math.min(ours.length, gameLevels.length);
         row[LEVELS] = levels;
 

@@ -1,12 +1,14 @@
 package com.eminus.model;
 
+import com.eminus.model.port.MipBlend;
 import com.eminus.model.port.MipStrategy;
 
 public final class FaceMips {
-    public static int[][] colourLevels(int[] face, int side, FaceMip mip, boolean opaque) {
+    public static int[][] colourLevels(int[] face, int side, FaceMip mip, boolean opaque, MipBlend blend) {
         // A face is stored bottom-up; the game's float sums run over the sprite's rows top-down.
         flipRows(face, side);
-        Mips.Mean mean = mip.strategy() == MipStrategy.CUTOUT ? Argb::alphaBlend : Argb::meanGamma;
+        boolean cutout = mip.strategy() == MipStrategy.CUTOUT;
+        Mips.Mean mean = (first, second, third, fourth) -> blend.blend(first, second, third, fourth, cutout);
 
         int[][] levels = new int[Mips.levelCount(side)][];
         levels[0] = face;

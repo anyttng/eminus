@@ -6,6 +6,7 @@ import java.util.EnumSet;
 import java.util.Set;
 
 import com.eminus.Eminus;
+import com.eminus.client.model.game.SpriteMips;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.texture.Texture;
@@ -134,7 +135,7 @@ public final class ModelAtlas implements AutoCloseable {
         Solidify.apply(faceTint, BakedModel.FACE_SIDE, BakedModel.FACE_SIDE);
 
         int[][] colourLevels = FaceMips.colourLevels(faceColour, BakedModel.FACE_SIDE, model.mips()[index],
-                ModelMetadata.has(model.metadata(), ModelMetadata.OPAQUE));
+                ModelMetadata.has(model.metadata(), ModelMetadata.OPAQUE), SpriteMips::blend);
         int[][] tintLevels = Mips.maskChain(faceTint, BakedModel.FACE_SIDE);
         int cellX = slot % cellsPerSide;
         int cellY = slot / cellsPerSide;

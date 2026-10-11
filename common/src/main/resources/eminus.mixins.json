@@ -13,6 +13,7 @@
     "LevelRendererAccessor",
     "LevelRendererMixin",
     "LightTextureAccessor",
+    "MipmapGeneratorAccessor",
     "RenderTargetMixin",
     "SpriteContentsAccessor",
     "StairBlockAccessor",
