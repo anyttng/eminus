@@ -18,6 +18,7 @@ public final class SettingsText {
     public static final String FOG_KEY = "gui.eminus.settings.fog";
     public static final String FADE_KEY = "gui.eminus.settings.fade";
     public static final String SHADER_PACK_LOD_KEY = "gui.eminus.settings.shader_pack_lod";
+    public static final String LOD_ANIMATIONS_KEY = "gui.eminus.settings.lod_animations";
 
     private static final String HINT_SUFFIX = ".hint";
     private static final String LIMITED_SUFFIX = ".limited";

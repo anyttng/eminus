@@ -12,12 +12,14 @@ import com.eminus.mesh.MeshSummary;
 import com.eminus.render.arena.MeshSlots;
 import com.eminus.render.far.CameraOrigin;
 import com.eminus.render.far.DrawCommands;
+import com.eminus.render.far.ShadowCasterVolume;
 
 import it.unimi.dsi.fastutil.longs.Long2IntFunction;
 
 import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+import org.joml.Vector3f;
 
 public final class FarShadow implements AutoCloseable {
     private static final int FIRST_COMMAND = 0;
@@ -29,6 +31,8 @@ public final class FarShadow implements AutoCloseable {
     private final Matrix4f viewProjection = new Matrix4f();
     private final Matrix4f view = new Matrix4f();
     private final Matrix4f projection = new Matrix4f();
+    private final ShadowCasterVolume casters = new ShadowCasterVolume();
+    private final Vector3f lightTravel = new Vector3f();
 
     private IndirectCommands indirect;
 
@@ -42,14 +46,17 @@ public final class FarShadow implements AutoCloseable {
         return new FarShadow(gpu, FarFrame.create(gpu), IndirectCommands.create(gpu, FarRenderer.START_COMMANDS));
     }
 
-    boolean write(List<MeshSummary> meshes, Long2IntFunction borderFaces, MeshSlots slots, CellFrame cells,
-            GameFrame game, int atlasCells, NearSections near, Matrix4fc shadowView, Matrix4fc shadowProjection) {
+    boolean write(List<MeshSummary> meshes, List<MeshSummary> translucent, Long2IntFunction borderFaces,
+            MeshSlots slots, CellFrame cells, GameFrame game, int atlasCells, NearSections near,
+            Matrix4fc cameraViewProjection, Matrix4fc shadowView, Matrix4fc shadowProjection) {
         view.set(shadowView);
         projection.set(shadowProjection);
         projection.mul(view, viewProjection);
-        commands.writeShadow(meshes, borderFaces, slots, cells, frustum.set(viewProjection), game.eyeX(),
+        frustum.set(viewProjection);
+        casters.set(cameraViewProjection, view.positiveZ(lightTravel).negate());
+        commands.writeShadow(meshes, translucent, borderFaces, slots, cells, frustum, casters, game.eyeX(),
                 game.eyeY(), game.eyeZ());
-        if (commands.opaqueCount() == 0) {
+        if (commands.count() == 0) {
             return false;
         }
 
@@ -76,8 +83,20 @@ public final class FarShadow implements AutoCloseable {
         return frame.buffer();
     }
 
+    public int opaqueCount() {
+        return commands.opaqueCount();
+    }
+
+    public int translucentCount() {
+        return commands.translucentCount();
+    }
+
     public void draw(Pass pass) {
         pass.drawIndexedIndirect(indirect.buffer(), FIRST_COMMAND, commands.opaqueCount());
+    }
+
+    public void drawTranslucent(Pass pass) {
+        pass.drawIndexedIndirect(indirect.buffer(), commands.opaqueCount(), commands.translucentCount());
     }
 
     @Override

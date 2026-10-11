@@ -8,6 +8,7 @@ import java.util.List;
 
 import com.eminus.client.render.far.FarDraw;
 import com.eminus.compat.iris.PackContract;
+import com.eminus.compat.iris.PackSources;
 
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +46,7 @@ class ContractSourcesTest {
     void everyContractFileIsLookedForAtTheRootAndInEachDimensionFolder() {
         assertEquals(List.of("/eminus_opaque.glsl", "/world-1/eminus_opaque.glsl", "/eminus_translucent.glsl",
                 "/world-1/eminus_translucent.glsl", "/eminus_shadow.glsl", "/world-1/eminus_shadow.glsl",
+                "/eminus_shadow_translucent.glsl", "/world-1/eminus_shadow_translucent.glsl",
                 "/eminus_shadow_vertex.glsl", "/world-1/eminus_shadow_vertex.glsl", "/eminus_vertex.glsl",
                 "/world-1/eminus_vertex.glsl"),
                 PackContract.paths(List.of(NETHER)));
@@ -60,6 +62,35 @@ class ContractSourcesTest {
     void theVersionThreeShadowHookDrivesTheShadowProgramWithoutTheVertexHook() {
         assertEquals(FarDraw.PackVertex.SHADOW_HOOK, ContractSources.shadowStage(false, true));
         assertEquals(FarDraw.PackVertex.OURS, ContractSources.shadowStage(false, false));
+    }
+
+    @Test
+    void aShippedShadowFileWinsOverThePackShadowProgram() {
+        assertEquals(ContractSources.ShadowSource.FILE, ContractSources.shadowSource(true, true));
+        assertEquals(ContractSources.ShadowSource.FILE, ContractSources.shadowSource(true, false));
+    }
+
+    @Test
+    void thePackShadowProgramCastsWithoutAShippedShadowFile() {
+        assertEquals(ContractSources.ShadowSource.PACK_PROGRAM, ContractSources.shadowSource(false, true));
+        assertEquals(ContractSources.ShadowSource.NONE, ContractSources.shadowSource(false, false));
+    }
+
+    @Test
+    void thePackShadowVertexDeclaresItsInputsBeforeOurHeaderAndRunsThePackMainLast() {
+        String pack = """
+                #version 400 compatibility
+                attribute vec3 mc_Entity;
+                void main() {
+                    gl_Position = vec4(mc_Entity, 1.0);
+                }
+                """;
+        String spliced = ContractSources.spliceShadowVertex(pack, HEADER);
+
+        int inputs = spliced.indexOf("void " + ShadowProgramSources.INPUTS_FUNCTION);
+        assertTrue(spliced.startsWith("#version 400 compatibility"), spliced);
+        assertTrue(inputs >= 0 && inputs < spliced.indexOf(HEADER), spliced);
+        assertTrue(spliced.endsWith(PackSources.VERTEX_PROGRAM_MAIN), spliced);
     }
 
     @Test

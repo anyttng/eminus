@@ -18,6 +18,7 @@ import com.eminus.render.backend.DepthConvention;
 
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+import org.jspecify.annotations.Nullable;
 
 public final class FarDraw {
     private static final Location PACK_SHADER = new Location(Eminus.MODID, "core/far_pack");
@@ -44,7 +45,8 @@ public final class FarDraw {
         OURS,
         HOOK,
         SHADOW_HOOK,
-        PROGRAM;
+        PROGRAM,
+        SHADOW_PROGRAM;
 
         public boolean hook() {
             return this == HOOK || this == SHADOW_HOOK;
@@ -103,37 +105,55 @@ public final class FarDraw {
         return farBlocks;
     }
 
-    public PipelineSpec packPipeline(Location location, boolean translucent, PackVertex vertex) {
-        PipelineSpec.Builder builder = withVertex(FarQuads.pipeline(location, PACK_SHADER,
-                        translucent ? TranslucentPass.ALPHA_CUTOUT : OpaquePass.ALPHA_CUTOUT, gpu.capabilities(),
-                        variantDraw)
-                .withColourTarget(FarTarget.COLOUR_FORMAT, translucent ? Blend.TRANSLUCENT : null, true)
-                .withDepthTest(depth.compare(), true), vertex);
-        return (translucent ? builder.withDefine("TRANSLUCENT_PASS") : builder.withDefine("FULL_COVERAGE")).build();
+    public PipelineSpec packPipeline(Location location, boolean translucent, PackVertex vertex, boolean animated) {
+        return translucent
+                ? pack(location, TranslucentPass.ALPHA_CUTOUT, Blend.TRANSLUCENT, true, false, vertex, animated)
+                        .withDefine("TRANSLUCENT_PASS").build()
+                : pack(location, OpaquePass.ALPHA_CUTOUT, null, true, true, vertex, animated)
+                        .withDefine("FULL_COVERAGE").build();
+    }
+
+    public PipelineSpec packDepthPipeline(Location location, PackVertex vertex, boolean animated) {
+        return pack(location, TranslucentPass.ALPHA_CUTOUT, null, false, true, vertex, animated)
+                .withDefine("TRANSLUCENT_PASS").build();
+    }
+
+    private PipelineSpec.Builder pack(Location location, float alphaCutout, @Nullable Blend blend,
+            boolean writesColour, boolean writesDepth, PackVertex vertex, boolean animated) {
+        return withVertex(FarQuads.pipeline(location, PACK_SHADER, alphaCutout, gpu.capabilities(), variantDraw)
+                .withColourTarget(FarTarget.COLOUR_FORMAT, blend, writesColour)
+                .withDepthTest(depth.compare(), writesDepth), vertex, animated);
     }
 
     // Under a pack Iris clears the shadow depth to 1.0 and draws it forward, whatever the game's own direction.
-    public PipelineSpec shadowPipeline(Location location, PackVertex vertex) {
-        PipelineSpec.Builder builder = withVertex(FarQuads.pipeline(location, PACK_SHADER, OpaquePass.ALPHA_CUTOUT,
-                        gpu.capabilities(), variantDraw)
+    public PipelineSpec shadowPipeline(Location location, boolean translucent, PackVertex vertex, boolean animated) {
+        PipelineSpec.Builder builder = withVertex(FarQuads.pipeline(location, PACK_SHADER,
+                        translucent ? TranslucentPass.ALPHA_CUTOUT : OpaquePass.ALPHA_CUTOUT, gpu.capabilities(),
+                        variantDraw)
                 .withColourTarget(FarTarget.COLOUR_FORMAT, null, true)
                 .withDepthTest(DepthConvention.of(depth.zeroToOne(), false).compare(), true)
-                .withDefine("FULL_COVERAGE")
-                .withDefine("SHADOW_PASS"), vertex);
+                .withDefine(translucent ? "TRANSLUCENT_PASS" : "FULL_COVERAGE")
+                .withDefine("SHADOW_PASS"), vertex, animated);
         if (vertex.hook() && depth.zeroToOne()) {
             builder.withDefine("SHADOW_ZERO_TO_ONE");
         }
         return builder.build();
     }
 
-    private static PipelineSpec.Builder withVertex(PipelineSpec.Builder builder, PackVertex vertex) {
+    private static PipelineSpec.Builder withVertex(PipelineSpec.Builder builder, PackVertex vertex, boolean animated) {
         return switch (vertex) {
             case OURS -> builder;
-            case HOOK -> builder.withDefine("PACK_VERTEX");
+            case HOOK -> animated ? builder.withDefine("PACK_VERTEX")
+                    : builder.withDefine("PACK_VERTEX").withDefine("STILL");
             case SHADOW_HOOK -> builder.withDefine("PACK_SHADOW_VERTEX");
-            case PROGRAM -> builder.withDefine("DH_PROGRAM")
-                    .withDefine("FACE_MEAN_LEVEL", Mips.levelCount(BakedModel.FACE_SIDE) - 1);
+            case PROGRAM -> program(builder);
+            case SHADOW_PROGRAM -> program(builder).withDefine("PACK_SHADOW_PROGRAM");
         };
+    }
+
+    private static PipelineSpec.Builder program(PipelineSpec.Builder builder) {
+        return builder.withDefine("DH_PROGRAM")
+                .withDefine("FACE_MEAN_LEVEL", Mips.levelCount(BakedModel.FACE_SIDE) - 1);
     }
 
     public void bind(Pass pass) {

@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
 import com.eminus.box.BoxRegistry;
@@ -19,6 +18,7 @@ import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.client.handoff.NearSectionTable;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
+import com.eminus.model.PackBlocks;
 import com.eminus.client.mesh.MeshWiring;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.client.model.ModelPublisher;
@@ -27,6 +27,7 @@ import com.eminus.client.frame.GameFrame;
 import com.eminus.client.frame.GameFrames;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.Location;
+import com.eminus.gpu.Sparse;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.render.arena.ArenaSizing;
@@ -60,7 +61,6 @@ import com.eminus.settings.SettingsService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.state.BlockState;
 
 import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
@@ -144,24 +144,23 @@ public final class FarRenderer implements AutoCloseable {
 
     public static FarStart start(Minecraft client, Gpu gpu, EminusInstance instance,
             DimensionRuntime runtime, int levelHeight, Settings settings, long replacedArenaBytes,
-            ToIntFunction<BlockState> packIds) {
+            PackBlocks packBlocks) {
         gpu.assertRenderThread();
 
         Texture main = gpu.mainColour();
         long ceiling = ArenaBudget.ceiling(gpu.capabilities(), replacedArenaBytes);
         float focal = FarProjection.focalPixels(client.options.fov().get(), main.height());
-        long bytes = ArenaSizing.fitted(
-                ArenaBudget.bounded(ArenaSizing.wanted(settings.farRenderCells(), settings.detailDistance().pixels(),
-                        focal, runtime.lowestStoredLevel()), ceiling),
-                ceiling);
+        @Nullable Sparse sparse = ArenaBudget.sparse(gpu);
+        long bytes = ArenaBudget.bytes(ArenaSizing.wanted(settings.farRenderCells(),
+                settings.detailDistance().pixels(), focal, runtime.lowestStoredLevel()), ceiling, sparse);
         BackendSupport support = BackendCheck.run(gpu, bytes);
-        GeometryArena arena = GeometryArena.create(gpu, support, bytes);
+        GeometryArena arena = GeometryArena.create(gpu, support, bytes, sparse);
         if (arena == null) {
             gpu.close();
             return FarStart.refused(support.reason());
         }
 
-        ClientBakery baking = ClientBakery.start(client, packIds);
+        ClientBakery baking = ClientBakery.start(client, packBlocks);
         NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOUR_FORMAT, support.depth(),
                 CompositePass.DEPTH_BIAS);
         OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw());
@@ -170,7 +169,9 @@ public final class FarRenderer implements AutoCloseable {
         CompositePass composite = CompositePass.create(gpu, support.depth());
         BoxPass boxes = BoxPass.create(gpu, support.depth());
         List<Pipeline> pipelines = new ArrayList<>(List.of(mask.pipeline(), opaque.pipeline(),
-                occlusion.pipeline(), translucent.pipeline(), composite.pipeline()));
+                occlusion.pipeline()));
+        pipelines.addAll(translucent.pipelines());
+        pipelines.add(composite.pipeline());
         pipelines.addAll(boxes.pipelines());
         Location refused = refusedProgram(pipelines);
         if (refused != null) {
@@ -213,7 +214,7 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     public long arenaBytes() {
-        return arena.state().bytes();
+        return arena.committedBytes();
     }
 
     public static boolean recreates(Settings built, Settings updated) {
@@ -280,8 +281,9 @@ public final class FarRenderer implements AutoCloseable {
             return null;
         }
 
-        return shadow.write(order.meshes(), renderList::borderFaces, arena, runtime.frame(), game,
-                models.atlas().cellsPerSide(), nearSections.sections(), shadowView, shadowProjection) ? shadow : null;
+        return shadow.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(),
+                game, models.atlas().cellsPerSide(), nearSections.sections(), farViewProjection, shadowView,
+                shadowProjection) ? shadow : null;
     }
 
     public void newFrame() {

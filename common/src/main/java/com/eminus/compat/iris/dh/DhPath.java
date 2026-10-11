@@ -6,6 +6,7 @@ import java.util.function.ToIntFunction;
 import com.eminus.client.render.far.FarDraw;
 import com.eminus.compat.iris.PackPath;
 import com.eminus.compat.iris.PackProgram;
+import com.eminus.compat.iris.PackSources;
 
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.shaderpack.ShaderPack;
@@ -13,6 +14,8 @@ import net.irisshaders.iris.shaderpack.programs.ProgramSet;
 import net.irisshaders.iris.shaderpack.programs.ProgramSource;
 
 import net.minecraft.world.level.block.state.BlockState;
+
+import it.unimi.dsi.fastutil.ints.IntSet;
 
 import org.jspecify.annotations.Nullable;
 
@@ -67,11 +70,17 @@ public final class DhPath implements PackPath {
     }
 
     @Override
+    public IntSet movedIds() {
+        return IntSet.of();
+    }
+
+    @Override
     public @Nullable Source source(PackProgram.Kind kind) {
         return switch (kind) {
             case OPAQUE -> source(terrain);
             case TRANSLUCENT -> source(water);
             case SHADOW -> shadow == null ? null : source(shadow);
+            case SHADOW_TRANSLUCENT -> null;
         };
     }
 
@@ -79,7 +88,7 @@ public final class DhPath implements PackPath {
         String vertex = program.getVertexSource().orElseThrow();
         String fragment = program.getFragmentSource().orElseThrow();
         return new Source(PROGRAM_PREFIX + program.getName(), FILE_ROOT + program.getName(),
-                ours -> DhSources.spliceFragmentProgram(fragment, PackPath.header(ours)),
-                ours -> DhSources.spliceVertexProgram(vertex, PackPath.header(ours)), FarDraw.PackVertex.PROGRAM);
+                ours -> PackSources.spliceFragmentProgram(fragment, PackPath.header(ours)),
+                ours -> PackSources.spliceVertexProgram(vertex, PackPath.header(ours)), FarDraw.PackVertex.PROGRAM);
     }
 }

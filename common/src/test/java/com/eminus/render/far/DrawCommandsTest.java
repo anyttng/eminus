@@ -21,6 +21,7 @@ import net.minecraft.core.Direction;
 
 import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 class DrawCommandsTest {
@@ -54,6 +55,10 @@ class DrawCommandsTest {
     private static final FrustumIntersection EVERYWHERE = xSlab(-WIDE, WIDE);
     private static final FrustumIntersection AROUND_THE_CAMERA = xSlab(-NARROW, NARROW);
     private static final FrustumIntersection FAR_EAST = xSlab(AWAY, AWAY + NARROW);
+    private static final ShadowCasterVolume EVERY_CASTER = new ShadowCasterVolume();
+    private static final float RIGHT_ANGLE = (float) Math.toRadians(90.0);
+    private static final float CAMERA_NEAR = 0.05F;
+    private static final float CAMERA_FAR = 48_000.0F;
 
     private final CellFrame frame = new CellFrame(0);
     private final DrawCommands commands = new DrawCommands(CAPACITY);
@@ -234,36 +239,71 @@ class DrawCommandsTest {
 
     @Test
     void aShadowWriteDrawsTheGroupFacingAwayFromTheCamera() {
-        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(slot(key, BLOCK)), frame, EVERYWHERE, INSIDE,
-                FAR_BELOW, INSIDE);
+        shadow(slots(slot(key, BLOCK)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, FAR_BELOW);
 
         assertEquals(2, commands.opaqueCount());
         assertEquals(UP_QUADS + DOWN_QUADS, commands.quads());
     }
 
     @Test
-    void aShadowWriteLeavesTheTranslucentGroupOut() {
-        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(both(key, BLOCK)), frame, EVERYWHERE, INSIDE,
-                INSIDE, INSIDE);
+    void aShadowWriteKeepsTheTranslucentGroupOutOfTheOpaqueRange() {
+        shadow(slots(both(key, BLOCK)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, INSIDE);
 
         assertEquals(0, commands.translucentCount());
         assertEquals(UP_QUADS + DOWN_QUADS, commands.quads());
     }
 
     @Test
+    void aShadowWriteDrawsTheTranslucentListAfterTheOpaqueRange() {
+        shadow(slots(both(key, BLOCK)), List.of(mesh(key)), EVERYWHERE, EVERY_CASTER, INSIDE, INSIDE);
+
+        assertEquals(2, commands.opaqueCount());
+        assertEquals(1, commands.translucentCount());
+        assertEquals(UP_QUADS + DOWN_QUADS + WATER_QUADS, commands.quads());
+        IntBuffer written = commands.buffer().asIntBuffer();
+        assertEquals(WATER_QUADS * INDICES_PER_QUAD, written.get(2 * COMMAND_INTS + INDEX_COUNT));
+        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * CORNERS_PER_QUAD,
+                written.get(2 * COMMAND_INTS + VERTEX_OFFSET));
+    }
+
+    @Test
     void aShadowWriteKeepsABorderGroupWithoutItsMarkOut() {
-        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(border(key, BLOCK)), frame, EVERYWHERE, INSIDE,
-                INSIDE, INSIDE);
+        shadow(slots(border(key, BLOCK)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
     }
 
     @Test
     void aShadowWriteLeavesAMeshOutsideItsFrustumOut() {
-        commands.writeShadow(List.of(mesh(key)), NO_BORDERS, slots(slot(key, BLOCK)), frame, FAR_EAST, INSIDE,
-                INSIDE, INSIDE);
+        shadow(slots(both(key, BLOCK)), List.of(mesh(key)), FAR_EAST, EVERY_CASTER, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
+    }
+
+    @Test
+    void aShadowWriteKeepsAMeshWhoseLightFallsIntoView() {
+        shadow(slots(both(key, BLOCK)), List.of(mesh(key)), EVERYWHERE, casters(-1.0F), FAR_EAST_CAMERA, INSIDE);
+
+        assertEquals(UP_QUADS + DOWN_QUADS + WATER_QUADS, commands.quads());
+    }
+
+    @Test
+    void aShadowWriteLeavesAMeshWhoseLightNeverReachesTheViewOut() {
+        shadow(slots(both(key, BLOCK)), List.of(mesh(key)), EVERYWHERE, casters(1.0F), FAR_EAST_CAMERA, INSIDE);
+
+        assertEquals(0, commands.count());
+    }
+
+    private void shadow(MeshSlots slots, List<MeshSummary> translucent, FrustumIntersection frustum,
+            ShadowCasterVolume casters, double cameraX, double cameraY) {
+        commands.writeShadow(List.of(mesh(key)), translucent, NO_BORDERS, slots, frame, frustum, casters, cameraX,
+                cameraY, INSIDE);
+    }
+
+    private static ShadowCasterVolume casters(float lookX) {
+        Matrix4f viewProjection = new Matrix4f().perspective(RIGHT_ANGLE, 1.0F, CAMERA_NEAR, CAMERA_FAR)
+                .lookAlong(lookX, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F);
+        return new ShadowCasterVolume().set(viewProjection, new Vector3f(0.0F, -1.0F, 0.0F));
     }
 
     @Test

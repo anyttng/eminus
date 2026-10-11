@@ -18,6 +18,7 @@ import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
 import net.irisshaders.iris.helpers.MatrixUtils;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
+import net.irisshaders.iris.pipeline.WorldRenderingPhase;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
@@ -27,6 +28,8 @@ import net.irisshaders.iris.shadows.ShadowRenderer;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.block.state.BlockState;
+
+import it.unimi.dsi.fastutil.ints.IntSet;
 
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -46,13 +49,16 @@ final class PackLayer {
     private @Nullable FarRenderer builtFor;
     private @Nullable PackProgram opaque;
     private @Nullable PackProgram translucent;
+    private @Nullable PackProgram translucentDepth;
     private @Nullable PackProgram shadow;
+    private @Nullable PackProgram shadowTranslucent;
     private @Nullable GlFramebuffer opaqueFramebuffer;
     private @Nullable GlFramebuffer translucentFramebuffer;
     private @Nullable GlFramebuffer shadowFramebuffer;
     private int opaqueAttached = NO_TEXTURE;
     private int translucentAttached = NO_TEXTURE;
     private @Nullable FarDraw drawn;
+    private @Nullable FarShadow shadowDrawn;
 
     private PackLayer(IrisRenderingPipeline pipeline, @Nullable ShaderPack pack, NamespacedId dimension) {
         this.pipeline = pipeline;
@@ -64,7 +70,7 @@ final class PackLayer {
         }
 
         programSet = pack.getProgramSet(dimension);
-        PackPath contract = ContractPath.detect(pack, dimension);
+        PackPath contract = ContractPath.detect(pack, dimension, programSet);
         path = contract != null ? contract : DhPath.detect(pack, pipeline, programSet);
         properties = ((ShaderPackAccessor) pack).eminus$shaderProperties();
     }
@@ -81,6 +87,15 @@ final class PackLayer {
 
         PackPath path = of(iris).path;
         return path == null ? null : path.blockIds(iris, rendered);
+    }
+
+    static IntSet movedIds() {
+        if (!(Iris.getPipelineManager().getPipelineNullable() instanceof IrisRenderingPipeline iris)) {
+            return IntSet.of();
+        }
+
+        PackPath path = of(iris).path;
+        return path == null ? IntSet.of() : path.movedIds();
     }
 
     static boolean readyFor(FarRenderer renderer) {
@@ -111,6 +126,7 @@ final class PackLayer {
         }
 
         PackLayer layer = of(pipeline);
+        layer.shadowDrawn = null;
         if (!layer.ready(renderer) || layer.shadow == null
                 || Boolean.getBoolean(IrisShaderPack.SHADOW_OFF_PROPERTY)) {
             return;
@@ -119,8 +135,36 @@ final class PackLayer {
         // Iris hands the callback the device's depth range and the pack's uniforms the -1..1 one.
         FarShadow drawn = renderer.shadowFrame(Minecraft.getInstance(), shadowView,
                 MatrixUtils.toMinusOneToOne(new Matrix4f(shadowProjection)));
-        if (drawn != null) {
-            layer.shadow.drawShadow(renderer.farDraw(), drawn, layer.shadowFramebuffer, ShadowRenderer.RESOLUTION);
+        if (drawn == null) {
+            return;
+        }
+
+        if (drawn.opaqueCount() > 0) {
+            layer.shadow.drawShadow(renderer.farDraw(), drawn, layer.shadowFramebuffer, ShadowRenderer.RESOLUTION,
+                    false);
+        }
+        layer.shadowDrawn = drawn;
+    }
+
+    static void drawShadowTranslucent(FarRenderer renderer) {
+        if (!(Iris.getPipelineManager().getPipelineNullable() instanceof IrisRenderingPipeline pipeline)) {
+            return;
+        }
+
+        PackLayer layer = of(pipeline);
+        FarShadow drawn = layer.shadowDrawn;
+        layer.shadowDrawn = null;
+        if (drawn == null || drawn.translucentCount() == 0 || layer.shadowTranslucent == null
+                || layer.builtFor != renderer || Boolean.getBoolean(IrisShaderPack.SHADOW_TRANSLUCENT_OFF_PROPERTY)) {
+            return;
+        }
+
+        pipeline.setPhase(WorldRenderingPhase.TERRAIN_TRANSLUCENT);
+        try {
+            layer.shadowTranslucent.drawShadow(renderer.farDraw(), drawn, layer.shadowFramebuffer,
+                    ShadowRenderer.RESOLUTION, true);
+        } finally {
+            pipeline.setPhase(WorldRenderingPhase.NONE);
         }
     }
 
@@ -145,8 +189,11 @@ final class PackLayer {
             current.builtFor = null;
             current.opaque = null;
             current.translucent = null;
+            current.translucentDepth = null;
             current.shadow = null;
+            current.shadowTranslucent = null;
             current.drawn = null;
+            current.shadowDrawn = null;
             current.opaqueAttached = NO_TEXTURE;
             current.translucentAttached = NO_TEXTURE;
         }
@@ -178,7 +225,10 @@ final class PackLayer {
         builtFor = renderer;
         opaque = null;
         translucent = null;
+        translucentDepth = null;
         shadow = null;
+        shadowTranslucent = null;
+        shadowDrawn = null;
         FarDraw draw = renderer.farDraw();
         Optional<Foreign> foreign = draw.gpu().foreign();
         if (foreign.isEmpty()) {
@@ -187,12 +237,16 @@ final class PackLayer {
             return;
         }
 
-        PackProgram builtOpaque = program(draw, foreign.get(), PackProgram.Kind.OPAQUE);
+        PackProgram builtOpaque = program(draw, foreign.get(), PackProgram.Kind.OPAQUE, false);
         PackProgram builtTranslucent = builtOpaque == null ? null
-                : program(draw, foreign.get(), PackProgram.Kind.TRANSLUCENT);
-        if (builtOpaque == null || builtTranslucent == null) {
-            if (builtOpaque != null) {
-                builtOpaque.release();
+                : program(draw, foreign.get(), PackProgram.Kind.TRANSLUCENT, false);
+        PackProgram builtDepth = builtTranslucent == null ? null
+                : program(draw, foreign.get(), PackProgram.Kind.TRANSLUCENT, true);
+        if (builtOpaque == null || builtTranslucent == null || builtDepth == null) {
+            for (PackProgram program : new PackProgram[] {builtOpaque, builtTranslucent}) {
+                if (program != null) {
+                    program.release();
+                }
             }
             return;
         }
@@ -205,18 +259,23 @@ final class PackLayer {
         }
         opaque = builtOpaque;
         translucent = builtTranslucent;
+        translucentDepth = builtDepth;
         buildShadow(draw, foreign.get());
     }
 
     private void release() {
-        for (PackProgram program : new PackProgram[] {opaque, translucent, shadow}) {
+        for (PackProgram program : new PackProgram[] {opaque, translucent, translucentDepth, shadow,
+                shadowTranslucent}) {
             if (program != null) {
                 program.release();
             }
         }
         opaque = null;
         translucent = null;
+        translucentDepth = null;
         shadow = null;
+        shadowTranslucent = null;
+        shadowDrawn = null;
     }
 
     private void buildShadow(FarDraw draw, Foreign foreign) {
@@ -224,7 +283,7 @@ final class PackLayer {
             return;
         }
 
-        PackProgram built = program(draw, foreign, PackProgram.Kind.SHADOW);
+        PackProgram built = program(draw, foreign, PackProgram.Kind.SHADOW, false);
         if (built == null) {
             return;
         }
@@ -233,12 +292,13 @@ final class PackLayer {
             shadowFramebuffer = pipeline.createDHFramebufferShadow(built.source());
         }
         shadow = built;
+        shadowTranslucent = program(draw, foreign, PackProgram.Kind.SHADOW_TRANSLUCENT, false);
     }
 
-    private @Nullable PackProgram program(FarDraw draw, Foreign foreign, PackProgram.Kind kind) {
+    private @Nullable PackProgram program(FarDraw draw, Foreign foreign, PackProgram.Kind kind, boolean depthOnly) {
         PackPath.Source source = path.source(kind);
         return source == null ? null
-                : PackProgram.build(draw, foreign, pipeline, programSet, properties, source, kind);
+                : PackProgram.build(draw, foreign, pipeline, programSet, properties, source, kind, depthOnly);
     }
 
     private void drawOpaque(FarRenderer renderer) {
@@ -268,13 +328,14 @@ final class PackLayer {
     private void drawTranslucent() {
         FarDraw draw = drawn;
         drawn = null;
-        if (draw == null || translucent == null) {
+        if (draw == null || translucent == null || translucentDepth == null) {
             return;
         }
 
         int depth = draw.gpu().foreign().orElseThrow().texture(draw.target().depth());
         translucentAttached = attach(translucentFramebuffer, translucentAttached, depth);
         translucent.draw(draw, translucentFramebuffer, true);
+        translucentDepth.draw(draw, translucentFramebuffer, true);
     }
 
     private static int attach(GlFramebuffer framebuffer, int attached, int depth) {

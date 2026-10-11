@@ -25,6 +25,7 @@ public final class SettingsFile {
     public static final String FOG_KEY = "fog";
     public static final String FADE_KEY = "fade";
     public static final String SHADER_PACK_LOD_KEY = "shader_pack_lod";
+    public static final String LOD_ANIMATIONS_KEY = "lod_animations";
 
     private static final String LOWEST_STORED_LEVEL_COMMENT = """
             Finest detail level kept on disk, 0..4: one voxel covers 2^level blocks
@@ -70,6 +71,12 @@ public final class SettingsFile {
             with the pack's light and fog but one flat colour per block. A pack that
             ships the contract always draws LOD itself.""";
 
+    private static final String LOD_ANIMATIONS_COMMENT = """
+            Whether a shader pack that ships the Eminus contract may sway plants, leaves
+            and water in LOD as it does nearby. false hands the pack's vertex code no
+            block id, so the pack moves nothing it would pick by block, and saves the GPU
+            time that costs on every LOD vertex.""";
+
     private static final Gson GSON = new Gson();
     private static final String INDENT = "  ";
 
@@ -96,7 +103,8 @@ public final class SettingsFile {
                 keyed(json, DETAIL_DISTANCE_KEY, defaults.detailDistance(), DetailDistance::fromKey),
                 bool(json, FOG_KEY, defaults.fog()),
                 bool(json, FADE_KEY, defaults.fade()),
-                keyed(json, SHADER_PACK_LOD_KEY, defaults.shaderPackLod(), ShaderPackLod::fromKey));
+                keyed(json, SHADER_PACK_LOD_KEY, defaults.shaderPackLod(), ShaderPackLod::fromKey),
+                bool(json, LOD_ANIMATIONS_KEY, defaults.lodAnimations()));
     }
 
     public static void save(Path file, Settings settings) {
@@ -114,6 +122,7 @@ public final class SettingsFile {
         entries.add(entry(FADE_KEY, new JsonPrimitive(settings.fade()), FADE_COMMENT));
         entries.add(entry(SHADER_PACK_LOD_KEY, new JsonPrimitive(settings.shaderPackLod().key()),
                 SHADER_PACK_LOD_COMMENT));
+        entries.add(entry(LOD_ANIMATIONS_KEY, new JsonPrimitive(settings.lodAnimations()), LOD_ANIMATIONS_COMMENT));
 
         try {
             Path parent = file.getParent();

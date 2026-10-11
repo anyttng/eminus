@@ -45,6 +45,12 @@ vec4 eminus_shadowPosition(vec4 shadowClipPosition);
 uniform sampler2D Atlas;
 uniform sampler2D TintMask;
 #endif
+#ifdef PACK_SHADOW_PROGRAM
+#include <eminus:far_pack_inputs.glsl>
+
+vec4 eminus_multiTexCoord0;
+vec4 eminus_multiTexCoord1;
+#endif
 #ifndef DH_PROGRAM
 out vec3 iris_vBlockPos;
 flat out uvec2 iris_TexId;
@@ -62,6 +68,13 @@ const bool FAR_SHADOW_PASS = true;
 #else
 const bool FAR_SHADOW_PASS = false;
 #endif
+#ifdef STILL
+const bool FAR_ANIMATED = false;
+#else
+const bool FAR_ANIMATED = true;
+#endif
+const int FAR_NO_BLOCK_ID = -1;
+const int FAR_ANIMATED_LEVEL = 0;
 
 #ifdef DH_PROGRAM
 bool eminus_culled;
@@ -88,9 +101,11 @@ void eminus_vertex() {
     vec2 lmcoord = (vec2(vertex.blockLight, vertex.skyLight) + LIGHT_CENTRE) / LIGHT_LEVELS;
     int blockId = int(texelFetch(ModelRecords, vertex.modelId * MODEL_TEXELS + PACK_ID_TEXEL).x);
 #ifdef PACK_VERTEX
-    bool top = vertex.face >= FAR_FIRST_SIDE_FACE && gl_VertexIndex % FAR_CORNERS_PER_QUAD >= FAR_FIRST_TOP_CORNER;
-    EminusVertex hooked = EminusVertex(position, blockId, vertex.face, vertex.face >= FIRST_BLADE_FACE, top,
-            lmcoord, vertex.level, FAR_SHADOW_PASS);
+    bool animated = FAR_ANIMATED && vertex.level == FAR_ANIMATED_LEVEL;
+    bool top = animated && vertex.face >= FAR_FIRST_SIDE_FACE
+            && gl_VertexIndex % FAR_CORNERS_PER_QUAD >= FAR_FIRST_TOP_CORNER;
+    EminusVertex hooked = EminusVertex(position, animated ? blockId : FAR_NO_BLOCK_ID, vertex.face,
+            animated && vertex.face >= FIRST_BLADE_FACE, top, lmcoord, vertex.level, FAR_SHADOW_PASS);
     vec4 clipPosition = eminus_vertexPosition(hooked);
     position = hooked.playerPos;
     gl_Position = vertex.culled ? CULLED_POSITION : clipPosition;
@@ -125,8 +140,15 @@ void eminus_vertex() {
     _vert_position = vertex.position;
     _vert_normal = normal;
     _vert_tex_light_coord = lmcoord;
-    _vert_color = eminus_faceColour(vertex.atlasCell, vertex.tint);
     dhMaterialId = blockId;
+#ifdef PACK_SHADOW_PROGRAM
+    _vert_color = vec4(1.0);
+    eminus_multiTexCoord0 = vec4(vertex.faceUV, 0.0, 1.0);
+    eminus_multiTexCoord1 = vec4(vec2(vertex.blockLight, vertex.skyLight) * LIGHT_LEVELS, 0.0, 1.0);
+    eminus_packInputs(blockId);
+#else
+    _vert_color = eminus_faceColour(vertex.atlasCell, vertex.tint);
+#endif
 #else
     iris_vBlockPos = vertex.voxelPoint;
     iris_TexId = uvec2(0u, uint(min(vertex.face, LAST_AXIS_FACE)));

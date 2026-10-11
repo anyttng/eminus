@@ -151,6 +151,19 @@ vec2 far_slope(vec4 fifth, vec4 sixth, vec4 seventh, int face) {
     return seventh.zw;
 }
 
+bool far_front_only(int flags, int face) {
+    if ((flags & ONE_SIDED_FLAG) != 0) {
+        return true;
+    }
+#ifdef SHADOW_PASS
+    // A light sees the faces the camera's plane test drops.
+    return false;
+#else
+    // The game draws a fluid's top and sides from both sides and its bottom from the front alone.
+    return (flags & TRANSLUCENT_FLAG) != 0 && ((flags & FLUID_FLAG) == 0 || face == 0);
+#endif
+}
+
 FarVertex far_vertex(int vertexId) {
     FarVertex vertex;
 
@@ -218,6 +231,7 @@ FarVertex far_vertex(int vertexId) {
     float drawnTop = far_high(boundsMax.y, highGap, blocks);
     vec3 local = vec3(voxel) + offset;
     vec2 extent;
+    vec3 planeNormal = vec3(0.0);
 
     if (face >= FIRST_BLADE_FACE) {
         float slide = mix(boundsMin.x, boundsMax.x, unit.x);
@@ -237,7 +251,8 @@ FarVertex far_vertex(int vertexId) {
                           + mix(far_axis(boundsMin, widthAxis), far_axis(boundsMax, widthAxis), unit.x),
                       unit.y * float(height - 1)
                           + mix(far_axis(boundsMin, heightAxis), far_axis(boundsMax, heightAxis), unit.y));
-        float inset = far_inset(first, second, face) + dot(far_slope(fifth, sixth, seventh, face), extent);
+        vec2 slope = far_slope(fifth, sixth, seventh, face);
+        float inset = far_inset(first, second, face) + dot(slope, extent);
         float placedHeight = vertical ? unit.y * float(height - 1) + mix(drawnBottom, drawnTop, unit.y) : extent.y;
         if (fluid && face != 0) {
             float surface = far_fluid_corner(far_fluid_corners(corners, boundsMax.y), inward ? face ^ 1 : face, unit);
@@ -261,13 +276,27 @@ FarVertex far_vertex(int vertexId) {
         local = far_axis_add(local, normalAxis, depth);
         local = far_axis_add(local, widthAxis, extent.x);
         local = far_axis_add(local, heightAxis, placedHeight);
+
+        // The plane's own normal, not the axis: the corners of a sloped face lie at different depths along the axis.
+        float depthStep = (face & 1) == 1 ? -1.0 : 1.0;
+        if (face < 2) {
+            depthStep /= blocks;
+        } else if (inward) {
+            depthStep = -depthStep;
+        }
+        float placedStep = vertical ? float(height - 1) + drawnTop - drawnBottom : 1.0;
+        float extentStep = vertical ? float(height - 1) + boundsMax.y - boundsMin.y : 1.0;
+        planeNormal = far_axis_set(vec3(0.0), normalAxis, placedStep);
+        planeNormal = far_axis_add(planeNormal, widthAxis, -depthStep * slope.x * placedStep);
+        planeNormal = far_axis_add(planeNormal, heightAxis, -depthStep * slope.y * extentStep);
+        planeNormal = (face & 1) == 1 ? planeNormal : -planeNormal;
     }
 
     int cellBlocks = VOXELS_PER_SIDE << level;
     ivec3 origin = ivec3(cellX * cellBlocks, cellY * cellBlocks + MinBlockY, cellZ * cellBlocks);
     vertex.position = vec3(origin - CameraBlockPos) + CameraOffset + local * float(1 << level);
-    vertex.culled = (flags & ONE_SIDED_FLAG) != 0 && face < FIRST_BLADE_FACE
-            && dot(far_face_normal(face), vertex.position) >= 0.0;
+    vertex.culled = face < FIRST_BLADE_FACE && far_front_only(flags, face)
+            && dot(planeNormal, vertex.position) >= 0.0;
 
     vec3 faceLocal = local;
     if (face < FIRST_BLADE_FACE) {

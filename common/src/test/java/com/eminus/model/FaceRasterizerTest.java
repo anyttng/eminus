@@ -46,8 +46,6 @@ class FaceRasterizerTest {
     private static final float SLOPE_TOLERANCE = 1.0E-4F;
     private static final int BAND_ROWS = 8;
     private static final int TINT_LAYER = 0;
-    private static final int TINT_COLOUR = 0x0033_6699;
-    private static final int TINTED_WHITE = 0xFF33_6699;
     private static final int ROW = 3;
 
     private static final float[] NO_UV = {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
@@ -301,18 +299,13 @@ class FaceRasterizerTest {
     }
 
     @Test
-    void aConstantTintIsMultipliedIntoTheMaskedTexelsAndClearsTheMask() {
-        BakedModel model = rasterizer.rasterize(cubeWithTintedOverlay(), OPAQUE_WHITE,
-                layer -> Tint.constant(TINT_COLOUR));
+    void aTintWithoutARowLeavesTheTexelsAsPaintedAndClearsTheMask() {
+        BakedModel model = rasterizer.rasterize(cubeWithTintedOverlay(), OPAQUE_WHITE, layer -> Tint.UNTINTED);
 
         int overlaid = Direction.SOUTH.get3DDataValue();
-        for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
-            int expected = row < BAND_ROWS ? WHITE : TINTED_WHITE;
-            for (int column = 0; column < BakedModel.FACE_SIDE; column++) {
-                int texel = row * BakedModel.FACE_SIDE + column;
-                assertEquals(expected, model.argb(overlaid, texel), "row " + row);
-                assertFalse(model.tinted(overlaid, texel), "row " + row);
-            }
+        for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
+            assertEquals(WHITE, model.argb(overlaid, texel), "texel " + texel);
+            assertFalse(model.tinted(overlaid, texel), "texel " + texel);
         }
 
         assertEquals(BiomeColours.NO_ROW, model.tintRow());
@@ -353,6 +346,16 @@ class FaceRasterizerTest {
         for (int face = 0; face < BakedModel.FACE_COUNT; face++) {
             assertEquals(BakedModel.EMPTY_INSET, model.insets()[face], "face " + face);
         }
+    }
+
+    @Test
+    void aForcedOpaqueTextureKeepsItsHolesAndOccludesOnEveryFace() {
+        BakedModel model = rasterizer.rasterize(cube(), FULLY_TRANSPARENT, FaceRasterizerTest::noTints, true);
+
+        assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.OPAQUE));
+        assertEquals(FaceMask.ALL, ModelMetadata.occluding(model.metadata()));
+        assertTrue(paints(model, Direction.UP.get3DDataValue(), TRANSPARENT));
+        assertFalse(paints(model, Direction.UP.get3DDataValue(), WHITE));
     }
 
     private static List<ModelQuad> cross() {

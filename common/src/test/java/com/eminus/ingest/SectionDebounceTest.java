@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 
+import net.minecraft.core.SectionPos;
+
 class SectionDebounceTest {
     private static final long WINDOW = 500L;
     private static final long SECTION = 42L;
@@ -41,6 +43,23 @@ class SectionDebounceTest {
 
         assertEquals(LongList.of(SECTION), drain(1500L));
         assertEquals(LongList.of(OTHER_SECTION), drain(1900L));
+    }
+
+    @Test
+    void aColumnIsTakenInsideItsWindowAndOthersStay() {
+        long low = SectionPos.asLong(3, -4, -2);
+        long high = SectionPos.asLong(3, 7, -2);
+        long beside = SectionPos.asLong(4, 7, -2);
+        debounce.mark(low, 1000L);
+        debounce.mark(high, 1000L);
+        debounce.mark(beside, 1000L);
+
+        LongArrayList taken = new LongArrayList();
+        debounce.takeColumn(3, -2, taken::add);
+        taken.sort(null);
+
+        assertEquals(LongList.of(Math.min(low, high), Math.max(low, high)), taken);
+        assertEquals(LongList.of(beside), drain(1000L + WINDOW));
     }
 
     private LongList drain(long now) {

@@ -1,6 +1,7 @@
 package com.eminus.compat.iris.contract;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
@@ -14,10 +15,16 @@ import com.eminus.compat.iris.mixin.ShaderPackAccessor;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.irisshaders.iris.shaderpack.include.AbsolutePackPath;
+import net.irisshaders.iris.shaderpack.loading.ProgramId;
 import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
 import net.irisshaders.iris.shaderpack.materialmap.WorldRenderingSettings;
+import net.irisshaders.iris.shaderpack.programs.ProgramFallbackResolver;
+import net.irisshaders.iris.shaderpack.programs.ProgramSet;
+import net.irisshaders.iris.shaderpack.programs.ProgramSource;
 
 import net.minecraft.world.level.block.state.BlockState;
+
+import it.unimi.dsi.fastutil.ints.IntSet;
 
 import org.jspecify.annotations.Nullable;
 
@@ -27,33 +34,46 @@ public final class ContractPath implements PackPath {
     private static final String OPAQUE_PROGRAM = "eminus_opaque";
     private static final String TRANSLUCENT_PROGRAM = "eminus_translucent";
     private static final String SHADOW_PROGRAM = "eminus_shadow";
+    private static final String SHADOW_TRANSLUCENT_PROGRAM = "eminus_shadow_translucent";
+    private static final String PACK_PROGRAM_SUFFIX = "_eminus";
+    private static final String FILE_ROOT = "/";
 
     private final PackFile opaque;
     private final @Nullable PackFile translucent;
     private final @Nullable PackFile shadow;
+    private final @Nullable PackFile shadowTranslucent;
     private final @Nullable PackFile shadowVertex;
     private final @Nullable PackFile vertex;
+    private final @Nullable ProgramSource packShadow;
+    private final IntSet movedIds;
 
     private record PackFile(String path, String source) {
     }
 
     private ContractPath(PackFile opaque, @Nullable PackFile translucent, @Nullable PackFile shadow,
-            @Nullable PackFile shadowVertex, @Nullable PackFile vertex) {
+            @Nullable PackFile shadowTranslucent, @Nullable PackFile shadowVertex, @Nullable PackFile vertex,
+            @Nullable ProgramSource packShadow, IntSet movedIds) {
         this.opaque = opaque;
         this.translucent = translucent;
         this.shadow = shadow;
+        this.shadowTranslucent = shadowTranslucent;
         this.shadowVertex = shadowVertex;
         this.vertex = vertex;
+        this.packShadow = packShadow;
+        this.movedIds = movedIds;
     }
 
-    public static @Nullable ContractPath detect(ShaderPack pack, NamespacedId dimension) {
+    public static @Nullable ContractPath detect(ShaderPack pack, NamespacedId dimension, ProgramSet programSet) {
         ShaderPackAccessor access = (ShaderPackAccessor) pack;
         String folder = folder(pack.getDimensionMap(), access, dimension);
         Function<AbsolutePackPath, String> sources = access.eminus$sourceProvider();
         PackFile opaque = read(sources, PackContract.OPAQUE_FILE, folder);
         return opaque == null ? null : new ContractPath(opaque,
                 read(sources, PackContract.TRANSLUCENT_FILE, folder), read(sources, PackContract.SHADOW_FILE, folder),
-                read(sources, PackContract.SHADOW_VERTEX_FILE, folder), read(sources, PackContract.VERTEX_FILE, folder));
+                read(sources, PackContract.SHADOW_TRANSLUCENT_FILE, folder),
+                read(sources, PackContract.SHADOW_VERTEX_FILE, folder), read(sources, PackContract.VERTEX_FILE, folder),
+                new ProgramFallbackResolver(programSet).resolveNullable(ProgramId.ShadowCutout),
+                ((MovedBlockIds) pack).eminus$movedBlockIds());
     }
 
     @Override
@@ -74,18 +94,48 @@ public final class ContractPath implements PackPath {
     }
 
     @Override
+    public IntSet movedIds() {
+        return movedIds;
+    }
+
+    @Override
     public @Nullable Source source(PackProgram.Kind kind) {
         FarDraw.PackVertex stage = vertex == null ? FarDraw.PackVertex.OURS : FarDraw.PackVertex.HOOK;
         return switch (kind) {
             case OPAQUE -> source(OPAQUE_PROGRAM, opaque, vertex, stage);
             case TRANSLUCENT -> source(TRANSLUCENT_PROGRAM, translucent == null ? opaque : translucent, vertex, stage);
-            case SHADOW -> shadow == null ? null : shadowSource(shadow);
+            case SHADOW -> switch (ContractSources.shadowSource(shadow != null, packShadow != null)) {
+                case FILE -> shadowSource(SHADOW_PROGRAM, shadow);
+                case PACK_PROGRAM -> packShadowSource(packShadow);
+                case NONE -> null;
+            };
+            case SHADOW_TRANSLUCENT -> shadowTranslucent == null ? null
+                    : shadowSource(SHADOW_TRANSLUCENT_PROGRAM, shadowTranslucent);
         };
     }
 
-    private Source shadowSource(PackFile file) {
+    private Source shadowSource(String programName, PackFile file) {
         FarDraw.PackVertex stage = ContractSources.shadowStage(vertex != null, shadowVertex != null);
-        return source(SHADOW_PROGRAM, file, stage == FarDraw.PackVertex.HOOK ? vertex : shadowVertex, stage);
+        return source(programName, file, stage == FarDraw.PackVertex.HOOK ? vertex : shadowVertex, stage);
+    }
+
+    // Iris remaps depth for the shadow pass only under a name it reads as one: shadow, shadow_*, *_shadow.
+    private static Source packShadowSource(ProgramSource program) {
+        return new Source(program.getName() + PACK_PROGRAM_SUFFIX, FILE_ROOT + program.getName(),
+                ours -> ContractSources.spliceShadowFragment(stage(program, program.getFragmentSource()),
+                        PackPath.header(ours)),
+                ours -> ContractSources.spliceShadowVertex(stage(program, program.getVertexSource()),
+                        PackPath.header(ours)),
+                FarDraw.PackVertex.SHADOW_PROGRAM);
+    }
+
+    private static String stage(ProgramSource program, Optional<String> stage) {
+        if (program.getGeometrySource().isPresent() || program.getTessControlSource().isPresent()
+                || program.getTessEvalSource().isPresent()) {
+            throw new IllegalArgumentException("The shadow program " + program.getName()
+                    + " carries a geometry or tessellation stage");
+        }
+        return stage.orElseThrow();
     }
 
     private static Source source(String programName, PackFile file, @Nullable PackFile vertexFile,

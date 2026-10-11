@@ -56,6 +56,8 @@ public final class PackProgram {
     private static final int FIRST_UNIT = IrisSamplers.WORLD_RESERVED_TEXTURE_UNITS.stream()
             .mapToInt(Integer::intValue).max().orElseThrow() + 1;
     private static final String LOCATION_PREFIX = "pack";
+    private static final String DEPTH_SUFFIX = "_depth";
+    private static final String NO_SUFFIX = "";
     private static final String MODEL_VIEW = "iris_ModelViewMatrix";
     private static final String MODEL_VIEW_INVERSE = "iris_ModelViewMatrixInverse";
     private static final String PROJECTION = "iris_ProjectionMatrix";
@@ -93,7 +95,12 @@ public final class PackProgram {
     public enum Kind {
         OPAQUE,
         TRANSLUCENT,
-        SHADOW
+        SHADOW,
+        SHADOW_TRANSLUCENT;
+
+        boolean shadow() {
+            return this == SHADOW || this == SHADOW_TRANSLUCENT;
+        }
     }
 
     private PackProgram(Foreign foreign, Pipeline pipeline, ProgramSource source, Object pass,
@@ -118,13 +125,20 @@ public final class PackProgram {
     }
 
     static @Nullable PackProgram build(FarDraw draw, Foreign foreign, IrisRenderingPipeline irisPipeline,
-            ProgramSet programSet, ShaderProperties properties, PackPath.Source source, Kind kind) {
+            ProgramSet programSet, ShaderProperties properties, PackPath.Source source, Kind kind,
+            boolean depthOnly) {
         String name = source.programName();
-        Location location = new Location(Eminus.MODID, LOCATION_PREFIX + source.file());
+        Location location = new Location(Eminus.MODID,
+                LOCATION_PREFIX + source.file() + (depthOnly ? DEPTH_SUFFIX : NO_SUFFIX));
         ProgramSource[] built = new ProgramSource[1];
+        boolean animated = IrisShaderPack.lodAnimationsChosen();
         Pipeline pipeline = foreign.pipeline(
-                kind == Kind.SHADOW ? draw.shadowPipeline(location, source.vertexStage())
-                        : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertexStage()),
+                kind.shadow()
+                        ? draw.shadowPipeline(location, kind == Kind.SHADOW_TRANSLUCENT, source.vertexStage(),
+                                animated)
+                        : depthOnly ? draw.packDepthPipeline(location, source.vertexStage(), animated)
+                                : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertexStage(),
+                                        animated),
                 FIRST_UNIT,
                 ours -> {
                     String spliced = source.fragment().apply(ours.fragment());
@@ -160,8 +174,8 @@ public final class PackProgram {
             irisPipeline.addGbufferOrShadowSamplers(samplers, images, switch (kind) {
                 case OPAQUE -> irisPipeline::getFlippedAfterPrepare;
                 case TRANSLUCENT -> irisPipeline::getFlippedAfterTranslucent;
-                case SHADOW -> irisPipeline::getFlippedBeforeShadow;
-            }, kind == Kind.SHADOW, false, true, false);
+                case SHADOW, SHADOW_TRANSLUCENT -> irisPipeline::getFlippedBeforeShadow;
+            }, kind.shadow(), false, true, false);
             Object pass = new Object();
             customUniforms.mapholderToPass(uniforms, pass);
             return new PackProgram(foreign, pipeline, built[0], pass, customUniforms, uniforms.buildUniforms(),
@@ -198,11 +212,15 @@ public final class PackProgram {
         }
     }
 
-    void drawShadow(FarDraw draw, FarShadow shadow, GlFramebuffer framebuffer, int resolution) {
+    void drawShadow(FarDraw draw, FarShadow shadow, GlFramebuffer framebuffer, int resolution, boolean translucent) {
         try (Pass farPass = open(framebuffer, resolution, resolution)) {
             use(farPass, shadow.view(), shadow.projection(), draw.lightmap());
             draw.bindShadow(farPass, shadow);
-            shadow.draw(farPass);
+            if (translucent) {
+                shadow.drawTranslucent(farPass);
+            } else {
+                shadow.draw(farPass);
+            }
         } finally {
             restore();
         }

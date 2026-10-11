@@ -21,11 +21,16 @@ public final class BiomeColours {
 
     private static final int SAMPLE_COLUMN = 0;
     private static final int RGB_MASK = 0x00FF_FFFF;
+    private static final int WHITE = RGB_MASK;
 
     @SuppressWarnings("ArrayRecordComponent")
     public record Colours(int[] values, TintSource source, BlockState state) implements Comparable<Colours> {
         public boolean uniform() {
             return Arrays.stream(values).allMatch(value -> value == values[0]);
+        }
+
+        public boolean blank() {
+            return uniform() && values[0] == WHITE;
         }
 
         @Override
@@ -49,6 +54,7 @@ public final class BiomeColours {
 
     private volatile List<Colours> rows = List.of();
     private volatile Map<Colours, Integer> rowByColours = Map.of();
+    private volatile int[] constants = new int[0];
 
     public BiomeColours(Collection<TintBiome> biomes) {
         this.biomes = biomes.stream().sorted(Comparator.comparing(TintBiome::name)).toList();
@@ -76,8 +82,8 @@ public final class BiomeColours {
         }
 
         Colours colours = sample(tint, state);
-        if (colours.uniform()) {
-            return Tint.constant(colours.values()[0]);
+        if (colours.blank()) {
+            return Tint.UNTINTED;
         }
 
         Integer row = rowByColours.get(colours);
@@ -86,12 +92,21 @@ public final class BiomeColours {
 
     public void assign(List<Colours> ranked) {
         Map<Colours, Integer> byColours = new HashMap<>();
+        int[] uniform = new int[ranked.size()];
         for (int row = 0; row < ranked.size(); row++) {
-            byColours.put(ranked.get(row), row);
+            Colours colours = ranked.get(row);
+            byColours.put(colours, row);
+            uniform[row] = colours.uniform() ? colours.values()[0] : NO_COLOUR;
         }
 
         rows = List.copyOf(ranked);
         rowByColours = Map.copyOf(byColours);
+        constants = uniform;
+    }
+
+    public int constant(int row) {
+        int[] uniform = constants;
+        return row < 0 || row >= uniform.length ? NO_COLOUR : uniform[row];
     }
 
     public int colour(int row, String biome) {

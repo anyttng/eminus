@@ -28,5 +28,7 @@
   "gui.eminus.settings.shader_pack_lod": "LOD w shaderach",
   "gui.eminus.settings.shader_pack_lod.hint": "Jak rysowany jest LOD pod paczką shaderów bez obsługi Eminus. Domyślnie rysuje go na obrazie paczki we własnym wyglądzie Eminus. Distant Horizons pozwala paczce obsługującej Distant Horizons rysować go samej, z jej światłem i mgłą, ale jednym płaskim kolorem na blok. Paczka stworzona dla Eminus zawsze rysuje LOD sama. Zmiana przeładowuje paczkę shaderów.",
   "gui.eminus.settings.shader_pack_lod.default": "Domyślnie",
-  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons"
+  "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
+  "gui.eminus.settings.lod_animations": "Animacje LOD",
+  "gui.eminus.settings.lod_animations.hint": "Pozwala shaderom zrobionym dla Eminus kołysać trawę, liście i wodę w LOD tak jak w pobliżu. Wyłączenie oszczędza czas GPU, który to kosztuje. Zmiana przeładowuje shadery."
 }

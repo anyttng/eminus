@@ -26,6 +26,9 @@ class TintSweepTest {
     private static final int BIOMES = 3;
     private static final int SETS = 10;
     private static final int BIOME_STEP = 100;
+    private static final int SPRUCE = 0xFF61_9961;
+    private static final int WHITE = 0xFFFF_FFFF;
+    private static final int RGB_MASK = 0x00FF_FFFF;
 
     private static final UnaryOperator<BlockState> OWN_SHAPE = UnaryOperator.identity();
 
@@ -59,6 +62,22 @@ class TintSweepTest {
         assertEquals(SETS, colours.rowCount());
         assertEquals(Tint.row(0), colours.resolve(sources.get(SETS - 1), blocks.getLast().defaultBlockState()));
         assertEquals(Tint.row(SETS - 1), colours.resolve(sources.getFirst(), blocks.getFirst().defaultBlockState()));
+    }
+
+    @Test
+    void aConstantSetTakesARowAndAWhiteOneTakesNone() {
+        TintSource spruce = (state, biome, x, z) -> SPRUCE;
+        TintSource blank = (state, biome, x, z) -> WHITE;
+        Map<Block, TintSource> byBlock = Map.of(blocks.get(0), spruce, blocks.get(1), blank);
+
+        BiomeColours colours = colours();
+        TintSweep.sweep(states(blocks.subList(0, 2)), tints(byBlock), TintSweepTest::noFluidTints, OWN_SHAPE,
+                colours);
+
+        assertEquals(1, colours.rowCount());
+        assertEquals(Tint.row(0), colours.resolve(spruce, blocks.get(0).defaultBlockState()));
+        assertEquals(SPRUCE & RGB_MASK, colours.constant(0));
+        assertEquals(Tint.UNTINTED, colours.resolve(blank, blocks.get(1).defaultBlockState()));
     }
 
     @Test

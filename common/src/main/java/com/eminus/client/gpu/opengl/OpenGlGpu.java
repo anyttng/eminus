@@ -20,6 +20,7 @@ import com.eminus.gpu.Foreign;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.ShaderSources;
+import com.eminus.gpu.Sparse;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.gpu.buffer.Staging;
@@ -77,6 +78,7 @@ public final class OpenGlGpu implements Gpu, Foreign {
     private final Map<Long, Integer> framebuffers = new HashMap<>();
     private final Map<Borrowed, OpenGlTexture> borrowed = new EnumMap<>(Borrowed.class);
     private final List<OpenGlPipeline> pipelines = new ArrayList<>();
+    private final Optional<Sparse> sparse;
     private final int vertexArray;
     private int quadIndices = NO_BUFFER;
     private int quadIndexCapacity;
@@ -84,6 +86,7 @@ public final class OpenGlGpu implements Gpu, Foreign {
 
     private OpenGlGpu(Capabilities capabilities) {
         this.capabilities = capabilities;
+        this.sparse = OpenGlSparse.of(objects, GL.getCapabilities());
         this.vertexArray = GL30C.glGenVertexArrays();
         GL30C.glBindVertexArray(vertexArray);
         GL30C.glBindVertexArray(UNBOUND);
@@ -254,6 +257,11 @@ public final class OpenGlGpu implements Gpu, Foreign {
     @Override
     public Optional<Foreign> foreign() {
         return Optional.of(this);
+    }
+
+    @Override
+    public Optional<Sparse> sparse() {
+        return sparse;
     }
 
     int sampler(Sampler sampler) {

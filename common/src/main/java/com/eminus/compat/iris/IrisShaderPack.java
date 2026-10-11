@@ -16,17 +16,21 @@ import net.irisshaders.iris.api.v0.IrisApi;
 
 import net.minecraft.world.level.block.state.BlockState;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 
 public final class IrisShaderPack {
     private static final boolean IRIS_PRESENT = IrisMixinPlugin.irisPresent();
     public static final String SHADOW_OFF_PROPERTY = "eminus.shadow.off";
+    public static final String SHADOW_TRANSLUCENT_OFF_PROPERTY = "eminus.shadow.translucent.off";
 
     private static final String SHADOW_CALLBACK = "registerShadowRenderCallback";
 
     private static boolean listening;
     private static @Nullable ShaderPackLod packReadWith;
+    private static @Nullable Boolean animationsBuiltWith;
 
     public static boolean installed() {
         return IRIS_PRESENT;
@@ -38,8 +42,23 @@ public final class IrisShaderPack {
         return packReadWith == ShaderPackLod.DISTANT_HORIZONS;
     }
 
+    static boolean lodAnimationsChosen() {
+        animationsBuiltWith = lodAnimations();
+        return animationsBuiltWith;
+    }
+
+    private static boolean lodAnimations() {
+        return SettingsService.isSet() ? SettingsService.get().settings().lodAnimations()
+                : Settings.DEFAULT_LOD_ANIMATIONS;
+    }
+
     public static void settingsChanged(Settings updated) {
-        if (IRIS_PRESENT && packReadWith != null && updated.shaderPackLod() != packReadWith) {
+        if (!IRIS_PRESENT) {
+            return;
+        }
+
+        if ((packReadWith != null && updated.shaderPackLod() != packReadWith)
+                || (animationsBuiltWith != null && updated.lodAnimations() != animationsBuiltWith)) {
             Api.reloadPack();
         }
     }
@@ -54,6 +73,10 @@ public final class IrisShaderPack {
 
     public static @Nullable ToIntFunction<BlockState> packIds(@Nullable ToIntFunction<BlockState> rendered) {
         return IRIS_PRESENT ? PackLayer.packIds(rendered) : null;
+    }
+
+    public static IntSet movedIds() {
+        return IRIS_PRESENT && lodAnimations() ? PackLayer.movedIds() : IntSet.of();
     }
 
     public static boolean packPathReady(FarRenderer renderer) {
@@ -83,6 +106,10 @@ public final class IrisShaderPack {
         PackLayer.drawShadow(renderer, shadowView, shadowProjection);
     }
 
+    public static void drawShadowTranslucent(FarRenderer renderer) {
+        PackLayer.drawShadowTranslucent(renderer);
+    }
+
     public static int shadowReach(int irisChunks) {
         return PackLayer.shadowReach(irisChunks);
     }
@@ -106,7 +133,7 @@ public final class IrisShaderPack {
         static void reloadPack() {
             try {
                 Iris.reload();
-                Eminus.LOGGER.info("Shader pack reloaded: LOD under shader packs changed");
+                Eminus.LOGGER.info("Shader pack reloaded: LOD under shader packs or LOD animations changed");
             } catch (IOException unreadable) {
                 Eminus.LOGGER.error("Shader pack could not be reloaded: {}", unreadable.toString());
             }

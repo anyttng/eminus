@@ -27,6 +27,7 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
     private static final String FOG_ID = "fog";
     private static final String FADE_ID = "fade";
     private static final String SHADER_PACK_LOD_ID = "shader_pack_lod";
+    private static final String LOD_ANIMATIONS_ID = "lod_animations";
 
     private static final int STEP = 1;
 
@@ -107,6 +108,13 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                     .setDefaultValue(defaults.shaderPackLod())
                     .setBinding(value -> edit(settings -> settings.withShaderPackLod(value)),
                             () -> current().shaderPackLod()));
+            group.addOption(builder.createBooleanOption(id(LOD_ANIMATIONS_ID))
+                    .setName(Component.translatable(SettingsText.LOD_ANIMATIONS_KEY))
+                    .setTooltip(SettingsText.hint(SettingsText.LOD_ANIMATIONS_KEY))
+                    .setStorageHandler(this::save)
+                    .setDefaultValue(defaults.lodAnimations())
+                    .setBinding(value -> edit(settings -> settings.withLodAnimations(value)),
+                            () -> current().lodAnimations()));
         }
 
         builder.registerOwnModOptions()
