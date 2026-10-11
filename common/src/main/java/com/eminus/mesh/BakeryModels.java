@@ -5,6 +5,7 @@ import com.eminus.model.BiomeColours;
 import com.eminus.model.ModelIndex;
 import com.eminus.model.ModelSource;
 
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.material.FluidState;
 
 public record BakeryModels(ModelIndex index, ModelSource models) implements MeshModels {
@@ -44,6 +45,17 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     public int metadata(int modelId) {
         BakedModel model = models.model(modelId);
         return model == null ? NO_METADATA : model.metadata();
+    }
+
+    @Override
+    public float inset(int modelId, int face) {
+        BakedModel model = models.model(modelId);
+        return model == null ? BakedModel.EMPTY_INSET : model.insets()[face];
+    }
+
+    @Override
+    public boolean skipsFace(int stateId, int facingStateId, Direction face) {
+        return index.state(stateId).skipRendering(index.state(facingStateId), face);
     }
 
     @Override

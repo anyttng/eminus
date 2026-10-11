@@ -170,7 +170,9 @@ public final class FarRenderer implements AutoCloseable {
         CompositePass composite = CompositePass.create(gpu, support.depth());
         BoxPass boxes = BoxPass.create(gpu, support.depth());
         List<Pipeline> pipelines = new ArrayList<>(List.of(mask.pipeline(), opaque.pipeline(),
-                occlusion.pipeline(), translucent.pipeline(), composite.pipeline()));
+                occlusion.pipeline()));
+        pipelines.addAll(translucent.pipelines());
+        pipelines.add(composite.pipeline());
         pipelines.addAll(boxes.pipelines());
         Location refused = refusedProgram(pipelines);
         if (refused != null) {
