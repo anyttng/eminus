@@ -1,11 +1,14 @@
 package com.eminus.mesh;
 
+import java.util.Arrays;
+
 import com.eminus.Eminus;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 
 import it.unimi.dsi.fastutil.ints.Int2IntLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -27,8 +30,11 @@ public final class MeshBuffer {
     private static final int CHANNEL_MASK = (1 << CHANNEL_BITS) - 1;
     private static final int PLACEMENT_SHIFT = Integer.SIZE;
     private static final long COLOUR_BITS = 0xFFFF_FFFFL;
+    private static final int ORDER_SHIFT = Integer.SIZE;
+    private static final long INDEX_MASK = 0xFFFF_FFFFL;
 
     private final LongArrayList[] groups = new LongArrayList[QuadGroups.COUNT];
+    private final IntArrayList translucentOrders = new IntArrayList();
     private final LongArrayList colours = new LongArrayList();
     private final Long2IntMap colourIndices = new Long2IntOpenHashMap();
     private final Int2IntLinkedOpenHashMap requested = new Int2IntLinkedOpenHashMap();
@@ -86,6 +92,11 @@ public final class MeshBuffer {
     }
 
     public void add(int group, long quad) {
+        if (group == QuadGroups.TRANSLUCENT) {
+            addTranslucent(quad, TranslucentOrder.unplaced(quad));
+            return;
+        }
+
         LongArrayList quads = groups[group];
         if (quads.size() == (QuadGroups.isBorder(group) ? MAX_QUADS_PER_BORDER : MAX_QUADS_PER_GROUP)) {
             truncated++;
@@ -93,6 +104,17 @@ public final class MeshBuffer {
         }
 
         quads.add(quad);
+    }
+
+    public void addTranslucent(long quad, int order) {
+        LongArrayList quads = groups[QuadGroups.TRANSLUCENT];
+        if (quads.size() == MAX_QUADS_PER_GROUP) {
+            truncated++;
+            return;
+        }
+
+        quads.add(quad);
+        translucentOrders.add(order);
     }
 
     public void dropUnaddressable() {
@@ -120,7 +142,11 @@ public final class MeshBuffer {
             LongArrayList quads = groups[group];
             starts[group] = at;
             counts[group] = quads.size();
-            quads.getElements(0, packed, at, quads.size());
+            if (group == QuadGroups.TRANSLUCENT) {
+                orderTranslucent(quads, packed, at);
+            } else {
+                quads.getElements(0, packed, at, quads.size());
+            }
             at += quads.size();
         }
 
@@ -142,10 +168,24 @@ public final class MeshBuffer {
         }
     }
 
+    private void orderTranslucent(LongArrayList quads, long[] packed, int at) {
+        long[] keys = new long[quads.size()];
+        for (int index = 0; index < keys.length; index++) {
+            keys[index] = (long) translucentOrders.getInt(index) << ORDER_SHIFT | index;
+        }
+
+        Arrays.sort(keys);
+        for (int index = 0; index < keys.length; index++) {
+            packed[at + index] = quads.getLong((int) (keys[index] & INDEX_MASK));
+        }
+    }
+
     private void clear() {
         for (LongArrayList quads : groups) {
             quads.clear();
         }
+
+        translucentOrders.clear();
 
         colours.clear();
         colourIndices.clear();

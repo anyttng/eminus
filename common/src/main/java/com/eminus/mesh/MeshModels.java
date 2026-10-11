@@ -2,6 +2,8 @@ package com.eminus.mesh;
 
 import com.eminus.model.ModelBakery;
 
+import net.minecraft.core.Direction;
+
 public interface MeshModels {
     int MISSING = ModelBakery.MISSING;
     int NO_FLUID = ModelBakery.NO_FLUID;
@@ -21,6 +23,10 @@ public interface MeshModels {
     int inwardModelId(int seabedModelId, int fluidModelId);
 
     int metadata(int modelId);
+
+    float inset(int modelId, int face);
+
+    boolean skipsFace(int stateId, int facingStateId, Direction face);
 
     int tintRow(int modelId);
 
