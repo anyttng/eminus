@@ -35,7 +35,10 @@ Runs on **NeoForge** and **Fabric**. Mod Menu is optional on Fabric.
 
 **Sodium** is supported on both loaders.
 
-**Shader packs**: under **Iris** or **Vitrail**, LOD is drawn over the pack's image in Eminus's own look. An Iris pack made for Eminus draws LOD itself, with its own light, fog and shadows.
+**Shader packs**:
+
+- **Iris** and **Vitrail**: LOD shows under any pack, in Eminus's own look.
+- An Iris pack can draw LOD itself, with its own light, fog and shadows. No pack does this yet.
 
 ## Before you download
 
