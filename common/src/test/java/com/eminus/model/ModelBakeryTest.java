@@ -24,6 +24,8 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.SingleThreadedRandomSource;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -199,7 +201,7 @@ class ModelBakeryTest {
     @SuppressWarnings("ReferenceEquality")
     void twoStatesThePackTellsApartTakeTheirOwnModelsAndIds() throws InterruptedException {
         ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null),
-                state -> state == stone ? STONE_PACK_ID : DIRT_PACK_ID);
+                new PackBlocks(state -> state == stone ? STONE_PACK_ID : DIRT_PACK_ID, IntSet.of()));
 
         try {
             awaitBake(bakery, stone);
@@ -216,7 +218,7 @@ class ModelBakeryTest {
     @Test
     void twoStatesThePackGivesOneIdShareOneModel() throws InterruptedException {
         ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null),
-                state -> STONE_PACK_ID);
+                new PackBlocks(state -> STONE_PACK_ID, IntSet.of()));
 
         try {
             awaitBake(bakery, stone);
@@ -235,7 +237,7 @@ class ModelBakeryTest {
                 .setValue(BlockStateProperties.WATERLOGGED, true);
         ModelBakery bakery = ModelBakery.start(
                 state -> new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE), BakedModel.solid(GREEN)),
-                state -> state.is(Blocks.WATER) ? WATER_PACK_ID : SLAB_PACK_ID);
+                new PackBlocks(state -> state.is(Blocks.WATER) ? WATER_PACK_ID : SLAB_PACK_ID, IntSet.of()));
 
         try {
             awaitBake(bakery, waterloggedSlab);
@@ -244,6 +246,64 @@ class ModelBakeryTest {
             assertEquals(SLAB_PACK_ID, bakery.model(bakery.modelId(waterloggedSlab)).packId());
             assertEquals(WATER_PACK_ID, bakery.model(fluid).packId());
             assertEquals(WATER_PACK_ID, bakery.model(bakery.submergedModelId(fluid)).packId());
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void theModelsOfAnIdThePackMovesCarryTheFlagAndNoOtherDoes() throws InterruptedException {
+        BlockState waterloggedSlab = Blocks.OAK_SLAB.defaultBlockState()
+                .setValue(BlockStateProperties.WATERLOGGED, true);
+        ModelBakery bakery = ModelBakery.start(
+                state -> new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE), BakedModel.solid(GREEN)),
+                new PackBlocks(state -> state.is(Blocks.WATER) ? WATER_PACK_ID : SLAB_PACK_ID,
+                        IntSet.of(WATER_PACK_ID)));
+
+        try {
+            awaitBake(bakery, waterloggedSlab);
+
+            int fluid = bakery.fluidModelId(waterloggedSlab);
+            assertFalse(moved(bakery, bakery.modelId(waterloggedSlab)));
+            assertTrue(moved(bakery, fluid));
+            assertTrue(moved(bakery, bakery.submergedModelId(fluid)));
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void everyVariantOfAMovedWeightedStateCarriesTheFlag() throws InterruptedException {
+        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null, null,
+                List.of(new WeightedModel(BakedModel.solid(BLUE), LIGHT_WEIGHT),
+                        new WeightedModel(BakedModel.solid(GREEN), HEAVY_WEIGHT)),
+                false), new PackBlocks(state -> STONE_PACK_ID, IntSet.of(STONE_PACK_ID)));
+
+        try {
+            awaitBake(bakery, stone);
+
+            int[] table = bakery.model(bakery.modelId(stone)).variants();
+            assertTrue(moved(bakery, bakery.modelId(stone)));
+            assertTrue(moved(bakery, table[1]));
+            assertTrue(moved(bakery, table[BakedModel.VARIANT_WORDS + 1]));
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void aPackThatDeclaresNothingMovesNoModel() throws InterruptedException {
+        ModelBakery bakery = ModelBakery.start(
+                state -> new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE), BakedModel.solid(GREEN)),
+                new PackBlocks(state -> STONE_PACK_ID, IntSet.of()));
+
+        try {
+            awaitBake(bakery, stone);
+
+            int fluid = bakery.fluidModelId(stone);
+            assertFalse(moved(bakery, bakery.modelId(stone)));
+            assertFalse(moved(bakery, fluid));
+            assertFalse(moved(bakery, bakery.submergedModelId(fluid)));
         } finally {
             bakery.stop();
         }
@@ -377,6 +437,10 @@ class ModelBakeryTest {
         public BakedModel bakeParts(BlockState state, List<Object> picked) {
             return BakedModel.solid(PART_COLOURS[parts.indexOf(picked.getFirst())]);
         }
+    }
+
+    private static boolean moved(ModelBakery bakery, int modelId) {
+        return ModelMetadata.has(bakery.model(modelId).metadata(), ModelMetadata.MOVED);
     }
 
     private static void awaitBake(ModelBakery bakery, BlockState state) throws InterruptedException {

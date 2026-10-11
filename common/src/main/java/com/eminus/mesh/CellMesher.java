@@ -11,6 +11,9 @@ import net.minecraft.core.Direction;
 import org.jspecify.annotations.Nullable;
 
 public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
+    private static final int UNMERGED = ModelMetadata.SLOPED | ModelMetadata.MOVED;
+    private static final int COARSE_UNMERGED = ModelMetadata.SLOPED;
+
     private final MeshScratch scratch;
     private final MeshModels models;
 
@@ -68,7 +71,7 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
 
     @Override
     public boolean merges(long data) {
-        return !ModelMetadata.has(models.metadata(Quad.modelId(data)), ModelMetadata.SLOPED);
+        return !ModelMetadata.has(models.metadata(Quad.modelId(data)), coarse ? COARSE_UNMERGED : UNMERGED);
     }
 
     @Override

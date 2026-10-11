@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
 import com.eminus.box.BoxRegistry;
@@ -19,6 +18,7 @@ import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.client.handoff.NearSectionTable;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshService;
+import com.eminus.model.PackBlocks;
 import com.eminus.client.mesh.MeshWiring;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.client.model.ModelPublisher;
@@ -61,7 +61,6 @@ import com.eminus.settings.SettingsService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.state.BlockState;
 
 import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
@@ -145,7 +144,7 @@ public final class FarRenderer implements AutoCloseable {
 
     public static FarStart start(Minecraft client, Gpu gpu, EminusInstance instance,
             DimensionRuntime runtime, int levelHeight, Settings settings, long replacedArenaBytes,
-            ToIntFunction<BlockState> packIds) {
+            PackBlocks packBlocks) {
         gpu.assertRenderThread();
 
         Texture main = gpu.mainColour();
@@ -161,7 +160,7 @@ public final class FarRenderer implements AutoCloseable {
             return FarStart.refused(support.reason());
         }
 
-        ClientBakery baking = ClientBakery.start(client, packIds);
+        ClientBakery baking = ClientBakery.start(client, packBlocks);
         NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOUR_FORMAT, support.depth(),
                 CompositePass.DEPTH_BIAS);
         OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw());
