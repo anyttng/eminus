@@ -15,6 +15,8 @@ import net.irisshaders.iris.shaderpack.programs.ProgramSource;
 
 import net.minecraft.world.level.block.state.BlockState;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import org.jspecify.annotations.Nullable;
 
 public final class DhPath implements PackPath {
@@ -65,6 +67,11 @@ public final class DhPath implements PackPath {
     public ToIntFunction<BlockState> blockIds(IrisRenderingPipeline pipeline,
             @Nullable ToIntFunction<BlockState> rendered) {
         return DhMaterials.CLASSES;
+    }
+
+    @Override
+    public IntSet movedIds() {
+        return IntSet.of();
     }
 
     @Override

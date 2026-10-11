@@ -55,7 +55,9 @@ the same body, and the LOD's translucent faces cast those shadows as well.
 
 If your `gbuffers_terrain` vertex program changes the position it projects (temporal anti-aliasing jitter, a render
 scale, a shadow distortion), add `eminus_vertex.glsl` with the same code, so the LOD reaches your later passes where
-they expect your terrain. [The vertex hook](#the-vertex-hook) has the details.
+they expect your terrain. [The vertex hook](#the-vertex-hook) has the details. If it animates blocks, name the
+blocks it moves in `eminus.properties` ([Blocks your hook moves](#blocks-your-hook-moves)), or gaps open in the LOD
+where they sway.
 
 The [example pack](example-pack/) is a complete minimal pack: textured, lit terrain, the contract file, and a fog
 composite that is step 2 in one call. It carries its own MIT [license](example-pack/LICENSE), so a pack may copy
@@ -71,12 +73,13 @@ any part of it.
 | `eminus_shadow_translucent.glsl` | no | Translucent LOD faces in your shadow pass. Since version 6. Read only beside `eminus_shadow.glsl`. Without it, translucent LOD faces cast no shadow. |
 | `eminus_vertex.glsl` | no | The vertex stage's hook of every program: your vertex animation, your jitter, your render scale, your shadow-map distortion. Since version 4. Without it, LOD positions reach your buffers as Eminus projects them. |
 | `eminus_shadow_vertex.glsl` | no | The version 3 form of the shadow program's vertex hook: your shadow-map distortion. Read only while `eminus_vertex.glsl` is absent. |
+| `eminus.properties` | no | Not a program: the blocks your vertex hook moves ([Blocks your hook moves](#blocks-your-hook-moves)). Since version 6. Read from `shaders/` itself, never from a dimension folder. |
 
-A file is looked up in the folder Iris uses for the current dimension (`world0`, `world-1`, `world1`, or the folder
+A `.glsl` file is looked up in the folder Iris uses for the current dimension (`world0`, `world-1`, `world1`, or the folder
 `dimension.properties` maps it to) and, when that folder does not carry it, in `shaders/` itself. One file at the
 root therefore serves every dimension; a copy in a dimension folder overrides it for that dimension alone.
 
-Each file but the two vertex files is a fragment-stage source in your pack's dialect:
+Each `.glsl` file but the two vertex files is a fragment-stage source in your pack's dialect:
 
 - it opens with `#version 330` or later;
 - it may `#include` your pack's files and use your options, macros and `#ifdef`s like any other program;
@@ -95,7 +98,7 @@ Defined in every program of the pack while Eminus is installed:
 | Macro | Value |
 | --- | --- |
 | `EMINUS` | defined, empty |
-| `EMINUS_CONTRACT_VERSION` | `5` |
+| `EMINUS_CONTRACT_VERSION` | `6` |
 
 ## The function
 
@@ -216,6 +219,36 @@ vec4 eminus_vertexPosition(inout EminusVertex vertex) {
 Besides the names of [Inside the contract files](#inside-the-contract-files), do not declare any of `Quads`,
 `MeshRecords`, `ModelRecords`, `CULLED_POSITION`, `BLADE_NORMAL`, `LIGHT_LEVELS`, `LIGHT_CENTRE` or `LAST_AXIS_FACE` in
 this file: Eminus declares them in front of your code.
+
+### Blocks your hook moves
+
+Eminus joins neighbouring faces of one block into one larger face, with vertices at its corners alone. Where a smaller
+face meets the middle of a larger face's edge, your function moves the smaller face's corner by its value at that
+point, while the larger face's edge stays a straight line between its own moved corners, so a gap opens between them.
+Eminus cannot read from your code which blocks it moves, so you name them: list their ids from your `block.properties`
+under the key `moved` in `shaders/eminus.properties`. Since version 6.
+
+```properties
+moved = \
+#ifdef WAVING_PLANTS
+    10002 10003 10004 \
+#endif
+#ifdef WAVING_LEAVES
+    10005 \
+#endif
+```
+
+- Eminus reads the file through Iris's properties preprocessor with your options applied, as Iris reads your
+  `block.properties`, so wrap each id in the `#ifdef` your vertex code moves it under, and a player who turns the
+  option off gets those faces joined again.
+- Ids are separated by spaces; anything that is not a block id is skipped with one line in the log.
+- The faces of the named blocks stay one block wide and tall at `level` 0, the only level where your hook moves them;
+  past `level` 0, and everywhere while the player has LOD animations off, they are joined as before.
+- The price is quads: every face of a named block at `level` 0 is one quad, where its neighbours of the same look would
+  have shared one. Name only what your hook moves.
+- Without the file, every face is joined as before.
+
+Changing the list (a pack switch, a changed option, LOD animations turned on or off) rebuilds the LOD once.
 
 ## When the LOD is drawn
 

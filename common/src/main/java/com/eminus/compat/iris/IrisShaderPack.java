@@ -16,6 +16,8 @@ import net.irisshaders.iris.api.v0.IrisApi;
 
 import net.minecraft.world.level.block.state.BlockState;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 
@@ -41,9 +43,13 @@ public final class IrisShaderPack {
     }
 
     static boolean lodAnimationsChosen() {
-        animationsBuiltWith = SettingsService.isSet() ? SettingsService.get().settings().lodAnimations()
-                : Settings.DEFAULT_LOD_ANIMATIONS;
+        animationsBuiltWith = lodAnimations();
         return animationsBuiltWith;
+    }
+
+    private static boolean lodAnimations() {
+        return SettingsService.isSet() ? SettingsService.get().settings().lodAnimations()
+                : Settings.DEFAULT_LOD_ANIMATIONS;
     }
 
     public static void settingsChanged(Settings updated) {
@@ -67,6 +73,10 @@ public final class IrisShaderPack {
 
     public static @Nullable ToIntFunction<BlockState> packIds(@Nullable ToIntFunction<BlockState> rendered) {
         return IRIS_PRESENT ? PackLayer.packIds(rendered) : null;
+    }
+
+    public static IntSet movedIds() {
+        return IRIS_PRESENT && lodAnimations() ? PackLayer.movedIds() : IntSet.of();
     }
 
     public static boolean packPathReady(FarRenderer renderer) {

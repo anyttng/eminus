@@ -3,30 +3,38 @@ package com.eminus.compat.iris.mixin;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.eminus.compat.iris.IrisShaderPack;
 import com.eminus.compat.iris.PackContract;
+import com.eminus.compat.iris.contract.MovedBlockFile;
+import com.eminus.compat.iris.contract.MovedBlockIds;
 import com.eminus.compat.iris.dh.DhPackFiles;
 import com.eminus.compat.iris.dh.DistantHorizonsPack;
 
 import com.google.common.collect.ImmutableList;
 import com.llamalad7.mixinextras.sugar.Local;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import net.irisshaders.iris.helpers.StringPair;
 import net.irisshaders.iris.platform.IrisPlatformHelpers;
 import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.irisshaders.iris.shaderpack.include.AbsolutePackPath;
+import net.irisshaders.iris.shaderpack.option.ShaderPackOptions;
 
 @Mixin(ShaderPack.class)
-public abstract class ShaderPackMixin implements DistantHorizonsPack {
+public abstract class ShaderPackMixin implements DistantHorizonsPack, MovedBlockIds {
     private static final String CONSTRUCTOR =
             "<init>(Ljava/nio/file/Path;Ljava/util/Map;Lcom/google/common/collect/ImmutableList;Z)V";
     private static final String INCLUDE_GRAPH = "Lnet/irisshaders/iris/shaderpack/include/IncludeGraph;<init>("
@@ -39,8 +47,15 @@ public abstract class ShaderPackMixin implements DistantHorizonsPack {
     @Final
     private List<String> dimensionIds;
 
+    @Shadow
+    @Final
+    private ShaderPackOptions shaderPackOptions;
+
     @Unique
     private boolean eminus$distantHorizons;
+
+    @Unique
+    private IntSet eminus$movedBlockIds;
 
     @ModifyVariable(method = CONSTRUCTOR, at = @At(value = "STORE", ordinal = 0), argsOnly = true)
     private ImmutableList<StringPair> eminus$defineDistantHorizons(ImmutableList<StringPair> defines,
@@ -69,5 +84,18 @@ public abstract class ShaderPackMixin implements DistantHorizonsPack {
             }
         }
         return added.build();
+    }
+
+    // The defines are the ones the constructor last stored, which Iris's IdMap reads block.properties with.
+    @Inject(method = CONSTRUCTOR, at = @At("RETURN"))
+    private void eminus$readMovedBlocks(Path root, Map<String, String> changedConfigs,
+            ImmutableList<StringPair> environmentDefines, boolean isZip, CallbackInfo info) {
+        eminus$movedBlockIds = MovedBlockFile.read(root, shaderPackOptions, environmentDefines);
+    }
+
+    @Unique
+    @Override
+    public IntSet eminus$movedBlockIds() {
+        return eminus$movedBlockIds;
     }
 }

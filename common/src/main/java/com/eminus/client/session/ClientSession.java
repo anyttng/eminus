@@ -17,7 +17,7 @@ import com.eminus.client.gpu.Gpus;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.client.render.far.FarStart;
 import com.eminus.gpu.Gpu;
-import com.eminus.model.ModelBakery;
+import com.eminus.model.PackBlocks;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 import com.eminus.session.StoreFolders;
@@ -52,6 +52,7 @@ public final class ClientSession {
     private static boolean throughDhPrograms;
     private static int renderedBiomeBlend;
     private static @Nullable ToIntFunction<BlockState> renderedPackIds;
+    private static PackBlocks renderedPackBlocks = PackBlocks.NONE;
     private static EminusInstance instance;
     private static DimensionRuntime runtime;
     private static FarRenderer renderer;
@@ -207,6 +208,10 @@ public final class ClientSession {
         return renderer;
     }
 
+    public static PackBlocks packBlocks() {
+        return renderedPackBlocks;
+    }
+
     public static @Nullable String refusal() {
         return refusal;
     }
@@ -230,6 +235,12 @@ public final class ClientSession {
 
         if (renderer != null && IrisShaderPack.packIds(renderedPackIds) != renderedPackIds) {
             Eminus.LOGGER.info("Shader pack block ids changed: the far layer rebuilds");
+            restartRenderer();
+        }
+
+        if (renderer != null && !IrisShaderPack.movedIds().equals(renderedPackBlocks.moved())) {
+            Eminus.LOGGER.info("Shader pack's moved blocks changed to {}: the far layer rebuilds",
+                    IrisShaderPack.movedIds());
             restartRenderer();
         }
 
@@ -351,8 +362,10 @@ public final class ClientSession {
         renderedCutoutLeaves = GameFrames.cutoutLeaves(minecraft);
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
         renderedPackIds = IrisShaderPack.packIds(renderedPackIds);
+        renderedPackBlocks = renderedPackIds == null ? PackBlocks.NONE
+                : new PackBlocks(renderedPackIds, IrisShaderPack.movedIds());
         FarStart start = FarRenderer.start(minecraft, gpu, instance, runtime, level.getHeight(), rendered,
-                replacedArenaBytes, renderedPackIds == null ? ModelBakery.NO_PACK_IDS : renderedPackIds);
+                replacedArenaBytes, renderedPackBlocks);
         renderer = start.renderer();
         refusal = start.refusal();
     }

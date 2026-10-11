@@ -24,6 +24,8 @@ import net.irisshaders.iris.shaderpack.programs.ProgramSource;
 
 import net.minecraft.world.level.block.state.BlockState;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import org.jspecify.annotations.Nullable;
 
 public final class ContractPath implements PackPath {
@@ -43,13 +45,14 @@ public final class ContractPath implements PackPath {
     private final @Nullable PackFile shadowVertex;
     private final @Nullable PackFile vertex;
     private final @Nullable ProgramSource packShadow;
+    private final IntSet movedIds;
 
     private record PackFile(String path, String source) {
     }
 
     private ContractPath(PackFile opaque, @Nullable PackFile translucent, @Nullable PackFile shadow,
             @Nullable PackFile shadowTranslucent, @Nullable PackFile shadowVertex, @Nullable PackFile vertex,
-            @Nullable ProgramSource packShadow) {
+            @Nullable ProgramSource packShadow, IntSet movedIds) {
         this.opaque = opaque;
         this.translucent = translucent;
         this.shadow = shadow;
@@ -57,6 +60,7 @@ public final class ContractPath implements PackPath {
         this.shadowVertex = shadowVertex;
         this.vertex = vertex;
         this.packShadow = packShadow;
+        this.movedIds = movedIds;
     }
 
     public static @Nullable ContractPath detect(ShaderPack pack, NamespacedId dimension, ProgramSet programSet) {
@@ -68,7 +72,8 @@ public final class ContractPath implements PackPath {
                 read(sources, PackContract.TRANSLUCENT_FILE, folder), read(sources, PackContract.SHADOW_FILE, folder),
                 read(sources, PackContract.SHADOW_TRANSLUCENT_FILE, folder),
                 read(sources, PackContract.SHADOW_VERTEX_FILE, folder), read(sources, PackContract.VERTEX_FILE, folder),
-                new ProgramFallbackResolver(programSet).resolveNullable(ProgramId.ShadowCutout));
+                new ProgramFallbackResolver(programSet).resolveNullable(ProgramId.ShadowCutout),
+                ((MovedBlockIds) pack).eminus$movedBlockIds());
     }
 
     @Override
@@ -86,6 +91,11 @@ public final class ContractPath implements PackPath {
             @Nullable ToIntFunction<BlockState> rendered) {
         return ((IrisRenderingPipelineAccessor) pipeline).eminus$initializedBlockIds()
                 ? WorldRenderingSettings.INSTANCE.getBlockStateIds() : rendered;
+    }
+
+    @Override
+    public IntSet movedIds() {
+        return movedIds;
     }
 
     @Override
