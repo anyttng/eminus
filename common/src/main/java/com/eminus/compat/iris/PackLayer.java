@@ -29,6 +29,8 @@ import net.irisshaders.iris.shadows.ShadowRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.block.state.BlockState;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
@@ -85,6 +87,15 @@ final class PackLayer {
 
         PackPath path = of(iris).path;
         return path == null ? null : path.blockIds(iris, rendered);
+    }
+
+    static IntSet movedIds() {
+        if (!(Iris.getPipelineManager().getPipelineNullable() instanceof IrisRenderingPipeline iris)) {
+            return IntSet.of();
+        }
+
+        PackPath path = of(iris).path;
+        return path == null ? IntSet.of() : path.movedIds();
     }
 
     static boolean readyFor(FarRenderer renderer) {
