@@ -81,6 +81,8 @@ class CellMesherTest {
     private static final int SEA_SUBMERGED_MODEL = 41;
     private static final int SNOW = 42;
     private static final int SNOW_MODEL = 43;
+    private static final int MOVED_LEAVES = 44;
+    private static final int MOVED_LEAVES_MODEL = 45;
     private static final int GROUND_LEVEL = 2;
     private static final int SEA_FLUID = 2;
     private static final int SEABED_Y = 10;
@@ -505,6 +507,17 @@ class CellMesherTest {
         assertEquals(HEADED_VOXELS * (Quad.BLADE_COUNT + HEAD_FACES), mesh.quadCount());
         assertTrue(has(mesh, Direction.EAST, 5, 6, 8, HEADED_MODEL));
         assertTrue(has(mesh, Direction.EAST, 5, 7, 7, HEADED_MODEL));
+    }
+
+    @Test
+    void facesOfAModelThePackMovesStayOneVoxelWideAtLevelZeroAndMergeAbove() {
+        defineBlocks();
+        models.define(MOVED_LEAVES, MOVED_LEAVES_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, ModelMetadata.MOVED));
+        opacities.put(MOVED_LEAVES, StateTable.FULL_OPACITY);
+
+        assertEquals(CUBE_FACES * CUBE_SIDE * CUBE_SIDE, mesh(cube(MOVED_LEAVES), airAround(), 0).quadCount());
+        assertEquals(CUBE_FACES, mesh(cube(MOVED_LEAVES), airAround(), COARSE_LEVEL).quadCount());
     }
 
     @Test

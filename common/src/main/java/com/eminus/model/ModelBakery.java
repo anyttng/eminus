@@ -9,7 +9,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.IntSupplier;
-import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
 import com.eminus.cell.Dictionary;
@@ -27,7 +26,6 @@ public final class ModelBakery implements ModelSource {
     public static final int NO_FLUID = -2;
     public static final int POSITIONAL = -4;
     public static final int PLACEHOLDER_COLOUR = 0xFFFF_00FF;
-    public static final ToIntFunction<BlockState> NO_PACK_IDS = state -> BakedModel.NO_PACK_ID;
 
     private static final int THREAD_PRIORITY = Thread.NORM_PRIORITY - 1;
     private static final long LOW_WORD = 0xFFFF_FFFFL;
@@ -42,7 +40,7 @@ public final class ModelBakery implements ModelSource {
     }
 
     private final StateBaker baker;
-    private final ToIntFunction<BlockState> packIds;
+    private final PackBlocks packBlocks;
     private final Dictionary<BakedModel> models = new Dictionary<>((id, model) -> { });
     private final Map<BlockState, Integer> idByState = new ConcurrentHashMap<>();
     private final Map<BlockState, Integer> fluidIdByState = new ConcurrentHashMap<>();
@@ -59,18 +57,18 @@ public final class ModelBakery implements ModelSource {
 
     private volatile boolean running = true;
 
-    private ModelBakery(StateBaker baker, ToIntFunction<BlockState> packIds) {
+    private ModelBakery(StateBaker baker, PackBlocks packBlocks) {
         this.baker = baker;
-        this.packIds = packIds;
+        this.packBlocks = packBlocks;
     }
 
     public static ModelBakery start(StateBaker baker) {
-        return start(baker, NO_PACK_IDS);
+        return start(baker, PackBlocks.NONE);
     }
 
     @SuppressWarnings("ThreadPriorityCheck")
-    public static ModelBakery start(StateBaker baker, ToIntFunction<BlockState> packIds) {
-        ModelBakery bakery = new ModelBakery(baker, packIds);
+    public static ModelBakery start(StateBaker baker, PackBlocks packBlocks) {
+        ModelBakery bakery = new ModelBakery(baker, packBlocks);
         bakery.thread.setDaemon(true);
         bakery.thread.setPriority(THREAD_PRIORITY);
         bakery.thread.start();
@@ -186,7 +184,7 @@ public final class ModelBakery implements ModelSource {
                 publish(request.state(), bake(request.state()));
             } else {
                 idByParts.put(request,
-                        models.register(bakeParts(request).withPackId(packIds.applyAsInt(request.state()))));
+                        models.register(stamped(bakeParts(request), packBlocks.ids().applyAsInt(request.state()))));
             }
 
             answer(request);
@@ -213,15 +211,15 @@ public final class ModelBakery implements ModelSource {
     }
 
     private void publish(BlockState state, BakedState baked) {
-        int statePackId = packIds.applyAsInt(state);
-        int fluidPackId = packIds.applyAsInt(state.getFluidState().createLegacyBlock());
+        int statePackId = packBlocks.ids().applyAsInt(state);
+        int fluidPackId = packBlocks.ids().applyAsInt(state.getFluidState().createLegacyBlock());
         BakedModel fluid = baked.fluid();
-        int fluidId = fluid == null ? NO_FLUID : models.register(fluid.withPackId(fluidPackId));
-        int blockId = baked.variants().isEmpty() ? models.register(baked.block().withPackId(statePackId))
+        int fluidId = fluid == null ? NO_FLUID : models.register(stamped(fluid, fluidPackId));
+        int blockId = baked.variants().isEmpty() ? models.register(stamped(baked.block(), statePackId))
                 : registerVariants(baked, statePackId);
         if (baked.submerged() != null) {
             submergedIds.put(fluid == null ? blockId : fluidId,
-                    models.register(baked.submerged().withPackId(fluid == null ? statePackId : fluidPackId)));
+                    models.register(stamped(baked.submerged(), fluid == null ? statePackId : fluidPackId)));
         }
 
         if (baked.positional()) {
@@ -241,10 +239,16 @@ public final class ModelBakery implements ModelSource {
             WeightedModel variant = variants.get(entry);
             upperBound += variant.weight();
             table[entry * BakedModel.VARIANT_WORDS] = upperBound;
-            table[entry * BakedModel.VARIANT_WORDS + 1] = models.register(variant.model().withPackId(packId));
+            table[entry * BakedModel.VARIANT_WORDS + 1] = models.register(stamped(variant.model(), packId));
         }
 
-        return models.register(variants.getFirst().model().withVariants(table).withPackId(packId));
+        return models.register(stamped(variants.getFirst().model().withVariants(table), packId));
+    }
+
+    private BakedModel stamped(BakedModel model, int packId) {
+        BakedModel stamped = model.withPackId(packId);
+        return packBlocks.moved().contains(packId) ? stamped.withMetadata(stamped.metadata() | ModelMetadata.MOVED)
+                : stamped;
     }
 
     private void answer(Request request) {

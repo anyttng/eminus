@@ -11,6 +11,8 @@ import net.irisshaders.iris.shaderpack.preprocessor.JcppProcessor;
 
 import net.minecraft.world.level.block.state.BlockState;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import org.jspecify.annotations.Nullable;
 
 public interface PackPath {
@@ -20,6 +22,8 @@ public interface PackPath {
 
     @Nullable ToIntFunction<BlockState> blockIds(IrisRenderingPipeline pipeline,
             @Nullable ToIntFunction<BlockState> rendered);
+
+    IntSet movedIds();
 
     @Nullable Source source(PackProgram.Kind kind);
 

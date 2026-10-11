@@ -136,8 +136,8 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
 
     public BakedModel inward(BakedModel fluid) {
         int word = ModelMetadata.pack(FaceMask.ALL, FaceMask.NONE, FaceMask.NONE, ModelMetadata.emission(metadata),
-                (metadata & ModelMetadata.TINTED) | ModelMetadata.FLUID | ModelMetadata.ONE_SIDED
-                        | ModelMetadata.INWARD);
+                (metadata & (ModelMetadata.TINTED | ModelMetadata.MOVED)) | ModelMetadata.FLUID
+                        | ModelMetadata.ONE_SIDED | ModelMetadata.INWARD);
         return new BakedModel(faces, tintMask, fluid.insets, new float[SLOPES_LENGTH], fluid.bounds, word, tintRow,
                 NO_VARIANTS, packId, mips);
     }
