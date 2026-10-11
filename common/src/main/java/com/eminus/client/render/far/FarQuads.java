@@ -70,6 +70,7 @@ final class FarQuads {
                 .withDefine("MODEL_FACES", BakedModel.FACE_COUNT)
                 .withDefine("FIRST_BLADE_FACE", Quad.FIRST_BLADE_FACE)
                 .withDefine("FLUID_FLAG", ModelMetadata.FLUID)
+                .withDefine("TRANSLUCENT_FLAG", ModelMetadata.TRANSLUCENT)
                 .withDefine("ONE_SIDED_FLAG", ModelMetadata.ONE_SIDED)
                 .withDefine("INWARD_FLAG", ModelMetadata.INWARD)
                 .withDefine("EMISSION_SHIFT", ModelMetadata.EMISSION_SHIFT)
