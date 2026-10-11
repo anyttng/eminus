@@ -5,6 +5,10 @@ import java.util.regex.Pattern;
 
 public final class PackSources {
     public static final String PACK_MAIN = "eminus_packMain";
+    public static final String FRAGMENT_PROGRAM_MAIN =
+            "void main() {\n    eminus_fragment();\n    " + PACK_MAIN + "();\n}\n";
+    public static final String VERTEX_PROGRAM_MAIN =
+            "void main() {\n    eminus_vertex();\n    " + PACK_MAIN + "();\n    eminus_cull();\n}\n";
 
     private static final String VERSION = "#version";
     private static final String EXTENSION = "#extension";
@@ -51,6 +55,14 @@ public final class PackSources {
             spliced.append(header);
         }
         return spliced.append(main).toString();
+    }
+
+    public static String spliceFragmentProgram(String packSource, String header) {
+        return insert(renameMain(packSource), header, FRAGMENT_PROGRAM_MAIN);
+    }
+
+    public static String spliceVertexProgram(String packSource, String header) {
+        return insert(renameMain(packSource), header, VERTEX_PROGRAM_MAIN);
     }
 
     public static String renameMain(String packSource) {

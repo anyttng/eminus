@@ -40,10 +40,13 @@ position, call `eminus_viewPosition` instead, and take `eminusRenderDistance` as
 
 ### 3. Cast shadows from the LOD
 
-Add `eminus_shadow.glsl` beside `eminus_opaque.glsl`, with the body of your `shadow` fragment code, and the LOD's
-opaque faces are drawn into your shadow map. If your `shadow` vertex program distorts the shadow map, apply the same
-distortion in `eminus_vertex.glsl` (step 4); [Shadows](#shadows) has the details. Without `eminus_shadow.glsl` the LOD
-casts no shadow.
+Nothing to add in most packs: without `eminus_shadow.glsl`, Eminus runs your own `shadow_cutout` program (or `shadow`,
+as Iris falls back) on the LOD's opaque faces, distortion included ([Your own shadow program](#your-own-shadow-program)).
+Set your shadow planes to `-1.0` ([Shadows](#shadows)) so the shadow map reaches the LOD.
+
+Add `eminus_shadow.glsl` beside `eminus_opaque.glsl` only where your shadow program does not run on the LOD, or where
+you want the LOD's shadows written differently: put the body of your `shadow` fragment code in it, and if your `shadow`
+vertex program distorts the shadow map, apply the same distortion in `eminus_vertex.glsl` (step 4).
 
 If your `shadow` program colours the shadow of stained glass or water, add `eminus_shadow_translucent.glsl` too, with
 the same body, and the LOD's translucent faces cast those shadows as well.
@@ -64,7 +67,7 @@ any part of it.
 | --- | --- | --- |
 | `eminus_opaque.glsl` | yes | Opaque and cutout LOD faces. Its presence turns the contract on. |
 | `eminus_translucent.glsl` | no | Translucent LOD faces (water, stained glass, ice). Without it, `eminus_opaque.glsl` runs for them too, with `fragment.translucent` set. |
-| `eminus_shadow.glsl` | no | Opaque and cutout LOD faces in your shadow pass. Since version 3. Without it, the LOD casts no shadow. |
+| `eminus_shadow.glsl` | no | Opaque and cutout LOD faces in your shadow pass. Since version 3. Without it, your own shadow program runs for them ([Your own shadow program](#your-own-shadow-program)). |
 | `eminus_shadow_translucent.glsl` | no | Translucent LOD faces in your shadow pass. Since version 6. Read only beside `eminus_shadow.glsl`. Without it, translucent LOD faces cast no shadow. |
 | `eminus_vertex.glsl` | no | The vertex stage's hook of every program: your vertex animation, your jitter, your render scale, your shadow-map distortion. Since version 4. Without it, LOD positions reach your buffers as Eminus projects them. |
 | `eminus_shadow_vertex.glsl` | no | The version 3 form of the shadow program's vertex hook: your shadow-map distortion. Read only while `eminus_vertex.glsl` is absent. |
@@ -269,8 +272,38 @@ const float shadowNearPlane = -1.0;
 const float shadowFarPlane = -1.0;
 ```
 
-Iris then spans the depth over the render distance, and while your pack draws the LOD through `eminus_shadow.glsl`
-Eminus extends that span to the LOD's render distance.
+Iris then spans the depth over the render distance, and while the LOD casts shadows Eminus extends that span to the
+LOD's render distance.
+
+### Your own shadow program
+
+Without `eminus_shadow.glsl`, Eminus draws the LOD's opaque and cutout faces through the program Iris would use for
+cutout terrain in your shadow pass: `shadow_cutout`, or `shadow` where the pack has no `shadow_cutout`. Both stages are
+yours, so your distortion, your alpha test and whatever you write to `shadowcolor0` apply to the LOD as they do to near
+terrain. Eminus fills the inputs your vertex stage reads from each LOD vertex:
+
+| Input | Value |
+| --- | --- |
+| `gl_Vertex`, `gl_Normal` | The LOD vertex and its face's normal. |
+| `gl_MultiTexCoord0` | Coordinates in blocks across the face, so `fract` of them is the place within one block. Keep them in the varying your fragment stage samples with. |
+| `gl_MultiTexCoord1` | The LOD's block and sky light in the game's units, `0` to `240`, as for terrain. |
+| `gl_TextureMatrix[0]`, `gl_TextureMatrix[1]` | The identity, and the game's lightmap matrix that takes those units to the lightmap's texel centres. |
+| `gl_Color` | White: the biome tint is already in the texture colour below. |
+| `mc_Entity` | The block's id from `block.properties` in `x`, the other components `0`. |
+| `mc_midTexCoord`, `at_midBlock`, `at_tangent` | `0`. |
+
+Where your fragment stage samples its texture (`gtexture`, `tex`, `texture` or `gcolor`) with `texture`, `texture2D`,
+`textureLod`, `texture2DLod`, `textureGrad`, `texture2DGrad` or `texture2DGradARB`, Eminus replaces the lookup with
+one into the LOD's own textures, tinted and repeated block by block, at the coordinates you pass.
+
+Eminus does not run the program, and the LOD casts no shadow, when it:
+
+- samples that texture in its vertex stage, or names it anywhere other than in its `uniform` declaration and as the
+  first argument of one of the lookups above (passed into a function of your own, `textureSize`, `texelFetch`);
+- declares one of the inputs above together with another name in one declaration;
+- carries a geometry or tessellation stage.
+
+The game log then carries one line naming the program and the reason. Ship `eminus_shadow.glsl` for such a pack.
 
 ## Depth
 
@@ -326,11 +359,13 @@ build does the same, since the opaque and translucent programs carry it. An `emi
 `eminus_shadow_vertex.glsl` that does not build, or an `eminus_vertex.glsl` that builds in the other two programs but
 not in the shadow one, leaves the other two programs running and the LOD without shadows. An
 `eminus_shadow_translucent.glsl` that does not build leaves every other program running and the LOD's translucent
-faces without shadows. Fix the file and reload shaders.
+faces without shadows. Your own shadow program, run without `eminus_shadow.glsl`, does the same as a shadow file that
+does not build. Fix the file and reload shaders.
 
 With Iris's debug options on, the source Eminus compiled — your file, Eminus's declarations in front of it and the
 generated `main` — is written to `patched_shaders/` in the game folder, under the program name `eminus_opaque`,
-`eminus_translucent`, `eminus_shadow` or `eminus_shadow_translucent`; the line numbers in the log refer to it.
+`eminus_translucent`, `eminus_shadow` or `eminus_shadow_translucent`, and `shadow_cutout_eminus` or `shadow_eminus` for
+your own shadow program; the line numbers in the log refer to it.
 
 ## A pack without the contract
 
