@@ -1,7 +1,6 @@
 #version 330 compatibility
 
 uniform sampler2D gtexture;
-uniform sampler2D lightmap;
 
 in vec2 texcoord;
 in vec2 lmcoord;
@@ -12,10 +11,12 @@ layout(location = 0) out vec4 color;
 
 const float ALPHA_CUTOUT = 0.1;
 
+#include "/lib/terrain.glsl"
+
 void main() {
-    color = texture(gtexture, texcoord) * glcolor;
-    if (color.a < ALPHA_CUTOUT) {
+    vec4 albedo = texture(gtexture, texcoord) * glcolor;
+    if (albedo.a < ALPHA_CUTOUT) {
         discard;
     }
-    color *= texture(lightmap, lmcoord);
+    color = shadeTerrain(albedo, lmcoord);
 }
