@@ -18,7 +18,6 @@ out vec4 fragColor;
 
 const float TAU = 6.28318531;
 const float GOLDEN_ANGLE = 2.39996323;
-const float MIN_DISTANCE_DIFFERENCE = 1.0e-4;
 
 float interleaved_noise(vec2 pixel) {
     return fract(52.9829189 * fract(dot(pixel, vec2(0.06711056, 0.00583715))));
@@ -51,13 +50,21 @@ bool scene_position(ivec2 texel, ivec2 size, out vec3 position) {
     return false;
 }
 
-bool surface_step(vec3 centre, ivec2 texel, ivec2 size, ivec2 offset, out vec3 difference) {
+bool surface_step(vec3 centre, ivec2 texel, ivec2 size, ivec2 offset, float range, out vec3 difference) {
     vec3 ahead;
     vec3 behind;
     bool hasAhead = scene_position(texel + offset, size, ahead);
     bool hasBehind = scene_position(texel - offset, size, behind);
     vec3 toAhead = ahead - centre;
     vec3 fromBehind = centre - behind;
+
+    float distance = length(centre);
+    float aheadGap = length(ahead) - distance;
+    float behindGap = length(behind) - distance;
+    if (hasAhead && hasBehind && aheadGap * behindGap > 0.0 && min(abs(aheadGap), abs(behindGap)) > range) {
+        difference = vec3(0.0);
+        return false;
+    }
 
     if (hasAhead && (!hasBehind || length(toAhead) < length(fromBehind))) {
         difference = toAhead;
@@ -78,11 +85,15 @@ void main() {
     }
 
     vec3 centre = far_unproject(FarInverse, uv, far);
+    float distance = length(centre);
+    float radius = max(RADIUS, PIXEL_RADIUS * distance / FocalPixels);
+    float range = RANGE_RADII * radius;
 
     vec3 normal = -normalize(centre);
     vec3 alongX;
     vec3 alongY;
-    if (surface_step(centre, texel, size, ivec2(1, 0), alongX) && surface_step(centre, texel, size, ivec2(0, 1), alongY)) {
+    if (surface_step(centre, texel, size, ivec2(1, 0), range, alongX)
+            && surface_step(centre, texel, size, ivec2(0, 1), range, alongY)) {
         vec3 crossed = cross(alongX, alongY);
         if (dot(crossed, crossed) > 0.0) {
             normal = normalize(crossed);
@@ -95,8 +106,6 @@ void main() {
     vec3 tangent = normalize(abs(normal.y) < 0.99 ? cross(normal, vec3(0.0, 1.0, 0.0)) : cross(normal, vec3(1.0, 0.0, 0.0)));
     vec3 bitangent = cross(normal, tangent);
 
-    float distance = length(centre);
-    float radius = max(RADIUS, PIXEL_RADIUS * distance / FocalPixels);
     float bias = MIN_BIAS + distance * distance * BIAS_PER_SQUARED_BLOCK;
     float noise = interleaved_noise(vec2(texel));
     float occlusion = 0.0;
@@ -120,7 +129,7 @@ void main() {
 
         float hitDistance = length(hit);
         if (hitDistance < length(probe) - bias) {
-            occlusion += clamp(radius / max(abs(distance - hitDistance), MIN_DISTANCE_DIFFERENCE), 0.0, 1.0);
+            occlusion += 1.0 - smoothstep(radius, range, distance - hitDistance);
         }
     }
 
