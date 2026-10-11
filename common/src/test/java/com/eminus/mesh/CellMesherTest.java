@@ -126,6 +126,10 @@ class CellMesherTest {
     private static final int LAVA_FLUID = 1;
     private static final float SOURCE_HEIGHT = 8.0F / 9.0F;
     private static final float FLOWING_HEIGHT = 6.0F / 9.0F;
+    private static final int LAYERS = 3;
+    private static final int FIRST_LAYER = 4;
+    private static final int LAYER_STRIDE = 2;
+    private static final int LAYER_SIDE = 4;
 
     private final Map<Integer, Integer> opacities = new HashMap<>();
     private final FakeModels models = new FakeModels();
@@ -293,6 +297,64 @@ class CellMesherTest {
 
         assertNotNull(mesh);
         assertEquals(CUBE_FACES, mesh.groupCount(QuadGroups.TRANSLUCENT));
+    }
+
+    @Test
+    void parallelTranslucentLayersComeOutFarthestFirstFromTheSideEachFaceShows() {
+        defineBlocks();
+        for (Direction.Axis axis : Direction.Axis.values()) {
+            Cell cell = blank();
+            for (int layer = 0; layer < LAYERS; layer++) {
+                int along = FIRST_LAYER + layer * LAYER_STRIDE;
+                for (int v = 0; v < LAYER_SIDE; v++) {
+                    for (int u = 0; u < LAYER_SIDE; u++) {
+                        cell.set(PlaneAxes.x(axis, u, v, along), PlaneAxes.y(axis, u, v, along),
+                                PlaneAxes.z(axis, u, v, along), block(TINT_A));
+                    }
+                }
+            }
+
+            CellMesh mesh = mesh(cell, airAround(), 0);
+
+            for (Direction face : Direction.values()) {
+                if (face.getAxis() != axis) {
+                    continue;
+                }
+
+                boolean positive = face.getAxisDirection() == Direction.AxisDirection.POSITIVE;
+                int previous = positive ? Integer.MIN_VALUE : Integer.MAX_VALUE;
+                int seen = 0;
+                int start = mesh.groupStart(QuadGroups.TRANSLUCENT);
+                for (int index = start; index < start + mesh.groupCount(QuadGroups.TRANSLUCENT); index++) {
+                    long quad = mesh.quad(index);
+                    if (Quad.face(quad) != face.get3DDataValue()) {
+                        continue;
+                    }
+
+                    int at = axis.choose(Quad.x(quad), Quad.y(quad), Quad.z(quad));
+                    assertTrue(positive ? at > previous : at < previous,
+                            face + " layer at " + at + " drawn after one at " + previous);
+                    previous = at;
+                    seen++;
+                }
+
+                assertEquals(LAYERS, seen, face + " layers");
+            }
+        }
+    }
+
+    @Test
+    void aTranslucentFaceTheGameSkipsIsDroppedBetweenDifferentModels() {
+        defineBlocks();
+        models.skipBetween(TINT_A, TINT_B);
+        Cell cell = blank();
+        cell.set(10, 10, 10, block(TINT_A));
+        cell.set(11, 10, 10, block(TINT_B));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertTrue(absent(mesh, Direction.EAST, 10, 10, 10));
+        assertTrue(absent(mesh, Direction.WEST, 11, 10, 10));
     }
 
     @Test

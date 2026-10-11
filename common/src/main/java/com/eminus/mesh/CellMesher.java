@@ -56,7 +56,14 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
     @Override
     public void emit(int u, int v, int width, int height, long data) {
         int group = border ? QuadGroups.border(face) : QuadGroups.of(face, models.metadata(Quad.modelId(data)));
-        scratch.buffer().add(group, placed(data, u, v, width, height));
+        long quad = placed(data, u, v, width, height);
+        MeshBuffer buffer = scratch.buffer();
+        if (group == QuadGroups.TRANSLUCENT) {
+            buffer.addTranslucent(quad,
+                    TranslucentOrder.of(quad, level, buffer.placementAt(Quad.colourIndex(data)), models));
+        } else {
+            buffer.add(group, quad);
+        }
     }
 
     @Override

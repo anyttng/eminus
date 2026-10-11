@@ -276,6 +276,7 @@ public final class FacePasses {
     private void decide(Side side) {
         boolean covered = covered(owner, side.facing, side.towards);
         boolean kept = !(covered && facingHoldsSameTranslucent(side))
+                && !(covered && skippedByGame(side))
                 && !(covered && facingDrawsSameFluid(side.drawn))
                 && !(liquid && slopesInto(side.facing));
         side.face = kept && visible(metadata, metadataOf(side.drawn), side.towards, covered)
@@ -423,6 +424,11 @@ public final class FacePasses {
         int fluid = models.submergedModelId(sourceModel);
         return fluid == models.submergedModelId(side.model)
                 || fluid == models.submergedModelId(drawnModels.facingFluid(side.facing, side.x, side.y, side.z));
+    }
+
+    private boolean skippedByGame(Side side) {
+        return !liquid && ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT) && !VoxelEntry.isAir(side.facing)
+                && models.skipsFace(stateId, VoxelEntry.state(side.facing), side.towards);
     }
 
     private boolean facingDrawsSameFluid(int facingDrawn) {
