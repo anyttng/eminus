@@ -43,8 +43,14 @@ struct EminusFragment {
     bool blade;
 };
 
+#ifdef PACK_SHADOW_PROGRAM
+#moj_import <eminus:far_pack_inputs.glsl>
+
+ivec2 eminus_cell;
+#endif
+
 EminusFragment eminus_fragment() {
-#ifndef DH_PROGRAM
+#if !defined DH_PROGRAM || defined PACK_SHADOW_PROGRAM
     if (far_in_near_section(eminus_nearPoint)) {
         discard;
     }
@@ -57,6 +63,9 @@ EminusFragment eminus_fragment() {
                 eminus_cellOrigin + (voxel << eminus_variantInfo.w)) * MODEL_FACES + eminus_variantInfo.z;
         cell = ivec2(slot % AtlasCells, slot / AtlasCells);
     }
+#ifdef PACK_SHADOW_PROGRAM
+    eminus_cell = cell;
+#endif
 
     vec4 colour = far_surface(cell, eminus_faceUV, eminus_tint);
     if (colour.a < ALPHA_CUTOUT) {
@@ -90,3 +99,35 @@ EminusFragment eminus_fragment() {
     fragment.blade = eminus_face >= FIRST_BLADE_FACE;
     return fragment;
 }
+
+#ifdef PACK_SHADOW_PROGRAM
+vec2 eminus_albedoUV(vec2 faceUV) {
+    float margin = 0.5 / float(FACE_SIDE);
+    return (vec2(eminus_cell) + clamp(fract(faceUV), margin, 1.0 - margin)) / float(AtlasCells);
+}
+
+vec4 eminus_albedoTinted(vec4 colour, float mask) {
+    colour.rgb *= mix(vec3(1.0), eminus_tint, mask);
+    return colour;
+}
+
+vec4 eminus_albedo(sampler2D packTexture, vec2 faceUV) {
+    return far_surface(eminus_cell, faceUV, eminus_tint);
+}
+
+vec4 eminus_albedo(sampler2D packTexture, vec2 faceUV, float bias) {
+    return far_surface(eminus_cell, faceUV, eminus_tint);
+}
+
+vec4 eminus_albedoLod(sampler2D packTexture, vec2 faceUV, float lod) {
+    vec2 uv = eminus_albedoUV(faceUV);
+    return eminus_albedoTinted(textureLod(Atlas, uv, lod), textureLod(TintMask, uv, lod).r);
+}
+
+vec4 eminus_albedoGrad(sampler2D packTexture, vec2 faceUV, vec2 dx, vec2 dy) {
+    vec2 uv = eminus_albedoUV(faceUV);
+    float cell = 1.0 / float(AtlasCells);
+    return eminus_albedoTinted(textureGrad(Atlas, uv, dx * cell, dy * cell),
+            textureGrad(TintMask, uv, dx * cell, dy * cell).r);
+}
+#endif

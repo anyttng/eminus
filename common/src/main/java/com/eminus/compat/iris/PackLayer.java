@@ -66,7 +66,7 @@ final class PackLayer {
         }
 
         programSet = pack.getProgramSet(dimension);
-        PackPath contract = ContractPath.detect(pack, dimension);
+        PackPath contract = ContractPath.detect(pack, dimension, programSet);
         path = contract != null ? contract : DhPath.detect(pack, pipeline, programSet);
         properties = ((ShaderPackAccessor) pack).eminus$shaderProperties();
     }
