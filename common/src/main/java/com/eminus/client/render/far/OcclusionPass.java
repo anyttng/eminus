@@ -27,6 +27,7 @@ import org.lwjgl.system.MemoryStack;
 public final class OcclusionPass implements AutoCloseable {
     public static final int SAMPLES = 12;
     public static final float RADIUS = 1.0F;
+    public static final float RANGE_RADII = 2.0F;
     public static final float PIXEL_RADIUS = 6.0F;
     public static final float STRENGTH = 0.4F;
     public static final float MIN_BIAS = 0.02F;
@@ -125,6 +126,7 @@ public final class OcclusionPass implements AutoCloseable {
                         .withBinding(Binding.sampled(GAME_DEPTH)))
                 .withDefine("SAMPLES", SAMPLES)
                 .withDefine("RADIUS", RADIUS)
+                .withDefine("RANGE_RADII", RANGE_RADII)
                 .withDefine("PIXEL_RADIUS", PIXEL_RADIUS)
                 .withDefine("STRENGTH", STRENGTH)
                 .withDefine("MIN_BIAS", MIN_BIAS)
