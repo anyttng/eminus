@@ -45,6 +45,12 @@ vec4 eminus_shadowPosition(vec4 shadowClipPosition);
 uniform sampler2D Atlas;
 uniform sampler2D TintMask;
 #endif
+#ifdef PACK_SHADOW_PROGRAM
+#moj_import <eminus:far_pack_inputs.glsl>
+
+vec4 eminus_multiTexCoord0;
+vec4 eminus_multiTexCoord1;
+#endif
 #ifndef DH_PROGRAM
 out vec3 iris_vBlockPos;
 flat out uvec2 iris_TexId;
@@ -134,8 +140,15 @@ void eminus_vertex() {
     _vert_position = vertex.position;
     _vert_normal = normal;
     _vert_tex_light_coord = lmcoord;
-    _vert_color = eminus_faceColour(vertex.atlasCell, vertex.tint);
     dhMaterialId = blockId;
+#ifdef PACK_SHADOW_PROGRAM
+    _vert_color = vec4(1.0);
+    eminus_multiTexCoord0 = vec4(vertex.faceUV, 0.0, 1.0);
+    eminus_multiTexCoord1 = vec4(vec2(vertex.blockLight, vertex.skyLight) * LIGHT_LEVELS, 0.0, 1.0);
+    eminus_packInputs(blockId);
+#else
+    _vert_color = eminus_faceColour(vertex.atlasCell, vertex.tint);
+#endif
 #else
     iris_vBlockPos = vertex.voxelPoint;
     iris_TexId = uvec2(0u, uint(min(vertex.face, LAST_AXIS_FACE)));

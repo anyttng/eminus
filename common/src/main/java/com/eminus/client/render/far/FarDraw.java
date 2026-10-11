@@ -45,7 +45,8 @@ public final class FarDraw {
         OURS,
         HOOK,
         SHADOW_HOOK,
-        PROGRAM;
+        PROGRAM,
+        SHADOW_PROGRAM;
 
         public boolean hook() {
             return this == HOOK || this == SHADOW_HOOK;
@@ -145,9 +146,14 @@ public final class FarDraw {
             case HOOK -> animated ? builder.withDefine("PACK_VERTEX")
                     : builder.withDefine("PACK_VERTEX").withDefine("STILL");
             case SHADOW_HOOK -> builder.withDefine("PACK_SHADOW_VERTEX");
-            case PROGRAM -> builder.withDefine("DH_PROGRAM")
-                    .withDefine("FACE_MEAN_LEVEL", Mips.levelCount(BakedModel.FACE_SIDE) - 1);
+            case PROGRAM -> program(builder);
+            case SHADOW_PROGRAM -> program(builder).withDefine("PACK_SHADOW_PROGRAM");
         };
+    }
+
+    private static PipelineSpec.Builder program(PipelineSpec.Builder builder) {
+        return builder.withDefine("DH_PROGRAM")
+                .withDefine("FACE_MEAN_LEVEL", Mips.levelCount(BakedModel.FACE_SIDE) - 1);
     }
 
     public void bind(Pass pass) {

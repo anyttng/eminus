@@ -29,6 +29,28 @@ final class ContractSources {
         return PackSources.insert(packSource, header, NO_MAIN);
     }
 
+    enum ShadowSource {
+        FILE,
+        PACK_PROGRAM,
+        NONE
+    }
+
+    static ShadowSource shadowSource(boolean file, boolean packProgram) {
+        if (file) {
+            return ShadowSource.FILE;
+        }
+        return packProgram ? ShadowSource.PACK_PROGRAM : ShadowSource.NONE;
+    }
+
+    static String spliceShadowFragment(String packSource, String header) {
+        return PackSources.spliceFragmentProgram(ShadowProgramSources.fragment(packSource), header);
+    }
+
+    static String spliceShadowVertex(String packSource, String header) {
+        ShadowProgramSources.Vertex vertex = ShadowProgramSources.vertex(packSource);
+        return PackSources.spliceVertexProgram(vertex.source(), vertex.inputs() + header);
+    }
+
     static FarDraw.PackVertex shadowStage(boolean vertex, boolean shadowVertex) {
         if (vertex) {
             return FarDraw.PackVertex.HOOK;
