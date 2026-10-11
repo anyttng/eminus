@@ -21,13 +21,15 @@ dependencies {
 
 The API version is the mod version; `maven-metadata.xml` under the coordinate lists what is published. Sources and javadoc are published beside the jar. Within a major version, members are not removed or changed incompatibly.
 
-`compileOnly` is the point: the artifact carries the API package alone, and at runtime the classes come from the copy of Eminus the player installed. Declare the mod as an optional dependency of yours and check that it is loaded before you touch any `com.eminus` class; the mod id is `eminus`. A class that names one of them fails to load when the mod is absent, so keep those calls in a class you reach only after the check, not in a field initialiser of a class that always loads.
+Use `compileOnly`: the artifact carries the API package alone, and at runtime the classes come from the copy of Eminus the player installed.
+
+Declare Eminus (mod id `eminus`) as an optional dependency of your mod, and check that it is loaded before you touch any `com.eminus` class. A class that names one fails to load when Eminus is absent, so keep those calls in a class you reach only after the check, never in a field initialiser of a class that always loads.
 
 Eminus is a client mod. A dedicated server loads its jar and runs nothing of it, so every call below belongs in client code.
 
 ## Whether the far layer runs
 
-`EminusApi.status()` answers on the render thread with a `FarLayerStatus`:
+`EminusApi.status()` returns a `FarLayerStatus`; call it on the render thread:
 
 - **`RUNNING`**: a far renderer draws the dimension the client holds.
 - **`NO_LEVEL`**: the client holds no level: before a world is joined, after it is left, and while the client changes dimension.
@@ -45,11 +47,11 @@ if (EminusApi.status() == FarLayerStatus.REFUSED) {
 
 `EminusApi.farDistanceBlocks()` is the far render distance the player set, in blocks of horizontal distance from the camera. The far layer starts where the game's own render distance ends and draws out to it. A mod that culls its own distant content, places a far plane or sizes fog reads this instead of the game's render distance.
 
-It answers the setting whether or not a far renderer runs, and it may be called on any thread once mod loading has finished.
+It returns the setting whether or not a far renderer runs, and may be called on any thread once mod loading has finished.
 
 ## Whether it has settled
 
-`EminusApi.farLayer()` reads the far layer's state on the render thread. It answers `null` unless `status()` answers `RUNNING`. Otherwise it hands back a `CompletableFuture<FarLayerState>`, because the node tree lives on a thread of its own: the future completes once that thread has taken the request, and completes exceptionally when the renderer stops first.
+`EminusApi.farLayer()` reads the far layer's state on the render thread. It returns `null` unless `status()` returns `RUNNING`. Otherwise it returns a `CompletableFuture<FarLayerState>`, because the node tree lives on a thread of its own: the future completes once that thread has taken the request, and completes exceptionally when the renderer stops first.
 
 `FarLayerState` carries two things:
 
@@ -77,11 +79,11 @@ The game stops drawing at its render distance, and so does whatever your mod dra
 
 A `FarBox` carries:
 
-- **the bounds**: `minX`, `minY`, `minZ`, `maxX`, `maxY`, `maxZ`, in blocks, each minimum no greater than its maximum;
+- **the bounds**: `minX`, `minY`, `minZ`, `maxX`, `maxY`, `maxZ`, as `double`s in blocks, each minimum no greater than its maximum and every value within the range of an `int`; otherwise the constructor throws `IllegalArgumentException`;
 - **`argb`**: the colour as `0xAARRGGBB`; an alpha below `0xFF` blends the box over what lies behind it, and boxes blend in the order their groups were registered;
 - **`emissive`**: `true` keeps the colour in the dark; `false` lights the box as daylight lights the open terrain, so it dims at night.
 
-`registerBoxes` hands back a `FarBoxGroup`. `update(boxes)` replaces its boxes, `remove()` takes it away; both apply from the next frame. Every call may come from any thread, and none needs a far renderer running: a group registered before the renderer starts, or while it is refused, is drawn once it runs.
+`registerBoxes` returns a `FarBoxGroup`. `dimension()` names the group's dimension, `update(boxes)` replaces its boxes, and `remove()` takes it away; the last two apply from the next frame. A `null` dimension, list or box throws `NullPointerException`. Every call may come from any thread, and none needs a far renderer running: a group registered before the renderer starts, or while it is refused, is drawn once it runs.
 
 A group belongs to one dimension, named by its identifier, and is drawn only while the client is there; a change of dimension keeps it for when the client comes back. Leaving the world drops every group, after which the old handles do nothing, so register yours again when the player joins a world.
 
