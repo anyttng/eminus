@@ -11,10 +11,12 @@ import com.eminus.cell.FaceMask;
 import com.eminus.model.BiomeColours;
 import com.eminus.model.ModelMetadata;
 
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
 
 final class FakeModels implements MeshModels {
     private static final int FIRST_DERIVED_MODEL = 1000;
+    private static final float FLUSH = 0.0F;
 
     @FunctionalInterface
     interface PositionalIds {
@@ -37,6 +39,7 @@ final class FakeModels implements MeshModels {
     private final List<Runnable> waiters = new ArrayList<>();
     private final Map<Integer, Integer> oneSidedIds = new HashMap<>();
     private final Map<List<Integer>, Integer> inwardIds = new HashMap<>();
+    private final Set<List<Integer>> skipped = new HashSet<>();
 
     private int requests;
     private int nextDerived = FIRST_DERIVED_MODEL;
@@ -76,6 +79,11 @@ final class FakeModels implements MeshModels {
     void holds(int stateId, int fluid, float height) {
         fluidKinds.put(stateId, fluid);
         fluidHeights.put(stateId, height);
+    }
+
+    void skipBetween(int stateId, int facingStateId) {
+        skipped.add(List.of(stateId, facingStateId));
+        skipped.add(List.of(facingStateId, stateId));
     }
 
     void makeSolid(int stateId) {
@@ -183,6 +191,16 @@ final class FakeModels implements MeshModels {
         }
 
         return words.getOrDefault(modelId, 0);
+    }
+
+    @Override
+    public float inset(int modelId, int face) {
+        return FLUSH;
+    }
+
+    @Override
+    public boolean skipsFace(int stateId, int facingStateId, Direction face) {
+        return skipped.contains(List.of(stateId, facingStateId));
     }
 
     @Override
