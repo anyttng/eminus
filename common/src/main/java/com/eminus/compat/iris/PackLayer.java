@@ -45,6 +45,7 @@ final class PackLayer {
     private @Nullable FarRenderer builtFor;
     private @Nullable PackProgram opaque;
     private @Nullable PackProgram translucent;
+    private @Nullable PackProgram translucentDepth;
     private @Nullable PackProgram shadow;
     private @Nullable PackProgram shadowTranslucent;
     private @Nullable GlFramebuffer opaqueFramebuffer;
@@ -173,6 +174,7 @@ final class PackLayer {
             current.builtFor = null;
             current.opaque = null;
             current.translucent = null;
+            current.translucentDepth = null;
             current.shadow = null;
             current.shadowTranslucent = null;
             current.drawn = null;
@@ -208,6 +210,7 @@ final class PackLayer {
         builtFor = renderer;
         opaque = null;
         translucent = null;
+        translucentDepth = null;
         shadow = null;
         shadowTranslucent = null;
         shadowDrawn = null;
@@ -219,12 +222,16 @@ final class PackLayer {
             return;
         }
 
-        PackProgram builtOpaque = program(draw, foreign.get(), PackProgram.Kind.OPAQUE);
+        PackProgram builtOpaque = program(draw, foreign.get(), PackProgram.Kind.OPAQUE, false);
         PackProgram builtTranslucent = builtOpaque == null ? null
-                : program(draw, foreign.get(), PackProgram.Kind.TRANSLUCENT);
-        if (builtOpaque == null || builtTranslucent == null) {
-            if (builtOpaque != null) {
-                builtOpaque.release();
+                : program(draw, foreign.get(), PackProgram.Kind.TRANSLUCENT, false);
+        PackProgram builtDepth = builtTranslucent == null ? null
+                : program(draw, foreign.get(), PackProgram.Kind.TRANSLUCENT, true);
+        if (builtOpaque == null || builtTranslucent == null || builtDepth == null) {
+            for (PackProgram program : new PackProgram[] {builtOpaque, builtTranslucent}) {
+                if (program != null) {
+                    program.release();
+                }
             }
             return;
         }
@@ -237,17 +244,20 @@ final class PackLayer {
         }
         opaque = builtOpaque;
         translucent = builtTranslucent;
+        translucentDepth = builtDepth;
         buildShadow(draw, foreign.get());
     }
 
     private void release() {
-        for (PackProgram program : new PackProgram[] {opaque, translucent, shadow, shadowTranslucent}) {
+        for (PackProgram program : new PackProgram[] {opaque, translucent, translucentDepth, shadow,
+                shadowTranslucent}) {
             if (program != null) {
                 program.release();
             }
         }
         opaque = null;
         translucent = null;
+        translucentDepth = null;
         shadow = null;
         shadowTranslucent = null;
         shadowDrawn = null;
@@ -258,7 +268,7 @@ final class PackLayer {
             return;
         }
 
-        PackProgram built = program(draw, foreign, PackProgram.Kind.SHADOW);
+        PackProgram built = program(draw, foreign, PackProgram.Kind.SHADOW, false);
         if (built == null) {
             return;
         }
@@ -267,13 +277,13 @@ final class PackLayer {
             shadowFramebuffer = pipeline.createDHFramebufferShadow(built.source());
         }
         shadow = built;
-        shadowTranslucent = program(draw, foreign, PackProgram.Kind.SHADOW_TRANSLUCENT);
+        shadowTranslucent = program(draw, foreign, PackProgram.Kind.SHADOW_TRANSLUCENT, false);
     }
 
-    private @Nullable PackProgram program(FarDraw draw, Foreign foreign, PackProgram.Kind kind) {
+    private @Nullable PackProgram program(FarDraw draw, Foreign foreign, PackProgram.Kind kind, boolean depthOnly) {
         PackPath.Source source = path.source(kind);
         return source == null ? null
-                : PackProgram.build(draw, foreign, pipeline, programSet, properties, source, kind);
+                : PackProgram.build(draw, foreign, pipeline, programSet, properties, source, kind, depthOnly);
     }
 
     private void drawOpaque(FarRenderer renderer) {
@@ -303,13 +313,14 @@ final class PackLayer {
     private void drawTranslucent() {
         FarDraw draw = drawn;
         drawn = null;
-        if (draw == null || translucent == null) {
+        if (draw == null || translucent == null || translucentDepth == null) {
             return;
         }
 
         int depth = draw.gpu().foreign().orElseThrow().texture(draw.target().depth());
         translucentAttached = attach(translucentFramebuffer, translucentAttached, depth);
         translucent.draw(draw, translucentFramebuffer, true);
+        translucentDepth.draw(draw, translucentFramebuffer, true);
     }
 
     private static int attach(GlFramebuffer framebuffer, int attached, int depth) {
