@@ -6,6 +6,8 @@ import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
+import net.minecraft.core.SectionPos;
+
 public final class SectionDebounce {
     public static final long WINDOW_MILLIS = 500L;
 
@@ -40,6 +42,20 @@ public final class SectionDebounce {
             long sectionNode = entry.getLongKey();
             entries.remove();
             ready.accept(sectionNode);
+        }
+    }
+
+    public void takeColumn(int chunkX, int chunkZ, LongConsumer taken) {
+        ObjectIterator<Long2LongMap.Entry> entries = marked.long2LongEntrySet().iterator();
+
+        while (entries.hasNext()) {
+            long sectionNode = entries.next().getLongKey();
+            if (SectionPos.x(sectionNode) != chunkX || SectionPos.z(sectionNode) != chunkZ) {
+                continue;
+            }
+
+            entries.remove();
+            taken.accept(sectionNode);
         }
     }
 }

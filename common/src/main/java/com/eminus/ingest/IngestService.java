@@ -70,8 +70,23 @@ public final class IngestService {
 
     public void submitChunk(LevelChunk chunk, IngestTrigger trigger) {
         ChunkPos chunkPos = chunk.getPos();
+        if (trigger == IngestTrigger.UNLOAD) {
+            flushMarked(chunk);
+        }
+
         retryDeferred(chunk.getLevel(), chunkPos.x, chunkPos.z);
         ingestChunk(chunk, trigger);
+    }
+
+    private void flushMarked(LevelChunk chunk) {
+        ChunkPos chunkPos = chunk.getPos();
+        boolean covered = coverage.covers(chunkPos.x, chunkPos.z);
+        debounce.takeColumn(chunkPos.x, chunkPos.z, sectionNode -> {
+            IngestTrigger trigger = markedTrigger(sectionNode);
+            if (covered) {
+                submitMarked(chunk, sectionNode, trigger);
+            }
+        });
     }
 
     private void retryDeferred(Level level, int chunkX, int chunkZ) {
@@ -196,14 +211,23 @@ public final class IngestService {
     }
 
     private void submitMarked(ClientLevel level, long sectionNode) {
-        IngestTrigger trigger = lightOnly.remove(sectionNode) ? IngestTrigger.LIGHT : IngestTrigger.BLOCK;
+        IngestTrigger trigger = markedTrigger(sectionNode);
+        LevelChunk chunk = level.getChunkSource().getChunkNow(SectionPos.x(sectionNode), SectionPos.z(sectionNode));
+        if (chunk != null) {
+            submitMarked(chunk, sectionNode, trigger);
+        }
+    }
+
+    private IngestTrigger markedTrigger(long sectionNode) {
+        return lightOnly.remove(sectionNode) ? IngestTrigger.LIGHT : IngestTrigger.BLOCK;
+    }
+
+    private void submitMarked(LevelChunk chunk, long sectionNode, IngestTrigger trigger) {
         int sectionX = SectionPos.x(sectionNode);
-        int sectionY = SectionPos.y(sectionNode);
         int sectionZ = SectionPos.z(sectionNode);
-        LevelChunk chunk = level.getChunkSource().getChunkNow(sectionX, sectionZ);
-        int index = chunk == null ? -1 : chunk.getSectionIndexFromSectionY(sectionY);
-        if (chunk == null || index < 0 || index >= chunk.getSections().length
-                || !lightOn(level.getLightEngine(), sectionX, sectionZ)) {
+        int index = chunk.getSectionIndexFromSectionY(SectionPos.y(sectionNode));
+        LevelLightEngine light = chunk.getLevel().getLightEngine();
+        if (index < 0 || index >= chunk.getSections().length || !lightOn(light, sectionX, sectionZ)) {
             return;
         }
 
@@ -213,12 +237,10 @@ public final class IngestService {
         }
 
         // The light engine drops the layers of an air-only section whose 26 neighbours are air-only too, for good.
-        if (!chunk.getSections()[index].hasOnlyAir()
-                && !skyPublished(level.getLightEngine(), sectionPos(chunk, index))) {
+        if (!chunk.getSections()[index].hasOnlyAir() && !skyPublished(light, sectionPos(chunk, index))) {
             return;
         }
 
-        LevelLightEngine light = level.getLightEngine();
         submit(light, chunk, index, null, trigger);
         submitRunBelow(light, chunk, index);
     }

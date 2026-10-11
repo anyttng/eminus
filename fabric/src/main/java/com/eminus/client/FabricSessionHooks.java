@@ -4,10 +4,8 @@ import java.util.Collection;
 import java.util.List;
 
 import com.eminus.client.session.ClientSession;
-import com.eminus.ingest.IngestTrigger;
 import com.eminus.settings.SettingsService;
 
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -26,8 +24,6 @@ public final class FabricSessionHooks {
                 (listener, client) -> client.execute(ClientSession::disconnect));
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ClientSession.disconnect());
         ClientTickEvents.END_CLIENT_TICK.register(client -> ClientSession.tick());
-        ClientChunkEvents.CHUNK_UNLOAD.register(
-                (world, chunk) -> ClientSession.submitChunk(chunk, IngestTrigger.UNLOAD));
 
         ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new FarRendererReload());
         SettingsService.get().addListener(ClientSession::settingsChanged);
