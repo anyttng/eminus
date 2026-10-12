@@ -67,14 +67,25 @@ class CellRecordTest {
     }
 
     @Test
+    void aRecordWrittenUnderStoreFormatThreeStillDecodes() {
+        long key = CellKey.pack(0, 2, 1, -4);
+        Cell cell = Cell.blank(key);
+        cell.set(16, 7, 3, STONE);
+        byte[] record = CellRecord.encode(cell);
+        record[VERSION_OFFSET] = (byte) StoreFormat.BEFORE_LOWEST;
+
+        assertSameCell(cell, CellRecord.decode(key, record));
+    }
+
+    @Test
     void aRecordOfAnotherFormatVersionIsDamaged() {
         long key = CellKey.pack(1, 1, 1, 1);
         byte[] record = CellRecord.encode(Cell.blank(key));
-        record[VERSION_OFFSET] = (byte) (StoreFormat.VERSION + 1);
+        record[VERSION_OFFSET] = (byte) (StoreFormat.RECORD_VERSION + 1);
 
         DamagedRecordException damaged =
                 assertThrows(DamagedRecordException.class, () -> CellRecord.decode(key, record));
-        assertTrue(damaged.getMessage().contains(String.valueOf(StoreFormat.VERSION + 1)));
+        assertTrue(damaged.getMessage().contains(String.valueOf(StoreFormat.RECORD_VERSION + 1)));
     }
 
     @Test
