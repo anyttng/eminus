@@ -16,6 +16,7 @@ class MeshOrderTest {
     private static final int ONE_QUAD = 1;
     private static final int NO_QUADS = 0;
     private static final int NO_OCCUPANCY = 0;
+    private static final boolean NO_MISSING_COLUMNS = false;
     private static final double CAMERA_X = 16.0;
     private static final double CAMERA_Y = 16.0;
     private static final double CAMERA_Z = 16.0;
@@ -139,10 +140,10 @@ class MeshOrderTest {
     }
 
     private static MeshSummary translucent(long key) {
-        return new MeshSummary(key, NO_OCCUPANCY, ONE_QUAD, ONE_QUAD);
+        return new MeshSummary(key, NO_OCCUPANCY, ONE_QUAD, ONE_QUAD, NO_MISSING_COLUMNS);
     }
 
     private static MeshSummary opaque(long key) {
-        return new MeshSummary(key, NO_OCCUPANCY, ONE_QUAD, NO_QUADS);
+        return new MeshSummary(key, NO_OCCUPANCY, ONE_QUAD, NO_QUADS, NO_MISSING_COLUMNS);
     }
 }
