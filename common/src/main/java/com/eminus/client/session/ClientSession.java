@@ -74,7 +74,7 @@ public final class ClientSession {
         instance = EminusInstance.start(
                 storeBase(minecraft),
                 settings.workerThreads(),
-                settings.lowestStoredLevel(),
+                settings.lodQuality().storedLevel(),
                 System::currentTimeMillis);
     }
 
@@ -107,7 +107,7 @@ public final class ClientSession {
             return;
         }
 
-        if (updated.lowestStoredLevel() != instance.lowestStoredLevel()) {
+        if (updated.lodQuality().storedLevel() != instance.lowestStoredLevel()) {
             restartSession();
             return;
         }
