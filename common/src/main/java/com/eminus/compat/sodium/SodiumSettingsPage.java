@@ -20,7 +20,7 @@ import net.minecraft.resources.Identifier;
 
 public final class SodiumSettingsPage implements ConfigEntryPoint {
     private static final String INGESTION_ID = "ingestion";
-    private static final String LOWEST_STORED_LEVEL_ID = "lowest_stored_level";
+    private static final String LOD_QUALITY_ID = "lod_quality";
     private static final String FAR_RENDER_CELLS_ID = "far_render_cells";
     private static final String WORKER_THREADS_ID = "worker_threads";
     private static final String DETAIL_DISTANCE_ID = "detail_distance";
@@ -45,17 +45,16 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setDefaultValue(defaults.ingestion())
                         .setBinding(value -> edit(settings -> settings.withIngestion(value)),
                                 () -> current().ingestion()))
-                .addOption(builder.createIntegerOption(id(LOWEST_STORED_LEVEL_ID))
-                        .setName(Component.translatable(SettingsText.LOWEST_STORED_LEVEL_KEY))
-                        .setTooltip(SettingsText.hint(SettingsText.LOWEST_STORED_LEVEL_KEY))
+                .addOption(builder.createIntegerOption(id(LOD_QUALITY_ID))
+                        .setName(Component.translatable(SettingsText.LOD_QUALITY_KEY))
+                        .setTooltip(SettingsText.hint(SettingsText.LOD_QUALITY_KEY))
                         .setStorageHandler(this::save)
-                        .setRange(SliderPositions.FIRST, SliderPositions.LAST_LOWEST_STORED_LEVEL, STEP)
-                        .setValueFormatter(position -> SettingsText.lowestStoredLevel(
-                                SliderPositions.lowestStoredLevel(position)))
-                        .setDefaultValue(SliderPositions.lowestStoredLevelPosition(defaults.lowestStoredLevel()))
-                        .setBinding(position -> edit(settings -> settings.withLowestStoredLevel(
-                                        SliderPositions.lowestStoredLevel(position))),
-                                () -> SliderPositions.lowestStoredLevelPosition(current().lowestStoredLevel())))
+                        .setRange(SliderPositions.FIRST, SliderPositions.LAST_LOD_QUALITY, STEP)
+                        .setValueFormatter(position -> SettingsText.lodQuality(SliderPositions.lodQuality(position)))
+                        .setDefaultValue(SliderPositions.lodQualityPosition(defaults.lodQuality()))
+                        .setBinding(position -> edit(settings -> settings.withLodQuality(
+                                        SliderPositions.lodQuality(position))),
+                                () -> SliderPositions.lodQualityPosition(current().lodQuality())))
                 .addOption(builder.createIntegerOption(id(FAR_RENDER_CELLS_ID))
                         .setName(Component.translatable(SettingsText.FAR_RENDER_CELLS_KEY))
                         .setTooltip(SettingsText.hint(SettingsText.FAR_RENDER_CELLS_KEY))
