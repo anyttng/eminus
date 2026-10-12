@@ -28,7 +28,7 @@ class SettingsFileTest {
     @Test
     void anEditedValueLoadsBack() {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings edited = new Settings(false, 2, 24, 3, DetailDistance.HIGH, false, true,
+        Settings edited = new Settings(false, LodQuality.LOW, 24, 3, DetailDistance.HIGH, false, true,
                 ShaderPackLod.DISTANT_HORIZONS, false);
 
         SettingsFile.save(file, edited);
@@ -39,13 +39,13 @@ class SettingsFileTest {
     @Test
     void theSavedFileCarriesTheSettingCommentsAndStillReadsBack() throws IOException {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings written = new Settings(true, 2, 24, 3, DetailDistance.LOW, false, false, ShaderPackLod.DEFAULT,
+        Settings written = new Settings(true, LodQuality.HIGH, 24, 3, DetailDistance.LOW, false, false, ShaderPackLod.DEFAULT,
                 true);
 
         SettingsFile.save(file, written);
         String content = Files.readString(file, StandardCharsets.UTF_8);
 
-        assertTrue(content.contains("// Finest detail level kept on disk, 0..4"), content);
+        assertTrue(content.contains("// LOD quality: full, high, medium, low or minimal."), content);
         assertTrue(content.contains("// Radius of LOD, in top-level cells"), content);
         assertTrue(content.contains("// Background worker threads."), content);
         assertTrue(content.contains("// How far out the finer detail levels reach"), content);
@@ -61,6 +61,7 @@ class SettingsFileTest {
         Settings loaded = loadJson("""
                 {
                   "ingestion": false,
+                  "lod_quality": "sideways",
                   "far_render_cells": "many",
                   "detail_distance": "sideways",
                   "fog": "sideways",
@@ -69,6 +70,7 @@ class SettingsFileTest {
                 """);
 
         assertFalse(loaded.ingestion());
+        assertEquals(Settings.DEFAULT_LOD_QUALITY, loaded.lodQuality());
         assertEquals(Settings.DEFAULT_FAR_RENDER_CELLS, loaded.farRenderCells());
         assertEquals(Settings.DEFAULT_DETAIL_DISTANCE, loaded.detailDistance());
         assertEquals(Settings.DEFAULT_FOG, loaded.fog());
@@ -84,7 +86,7 @@ class SettingsFileTest {
                 }
                 """);
 
-        assertEquals(Settings.DEFAULT_LOWEST_STORED_LEVEL, loaded.lowestStoredLevel());
+        assertEquals(Settings.DEFAULT_LOD_QUALITY, loaded.lodQuality());
         assertEquals(Settings.defaults().workerThreads(), loaded.workerThreads());
     }
 
@@ -109,7 +111,7 @@ class SettingsFileTest {
 
         assertEquals(DetailDistance.ULTRA, loaded.detailDistance());
         assertEquals(defaults.ingestion(), loaded.ingestion());
-        assertEquals(defaults.lowestStoredLevel(), loaded.lowestStoredLevel());
+        assertEquals(defaults.lodQuality(), loaded.lodQuality());
         assertEquals(defaults.farRenderCells(), loaded.farRenderCells());
         assertEquals(defaults.workerThreads(), loaded.workerThreads());
         assertEquals(defaults.fog(), loaded.fog());
@@ -130,6 +132,34 @@ class SettingsFileTest {
         assertFalse(loaded.ingestion());
         assertEquals(Settings.DEFAULT_DETAIL_DISTANCE, loaded.detailDistance());
         assertEquals(Settings.DEFAULT_FOG, loaded.fog());
+    }
+
+    @Test
+    void aFormerStoredLevelOpensOnItsPreset() throws IOException {
+        LodQuality[] expected = {LodQuality.FULL, LodQuality.MEDIUM, LodQuality.LOW, LodQuality.MINIMAL,
+                LodQuality.MINIMAL};
+
+        for (int level = 0; level < expected.length; level++) {
+            assertEquals(expected[level], loadJson("{\"lowest_stored_level\": " + level + "}").lodQuality());
+        }
+    }
+
+    @Test
+    void aFormerStoredLevelIsRewrittenAsItsPreset() throws IOException {
+        Settings loaded = loadJson("{\"lowest_stored_level\": 1, \"far_render_cells\": 24}");
+        String content = Files.readString(configDir.resolve(SettingsService.FILE_NAME), StandardCharsets.UTF_8);
+
+        assertTrue(content.contains("\"lod_quality\": \"medium\""), content);
+        assertFalse(content.contains("lowest_stored_level"), content);
+        assertEquals(loaded, SettingsFile.load(configDir.resolve(SettingsService.FILE_NAME)));
+        assertEquals(24, loaded.farRenderCells());
+    }
+
+    @Test
+    void aPresetKeyWinsOverAFormerStoredLevel() throws IOException {
+        Settings loaded = loadJson("{\"lod_quality\": \"high\", \"lowest_stored_level\": 3}");
+
+        assertEquals(LodQuality.HIGH, loaded.lodQuality());
     }
 
     @Test
