@@ -8,7 +8,7 @@ import static com.eminus.client.settings.SettingsText.FAR_RENDER_CELLS_KEY;
 import static com.eminus.client.settings.SettingsText.FOG_KEY;
 import static com.eminus.client.settings.SettingsText.INGESTION_KEY;
 import static com.eminus.client.settings.SettingsText.LOD_ANIMATIONS_KEY;
-import static com.eminus.client.settings.SettingsText.LOWEST_STORED_LEVEL_KEY;
+import static com.eminus.client.settings.SettingsText.LOD_QUALITY_KEY;
 import static com.eminus.client.settings.SettingsText.SHADER_PACK_LOD_KEY;
 import static com.eminus.client.settings.SettingsText.TITLE_KEY;
 import static com.eminus.client.settings.SettingsText.WORKER_THREADS_KEY;
@@ -31,7 +31,7 @@ public class SettingsScreen extends OptionsSubScreen {
     private static final boolean APPLY_ON_RELEASE = false;
 
     private final OptionInstance<Boolean> ingestion;
-    private final OptionInstance<Integer> lowestStoredLevelPosition;
+    private final OptionInstance<Integer> lodQualityPosition;
     private final OptionInstance<Integer> farRenderCells;
     private final OptionInstance<Integer> workerThreads;
     private final OptionInstance<Integer> detailDistancePosition;
@@ -47,11 +47,11 @@ public class SettingsScreen extends OptionsSubScreen {
 
         this.ingestion = OptionInstance.createBoolean(INGESTION_KEY, hint(INGESTION_KEY), settings.ingestion(),
                 value -> this.apply());
-        this.lowestStoredLevelPosition = new OptionInstance<>(LOWEST_STORED_LEVEL_KEY, hint(LOWEST_STORED_LEVEL_KEY),
+        this.lodQualityPosition = new OptionInstance<>(LOD_QUALITY_KEY, hint(LOD_QUALITY_KEY),
                 (caption, position) -> Options.genericValueLabel(caption,
-                        SettingsText.lowestStoredLevel(SliderPositions.lowestStoredLevel(position))),
-                coarseToFine(SliderPositions.LAST_LOWEST_STORED_LEVEL),
-                SliderPositions.lowestStoredLevelPosition(settings.lowestStoredLevel()), value -> this.apply());
+                        SettingsText.lodQuality(SliderPositions.lodQuality(position))),
+                coarseToFine(SliderPositions.LAST_LOD_QUALITY),
+                SliderPositions.lodQualityPosition(settings.lodQuality()), value -> this.apply());
         this.farRenderCells = new OptionInstance<>(FAR_RENDER_CELLS_KEY, hint(FAR_RENDER_CELLS_KEY),
                 (caption, value) -> Options.genericValueLabel(caption, SettingsText.farRenderDistance(value)),
                 new OptionInstance.IntRange(Settings.MIN_FAR_RENDER_CELLS, Settings.MAX_FAR_RENDER_CELLS,
@@ -83,7 +83,7 @@ public class SettingsScreen extends OptionsSubScreen {
     @Override
     protected void addOptions() {
         this.list.addBig(this.ingestion);
-        this.list.addBig(this.lowestStoredLevelPosition);
+        this.list.addBig(this.lodQualityPosition);
         this.list.addBig(this.farRenderCells);
         this.list.addBig(this.workerThreads);
         this.list.addBig(this.detailDistancePosition);
@@ -103,7 +103,7 @@ public class SettingsScreen extends OptionsSubScreen {
     private void apply() {
         SettingsService.get().update(new Settings(
                 this.ingestion.get(),
-                SliderPositions.lowestStoredLevel(this.lowestStoredLevelPosition.get()),
+                SliderPositions.lodQuality(this.lodQualityPosition.get()),
                 this.farRenderCells.get(),
                 this.workerThreads.get(),
                 SliderPositions.detailDistance(this.detailDistancePosition.get()),

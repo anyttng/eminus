@@ -1,21 +1,23 @@
 package com.eminus.client.settings;
 
 import com.eminus.settings.DetailDistance;
-import com.eminus.settings.Settings;
+import com.eminus.settings.LodQuality;
 
 public final class SliderPositions {
     public static final int FIRST = 0;
-    public static final int LAST_LOWEST_STORED_LEVEL = Settings.MAX_DETAIL_LEVEL - Settings.MIN_DETAIL_LEVEL;
+    public static final int LAST_LOD_QUALITY = LodQuality.values().length - 1;
     public static final int LAST_DETAIL_DISTANCE = DetailDistance.values().length - 1;
 
+    private static final LodQuality[] LOD_QUALITIES = LodQuality.values();
     private static final DetailDistance[] DETAIL_DISTANCES = DetailDistance.values();
 
-    public static int lowestStoredLevel(int position) {
-        return Settings.MIN_DETAIL_LEVEL + Settings.MAX_DETAIL_LEVEL - position;
+    public static LodQuality lodQuality(int position) {
+        return LOD_QUALITIES[LAST_LOD_QUALITY - position];
     }
 
-    public static int lowestStoredLevelPosition(int level) {
-        return Settings.MIN_DETAIL_LEVEL + Settings.MAX_DETAIL_LEVEL - level;
+    @SuppressWarnings("EnumOrdinal")
+    public static int lodQualityPosition(LodQuality quality) {
+        return LAST_LOD_QUALITY - quality.ordinal();
     }
 
     public static DetailDistance detailDistance(int position) {
