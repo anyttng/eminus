@@ -172,7 +172,7 @@ public final class MeshService {
                 }
             });
             if (mesh != null) {
-                listener.meshed(mesh, task.request());
+                listener.meshed(coverage.missingColumns(task.key()) ? mesh.lackingColumns() : mesh, task.request());
             }
         } finally {
             release(handles);

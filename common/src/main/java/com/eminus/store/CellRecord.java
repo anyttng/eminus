@@ -37,7 +37,7 @@ public final class CellRecord {
                 plain.array(), 0, plainLength, record, HEADER_BYTES, record.length - HEADER_BYTES);
 
         ByteBuffer header = ByteBuffer.wrap(record);
-        header.put((byte) StoreFormat.VERSION);
+        header.put((byte) StoreFormat.RECORD_VERSION);
         header.putInt(plainLength);
         return Arrays.copyOf(record, HEADER_BYTES + packedLength);
     }
@@ -49,8 +49,9 @@ public final class CellRecord {
 
         ByteBuffer header = ByteBuffer.wrap(record);
         int version = header.get();
-        if (version != StoreFormat.VERSION) {
-            throw new DamagedRecordException("record format version " + version + ", expected " + StoreFormat.VERSION);
+        if (version != StoreFormat.RECORD_VERSION) {
+            throw new DamagedRecordException("record format version " + version + ", expected "
+                    + StoreFormat.RECORD_VERSION);
         }
 
         int plainLength = header.getInt();

@@ -97,7 +97,8 @@ public final class TreeNode {
             }
 
             TreeNode child = child(at);
-            if (child == null || child.mesh == null) {
+            if (child == null || child.mesh == null || child.mesh.occupancy() == OccupancyMask.EMPTY
+                    || child.mesh.missingColumns()) {
                 return false;
             }
         }

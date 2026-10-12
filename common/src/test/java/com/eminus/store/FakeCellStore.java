@@ -5,9 +5,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.LongConsumer;
 
 import com.eminus.cell.Cell;
+import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.Dictionary;
 
 public final class FakeCellStore implements CellStore {
@@ -56,11 +56,11 @@ public final class FakeCellStore implements CellStore {
     }
 
     @Override
-    public void putColumn(long chunk) {
+    public void putColumn(long chunk, int lowestLevel) {
     }
 
     @Override
-    public void readColumns(LongConsumer into) {
+    public void readColumns(ColumnCoverage.Persistence into) {
     }
 
     @Override
