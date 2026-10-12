@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.function.LongSupplier;
 
 import com.eminus.Eminus;
 import com.eminus.cell.Cell;
@@ -57,11 +58,24 @@ public final class SqliteCellStore implements CellStore {
     private static final String INSERT_COLUMN = "INSERT INTO columns (chunk, lowest) VALUES (?, ?)"
             + " ON CONFLICT (chunk) DO UPDATE SET lowest = min(lowest, excluded.lowest)";
     private static final String SELECT_COLUMNS = "SELECT chunk, lowest FROM columns";
+    private static final String CREATE_META =
+            "CREATE TABLE IF NOT EXISTS meta (name TEXT PRIMARY KEY, value INTEGER NOT NULL)";
+    private static final String SELECT_META = "SELECT value FROM meta WHERE name = ?";
+    private static final String UPSERT_META = "INSERT OR REPLACE INTO meta (name, value) VALUES (?, ?)";
+    private static final String ADD_META = "UPDATE meta SET value = value + ? WHERE name = ?";
+    private static final String DELETE_META = "DELETE FROM meta WHERE name = ?";
+    private static final String SELECT_LOWEST_KEY = "SELECT min(key) FROM cells";
+    private static final String RAISED_LEVEL_KEY = "raised_level";
+    private static final String PLAYED_MILLIS_KEY = "raised_played_millis";
+    private static final long MILLIS_PER_MINUTE = 60_000L;
     private static final int CHUNK_SHIFT = 4;
     private static final int CHUNKS_PER_FINEST_CELL = DetailLevel.blocksPerCell(DetailLevel.MIN) >> CHUNK_SHIFT;
 
     private final Path file;
-    private final int lowestStoredLevel;
+    private final int heldLevel;
+    private final boolean keepsCellsBelow;
+    private final LongSupplier clock;
+    private final long openedAt;
     private final Connection connection;
     private final PreparedStatement selectCell;
     private final PreparedStatement upsertCell;
@@ -73,7 +87,7 @@ public final class SqliteCellStore implements CellStore {
 
     private boolean closed;
 
-    public static SqliteCellStore open(Path folder, int lowestStoredLevel) {
+    public static SqliteCellStore open(Path folder, int lowestStoredLevel, long dropGraceMillis, LongSupplier clock) {
         Path file = folder.resolve(FILE_NAME);
         SQLiteConfig config = new SQLiteConfig();
         config.setJournalMode(SQLiteConfig.JournalMode.WAL);
@@ -86,9 +100,14 @@ public final class SqliteCellStore implements CellStore {
         try {
             connection = source.getConnection();
             prepareSchema(connection, file, lowestStoredLevel);
-            dropBelowLevel(connection, lowestStoredLevel, file);
+            try (Statement statement = connection.createStatement()) {
+                statement.execute(CREATE_META);
+            }
+
+            int heldLevel = settleHeldLevel(connection, lowestStoredLevel, dropGraceMillis, file);
             vacuumWhenSparse(connection);
-            SqliteCellStore store = new SqliteCellStore(file, lowestStoredLevel, connection);
+            SqliteCellStore store = new SqliteCellStore(file, heldLevel, heldLevel < lowestStoredLevel, clock,
+                    connection);
             Eminus.LOGGER.info("Cell store opened at {} on SQLite {}", file, sqliteVersion(connection));
             return store;
         } catch (SQLException failure) {
@@ -100,9 +119,13 @@ public final class SqliteCellStore implements CellStore {
         }
     }
 
-    private SqliteCellStore(Path file, int lowestStoredLevel, Connection connection) throws SQLException {
+    private SqliteCellStore(Path file, int heldLevel, boolean keepsCellsBelow, LongSupplier clock,
+            Connection connection) throws SQLException {
         this.file = file;
-        this.lowestStoredLevel = lowestStoredLevel;
+        this.heldLevel = heldLevel;
+        this.keepsCellsBelow = keepsCellsBelow;
+        this.clock = clock;
+        this.openedAt = clock.getAsLong();
         this.connection = connection;
         selectCell = connection.prepareStatement(SELECT_CELL);
         upsertCell = connection.prepareStatement(UPSERT_CELL);
@@ -111,6 +134,10 @@ public final class SqliteCellStore implements CellStore {
         selectDictionary = connection.prepareStatement(SELECT_DICTIONARY);
         insertColumn = connection.prepareStatement(INSERT_COLUMN);
         selectColumns = connection.prepareStatement(SELECT_COLUMNS);
+    }
+
+    public int heldLevel() {
+        return heldLevel;
     }
 
     @Override
@@ -211,6 +238,10 @@ public final class SqliteCellStore implements CellStore {
 
         closed = true;
         try {
+            if (keepsCellsBelow) {
+                addMeta(connection, PLAYED_MILLIS_KEY, clock.getAsLong() - openedAt);
+            }
+
             selectCell.close();
             upsertCell.close();
             deleteCell.close();
@@ -239,17 +270,90 @@ public final class SqliteCellStore implements CellStore {
 
     private void checkLevel(long key) {
         int level = CellKey.level(key);
-        if (level < lowestStoredLevel || level > DetailLevel.MAX) {
+        if (level < heldLevel || level > DetailLevel.MAX) {
             throw new IllegalArgumentException("Cell level " + level + " is outside the stored range "
-                    + lowestStoredLevel + ".." + DetailLevel.MAX);
+                    + heldLevel + ".." + DetailLevel.MAX);
         }
     }
 
+    private static int settleHeldLevel(Connection connection, int lowestStoredLevel, long dropGraceMillis, Path file)
+            throws SQLException {
+        int held = lowestLevelHeld(connection, lowestStoredLevel);
+        if (held < lowestStoredLevel) {
+            long played = playedAt(connection, lowestStoredLevel);
+            if (played < dropGraceMillis) {
+                writeMeta(connection, RAISED_LEVEL_KEY, lowestStoredLevel);
+                writeMeta(connection, PLAYED_MILLIS_KEY, played);
+                Eminus.LOGGER.info("Kept the cells from level {} below level {} in {}, still written by ingest: {} of"
+                        + " {} minutes played at it", held, lowestStoredLevel, file, played / MILLIS_PER_MINUTE,
+                        dropGraceMillis / MILLIS_PER_MINUTE);
+                return held;
+            }
+        }
+
+        deleteMeta(connection, RAISED_LEVEL_KEY);
+        deleteMeta(connection, PLAYED_MILLIS_KEY);
+        dropBelowLevel(connection, lowestStoredLevel, file);
+        return lowestStoredLevel;
+    }
+
+    private static int lowestLevelHeld(Connection connection, int lowestStoredLevel) throws SQLException {
+        try (Statement statement = connection.createStatement();
+                ResultSet rows = statement.executeQuery(SELECT_LOWEST_KEY)) {
+            long key = rows.next() ? rows.getLong(1) : 0L;
+            return rows.wasNull() ? lowestStoredLevel : CellKey.level(key);
+        }
+    }
+
+    private static long playedAt(Connection connection, int lowestStoredLevel) throws SQLException {
+        Long raised = readMeta(connection, RAISED_LEVEL_KEY);
+        if (raised == null || raised != lowestStoredLevel) {
+            return 0L;
+        }
+
+        Long played = readMeta(connection, PLAYED_MILLIS_KEY);
+        return played == null ? 0L : played;
+    }
+
+    private static Long readMeta(Connection connection, String name) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(SELECT_META)) {
+            statement.setString(1, name);
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next() ? rows.getLong(1) : null;
+            }
+        }
+    }
+
+    private static void writeMeta(Connection connection, String name, long value) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(UPSERT_META)) {
+            statement.setString(1, name);
+            statement.setLong(2, value);
+            statement.executeUpdate();
+        }
+    }
+
+    private static void addMeta(Connection connection, String name, long value) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(ADD_META)) {
+            statement.setLong(1, value);
+            statement.setString(2, name);
+            statement.executeUpdate();
+        }
+    }
+
+    private static void deleteMeta(Connection connection, String name) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(DELETE_META)) {
+            statement.setString(1, name);
+            statement.executeUpdate();
+        }
+    }
+
+    private static long lowestKeyAt(int level) {
+        return CellKey.pack(level, CellKey.MIN_HORIZONTAL, CellKey.MIN_VERTICAL, CellKey.MIN_HORIZONTAL);
+    }
+
     private static void dropBelowLevel(Connection connection, int lowestStoredLevel, Path file) throws SQLException {
-        long lowestKey = CellKey.pack(lowestStoredLevel, CellKey.MIN_HORIZONTAL, CellKey.MIN_VERTICAL,
-                CellKey.MIN_HORIZONTAL);
         try (PreparedStatement statement = connection.prepareStatement(DELETE_BELOW_LEVEL)) {
-            statement.setLong(1, lowestKey);
+            statement.setLong(1, lowestKeyAt(lowestStoredLevel));
             int dropped = statement.executeUpdate();
             if (dropped > 0) {
                 Eminus.LOGGER.info("Dropped {} cells below level {} from {}", dropped, lowestStoredLevel, file);
@@ -272,8 +376,7 @@ public final class SqliteCellStore implements CellStore {
 
         LongOpenHashSet held = new LongOpenHashSet();
         try (PreparedStatement select = connection.prepareStatement(SELECT_FINEST_OCCUPANCY)) {
-            select.setLong(1, CellKey.pack(DetailLevel.MIN + 1, CellKey.MIN_HORIZONTAL, CellKey.MIN_VERTICAL,
-                    CellKey.MIN_HORIZONTAL));
+            select.setLong(1, lowestKeyAt(DetailLevel.MIN + 1));
             try (ResultSet rows = select.executeQuery()) {
                 while (rows.next()) {
                     long key = rows.getLong(1);
