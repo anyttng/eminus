@@ -11,6 +11,7 @@ import com.eminus.model.ModelBakery;
 import com.eminus.model.PackBlocks;
 import com.eminus.model.SpriteTexels;
 import com.eminus.model.port.VariantDraw;
+import com.eminus.settings.SettingsService;
 
 import net.minecraft.client.Minecraft;
 
@@ -20,14 +21,18 @@ public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cut
     }
 
     public static ClientBakery start(Minecraft client, PackBlocks packBlocks) {
-        return start(client, GameFrames.cutoutLeaves(), packBlocks);
+        return start(client, cutoutLeaves(client), packBlocks);
     }
 
     public static ClientBakery start(Minecraft client, boolean cutoutLeaves) {
         return start(client, cutoutLeaves, PackBlocks.NONE);
     }
 
-    private static ClientBakery start(Minecraft client, boolean cutoutLeaves, PackBlocks packBlocks) {
+    public static boolean cutoutLeaves(Minecraft client) {
+        return SettingsService.get().settings().lodQuality().cutoutLeaves(GameFrames.cutoutLeaves(client));
+    }
+
+    public static ClientBakery start(Minecraft client, boolean cutoutLeaves, PackBlocks packBlocks) {
         GameModels game = GameModels.of(client, cutoutLeaves);
         SpriteTexels sprites = new SpriteTexels();
         BiomeColours colours = new BiomeColours(game.biomes());
