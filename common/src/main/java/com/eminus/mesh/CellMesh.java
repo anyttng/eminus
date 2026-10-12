@@ -3,7 +3,12 @@ package com.eminus.mesh;
 import com.eminus.cell.OccupancyMask;
 
 @SuppressWarnings("ArrayRecordComponent")
-public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, long[] colours) {
+public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, long[] colours,
+        boolean missingColumns) {
+    public CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, long[] colours) {
+        this(key, occupancy, quads, groupStart, groupCount, colours, false);
+    }
+
     public static CellMesh empty(long key) {
         return empty(key, OccupancyMask.EMPTY);
     }
@@ -18,7 +23,11 @@ public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, 
     }
 
     public MeshSummary summary() {
-        return new MeshSummary(key, occupancy, quads.length, groupCount[QuadGroups.TRANSLUCENT]);
+        return new MeshSummary(key, occupancy, quads.length, groupCount[QuadGroups.TRANSLUCENT], missingColumns);
+    }
+
+    public CellMesh lackingColumns() {
+        return new CellMesh(key, occupancy, quads, groupStart, groupCount, colours, true);
     }
 
     public int slotCount() {

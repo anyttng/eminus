@@ -1,8 +1,7 @@
 package com.eminus.store;
 
-import java.util.function.LongConsumer;
-
 import com.eminus.cell.Cell;
+import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.Dictionary;
 
 public final class EmptyCellStore implements CellStore {
@@ -33,11 +32,11 @@ public final class EmptyCellStore implements CellStore {
     }
 
     @Override
-    public void putColumn(long chunk) {
+    public void putColumn(long chunk, int lowestLevel) {
     }
 
     @Override
-    public void readColumns(LongConsumer into) {
+    public void readColumns(ColumnCoverage.Persistence into) {
     }
 
     @Override

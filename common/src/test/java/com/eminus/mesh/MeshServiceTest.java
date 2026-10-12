@@ -1,9 +1,11 @@
 package com.eminus.mesh;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -68,6 +70,10 @@ class MeshServiceTest {
     private static final int COARSE_LEVEL = 1;
     private static final long KEY = CellKey.pack(LEVEL, 1, 2, 3);
     private static final long COARSE_KEY = CellKey.pack(COARSE_LEVEL, 1, 2, 3);
+    private static final int HELD_CHUNK_X = 2;
+    private static final int DROPPED_CHUNK_X = 3;
+    private static final int KEY_CHUNK_Z = 6;
+    private static final String PARTIAL_SERVICE = "partial";
 
     private final FakeCellStore store = new FakeCellStore();
     private final WorkerHarness harness = new WorkerHarness(WORKER_THREADS);
@@ -191,6 +197,26 @@ class MeshServiceTest {
 
         assertEquals(OccupancyMask.set(OccupancyMask.EMPTY, OccupancyMask.octantOf(CUBE_AT, CUBE_AT, CUBE_AT)),
                 delivered.get().occupancy());
+    }
+
+    @Test
+    void theMeshMarksACellMissingColumnsItsParentHolds() {
+        models.define(STONE, STONE_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
+        seedCube();
+        ColumnCoverage coverage = new ColumnCoverage(LEVEL, (chunk, lowestLevel) -> { });
+        coverage.load(ColumnCoverage.pack(HELD_CHUNK_X, KEY_CHUNK_Z), LEVEL);
+        coverage.load(ColumnCoverage.pack(DROPPED_CHUNK_X, KEY_CHUNK_Z), COARSE_LEVEL);
+        MeshService partial = new MeshService(harness.register(PARTIAL_SERVICE, MeshScratch::new), cache, coverage,
+                FRAME, models, new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh));
+
+        harness.run(() -> service.build(MeshTask.fresh(KEY), new MeshScratch()));
+        boolean whole = delivered.get().missingColumns();
+        harness.run(() -> partial.build(MeshTask.fresh(KEY), new MeshScratch()));
+
+        assertFalse(whole);
+        assertTrue(delivered.get().missingColumns());
+        assertTrue(delivered.get().summary().missingColumns());
     }
 
     @Test

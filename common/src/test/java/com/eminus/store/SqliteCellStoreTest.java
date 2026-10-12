@@ -14,8 +14,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
@@ -43,6 +45,13 @@ class SqliteCellStoreTest {
     private static final long SPARSE_VACUUMED_BYTES = 256L * 1024L;
     private static final long COLUMN_A = ColumnCoverage.pack(3, -7);
     private static final long COLUMN_B = ColumnCoverage.pack(-12, 40);
+    private static final int RAISED_LEVEL = 1;
+    private static final int COARSER_LEVEL = 2;
+    private static final long SPLIT_CELL = CellKey.pack(DetailLevel.MIN, 1, 0, -1);
+    private static final int EAST_HALF_VOXEL = 20;
+    private static final int NORTH_HALF_VOXEL = 3;
+    private static final long HELD_COLUMN = ColumnCoverage.pack(3, -2);
+    private static final long BARE_COLUMN = ColumnCoverage.pack(2, -2);
     private static final String COUNT_COLUMNS_TABLE =
             "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'columns'";
 
@@ -62,14 +71,14 @@ class SqliteCellStoreTest {
     @Test
     void coveredColumnsComeBackOnceEachAfterAReopen() {
         try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
-            store.putColumn(COLUMN_A);
-            store.putColumn(COLUMN_B);
-            store.putColumn(COLUMN_A);
+            store.putColumn(COLUMN_A, LOWEST_LEVEL);
+            store.putColumn(COLUMN_B, LOWEST_LEVEL);
+            store.putColumn(COLUMN_A, LOWEST_LEVEL);
         }
 
         List<Long> read = new ArrayList<>();
         try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
-            store.readColumns(read::add);
+            store.readColumns((chunk, lowestLevel) -> read.add(chunk));
         }
 
         assertEquals(2, read.size());
@@ -92,7 +101,7 @@ class SqliteCellStoreTest {
         try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
             assertNull(store.read(key));
             store.readDictionary(BLOCKS, (id, value) -> blocks.add(value));
-            store.readColumns(columns::add);
+            store.readColumns((chunk, lowestLevel) -> columns.add(chunk));
         }
 
         assertTrue(blocks.isEmpty());
@@ -286,6 +295,72 @@ class SqliteCellStoreTest {
         assertTrue(Files.size(file()) < SPARSE_VACUUMED_BYTES,
                 "the store was not vacuumed: " + Files.size(file()) + " bytes");
         assertEquals(DetailLevel.MAX - raised + 1, readInt("SELECT count(*) FROM cells"));
+    }
+
+    @Test
+    void reopeningAtAHigherLevelLiftsTheColumnsCoveredBelowItToThatLevel() {
+        try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
+            store.putColumn(COLUMN_A, LOWEST_LEVEL);
+            store.putColumn(COLUMN_B, COARSER_LEVEL);
+        }
+
+        assertEquals(Map.of(COLUMN_A, RAISED_LEVEL, COLUMN_B, COARSER_LEVEL), columnsAt(RAISED_LEVEL));
+    }
+
+    @Test
+    void aColumnCoveredAgainKeepsTheLowestLevelItWasCoveredAt() {
+        try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
+            store.putColumn(COLUMN_A, RAISED_LEVEL);
+            store.putColumn(COLUMN_A, LOWEST_LEVEL);
+            store.putColumn(COLUMN_A, RAISED_LEVEL);
+        }
+
+        assertEquals(Map.of(COLUMN_A, LOWEST_LEVEL), columnsAt(LOWEST_LEVEL));
+    }
+
+    @Test
+    void aVersionThreeStoreAtLevelZeroKeepsThereOnlyTheColumnsAFinestCellHolds() throws SQLException {
+        Cell cell = Cell.blank(SPLIT_CELL);
+        cell.set(EAST_HALF_VOXEL, 0, NORTH_HALF_VOXEL, STONE);
+        try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
+            store.write(cell);
+            store.putColumn(HELD_COLUMN, LOWEST_LEVEL);
+            store.putColumn(BARE_COLUMN, LOWEST_LEVEL);
+        }
+
+        givenFormatThree();
+
+        assertEquals(Map.of(HELD_COLUMN, LOWEST_LEVEL, BARE_COLUMN, RAISED_LEVEL), columnsAt(LOWEST_LEVEL));
+        assertEquals(StoreFormat.VERSION, readInt("PRAGMA user_version"));
+        try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
+            assertEquals(STONE, store.read(SPLIT_CELL).get(EAST_HALF_VOXEL, 0, NORTH_HALF_VOXEL));
+        }
+    }
+
+    @Test
+    void aVersionThreeStoreAtACoarserLevelTakesThatLevelForEveryColumn() throws SQLException {
+        try (SqliteCellStore store = SqliteCellStore.open(folder, LOWEST_LEVEL)) {
+            store.putColumn(COLUMN_A, LOWEST_LEVEL);
+            store.putColumn(COLUMN_B, LOWEST_LEVEL);
+        }
+
+        givenFormatThree();
+
+        assertEquals(Map.of(COLUMN_A, RAISED_LEVEL, COLUMN_B, RAISED_LEVEL), columnsAt(RAISED_LEVEL));
+    }
+
+    private void givenFormatThree() throws SQLException {
+        execute("ALTER TABLE columns DROP COLUMN lowest");
+        execute("PRAGMA user_version = " + StoreFormat.BEFORE_LOWEST);
+    }
+
+    private Map<Long, Integer> columnsAt(int level) {
+        Map<Long, Integer> columns = new HashMap<>();
+        try (SqliteCellStore store = SqliteCellStore.open(folder, level)) {
+            store.readColumns(columns::put);
+        }
+
+        return columns;
     }
 
     private static Cell noisyCell(long key, Random random) {

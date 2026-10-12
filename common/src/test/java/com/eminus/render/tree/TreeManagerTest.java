@@ -57,6 +57,7 @@ class TreeManagerTest {
     private static final double TELEPORT = 2_000.0;
     private static final int ONE_OCTANT = 0b1;
     private static final int ALL_OCTANTS = 0xFF;
+    private static final int LOWEST_BELOW_TOP = DetailLevel.MAX - 1;
     private static final int OLDER_QUADS = 2;
     private static final int NEWER_QUADS = 3;
     private static final int QUEUED_ROOTS = 800;
@@ -155,6 +156,7 @@ class TreeManagerTest {
 
     @Test
     void aChildIsUploadedNoLaterThanTheListThatDrawsIt() {
+        restartOverLeafChildren();
         startRing();
         CellMesh parent = TestMeshes.of(KEY, ONE_OCTANT);
         manager.meshed(parent, rootRequests.get(KEY));
@@ -162,7 +164,7 @@ class TreeManagerTest {
 
         FakeBuilds.Call request = builds.take();
         assertEquals(CellKey.child(KEY, 0), request.key());
-        CellMesh child = TestMeshes.of(request.key(), OccupancyMask.EMPTY);
+        CellMesh child = TestMeshes.of(request.key(), ONE_OCTANT);
         manager.meshed(child, request.request());
         manager.frame(close(EYE_X + ONE_BLOCK, EYE_Z));
 
@@ -352,11 +354,12 @@ class TreeManagerTest {
 
     @Test
     void underArenaPressureASetInViewIsEvictedAndNotRequestedAgain() throws Exception {
+        restartOverLeafChildren();
         startRing();
         manager.meshed(TestMeshes.of(KEY, ONE_OCTANT), rootRequests.get(KEY));
         manager.frame(close(EYE_X, EYE_Z));
         FakeBuilds.Call request = builds.take();
-        CellMesh child = TestMeshes.of(request.key(), OccupancyMask.EMPTY);
+        CellMesh child = TestMeshes.of(request.key(), ONE_OCTANT);
         manager.meshed(child, request.request());
         awaitRenderList(close(EYE_X + ONE_BLOCK, EYE_Z), list -> list.meshes().contains(child.summary()),
                 meshes -> { });
@@ -376,11 +379,12 @@ class TreeManagerTest {
 
     @Test
     void aSetEvictedUnderPressureLeavesTheHorizonBoundedOnceThePressureLifts() throws Exception {
+        restartOverLeafChildren();
         startRing();
         manager.meshed(TestMeshes.of(KEY, ONE_OCTANT), rootRequests.get(KEY));
         manager.frame(close(EYE_X, EYE_Z));
         FakeBuilds.Call request = builds.take();
-        CellMesh child = TestMeshes.of(request.key(), OccupancyMask.EMPTY);
+        CellMesh child = TestMeshes.of(request.key(), ONE_OCTANT);
         manager.meshed(child, request.request());
         awaitRenderList(close(EYE_X + ONE_BLOCK, EYE_Z), list -> list.meshes().contains(child.summary()),
                 meshes -> { });
@@ -485,6 +489,11 @@ class TreeManagerTest {
         }
 
         fail("The mesh is still reachable after its batch was taken, so something holds its quads and colours.");
+    }
+
+    private void restartOverLeafChildren() {
+        manager.stop();
+        manager = TreeManager.start(builds, new TreeExtent(new CellFrame(0), 1, LOWEST_BELOW_TOP));
     }
 
     private void startRing() {

@@ -138,7 +138,8 @@ public final class DimensionRuntime {
     }
 
     private ColumnCoverage openCoverage() {
-        ColumnCoverage opened = new ColumnCoverage(chunk -> store.putColumn(chunk));
+        ColumnCoverage opened = new ColumnCoverage(lowestStoredLevel,
+                (chunk, lowestLevel) -> store.putColumn(chunk, lowestLevel));
 
         try {
             store.readColumns(opened::load);
