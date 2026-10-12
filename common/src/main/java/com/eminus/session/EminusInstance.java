@@ -150,7 +150,7 @@ public final class EminusInstance {
         DimensionRuntime runtime = new DimensionRuntime(identity,
                 StoreFolders.dimensionFolder(storeBase, identity), new CellFrame(minBlockY), lowestStoredLevel);
         runtime.createFolder();
-        runtime.openStore();
+        runtime.openStore(clock);
         runtime.openCells(save, ingest, clock);
         Eminus.LOGGER.info("Dimension runtime opened for {} at {}", identity.dimension(), runtime.folder());
         return runtime;
