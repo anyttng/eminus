@@ -217,6 +217,10 @@ public final class FarRenderer implements AutoCloseable {
         return arena.committedBytes();
     }
 
+    public boolean cutoutLeaves() {
+        return baking.cutoutLeaves();
+    }
+
     public static boolean recreates(Settings built, Settings updated) {
         return built.farRenderCells() != updated.farRenderCells()
                 || built.detailDistance() != updated.detailDistance()

@@ -14,6 +14,7 @@ import com.eminus.mixin.BiomeManagerAccessor;
 import com.eminus.client.frame.GameFrame;
 import com.eminus.client.frame.GameFrames;
 import com.eminus.client.gpu.Gpus;
+import com.eminus.client.model.ClientBakery;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.client.render.far.FarStart;
 import com.eminus.gpu.Gpu;
@@ -228,7 +229,7 @@ public final class ClientSession {
             swapLevel(current);
         }
 
-        if (renderer != null && (GameFrames.cutoutLeaves(minecraft) != renderedCutoutLeaves
+        if (renderer != null && (ClientBakery.cutoutLeaves(minecraft) != renderedCutoutLeaves
                 || minecraft.options.biomeBlendRadius().get() != renderedBiomeBlend)) {
             restartRenderer();
         }
@@ -359,7 +360,7 @@ public final class ClientSession {
     private static void startRenderer(Gpu gpu, long replacedArenaBytes) {
         Minecraft minecraft = Minecraft.getInstance();
         rendered = SettingsService.get().settings();
-        renderedCutoutLeaves = GameFrames.cutoutLeaves(minecraft);
+        renderedCutoutLeaves = ClientBakery.cutoutLeaves(minecraft);
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
         renderedPackIds = IrisShaderPack.packIds(renderedPackIds);
         renderedPackBlocks = renderedPackIds == null ? PackBlocks.NONE
