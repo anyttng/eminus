@@ -206,7 +206,6 @@ public final class TreeNode {
 
     void buildFailed() {
         building = false;
-        outOfViewBuild = false;
     }
 
     void markRebuild() {

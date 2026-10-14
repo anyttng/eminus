@@ -56,9 +56,9 @@ final class ArrivalFront {
         outsideFront = Math.min(outsideFront, horizontalDistance(key));
     }
 
-    FrontState state(CellFrame frame, int hiddenBehind, int hiddenUnder, long now) {
+    FrontState state(CellFrame frame, int hiddenBehind, int hiddenUnder, int hiddenUnderOutOfView, long now) {
         if (front == NO_FRONT) {
-            return FrontState.none(hiddenBehind, hiddenUnder);
+            return FrontState.none(hiddenBehind, hiddenUnder, hiddenUnderOutOfView);
         }
 
         String place = holder == null ? FrontState.UNREQUESTED
@@ -66,7 +66,7 @@ final class ArrivalFront {
         long buildMillis = holder != null && holder.building() ? (now - holder.dispatchedAt()) / NANOS_PER_MILLI : 0L;
         return new FrontState((int) front, CellKey.level(holderKey), CellFrame.originXOf(holderKey),
                 frame.originYOf(holderKey), CellFrame.originZOf(holderKey), place, buildMillis, hiddenBehind,
-                hiddenUnder);
+                hiddenUnder, hiddenUnderOutOfView);
     }
 
     boolean holds(long key, boolean inView) {
