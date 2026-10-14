@@ -7,6 +7,7 @@ import com.eminus.cell.EdgeMask;
 import com.eminus.cell.FaceMask;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.mesh.FluidCorners;
+import com.eminus.mesh.MeshSummary;
 import com.eminus.settings.FarDistance;
 
 import net.minecraft.core.Direction;
@@ -40,6 +41,14 @@ final class TreeChanges {
         }
 
         requestNeighbours(key, faceMask, camera);
+        if ((faceMask & FaceMask.UP) == 0) {
+            TreeNode above = nodes.get(CellKey.neighbour(key, Direction.UP));
+            MeshSummary aboveMesh = above == null ? null : above.mesh();
+            if (above != null && aboveMesh != null && aboveMesh.readsBelow()) {
+                requestBuild(above, camera);
+            }
+        }
+
         if (CellKey.level(key) == FluidCorners.LEVEL) {
             requestAcrossEdges(key, edgeMask, camera);
         }
