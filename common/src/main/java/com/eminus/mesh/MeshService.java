@@ -186,7 +186,8 @@ public final class MeshService {
                 }
             });
             if (mesh != null) {
-                CellMesh masked = mesh.withGrandchildren(grandchildren[0]);
+                CellMesh masked = mesh.withGrandchildren(grandchildren[0])
+                        .readingBelow(scratch.voxels().belowLoaded());
                 listener.meshed(coverage.missingColumns(task.key()) ? masked.lackingColumns() : masked,
                         task.request());
             }

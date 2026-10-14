@@ -4,9 +4,9 @@ import com.eminus.cell.OccupancyMask;
 
 @SuppressWarnings("ArrayRecordComponent")
 public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, long[] colours,
-        boolean missingColumns, long grandchildren) {
+        boolean missingColumns, long grandchildren, boolean readsBelow) {
     public CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, long[] colours) {
-        this(key, occupancy, quads, groupStart, groupCount, colours, false, OccupancyMask.NO_GRANDCHILDREN);
+        this(key, occupancy, quads, groupStart, groupCount, colours, false, OccupancyMask.NO_GRANDCHILDREN, false);
     }
 
     public static CellMesh empty(long key) {
@@ -24,15 +24,19 @@ public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, 
 
     public MeshSummary summary() {
         return new MeshSummary(key, occupancy, quads.length, groupCount[QuadGroups.TRANSLUCENT], missingColumns,
-                grandchildren);
+                grandchildren, readsBelow);
     }
 
     public CellMesh lackingColumns() {
-        return new CellMesh(key, occupancy, quads, groupStart, groupCount, colours, true, grandchildren);
+        return new CellMesh(key, occupancy, quads, groupStart, groupCount, colours, true, grandchildren, readsBelow);
     }
 
     public CellMesh withGrandchildren(long mask) {
-        return new CellMesh(key, occupancy, quads, groupStart, groupCount, colours, missingColumns, mask);
+        return new CellMesh(key, occupancy, quads, groupStart, groupCount, colours, missingColumns, mask, readsBelow);
+    }
+
+    public CellMesh readingBelow(boolean read) {
+        return new CellMesh(key, occupancy, quads, groupStart, groupCount, colours, missingColumns, grandchildren, read);
     }
 
     public int slotCount() {
