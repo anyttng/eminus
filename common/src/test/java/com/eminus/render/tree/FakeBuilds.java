@@ -21,6 +21,7 @@ final class FakeBuilds implements TreeBuilds {
     private final BlockingQueue<Release> releases = new LinkedBlockingQueue<>();
 
     private volatile int backlog;
+    private volatile boolean urgent;
 
     @Override
     public void build(long key, @Nullable CellHandle handle, int references, long request, float priority) {
@@ -35,6 +36,15 @@ final class FakeBuilds implements TreeBuilds {
     @Override
     public int backlog() {
         return backlog;
+    }
+
+    @Override
+    public void urgent(boolean urgent) {
+        this.urgent = urgent;
+    }
+
+    boolean urgent() {
+        return urgent;
     }
 
     void backlog(int queued) {

@@ -30,6 +30,10 @@ final class TreeDispatch {
         return refinements + outOfViewRefinements;
     }
 
+    boolean refining() {
+        return refinements > 0;
+    }
+
     float priority(TreeNode node, @Nullable CameraFrame camera) {
         return camera == null
                 ? ProjectedSize.UNKNOWN

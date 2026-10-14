@@ -15,5 +15,7 @@ public record TreeState(
         boolean batchWaiting,
         long pressureEvictions,
         boolean settled,
+        int waitingInView,
+        FrontState front,
         List<LevelState> levels) {
 }

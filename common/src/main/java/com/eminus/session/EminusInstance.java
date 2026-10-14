@@ -23,6 +23,7 @@ public final class EminusInstance {
     public static final int INGEST_WEIGHT = 60;
     public static final int SAVE_WEIGHT = 30;
     public static final int BUILD_WEIGHT = 10;
+    public static final int URGENT_BUILD_WEIGHT = INGEST_WEIGHT;
 
     private final Path storeBase;
     private final int lowestStoredLevel;
