@@ -17,7 +17,8 @@ public final class MeshWiring {
             ClientBakery baking, MeshListener listener) {
         return new MeshService(instance.build(), runtime.cells(), runtime.coverage(), runtime.frame(),
                 models(runtime, baking), new BakeryTints(baking.colours(), runtime.biomes()),
-                client.options.biomeBlendRadius().get(), baking.opacity(runtime.states()), listener);
+                client.options.biomeBlendRadius().get(), baking.opacity(runtime.states()), listener,
+                EminusInstance.URGENT_BUILD_WEIGHT);
     }
 
     public static MeshModels models(DimensionRuntime runtime, ClientBakery baking) {
