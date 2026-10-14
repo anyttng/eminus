@@ -47,6 +47,7 @@ class TreeManagerTest {
     private static final long KEY = CellKey.pack(DetailLevel.MAX, CELL_X, 0, CELL_Z);
     private static final long WEST = CellKey.neighbour(KEY, Direction.WEST);
     private static final long ABOVE = CellKey.neighbour(KEY, Direction.UP);
+    private static final long BELOW = CellKey.neighbour(KEY, Direction.DOWN);
     private static final long OUTSIDE = CellKey.pack(DetailLevel.MIN, 1, 2, 3);
     private static final int RING_COLUMNS = 5;
     private static final int ONE_CELL = 1;
@@ -238,6 +239,32 @@ class TreeManagerTest {
         FakeBuilds.Call neighbour = builds.take();
         assertEquals(KEY, neighbour.key());
         assertNull(neighbour.handle());
+        assertTrue(builds.idle());
+    }
+
+    @Test
+    void aChangeInsideTheCellBelowRebuildsTheNodeWhoseMeshReadItWhole() {
+        settleRingReadingBelow(true);
+
+        CellHandle handle = open(BELOW);
+        manager.changed(handle, FaceMask.NONE, EdgeMask.NONE);
+
+        assertSame(handle, builds.takeRelease().handle());
+        FakeBuilds.Call above = builds.take();
+        assertEquals(KEY, above.key());
+        assertNull(above.handle());
+        assertTrue(builds.idle());
+    }
+
+    @Test
+    void aChangeInsideTheCellBelowLeavesANodeThatNeverReadItAlone() {
+        settleRingReadingBelow(false);
+
+        CellHandle handle = open(BELOW);
+        manager.changed(handle, FaceMask.NONE, EdgeMask.NONE);
+
+        assertSame(handle, builds.takeRelease().handle());
+        syncMessages();
         assertTrue(builds.idle());
     }
 
@@ -517,6 +544,13 @@ class TreeManagerTest {
         manager.meshed(CellMesh.empty(WEST), rootRequests.get(WEST));
         manager.changed(open(OUTSIDE), FaceMask.NONE, EdgeMask.NONE);
         builds.takeRelease();
+    }
+
+    private void settleRingReadingBelow(boolean readsBelow) {
+        startRing();
+        manager.meshed(CellMesh.empty(KEY).readingBelow(readsBelow), rootRequests.get(KEY));
+        manager.meshed(CellMesh.empty(WEST), rootRequests.get(WEST));
+        syncMessages();
     }
 
     private static CameraFrame frame(double x, double z) {
