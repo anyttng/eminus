@@ -12,6 +12,18 @@ class CellTest {
     private static final long GRASS = VoxelEntry.pack(9, 4, VoxelEntry.light(15, 0));
 
     @Test
+    void theGrandchildMaskCarriesEveryRegionHoldingAVoxel() {
+        Cell cell = Cell.blank(KEY);
+        assertEquals(OccupancyMask.NO_GRANDCHILDREN, cell.grandchildOccupancy());
+
+        cell.set(1, 2, 3, STONE);
+        cell.set(30, 17, 9, GRASS);
+
+        assertEquals((1L << OccupancyMask.grandchildOf(1, 2, 3)) | (1L << OccupancyMask.grandchildOf(30, 17, 9)),
+                cell.grandchildOccupancy());
+    }
+
+    @Test
     void aBlankCellIsAirUnderFullSkyLight() {
         Cell cell = Cell.blank(KEY);
 

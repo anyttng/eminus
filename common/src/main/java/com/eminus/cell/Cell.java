@@ -53,6 +53,22 @@ public final class Cell {
         return OccupancyMask.isEmpty(occupancy);
     }
 
+    public long grandchildOccupancy() {
+        long mask = OccupancyMask.NO_GRANDCHILDREN;
+        if (isEmpty()) {
+            return mask;
+        }
+
+        for (int voxel = 0; voxel < VOXELS; voxel++) {
+            if (!VoxelEntry.isAir(palette[indices[voxel] & INDEX_MASK])) {
+                mask |= 1L << OccupancyMask.grandchildOf(DetailLevel.voxelX(voxel), DetailLevel.voxelY(voxel),
+                        DetailLevel.voxelZ(voxel));
+            }
+        }
+
+        return mask;
+    }
+
     public int paletteSize() {
         return paletteSize;
     }

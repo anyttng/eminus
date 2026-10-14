@@ -14,6 +14,9 @@ public sealed interface TreeMessage {
     record CellMeshed(CellMesh mesh, long request) implements TreeMessage {
     }
 
+    record CellFailed(long key, long request) implements TreeMessage {
+    }
+
     record ColumnCovered(int chunkX, int chunkZ) implements TreeMessage {
     }
 

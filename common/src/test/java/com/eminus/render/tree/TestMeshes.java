@@ -21,6 +21,10 @@ final class TestMeshes {
         return of(key, occupancy).summary();
     }
 
+    static MeshSummary summary(long key, int occupancy, long grandchildren) {
+        return of(key, occupancy).withGrandchildren(grandchildren).summary();
+    }
+
     private TestMeshes() {
     }
 }

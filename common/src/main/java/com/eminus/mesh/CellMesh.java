@@ -4,9 +4,9 @@ import com.eminus.cell.OccupancyMask;
 
 @SuppressWarnings("ArrayRecordComponent")
 public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, long[] colours,
-        boolean missingColumns) {
+        boolean missingColumns, long grandchildren) {
     public CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, long[] colours) {
-        this(key, occupancy, quads, groupStart, groupCount, colours, false);
+        this(key, occupancy, quads, groupStart, groupCount, colours, false, OccupancyMask.NO_GRANDCHILDREN);
     }
 
     public static CellMesh empty(long key) {
@@ -23,11 +23,16 @@ public record CellMesh(long key, int occupancy, long[] quads, int[] groupStart, 
     }
 
     public MeshSummary summary() {
-        return new MeshSummary(key, occupancy, quads.length, groupCount[QuadGroups.TRANSLUCENT], missingColumns);
+        return new MeshSummary(key, occupancy, quads.length, groupCount[QuadGroups.TRANSLUCENT], missingColumns,
+                grandchildren);
     }
 
     public CellMesh lackingColumns() {
-        return new CellMesh(key, occupancy, quads, groupStart, groupCount, colours, true);
+        return new CellMesh(key, occupancy, quads, groupStart, groupCount, colours, true, grandchildren);
+    }
+
+    public CellMesh withGrandchildren(long mask) {
+        return new CellMesh(key, occupancy, quads, groupStart, groupCount, colours, missingColumns, mask);
     }
 
     public int slotCount() {
