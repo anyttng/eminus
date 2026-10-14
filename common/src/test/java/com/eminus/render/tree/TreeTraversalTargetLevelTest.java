@@ -25,6 +25,9 @@ class TreeTraversalTargetLevelTest {
     private static final float PREFETCH_PIXELS_PER_BLOCK = 112.5F;
     private static final float FRONT_PIXELS_PER_BLOCK = 0.01F;
     private static final long FAR_ROOT = CellKey.pack(DetailLevel.MAX, 3, 0, 0);
+    private static final long ABOVE_ROOT = CellKey.pack(DetailLevel.MAX, 0, 1, 0);
+    private static final int AHEAD = 1;
+    private static final int AHEAD_OCTANT = 1 << AHEAD;
     private static final int BOTTOM_AND_TOP = (1 << TOP_OCTANT) | FIRST_OCTANT;
     private static final int TWO_BELOW_THE_ROOT = DetailLevel.MAX - 2;
     private static final double BEFORE_THE_SECOND_ROOT = DetailLevel.blocksPerCell(DetailLevel.MAX) - 1.0;
@@ -103,6 +106,20 @@ class TreeTraversalTargetLevelTest {
     }
 
     @Test
+    void aChildRequestedAheadOfTheSizeRuleIsSeenByEveryWalkThatKeepsItsParentNearTheRule() {
+        TreeNode root = nodes.root(rootKey);
+        root.meshed(TestMeshes.summary(rootKey, FIRST_OCTANT));
+        CameraFrame camera = FakeCameras.everything(-PREFETCH_DISTANCE, INSIDE, INSIDE, FAR_CELLS,
+                PREFETCH_PIXELS_PER_BLOCK);
+        traversal.walk(nodes.roots(), camera, BUDGET, NO_OUT_OF_VIEW, WALK);
+        TreeNode child = only(traversal.requested());
+
+        traversal.walk(nodes.roots(), camera, BUDGET, NO_OUT_OF_VIEW, WALK + 1);
+
+        assertEquals(WALK + 1, child.lastSeen());
+    }
+
+    @Test
     void onArrivalNothingPastTheNearestEmptyPlaceShowsUntilItFillsAndWhatShowedStays() {
         TreeNode near = nodes.root(rootKey);
         near.meshed(TestMeshes.summary(rootKey, FIRST_OCTANT));
@@ -154,15 +171,35 @@ class TreeTraversalTargetLevelTest {
 
         leaves.walk(nodes.roots(), camera, BUDGET, NO_OUT_OF_VIEW, WALK);
         leaves.list(camera);
-        assertEquals(new FrontState(0, DetailLevel.MAX - 1, 0, 0, 0, FrontState.UNREQUESTED, 0L, 1, 0),
+        assertEquals(new FrontState(0, DetailLevel.MAX - 1, 0, 0, 0, FrontState.UNREQUESTED, 0L, 1, 0, 0),
                 leaves.front(0L));
 
         TreeNode child = near.child(0);
         child.startBuild(WALK, false);
         leaves.walk(nodes.roots(), camera, BUDGET, NO_OUT_OF_VIEW, WALK + 1);
         leaves.list(camera);
-        assertEquals(new FrontState(0, DetailLevel.MAX - 1, 0, 0, 0, FrontState.BUILDING, BUILD_MILLIS, 1, 0),
+        assertEquals(new FrontState(0, DetailLevel.MAX - 1, 0, 0, 0, FrontState.BUILDING, BUILD_MILLIS, 1, 0, 0),
                 leaves.front(child.dispatchedAt() + BUILD_MILLIS * NANOS_PER_MILLI));
+    }
+
+    @Test
+    void aCellInViewHiddenUnderAPlaceWaitingOutOfViewIsCountedApart() {
+        TreeNode below = nodes.root(rootKey);
+        below.meshed(TestMeshes.summary(rootKey, AHEAD_OCTANT));
+        TreeNode above = nodes.root(ABOVE_ROOT);
+        above.meshed(TestMeshes.summary(ABOVE_ROOT, AHEAD_OCTANT));
+        TreeNode ground = nodes.child(below, AHEAD);
+        MeshSummary landed = TestMeshes.summary(ground.key(), FIRST_OCTANT);
+        ground.meshed(landed);
+        CameraFrame camera = FakeCameras.looking(INSIDE, INSIDE, INSIDE, 1.0F, 0.0F, 0.0F, FAR_CELLS,
+                FakeCameras.CLOSE_PIXELS_PER_BLOCK);
+
+        leaves.walk(nodes.roots(), camera, BUDGET, NO_OUT_OF_VIEW, WALK);
+        RenderList listed = leaves.list(camera);
+
+        assertTrue(listed.meshes().isEmpty());
+        assertEquals(new FrontState(FrontState.NO_FRONT, FrontState.NO_FRONT, 0, 0, 0, FrontState.NONE, 0L, 0, 1, 1),
+                leaves.front(0L));
     }
 
     @Test
