@@ -26,6 +26,7 @@ public final class TreeNode {
     private long dispatchedAt;
     private boolean building;
     private boolean outOfViewBuild;
+    private boolean countedBuild;
     private boolean rebuild;
 
     TreeNode(long key, @Nullable TreeNode parent, int octant) {
@@ -183,11 +184,12 @@ public final class TreeNode {
         return request;
     }
 
-    void startBuild(long dispatched, boolean outOfView) {
+    void startBuild(long dispatched, boolean outOfView, boolean counted) {
         request = dispatched;
         dispatchedAt = System.nanoTime();
         building = true;
         outOfViewBuild = outOfView;
+        countedBuild = counted;
     }
 
     long dispatchedAt() {
@@ -196,6 +198,10 @@ public final class TreeNode {
 
     boolean outOfViewBuild() {
         return outOfViewBuild;
+    }
+
+    boolean countedBuild() {
+        return countedBuild;
     }
 
     void meshed(MeshSummary built) {

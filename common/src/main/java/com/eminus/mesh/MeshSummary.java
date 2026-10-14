@@ -3,9 +3,9 @@ package com.eminus.mesh;
 import com.eminus.cell.OccupancyMask;
 
 public record MeshSummary(long key, int occupancy, int quadCount, int translucentQuads, boolean missingColumns,
-        long grandchildren) {
+        long grandchildren, boolean readsBelow) {
     public MeshSummary(long key, int occupancy, int quadCount, int translucentQuads, boolean missingColumns) {
-        this(key, occupancy, quadCount, translucentQuads, missingColumns, OccupancyMask.NO_GRANDCHILDREN);
+        this(key, occupancy, quadCount, translucentQuads, missingColumns, OccupancyMask.NO_GRANDCHILDREN, false);
     }
 
     public boolean isEmpty() {

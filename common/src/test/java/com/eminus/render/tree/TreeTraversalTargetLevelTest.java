@@ -175,7 +175,7 @@ class TreeTraversalTargetLevelTest {
                 leaves.front(0L));
 
         TreeNode child = near.child(0);
-        child.startBuild(WALK, false);
+        child.startBuild(WALK, false, true);
         leaves.walk(nodes.roots(), camera, BUDGET, NO_OUT_OF_VIEW, WALK + 1);
         leaves.list(camera);
         assertEquals(new FrontState(0, DetailLevel.MAX - 1, 0, 0, 0, FrontState.BUILDING, BUILD_MILLIS, 1, 0, 0),
