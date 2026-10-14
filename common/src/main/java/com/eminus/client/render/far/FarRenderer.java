@@ -9,7 +9,6 @@ import com.eminus.Eminus;
 import com.eminus.box.BoxRegistry;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
-import com.eminus.cell.cache.CellHandle;
 import com.eminus.handoff.NearPlane;
 import com.eminus.handoff.NearReach;
 import com.eminus.ingest.IngestService;
@@ -48,7 +47,6 @@ import com.eminus.render.tree.NodeRow;
 import com.eminus.render.tree.NodeTable;
 import com.eminus.render.tree.RenderList;
 import com.eminus.render.tree.TreeBatch;
-import com.eminus.render.tree.TreeBuilds;
 import com.eminus.render.tree.TreeExtent;
 import com.eminus.render.tree.TreeManager;
 import com.eminus.session.DimensionRuntime;
@@ -138,7 +136,7 @@ public final class FarRenderer implements AutoCloseable {
         this.indirect = indirect;
         draw = new FarDraw(gpu, depth, baking.variantDraw(), arena, models, frame, nearSections, target);
         shadow = FarShadow.create(gpu);
-        tree =TreeManager.start(new Builds(),
+        tree = TreeManager.start(new FarBuilds(() -> meshes),
                 new TreeExtent(runtime.frame(), heightCells, runtime.lowestStoredLevel()), nodeCapacity);
     }
 
@@ -479,22 +477,5 @@ public final class FarRenderer implements AutoCloseable {
                 NearSections.section(Mth.floor(game.eyeX())), NearSections.section(Mth.floor(game.eyeY())),
                 NearSections.section(Mth.floor(game.eyeZ())), renderDistance,
                 renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSectionY(), level.getSectionsCount());
-    }
-
-    private final class Builds implements TreeBuilds {
-        @Override
-        public void build(long key, @Nullable CellHandle handle, int references, long request, float priority) {
-            meshes.request(key, handle, references, request, priority);
-        }
-
-        @Override
-        public void release(CellHandle handle, int references) {
-            meshes.release(handle, references);
-        }
-
-        @Override
-        public int backlog() {
-            return meshes.backlog();
-        }
     }
 }

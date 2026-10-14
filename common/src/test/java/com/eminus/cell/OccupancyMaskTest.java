@@ -36,4 +36,33 @@ class OccupancyMaskTest {
 
         assertTrue(OccupancyMask.isEmpty(mask));
     }
+
+    @Test
+    void aVoxelLandsInTheGrandchildWhoseCellHoldsIt() {
+        int level = 2;
+        long parent = CellKey.pack(level, 3, 1, -2);
+        CellFrame frame = new CellFrame(0);
+        int voxelBlocks = DetailLevel.blocksPerCell(level) / DetailLevel.VOXELS_PER_SIDE;
+        int[] corners = {0, 7, 8, 15, 16, 23, 24, 31};
+
+        for (int x : corners) {
+            for (int y : corners) {
+                for (int z : corners) {
+                    int bit = OccupancyMask.grandchildOf(x, y, z);
+                    long grandchild = CellKey.child(CellKey.child(parent, bit / OccupancyMask.OCTANTS),
+                            bit % OccupancyMask.OCTANTS);
+                    int side = DetailLevel.blocksPerCell(level - 2);
+                    assertInside(CellFrame.originXOf(parent) + x * voxelBlocks, CellFrame.originXOf(grandchild), side);
+                    assertInside(frame.originYOf(parent) + y * voxelBlocks, frame.originYOf(grandchild), side);
+                    assertInside(CellFrame.originZOf(parent) + z * voxelBlocks, CellFrame.originZOf(grandchild), side);
+                    assertEquals(1 << (bit % OccupancyMask.OCTANTS),
+                            OccupancyMask.grandchildren(1L << bit, bit / OccupancyMask.OCTANTS));
+                }
+            }
+        }
+    }
+
+    private static void assertInside(int block, int origin, int side) {
+        assertTrue(block >= origin && block < origin + side, block + " lies outside " + origin + " + " + side);
+    }
 }

@@ -14,6 +14,7 @@ public final class WorkService<C> implements ServiceSelector.Selectable {
     private final String name;
     private final int weight;
     private final int maxInFlight;
+    private volatile int raisedWeight;
     private final Supplier<C> scratchFactory;
     private final Queue<Job<C>> queue = new ConcurrentLinkedQueue<>();
     private final AtomicInteger inFlight = new AtomicInteger();
@@ -24,6 +25,7 @@ public final class WorkService<C> implements ServiceSelector.Selectable {
         this.pool = pool;
         this.name = name;
         this.weight = weight;
+        this.raisedWeight = weight;
         this.maxInFlight = maxInFlight;
         this.scratchFactory = scratchFactory;
     }
@@ -34,7 +36,15 @@ public final class WorkService<C> implements ServiceSelector.Selectable {
 
     @Override
     public int weight() {
-        return weight;
+        return raisedWeight;
+    }
+
+    public void raise(int raised) {
+        raisedWeight = Math.max(weight, raised);
+    }
+
+    public void lower() {
+        raisedWeight = weight;
     }
 
     @Override

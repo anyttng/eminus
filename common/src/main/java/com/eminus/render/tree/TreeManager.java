@@ -38,6 +38,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private static final int ONE_REFERENCE = 1;
     private static final String PRESSURE_ON = "on";
     private static final String PRESSURE_OFF = "off";
+    private static final long RETRY_NANOS = 1_000_000_000L;
 
     private final TreeBuilds builds;
     private final TreeExtent extent;
@@ -52,6 +53,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private final BlockingQueue<TreeMessage> messages = new LinkedBlockingQueue<>();
     private final AtomicReference<CameraFrame> frames = new AtomicReference<>();
     private final TreeBatches batches = new TreeBatches();
+    private final List<TreeNode> failed = new ArrayList<>();
     private final Matrix4f lastViewProjection = new Matrix4f();
     private final Thread thread = new Thread(this::serve, THREAD_NAME);
 
@@ -59,11 +61,15 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private boolean treeChanged = true;
     private int lastRequested;
     private boolean lastStarved;
+    private int lastWaiting;
+    private FrontState lastFront = FrontState.none(0, 0);
     private int lastDrawn;
     private long pressureEvictions;
     private boolean outOfViewDue;
     private boolean lastTablePressure;
     private boolean lastArenaPressure;
+    private boolean urgent;
+    private long retryAt;
     private @Nullable CameraFrame camera;
     private double lastEyeX;
     private double lastEyeY;
@@ -107,6 +113,11 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     @Override
     public void meshed(CellMesh mesh, long request) {
         messages.add(new TreeMessage.CellMeshed(mesh, request));
+    }
+
+    @Override
+    public void failed(long key, long request) {
+        messages.add(new TreeMessage.CellFailed(key, request));
     }
 
     public void frame(CameraFrame frame) {
@@ -155,6 +166,11 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             Thread.currentThread().interrupt();
         }
 
+        if (urgent) {
+            urgent = false;
+            builds.urgent(false);
+        }
+
         for (TreeMessage left : messages) {
             switch (left) {
                 case TreeMessage.Snapshot snapshot -> snapshot.answer().completeExceptionally(stopped());
@@ -191,6 +207,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             case TreeMessage.CellChanged changed ->
                     applyChange(changed.handle(), changed.faceMask(), changed.edgeMask());
             case TreeMessage.CellMeshed meshed -> applyMesh(meshed.mesh(), meshed.request());
+            case TreeMessage.CellFailed failed -> applyFailure(failed.key(), failed.request());
             case TreeMessage.ColumnCovered covered -> applyCovered(covered.chunkX(), covered.chunkZ());
             case TreeMessage.FrameReady ready -> applyFrame();
             case TreeMessage.Describe describe ->
@@ -236,7 +253,8 @@ public final class TreeManager implements CellChangeListener, MeshListener {
                 && !batchWaiting && horizon.settled();
 
         return new TreeState(walks, nodes.size(), nodes.free(), lastDrawn, backlog, building, lastRequested,
-                lastStarved, treeChanged, batchWaiting, pressureEvictions, settled, List.copyOf(levels));
+                lastStarved, treeChanged, batchWaiting, pressureEvictions, settled, lastWaiting, lastFront,
+                List.copyOf(levels));
     }
 
     private void applyChange(CellHandle handle, int faceMask, int edgeMask) {
@@ -297,6 +315,35 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         }
     }
 
+    private void applyFailure(long key, long request) {
+        TreeNode node = nodes.get(key);
+        if (node == null || node.request() != request || !node.building()) {
+            return;
+        }
+
+        if (!node.isRoot()) {
+            dispatch.settle(node);
+        }
+
+        node.buildFailed();
+        if (failed.isEmpty()) {
+            retryAt = System.nanoTime() + RETRY_NANOS;
+        }
+
+        failed.add(node);
+    }
+
+    private void retryFailed() {
+        for (TreeNode node : failed) {
+            if (nodes.get(node.key()) == node && !node.building()) {
+                dispatch.build(node, dispatch.priority(node, camera), false);
+            }
+        }
+
+        failed.clear();
+        treeChanged = true;
+    }
+
     private void applyFrame() {
         CameraFrame posted = frames.getAndSet(null);
         if (posted == null) {
@@ -328,6 +375,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             treeChanged = true;
         }
 
+        if (!failed.isEmpty() && System.nanoTime() - retryAt >= 0) {
+            retryFailed();
+        }
+
         boolean still = still(camera);
         if (!treeChanged && still && !outOfViewDue) {
             return;
@@ -352,6 +403,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         List<TreeNode> outOfView = traversal.outOfViewRequested();
         lastRequested = requested.size() + outOfView.size();
         lastStarved = traversal.starved();
+        lastWaiting = traversal.waitingInView();
         outOfViewDue = !still;
 
         for (int index = 0; index < requested.size(); index++) {
@@ -365,6 +417,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         }
 
         RenderList listed = traversal.list(camera);
+        lastFront = traversal.front(System.nanoTime());
         batch.renderList(listed);
         lastDrawn = listed.meshes().size();
         treeChanged = !stale.isEmpty();
@@ -467,6 +520,12 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private void publish() {
         if (!batch.isEmpty() && batches.offer(batch)) {
             batch = new TreeBatch();
+        }
+
+        boolean refining = dispatch.refining();
+        if (refining != urgent) {
+            urgent = refining;
+            builds.urgent(refining);
         }
     }
 

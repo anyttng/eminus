@@ -23,6 +23,7 @@ public final class TreeNode {
     private int descendedOccupancy;
     private long lastSeen;
     private long request;
+    private long dispatchedAt;
     private boolean building;
     private boolean outOfViewBuild;
     private boolean rebuild;
@@ -66,6 +67,10 @@ public final class TreeNode {
         return mesh == null ? OccupancyMask.EMPTY : mesh.occupancy();
     }
 
+    int grandchildren(int octant) {
+        return mesh == null ? OccupancyMask.EMPTY : OccupancyMask.grandchildren(mesh.grandchildren(), octant);
+    }
+
     @Nullable TreeNode child(int at) {
         return children == null ? null : children[at];
     }
@@ -79,8 +84,25 @@ public final class TreeNode {
     }
 
     boolean childrenReady() {
+        return meshedIn(readyOctants());
+    }
+
+    boolean childStuck() {
+        int octants = readyOctants();
+        for (int at = 0; at < OccupancyMask.OCTANTS; at++) {
+            TreeNode child = OccupancyMask.isSet(octants, at) ? child(at) : null;
+            if (child != null && child.mesh != null
+                    && (child.mesh.occupancy() == OccupancyMask.EMPTY || child.mesh.missingColumns())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int readyOctants() {
         int occupied = occupancy();
-        return meshedIn(descendedOccupancy == OccupancyMask.EMPTY ? occupied : occupied & descendedOccupancy);
+        return descendedOccupancy == OccupancyMask.EMPTY ? occupied : occupied & descendedOccupancy;
     }
 
     void markDescended() {
@@ -163,8 +185,13 @@ public final class TreeNode {
 
     void startBuild(long dispatched, boolean outOfView) {
         request = dispatched;
+        dispatchedAt = System.nanoTime();
         building = true;
         outOfViewBuild = outOfView;
+    }
+
+    long dispatchedAt() {
+        return dispatchedAt;
     }
 
     boolean outOfViewBuild() {
@@ -173,6 +200,11 @@ public final class TreeNode {
 
     void meshed(MeshSummary built) {
         mesh = built;
+        building = false;
+        outOfViewBuild = false;
+    }
+
+    void buildFailed() {
         building = false;
         outOfViewBuild = false;
     }
