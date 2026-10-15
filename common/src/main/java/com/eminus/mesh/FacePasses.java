@@ -3,6 +3,7 @@ package com.eminus.mesh;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.FaceMask;
 import com.eminus.cell.StateOpacity;
+import com.eminus.cell.StateTable;
 import com.eminus.cell.VoxelEntry;
 import com.eminus.model.ModelMetadata;
 
@@ -279,7 +280,7 @@ public final class FacePasses {
                 && !(covered && skippedByGame(side))
                 && !(covered && facingDrawsSameFluid(side.drawn))
                 && !(liquid && slopesInto(side.facing));
-        side.face = kept && visible(metadata, metadataOf(side.drawn), side.towards, covered)
+        side.face = kept && visible(metadata, occludingFaces(side.facing, side.drawn), side.towards, covered)
                 && !shielded(side.facing, side.towards);
         side.border = kept && !side.face && plane == side.edge && bordered(metadata, side.towards);
     }
@@ -302,7 +303,7 @@ public final class FacePasses {
         }
 
         if (liquid) {
-            if (shown(side, side.drawn)) {
+            if (shown(side, occludingFaces(side.facing, side.drawn))) {
                 quads.set(u, v, fluidData(side.facing, metadata, sided(drawn, side), shape()));
             }
 
@@ -319,7 +320,7 @@ public final class FacePasses {
 
         long lit = borderLit(side);
         if (liquid) {
-            if (shown(side, MeshModels.AIR)) {
+            if (shown(side, FaceMask.NONE)) {
                 quads.set(u, v, fluidData(lit, metadata, sided(drawn, side), shape()));
             }
 
@@ -329,9 +330,14 @@ public final class FacePasses {
         quads.set(u, v, data(lit, metadata, drawn));
     }
 
-    private boolean shown(Side side, int facingDrawn) {
-        return side.towards != Direction.UP || !(FluidCorners.full(shape())
-                && (ModelMetadata.occluding(metadataOf(facingDrawn)) & FaceMask.DOWN) != 0);
+    private boolean shown(Side side, int facingOccluding) {
+        return side.towards != Direction.UP || !(FluidCorners.full(shape()) && (facingOccluding & FaceMask.DOWN) != 0);
+    }
+
+    private int occludingFaces(long facing, int facingDrawn) {
+        return opacity.opacity(VoxelEntry.state(facing)) >= StateTable.FULL_OPACITY
+                ? FaceMask.ALL
+                : ModelMetadata.occluding(metadataOf(facingDrawn));
     }
 
     private boolean placeInward() {
@@ -464,7 +470,7 @@ public final class FacePasses {
                                 && VoxelEntry.highGap(facing) == VoxelEntry.highGap(owner)));
     }
 
-    private static boolean visible(int metadata, int facingMetadata, Direction face, boolean covered) {
+    private static boolean visible(int metadata, int facingOccluding, Direction face, boolean covered) {
         int bit = FaceMask.bit(face);
         if ((ModelMetadata.present(metadata) & bit) == 0) {
             return false;
@@ -474,6 +480,6 @@ public final class FacePasses {
             return true;
         }
 
-        return (ModelMetadata.occluding(facingMetadata) & FaceMask.bit(face.getOpposite())) == 0;
+        return (facingOccluding & FaceMask.bit(face.getOpposite())) == 0;
     }
 }
