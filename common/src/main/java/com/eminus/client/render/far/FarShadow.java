@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.eminus.cell.CellFrame;
 import com.eminus.client.frame.GameFrame;
+import com.eminus.client.model.ModelAtlas;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.pass.Pass;
@@ -47,7 +48,7 @@ public final class FarShadow implements AutoCloseable {
     }
 
     boolean write(List<MeshSummary> meshes, List<MeshSummary> translucent, Long2IntFunction borderFaces,
-            MeshSlots slots, CellFrame cells, GameFrame game, int atlasCells, NearSections near,
+            MeshSlots slots, CellFrame cells, GameFrame game, ModelAtlas atlas, NearSections near,
             Matrix4fc cameraViewProjection, Matrix4fc shadowView, Matrix4fc shadowProjection) {
         view.set(shadowView);
         projection.set(shadowProjection);
@@ -66,7 +67,7 @@ public final class FarShadow implements AutoCloseable {
         }
 
         indirect.write(commands);
-        frame.write(viewProjection, view, cells.minBlockY(), atlasCells, near, game.shade(),
+        frame.write(viewProjection, view, cells.minBlockY(), atlas, near, game.shade(),
                 CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
         return true;
     }

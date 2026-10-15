@@ -73,7 +73,7 @@ EminusFragment eminus_fragment() {
     }
 
     float atlasCell = 1.0 / float(AtlasCells);
-    float margin = 0.5 / float(FACE_SIDE);
+    float margin = 0.5 / float(AtlasCellSide);
     EminusFragment fragment;
 #ifdef FULL_COVERAGE
     fragment.color = vec4(colour.rgb, 1.0);
@@ -102,7 +102,7 @@ EminusFragment eminus_fragment() {
 
 #ifdef PACK_SHADOW_PROGRAM
 vec2 eminus_albedoUV(vec2 faceUV) {
-    float margin = 0.5 / float(FACE_SIDE);
+    float margin = 0.5 / float(AtlasCellSide);
     return (vec2(eminus_cell) + clamp(fract(faceUV), margin, 1.0 - margin)) / float(AtlasCells);
 }
 

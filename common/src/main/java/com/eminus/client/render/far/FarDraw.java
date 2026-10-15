@@ -11,8 +11,6 @@ import com.eminus.gpu.pass.Pass;
 import com.eminus.gpu.pipeline.Blend;
 import com.eminus.gpu.pipeline.PipelineSpec;
 import com.eminus.gpu.texture.Texture;
-import com.eminus.model.BakedModel;
-import com.eminus.model.Mips;
 import com.eminus.model.port.VariantDraw;
 import com.eminus.render.backend.DepthConvention;
 
@@ -152,8 +150,7 @@ public final class FarDraw {
     }
 
     private static PipelineSpec.Builder program(PipelineSpec.Builder builder) {
-        return builder.withDefine("DH_PROGRAM")
-                .withDefine("FACE_MEAN_LEVEL", Mips.levelCount(BakedModel.FACE_SIDE) - 1);
+        return builder.withDefine("DH_PROGRAM");
     }
 
     public void bind(Pass pass) {

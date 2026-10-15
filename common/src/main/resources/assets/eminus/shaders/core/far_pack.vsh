@@ -80,8 +80,8 @@ const int FAR_ANIMATED_LEVEL = 0;
 bool eminus_culled;
 
 vec4 eminus_faceColour(ivec2 atlasCell, vec3 tint) {
-    vec4 colour = texelFetch(Atlas, atlasCell, FACE_MEAN_LEVEL);
-    colour.rgb *= mix(vec3(1.0), tint, texelFetch(TintMask, atlasCell, FACE_MEAN_LEVEL).r);
+    vec4 colour = texelFetch(Atlas, atlasCell, AtlasMeanLevel);
+    colour.rgb *= mix(vec3(1.0), tint, texelFetch(TintMask, atlasCell, AtlasMeanLevel).r);
 #ifdef FULL_COVERAGE
     colour.a = 1.0;
 #endif

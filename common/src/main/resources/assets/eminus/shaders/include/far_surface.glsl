@@ -5,7 +5,7 @@ const float MIN_AXIS_LENGTH = 1.0e-6;
 
 vec4 far_surface(ivec2 atlasCell, vec2 faceUV, vec3 tint) {
     vec2 cell = vec2(1.0) / float(AtlasCells);
-    float margin = 0.5 / float(FACE_SIDE);
+    float margin = 0.5 / float(AtlasCellSide);
 
     vec2 gradX = dFdx(faceUV);
     vec2 gradY = dFdy(faceUV);
