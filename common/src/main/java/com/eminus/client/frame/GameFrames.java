@@ -43,7 +43,8 @@ public final class GameFrames {
                 camera.getFluidInCamera() == FogType.NONE, fog(), client.options.getEffectiveRenderDistance(),
                 new FaceShade(level.getShade(Direction.DOWN, SHADED), level.getShade(Direction.UP, SHADED),
                         level.getShade(Direction.NORTH, SHADED), level.getShade(Direction.SOUTH, SHADED),
-                        level.getShade(Direction.WEST, SHADED), level.getShade(Direction.EAST, SHADED)));
+                        level.getShade(Direction.WEST, SHADED), level.getShade(Direction.EAST, SHADED)),
+                client.options.ambientOcclusion().get());
     }
 
     public static void captureFov(double levelFov) {

@@ -11,5 +11,6 @@ public record GameFrame(
         boolean cameraInAir,
         GameFog fog,
         int renderDistance,
-        FaceShade shade) {
+        FaceShade shade,
+        boolean smoothLighting) {
 }

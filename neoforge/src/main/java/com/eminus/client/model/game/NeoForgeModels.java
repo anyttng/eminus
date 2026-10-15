@@ -13,6 +13,7 @@ import net.minecraft.world.level.material.FluidState;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.client.textures.FluidSpriteCache;
+import net.neoforged.neoforge.common.util.TriState;
 
 public final class NeoForgeModels implements LoaderModels {
     @Override
@@ -21,6 +22,7 @@ public final class NeoForgeModels implements LoaderModels {
         ReplayRandom replay = new ReplayRandom(random);
         for (RenderType type : model.getRenderTypes(state, replay, ModelData.EMPTY)) {
             GameQuads.gather(replay, type == RenderType.translucent(),
+                    model.useAmbientOcclusion(state, ModelData.EMPTY, type) != TriState.FALSE,
                     (side, sideRandom) -> model.getQuads(state, side, sideRandom, ModelData.EMPTY, type), into);
         }
     }

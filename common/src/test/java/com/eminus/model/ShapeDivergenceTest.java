@@ -144,7 +144,7 @@ class ShapeDivergenceTest {
             new Vector3f(positions[3], positions[4], positions[5]),
             new Vector3f(positions[6], positions[7], positions[8]),
             new Vector3f(positions[9], positions[10], positions[11])},
-                FACE_UV.clone(), null, ModelQuad.NO_TINT, false, 0, Direction.UP);
+                FACE_UV.clone(), null, ModelQuad.NO_TINT, false, 0, Direction.UP, true);
     }
 
     private static @Nullable Tint noTints(int layer) {

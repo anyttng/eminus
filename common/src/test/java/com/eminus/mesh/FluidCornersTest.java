@@ -8,8 +8,6 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.VoxelEntry;
 
-import net.minecraft.core.Direction;
-
 import org.junit.jupiter.api.Test;
 
 class FluidCornersTest {
@@ -109,11 +107,11 @@ class FluidCornersTest {
         voxels.load(cell);
         Cell east = blank();
         east.set(0, Y, LAST, block(FLOW_SIX));
-        voxels.loadNeighbour(Direction.EAST, east);
+        voxels.loadRegion(1, 0, 0, east);
         Cell diagonal = blank();
         diagonal.set(0, Y, 0, block(FLOW_SIX));
         diagonal.set(0, Y + 1, 0, block(FLOW_SIX));
-        voxels.loadDiagonal(1, 1, diagonal);
+        voxels.loadRegion(1, 0, 1, diagonal);
 
         int shape = corners.of(FLOW_SIX, LAST, Y, LAST);
 
@@ -128,10 +126,10 @@ class FluidCornersTest {
         voxels.load(cell);
         Cell east = blank();
         east.set(0, LAST, Z, block(FLOW_SIX));
-        voxels.loadNeighbour(Direction.EAST, east);
+        voxels.loadRegion(1, 0, 0, east);
         Cell aboveEast = blank();
         aboveEast.set(0, 0, Z, block(FLOW_SIX));
-        voxels.loadAboveSide(Direction.EAST, aboveEast);
+        voxels.loadRegion(1, 1, 0, aboveEast);
 
         int shape = corners.of(FLOW_SIX, LAST, LAST, Z);
 

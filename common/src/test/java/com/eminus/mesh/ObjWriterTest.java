@@ -82,7 +82,8 @@ class ObjWriterTest {
             throws IOException {
         MeshBuffer buffer = new MeshBuffer();
         long data = Quad.data(0, modelId, buffer.colourIndex(MeshBuffer.WHITE, placement));
-        buffer.add(face.get3DDataValue(), Quad.of(data, face.get3DDataValue(), x, y, z, 1, 1));
+        buffer.add(face.get3DDataValue(), Quad.of(data, face.get3DDataValue(), x, y, z, 1, 1),
+                OcclusionWord.NONE);
         CellMesh mesh = buffer.freeze(CellKey.pack(level, 0, 0, 0), OccupancyMask.EMPTY);
         Path file = folder.resolve("cell.obj");
 

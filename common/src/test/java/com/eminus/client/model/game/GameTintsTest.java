@@ -155,7 +155,7 @@ class GameTintsTest {
                 public void quads(RandomSource random, List<ModelQuad> into) {
                     for (int layer : layers) {
                         into.add(new ModelQuad(new Vector3fc[ModelQuad.CORNERS], new float[ModelQuad.CORNERS * 2],
-                                null, layer, false, 0, Direction.UP));
+                                null, layer, false, 0, Direction.UP, true));
                     }
                 }
 

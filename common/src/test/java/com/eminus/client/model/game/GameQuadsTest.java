@@ -38,7 +38,7 @@ class GameQuadsTest {
     void aQuadKeepsItsCornersUvsTintTranslucencyAndFace() {
         BakedQuad game = quad(Direction.EAST, TINT_LAYER);
 
-        ModelQuad quad = GameQuads.of(new LayeredQuad(game, true));
+        ModelQuad quad = GameQuads.of(new LayeredQuad(game, true, true));
 
         for (int corner = 0; corner < ModelQuad.CORNERS; corner++) {
             float[] position = CORNERS[corner];
@@ -57,7 +57,7 @@ class GameQuadsTest {
 
     @Test
     void anUntintedQuadOutsideTheTranslucentLayerReadsAsNeither() {
-        ModelQuad quad = GameQuads.of(new LayeredQuad(quad(Direction.UP, ModelQuad.NO_TINT), false));
+        ModelQuad quad = GameQuads.of(new LayeredQuad(quad(Direction.UP, ModelQuad.NO_TINT), false, true));
 
         assertEquals(ModelQuad.NO_TINT, quad.tintLayer());
         assertFalse(quad.tinted());
@@ -70,7 +70,7 @@ class GameQuadsTest {
         BakedQuad north = quad(Direction.NORTH, ModelQuad.NO_TINT);
         List<LayeredQuad> into = new ArrayList<>();
 
-        GameQuads.gather(new ReplayRandom(RandomSource.create(SEED)), false, (side, random) -> {
+        GameQuads.gather(new ReplayRandom(RandomSource.create(SEED)), false, true, (side, random) -> {
             if (side == null) {
                 return List.of(unculled);
             }
@@ -78,14 +78,14 @@ class GameQuadsTest {
             return side == Direction.NORTH ? List.of(north) : List.of();
         }, into);
 
-        assertEquals(List.of(new LayeredQuad(unculled, false), new LayeredQuad(north, false)), into);
+        assertEquals(List.of(new LayeredQuad(unculled, false, true), new LayeredQuad(north, false, true)), into);
     }
 
     @Test
     void everySideDrawsFromTheSeedTheCallerSet() {
         List<Long> draws = new ArrayList<>();
 
-        GameQuads.gather(new ReplayRandom(RandomSource.create(SEED)), false, (side, random) -> {
+        GameQuads.gather(new ReplayRandom(RandomSource.create(SEED)), false, true, (side, random) -> {
             draws.add(random.nextLong());
             return List.of();
         }, new ArrayList<>());

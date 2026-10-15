@@ -7,6 +7,7 @@ import com.eminus.cell.VoxelEntry;
 import com.eminus.handoff.NearSections;
 import com.eminus.mesh.FluidCorners;
 import com.eminus.mesh.MeshBuffer;
+import com.eminus.mesh.OcclusionWord;
 import com.eminus.mesh.Quad;
 import com.eminus.mesh.QuadOffset;
 import com.eminus.model.BakedModel;
@@ -89,6 +90,7 @@ final class FarQuads {
         cellKeyLayout(builder);
         quadLayout(builder);
         placementLayout(builder);
+        occlusionLayout(builder);
         if (variantDraw == VariantDraw.NEXT_LONG_MODULO) {
             builder.withDefine(NEXT_LONG_MODULO);
         }
@@ -144,6 +146,20 @@ final class FarQuads {
                 .withDefine("CORNER_NORTH_EAST_SHIFT", FluidCorners.NORTH_EAST_SHIFT)
                 .withDefine("CORNER_SOUTH_WEST_SHIFT", FluidCorners.SOUTH_WEST_SHIFT)
                 .withDefine("CORNER_SOUTH_EAST_SHIFT", FluidCorners.SOUTH_EAST_SHIFT);
+    }
+
+    private static void occlusionLayout(PipelineSpec.Builder builder) {
+        builder.withDefine("OCCLUSION_BITS", OcclusionWord.BITS)
+                .withDefine("OCCLUSION_PER_SLOT", OcclusionWord.PER_SLOT)
+                .withDefine("OCCLUSION_FRONT", OcclusionWord.FRONT)
+                .withDefine("OCCLUSION_LOW_U", OcclusionWord.LOW_U)
+                .withDefine("OCCLUSION_HIGH_U", OcclusionWord.HIGH_U)
+                .withDefine("OCCLUSION_LOW_V", OcclusionWord.LOW_V)
+                .withDefine("OCCLUSION_HIGH_V", OcclusionWord.HIGH_V)
+                .withDefine("OCCLUSION_LOW_U_LOW_V", OcclusionWord.LOW_U_LOW_V)
+                .withDefine("OCCLUSION_HIGH_U_LOW_V", OcclusionWord.HIGH_U_LOW_V)
+                .withDefine("OCCLUSION_LOW_U_HIGH_V", OcclusionWord.LOW_U_HIGH_V)
+                .withDefine("OCCLUSION_HIGH_U_HIGH_V", OcclusionWord.HIGH_U_HIGH_V);
     }
 
     static void bind(Pass pass, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer frame,

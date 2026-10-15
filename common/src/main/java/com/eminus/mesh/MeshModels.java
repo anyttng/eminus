@@ -41,4 +41,6 @@ public interface MeshModels {
     float fluidHeight(int stateId);
 
     boolean solid(int stateId);
+
+    int shade(int stateId);
 }
