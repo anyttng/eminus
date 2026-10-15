@@ -37,13 +37,13 @@ final class FarQuads {
 
     private static final int MAX_GROUP_INDICES = MeshBuffer.MAX_QUADS_PER_GROUP * DrawCommands.INDICES_PER_QUAD;
     private static final Location SHADER = new Location(Eminus.MODID, "core/far_quads");
-    private static final String QUADS = "Quads";
-    private static final String MESH_RECORDS = "MeshRecords";
-    private static final String MODEL_RECORDS = "ModelRecords";
-    private static final String MODEL_VARIANTS = "ModelVariants";
-    private static final String NEAR_SECTIONS = "NearSections";
-    private static final String ATLAS = "Atlas";
-    private static final String TINT_MASK = "TintMask";
+    private static final String QUADS = "EminusQuads";
+    private static final String MESH_RECORDS = "EminusMeshRecords";
+    private static final String MODEL_RECORDS = "EminusModelRecords";
+    private static final String MODEL_VARIANTS = "EminusModelVariants";
+    private static final String NEAR_SECTIONS = "EminusNearSections";
+    private static final String ATLAS = "EminusAtlas";
+    private static final String TINT_MASK = "EminusTintMask";
     private static final String LIGHTMAP = "Lightmap";
     private static final String NEXT_LONG_MODULO = "VARIANT_NEXT_LONG_MODULO";
 

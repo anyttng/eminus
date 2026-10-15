@@ -63,9 +63,9 @@ class UniformBlockTest {
     @Test
     void aSwappedMemberIsCaught() throws IOException {
         String source = read("include/far_frame.glsl");
-        String swapped = source.replace("float ShadeDown;", "float SWAP;")
-                .replace("float ShadeUp;", "float ShadeDown;")
-                .replace("float SWAP;", "float ShadeUp;");
+        String swapped = source.replace("float EminusShadeDown;", "float SWAP;")
+                .replace("float EminusShadeUp;", "float EminusShadeDown;")
+                .replace("float SWAP;", "float EminusShadeUp;");
         assertNotEquals(source, swapped);
 
         assertNotEquals(members(FarFrame.BLOCK), declared(swapped, FarFrame.BLOCK.name()));
