@@ -50,8 +50,6 @@ vec4 eminus_vertexPosition(inout EminusVertex vertex) {
 }
 ```
 
-Besides the names of [Inside the contract files](files.md#inside-the-contract-files), do not declare any of `Quads`, `MeshRecords`, `ModelRecords`, `CULLED_POSITION`, `BLADE_NORMAL`, `LIGHT_LEVELS`, `LIGHT_CENTRE` or `LAST_AXIS_FACE` in this file: Eminus declares them in front of your code.
-
 ## Blocks your hook moves
 
 Eminus joins neighbouring faces of one block into one larger face, with vertices at its corners alone. Where a smaller face meets the middle of a larger face's edge, your function moves the smaller face's corner by its value at that point, while the larger face's edge stays a straight line between its own moved corners, so a gap opens between them. Eminus cannot read from your code which blocks it moves, so you name them: list their ids from your `block.properties` under the key `moved` in `shaders/eminus.properties`. Since version 6.

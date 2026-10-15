@@ -3,9 +3,9 @@
 #moj_import <eminus:far_lightmap.glsl>
 #moj_import <eminus:far_frame.glsl>
 
-uniform usamplerBuffer Quads;
-uniform usamplerBuffer MeshRecords;
-uniform samplerBuffer ModelRecords;
+uniform usamplerBuffer EminusQuads;
+uniform usamplerBuffer EminusMeshRecords;
+uniform samplerBuffer EminusModelRecords;
 uniform sampler2D Lightmap;
 
 #moj_import <eminus:far_vertex.glsl>
@@ -26,8 +26,8 @@ const int LIGHT_STEP = 16;
 const vec4 CULLED_POSITION = vec4(2.0, 2.0, 2.0, 1.0);
 
 void main() {
-    FarVertex vertex = far_vertex(gl_VertexID);
-    gl_Position = vertex.culled ? CULLED_POSITION : FarProjView * vec4(vertex.position, 1.0);
+    EminusQuadVertex vertex = eminus_quad_vertex(gl_VertexID);
+    gl_Position = vertex.culled ? CULLED_POSITION : EminusProjView * vec4(vertex.position, 1.0);
 
 #ifdef NEAR_SECTIONS
     nearPoint = vertex.facePoint;
@@ -41,12 +41,12 @@ void main() {
     tintColour = vertex.tint;
 
     vec4 colour = far_lightmap(Lightmap, ivec2(vertex.blockLight * LIGHT_STEP, vertex.skyLight * LIGHT_STEP));
-    float faceShade = vertex.face == 0 ? ShadeDown
-        : vertex.face == 1 ? ShadeUp
-        : vertex.face == 2 ? ShadeNorth
-        : vertex.face == 3 ? ShadeSouth
-        : vertex.face == 4 ? ShadeWest
-        : vertex.face == 5 ? ShadeEast
+    float faceShade = vertex.face == 0 ? EminusShadeDown
+        : vertex.face == 1 ? EminusShadeUp
+        : vertex.face == 2 ? EminusShadeNorth
+        : vertex.face == 3 ? EminusShadeSouth
+        : vertex.face == 4 ? EminusShadeWest
+        : vertex.face == 5 ? EminusShadeEast
         : SHADE_BLADE;
     colour.rgb *= faceShade;
     vertexColor = colour;
