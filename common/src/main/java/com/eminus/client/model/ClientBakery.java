@@ -36,8 +36,9 @@ public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cut
         GameModels game = GameModels.of(client, cutoutLeaves);
         SpriteTexels sprites = new SpriteTexels();
         BiomeColours colours = new BiomeColours(game.biomes());
+        boolean drawsBlades = SettingsService.get().settings().lodQuality().drawsBlades();
         ModelBakery bakery = ModelBakery.start(new ModelBaker(game.blocks(), game.tints(),
-                new FluidBaker(game.fluids(), sprites), sprites, colours), packBlocks);
+                new FluidBaker(game.fluids(), sprites), sprites, colours, drawsBlades), packBlocks);
         return new ClientBakery(bakery, colours, cutoutLeaves, game.blocks().variantDraw());
     }
 
