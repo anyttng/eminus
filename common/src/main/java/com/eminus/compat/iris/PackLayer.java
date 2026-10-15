@@ -111,12 +111,12 @@ final class PackLayer {
         return current != null && current.path != null && current.path.distantHorizons();
     }
 
-    static void draw(FarRenderer renderer, Object pipeline, boolean translucent) {
+    static void draw(FarRenderer renderer, Object pipeline, PackSlot slot) {
         PackLayer layer = of((IrisRenderingPipeline) pipeline);
-        if (translucent) {
-            layer.drawTranslucent();
-        } else {
+        if (slot == PackSlot.BEFORE_DEFERRED) {
             layer.drawOpaque(renderer);
+        } else if (layer.path != null && layer.path.translucentSlot() == slot) {
+            layer.drawTranslucent();
         }
     }
 
