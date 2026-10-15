@@ -82,8 +82,8 @@ public final class IrisShaderPack {
         return IRIS_PRESENT && PackLayer.throughDhPrograms();
     }
 
-    public static void drawInPack(FarRenderer renderer, Object pipeline, boolean translucent) {
-        PackLayer.draw(renderer, pipeline, translucent);
+    public static void drawInPack(FarRenderer renderer, Object pipeline, PackSlot slot) {
+        PackLayer.draw(renderer, pipeline, slot);
     }
 
     public static void pipelineDestroyed(Object pipeline) {

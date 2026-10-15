@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "plugin": "com.eminus.compat.iris.IrisMixinPlugin",
   "client": [
+    "ClassicTransparencyMixin",
     "CommonUniformsMixin",
     "DHCompatMixin",
     "IrisRenderingPipelineAccessor",
