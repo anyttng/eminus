@@ -15,7 +15,7 @@ Eminus calls it once per LOD pixel that survives its own tests, after those test
 | `texcoordDx` | `vec2` | Screen-space x derivative of `texcoord`. |
 | `texcoordDy` | `vec2` | Screen-space y derivative of `texcoord`. |
 | `lmcoord` | `vec2` | Block light in `x`, sky light in `y`, in the range `gbuffers_terrain` gets: `(level + 0.5) / 16`. |
-| `glcolor` | `vec4` | The tint alone, alpha `1.0`. It carries no ambient occlusion and no face shading. |
+| `glcolor` | `vec4` | The tint times the corner occlusion the game's Smooth Lighting draws, alpha `1.0`; where the pack declares `separateAo=true`, the tint alone with the occlusion in alpha, as Iris hands both to the game's terrain. It carries no face shading. |
 | `normal` | `vec3` | Face normal in view space. Plant blades report straight up. |
 | `face` | `int` | `0` down, `1` up, `2` north, `3` south, `4` west, `5` east; `6` and above are plant blades. |
 | `viewPos` | `vec3` | Position in view space. |

@@ -138,7 +138,7 @@ public final class PackProgram {
                                 animated)
                         : depthOnly ? draw.packDepthPipeline(location, source.vertexStage(), animated)
                                 : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertexStage(),
-                                        animated),
+                                        animated, programSet.getPackDirectives().shouldUseSeparateAo()),
                 FIRST_UNIT,
                 ours -> {
                     String spliced = source.fragment().apply(ours.fragment());

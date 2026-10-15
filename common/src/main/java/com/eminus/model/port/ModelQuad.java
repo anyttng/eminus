@@ -6,7 +6,7 @@ import org.joml.Vector3fc;
 
 @SuppressWarnings("ArrayRecordComponent")
 public record ModelQuad(Vector3fc[] corners, float[] uvs, Sprite sprite, int tintLayer, boolean translucent,
-        int emission, Direction face) {
+        int emission, Direction face, boolean smooth) {
     public static final int CORNERS = 4;
     public static final int NO_TINT = -1;
 

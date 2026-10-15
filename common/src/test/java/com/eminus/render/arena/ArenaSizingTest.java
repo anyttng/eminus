@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.OptionalLong;
 
 import com.eminus.cell.DetailLevel;
+import com.eminus.mesh.OcclusionWord;
 import com.eminus.settings.DetailDistance;
 import com.eminus.settings.FarDistance;
 import com.eminus.settings.Settings;
@@ -96,7 +97,7 @@ class ArenaSizingTest {
 
     @Test
     void theDemandAtLowIsPinned() {
-        long quads = 733L * 3 * 6600 + 733L * 2 * 9500 + 733L * 11400 + 201L * 7200 + 50L * 5700;
+        long quads = 733L * 3 * 7400 + 733L * 2 * 10900 + 733L * 11400 + 201L * 7200 + 50L * 5700;
 
         assertEquals(withHeadroom(quads), ArenaSizing.wanted(MEASURED_FAR_CELLS, DetailDistance.LOW.pixels(),
                 MEASURED_FOCAL_PIXELS, DetailLevel.MIN));
@@ -104,14 +105,15 @@ class ArenaSizingTest {
 
     @Test
     void theDemandAtMediumIsPinned() {
-        long quads = 2932L * 3 * 6600 + 2932L * 2 * 9500 + 804L * 11400 + 201L * 7200 + 50L * 5700;
+        long quads = 2932L * 3 * 7400 + 2932L * 2 * 10900 + 804L * 11400 + 201L * 7200 + 50L * 5700;
 
         assertEquals(withHeadroom(quads), ArenaSizing.wanted(MEASURED_FAR_CELLS, DetailDistance.MEDIUM.pixels(),
                 MEASURED_FOCAL_PIXELS, DetailLevel.MIN));
     }
 
     private static long withHeadroom(long quads) {
-        return Math.ceilDiv(quads * Long.BYTES * WHOLE_PERCENT * WHOLE_PERCENT, HIGH_WATER_PERCENT * FILL_PERCENT);
+        long slots = quads + Math.ceilDiv(quads, OcclusionWord.PER_SLOT);
+        return Math.ceilDiv(slots * Long.BYTES * WHOLE_PERCENT * WHOLE_PERCENT, HIGH_WATER_PERCENT * FILL_PERCENT);
     }
 
     @Test

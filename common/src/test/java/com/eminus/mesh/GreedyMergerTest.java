@@ -17,11 +17,42 @@ class GreedyMergerTest {
     private record Run(int u, int v, int width, int height, long data) {
     }
 
+    private record Lit(int width, int height, int occlusion) {
+    }
+
+    @Test
+    void aFloorBesideAWallMergesIntoOneQuadThatKeepsTheWallEdge() {
+        int wall = OcclusionWord.LOW_V | OcclusionWord.LOW_U_LOW_V | OcclusionWord.HIGH_U_LOW_V;
+        FacePlane plane = new FacePlane();
+        plane.clear();
+        for (int u = 0; u < 3; u++) {
+            plane.set(u, 0, STONE, wall);
+            plane.set(u, 1, STONE, OcclusionWord.NONE);
+        }
+
+        List<Lit> quads = new ArrayList<>();
+        new GreedyMerger().merge(plane,
+                (u, v, width, height, data, occlusion) -> quads.add(new Lit(width, height, occlusion)));
+
+        assertEquals(List.of(new Lit(3, 2, wall)), quads);
+    }
+
+    @Test
+    void aWallEndingInsideARowSplitsIt() {
+        int wall = OcclusionWord.LOW_V | OcclusionWord.LOW_U_LOW_V | OcclusionWord.HIGH_U_LOW_V;
+        FacePlane plane = new FacePlane();
+        plane.clear();
+        plane.set(0, 0, STONE, wall);
+        plane.set(1, 0, STONE, OcclusionWord.NONE);
+
+        assertEquals(2, merge(plane).size());
+    }
+
     @Test
     void oneFaceComesBackAsOneQuadOfASingleVoxel() {
         FacePlane plane = new FacePlane();
         plane.clear();
-        plane.set(5, 6, STONE);
+        plane.set(5, 6, STONE, OcclusionWord.NONE);
 
         assertEquals(List.of(new Run(5, 6, 1, 1, STONE)), merge(plane));
     }
@@ -44,7 +75,7 @@ class GreedyMergerTest {
         FacePlane plane = new FacePlane();
         plane.clear();
         for (int u = 0; u < 6; u++) {
-            plane.set(u, 0, u < 4 ? STONE : GLASS);
+            plane.set(u, 0, u < 4 ? STONE : GLASS, OcclusionWord.NONE);
         }
 
         assertEquals(
@@ -56,9 +87,9 @@ class GreedyMergerTest {
     void aRunStopsAtAHoleAndPicksUpAfterIt() {
         FacePlane plane = new FacePlane();
         plane.clear();
-        plane.set(0, 0, STONE);
-        plane.set(1, 0, STONE);
-        plane.set(3, 0, STONE);
+        plane.set(0, 0, STONE, OcclusionWord.NONE);
+        plane.set(1, 0, STONE, OcclusionWord.NONE);
+        plane.set(3, 0, STONE, OcclusionWord.NONE);
 
         assertEquals(
                 List.of(new Run(0, 0, 2, 1, STONE), new Run(3, 0, 1, 1, STONE)),
@@ -70,7 +101,7 @@ class GreedyMergerTest {
         FacePlane plane = new FacePlane();
         plane.clear();
         for (int v = 0; v < 20; v++) {
-            plane.set(0, v, STONE);
+            plane.set(0, v, STONE, OcclusionWord.NONE);
         }
 
         assertEquals(
@@ -82,9 +113,9 @@ class GreedyMergerTest {
     void rowsOfDifferentWidthsDoNotMerge() {
         FacePlane plane = new FacePlane();
         plane.clear();
-        plane.set(0, 0, STONE);
-        plane.set(1, 0, STONE);
-        plane.set(0, 1, STONE);
+        plane.set(0, 0, STONE, OcclusionWord.NONE);
+        plane.set(1, 0, STONE, OcclusionWord.NONE);
+        plane.set(0, 1, STONE, OcclusionWord.NONE);
 
         assertEquals(
                 List.of(new Run(0, 0, 2, 1, STONE), new Run(0, 1, 1, 1, STONE)),
@@ -96,14 +127,14 @@ class GreedyMergerTest {
         FacePlane plane = new FacePlane();
         plane.clear();
         for (int v = 0; v < 2; v++) {
-            plane.set(0, v, STONE);
-            plane.set(1, v, STONE);
+            plane.set(0, v, STONE, OcclusionWord.NONE);
+            plane.set(1, v, STONE, OcclusionWord.NONE);
         }
 
         List<Run> runs = new ArrayList<>();
         new GreedyMerger().merge(plane, new GreedyMerger.Emitter() {
             @Override
-            public void emit(int u, int v, int width, int height, long data) {
+            public void emit(int u, int v, int width, int height, long data, int occlusion) {
                 runs.add(new Run(u, v, width, height, data));
             }
 
@@ -122,7 +153,7 @@ class GreedyMergerTest {
 
         for (int v = 0; v < SIDE; v++) {
             for (int u = 0; u < SIDE; u++) {
-                plane.set(u, v, data);
+                plane.set(u, v, data, OcclusionWord.NONE);
             }
         }
 
@@ -131,7 +162,8 @@ class GreedyMergerTest {
 
     private static List<Run> merge(FacePlane plane) {
         List<Run> runs = new ArrayList<>();
-        new GreedyMerger().merge(plane, (u, v, width, height, data) -> runs.add(new Run(u, v, width, height, data)));
+        new GreedyMerger().merge(plane,
+                (u, v, width, height, data, occlusion) -> runs.add(new Run(u, v, width, height, data)));
         return runs;
     }
 }

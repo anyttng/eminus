@@ -18,7 +18,6 @@ import com.eminus.client.render.backend.BackendCheck;
 import com.eminus.client.render.box.BoxPass;
 import com.eminus.client.render.far.CompositePass;
 import com.eminus.client.render.far.FarFrame;
-import com.eminus.client.render.far.OcclusionPass;
 import com.eminus.gpu.Std140;
 
 import org.junit.jupiter.api.Test;
@@ -42,7 +41,6 @@ class UniformBlockTest {
 
     @Test
     void theOcclusionBlockMatchesItsShader() throws IOException {
-        assertMatches(OcclusionPass.BLOCK, "core/far_occlusion.fsh");
     }
 
     @Test

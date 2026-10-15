@@ -103,12 +103,14 @@ public final class FarDraw {
         return farBlocks;
     }
 
-    public PipelineSpec packPipeline(Location location, boolean translucent, PackVertex vertex, boolean animated) {
-        return translucent
+    public PipelineSpec packPipeline(Location location, boolean translucent, PackVertex vertex, boolean animated,
+            boolean separateAo) {
+        PipelineSpec.Builder builder = translucent
                 ? pack(location, TranslucentPass.ALPHA_CUTOUT, Blend.TRANSLUCENT, true, false, vertex, animated)
-                        .withDefine("TRANSLUCENT_PASS").build()
+                        .withDefine("TRANSLUCENT_PASS")
                 : pack(location, OpaquePass.ALPHA_CUTOUT, null, true, true, vertex, animated)
-                        .withDefine("FULL_COVERAGE").build();
+                        .withDefine("FULL_COVERAGE");
+        return separateAo ? builder.withDefine("SEPARATE_AO").build() : builder.build();
     }
 
     public PipelineSpec packDepthPipeline(Location location, PackVertex vertex, boolean animated) {

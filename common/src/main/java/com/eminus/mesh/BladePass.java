@@ -11,11 +11,13 @@ public final class BladePass {
     private final MeshScratch scratch;
     private final MeshModels models;
     private final Runnable whenBaked;
+    private final FaceOcclusion occlusion;
 
-    public BladePass(MeshScratch scratch, MeshModels models, Runnable whenBaked) {
+    public BladePass(MeshScratch scratch, MeshModels models, int level, Runnable whenBaked) {
         this.scratch = scratch;
         this.models = models;
         this.whenBaked = whenBaked;
+        occlusion = new FaceOcclusion(scratch.voxels(), models, level);
     }
 
     public boolean run() {
@@ -24,7 +26,7 @@ public final class BladePass {
         for (int y = 0; y < SIDE; y++) {
             for (int z = 0; z < SIDE; z++) {
                 for (int x = 0; x < SIDE; x++) {
-                    long entry = voxels.inside(x, y, z);
+                    long entry = voxels.entry(x, y, z);
                     if (VoxelEntry.isAir(entry)) {
                         continue;
                     }
@@ -54,9 +56,10 @@ public final class BladePass {
         int colourIndex = QuadTint.of(scratch, models, entry, modelId, x, y, z);
         long data = Quad.data(QuadLight.of(entry, metadata), modelId, colourIndex);
         int group = QuadGroups.ofBlade(metadata);
+        int word = occlusion.blade(x, y, z, metadata);
 
         for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
-            scratch.buffer().add(group, Quad.of(data, Quad.bladeFace(blade), x, y, z, ONE_VOXEL, ONE_VOXEL));
+            scratch.buffer().add(group, Quad.of(data, Quad.bladeFace(blade), x, y, z, ONE_VOXEL, ONE_VOXEL), word);
         }
     }
 }
