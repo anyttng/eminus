@@ -15,7 +15,7 @@
 Open the settings screen from the mod list (Config on NeoForge, Configure through Mod Menu on Fabric) or from the Eminus page in Sodium's video settings. The same values live in `config/eminus.json`.
 
 - **Ingestion**: turns saving of newly seen chunks on or off.
-- **LOD quality**: Full, High, Medium, Low or Minimal. Full and High keep single blocks at LOD's nearest edge; High draws fewer details (opaque leaves, no grass or flowers, textures at half resolution). Medium cuts disk use to about a seventh, and each lower step cuts it further.
+- **LOD quality**: Full, High, Medium, Low or Minimal.
 - **LOD distance**: how far LOD reaches.
 - **Worker threads**: background threads that build LOD.
 - **Detail distance**: how far out the finer detail of LOD reaches; each step up doubles that distance and costs more video memory.
