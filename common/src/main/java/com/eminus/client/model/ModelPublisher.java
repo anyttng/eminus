@@ -37,9 +37,9 @@ public final class ModelPublisher implements AutoCloseable {
         this.variants = variants;
     }
 
-    public static ModelPublisher start(Gpu gpu, ModelBakery bakery) {
+    public static ModelPublisher start(Gpu gpu, ModelBakery bakery, int atlasFirstMip) {
         gpu.assertRenderThread();
-        return new ModelPublisher(gpu, bakery, ModelAtlas.create(gpu, START_CELLS),
+        return new ModelPublisher(gpu, bakery, ModelAtlas.create(gpu, START_CELLS, atlasFirstMip),
                 ModelRecords.create(gpu, START_RECORDS), ModelVariants.create(gpu, START_VARIANTS));
     }
 

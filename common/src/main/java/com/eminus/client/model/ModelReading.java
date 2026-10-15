@@ -16,6 +16,7 @@ import com.eminus.model.BakedModel;
 import com.eminus.model.BiomeColours;
 import com.eminus.model.ModelBakery;
 import com.eminus.model.ModelMetadata;
+import com.eminus.settings.LodQuality;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Direction;
@@ -35,7 +36,12 @@ public final class ModelReading {
     public static final int CELLS_FROM = 6;
     public static final int CELLS_TO = 7;
     public static final int SIDE = 8;
-    private static final int SUMMARY_WIDTH = 9;
+    public static final int CELL_SIDE = 9;
+    public static final int BYTES = 10;
+    public static final int LOW_SIDE = 11;
+    public static final int LOW_CELL_SIDE = 12;
+    public static final int LOW_BYTES = 13;
+    private static final int SUMMARY_WIDTH = 14;
 
     public static final int MODEL_ID = 0;
     public static final int PRESENT = 1;
@@ -120,14 +126,25 @@ public final class ModelReading {
     }
 
     private static void upload(ModelBakery bakery, long[] summary) {
-        try (Gpu gpu = Gpus.create(); ModelPublisher publisher = ModelPublisher.start(gpu, bakery)) {
-            summary[CELLS_FROM] = publisher.atlas().cellsPerSide();
-            publisher.publish();
-            summary[UPLOADED] = publisher.published();
-            summary[GROWTHS] = publisher.growths();
-            summary[REUPLOADED] = publisher.reuploaded();
-            summary[CELLS_TO] = publisher.atlas().cellsPerSide();
-            summary[SIDE] = publisher.atlas().side();
+        try (Gpu gpu = Gpus.create()) {
+            try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery, LodQuality.FULL.atlasFirstMip())) {
+                summary[CELLS_FROM] = publisher.atlas().cellsPerSide();
+                publisher.publish();
+                summary[UPLOADED] = publisher.published();
+                summary[GROWTHS] = publisher.growths();
+                summary[REUPLOADED] = publisher.reuploaded();
+                summary[CELLS_TO] = publisher.atlas().cellsPerSide();
+                summary[SIDE] = publisher.atlas().side();
+                summary[CELL_SIDE] = publisher.atlas().cellSide();
+                summary[BYTES] = publisher.atlas().bytes();
+            }
+
+            try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery, LodQuality.LOW.atlasFirstMip())) {
+                publisher.publish();
+                summary[LOW_SIDE] = publisher.atlas().side();
+                summary[LOW_CELL_SIDE] = publisher.atlas().cellSide();
+                summary[LOW_BYTES] = publisher.atlas().bytes();
+            }
         }
     }
 

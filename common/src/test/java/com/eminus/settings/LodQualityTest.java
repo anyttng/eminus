@@ -38,4 +38,13 @@ class LodQualityTest {
             assertEquals(quality == LodQuality.FULL, quality.drawsBlades(), quality.key());
         }
     }
+
+    @Test
+    void lowAndMinimalAloneUploadTheAtlasFromTheFirstMip() {
+        assertEquals(0, LodQuality.FULL.atlasFirstMip());
+        assertEquals(0, LodQuality.HIGH.atlasFirstMip());
+        assertEquals(0, LodQuality.MEDIUM.atlasFirstMip());
+        assertEquals(1, LodQuality.LOW.atlasFirstMip());
+        assertEquals(1, LodQuality.MINIMAL.atlasFirstMip());
+    }
 }

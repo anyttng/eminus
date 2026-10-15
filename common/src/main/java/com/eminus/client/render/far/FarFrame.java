@@ -5,6 +5,7 @@ import java.util.EnumSet;
 import java.util.Set;
 
 import com.eminus.client.frame.FaceShade;
+import com.eminus.client.model.ModelAtlas;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.Std140;
 import com.eminus.gpu.buffer.Buffer;
@@ -22,6 +23,8 @@ public final class FarFrame implements AutoCloseable {
     private static final Std140.Member VIEW = BLOCK.add(Std140.Type.MAT4, "FarView");
     private static final Std140.Member MIN_BLOCK_Y = BLOCK.add(Std140.Type.INT, "MinBlockY");
     private static final Std140.Member ATLAS_CELLS = BLOCK.add(Std140.Type.INT, "AtlasCells");
+    private static final Std140.Member ATLAS_CELL_SIDE = BLOCK.add(Std140.Type.INT, "AtlasCellSide");
+    private static final Std140.Member ATLAS_MEAN_LEVEL = BLOCK.add(Std140.Type.INT, "AtlasMeanLevel");
     private static final Std140.Member NEAR_SIDE = BLOCK.add(Std140.Type.INT, "NearSide");
     private static final Std140.Member NEAR_HEIGHT = BLOCK.add(Std140.Type.INT, "NearHeight");
     private static final Std140.Member NEAR_ORIGIN = BLOCK.add(Std140.Type.IVEC3, "NearOrigin");
@@ -56,7 +59,7 @@ public final class FarFrame implements AutoCloseable {
         return buffer;
     }
 
-    public void write(Matrix4fc viewProjection, Matrix4fc view, int minBlockY, int atlasCells, NearSections near,
+    public void write(Matrix4fc viewProjection, Matrix4fc view, int minBlockY, ModelAtlas atlas, NearSections near,
             FaceShade shade, CameraOrigin camera) {
         gpu.assertRenderThread();
 
@@ -65,7 +68,9 @@ public final class FarFrame implements AutoCloseable {
                     .putMat4(PROJ_VIEW, viewProjection)
                     .putMat4(VIEW, view)
                     .putInt(MIN_BLOCK_Y, minBlockY)
-                    .putInt(ATLAS_CELLS, atlasCells)
+                    .putInt(ATLAS_CELLS, atlas.cellsPerSide())
+                    .putInt(ATLAS_CELL_SIDE, atlas.cellSide())
+                    .putInt(ATLAS_MEAN_LEVEL, atlas.meanLevel())
                     .putInt(NEAR_SIDE, near.side())
                     .putInt(NEAR_HEIGHT, near.height())
                     .putIVec3(NEAR_ORIGIN, near.originBlockX(), near.originBlockY(), near.originBlockZ())
