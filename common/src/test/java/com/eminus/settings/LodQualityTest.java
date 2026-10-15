@@ -13,6 +13,13 @@ class LodQualityTest {
     }
 
     @Test
+    void highAloneLeavesBladesOut() {
+        for (LodQuality quality : LodQuality.values()) {
+            assertEquals(quality != LodQuality.HIGH, quality.drawsBlades(), quality.key());
+        }
+    }
+
+    @Test
     void everyOtherPresetFollowsTheOption() {
         for (LodQuality quality : LodQuality.values()) {
             if (quality != LodQuality.HIGH) {

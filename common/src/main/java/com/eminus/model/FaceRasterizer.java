@@ -79,7 +79,7 @@ public final class FaceRasterizer {
             facings.add(new Facing(quad, normal(quad)));
         }
 
-        return bladed(facings) ? blades(quads, facings, texels, tints) : box(quads, facings, texels, tints);
+        return bladed(quads) ? blades(quads, facings, texels, tints) : box(quads, facings, texels, tints);
     }
 
     private BakedModel box(List<ModelQuad> quads, List<Facing> facings, QuadTexels texels,
@@ -308,13 +308,14 @@ public final class FaceRasterizer {
         return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, mips.clone());
     }
 
-    private static boolean bladed(List<Facing> quads) {
+    public static boolean bladed(List<ModelQuad> quads) {
         boolean blades = false;
 
-        for (Facing quad : quads) {
-            if (blade(quad.normal())) {
+        for (ModelQuad quad : quads) {
+            Vector3fc normal = normal(quad);
+            if (blade(normal)) {
                 blades = true;
-            } else if (Math.abs(quad.normal().y()) > DIAGONAL) {
+            } else if (Math.abs(normal.y()) > DIAGONAL) {
                 return false;
             }
         }

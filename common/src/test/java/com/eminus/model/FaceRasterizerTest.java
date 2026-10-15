@@ -173,6 +173,14 @@ class FaceRasterizerTest {
     }
 
     @Test
+    void theQuadTestTellsACrossBeforeAnyRasterizing() {
+        assertTrue(FaceRasterizer.bladed(cross()));
+        assertTrue(FaceRasterizer.bladed(sunflowerTop()));
+        assertFalse(FaceRasterizer.bladed(cube()));
+        assertFalse(FaceRasterizer.bladed(raisedRail()));
+    }
+
+    @Test
     void aCrossBakesTwoBladesAndNoBoxFaceAtAll() {
         BakedModel model = rasterizer.rasterize(cross(), OPAQUE_WHITE, FaceRasterizerTest::noTints);
 
