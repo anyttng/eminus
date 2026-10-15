@@ -3,6 +3,7 @@ package com.eminus.render.arena;
 import java.util.OptionalLong;
 
 import com.eminus.cell.DetailLevel;
+import com.eminus.mesh.OcclusionWord;
 import com.eminus.render.far.DrawCommands;
 
 public final class ArenaSizing {
@@ -17,7 +18,7 @@ public final class ArenaSizing {
     public static final long REFUSED = 0L;
     public static final int NO_PAGES = 0;
 
-    private static final int[] BUDGETED_QUADS_PER_CELL = {6600, 9500, 11400, 7200, 5700};
+    private static final int[] BUDGETED_QUADS_PER_CELL = {7400, 10900, 11400, 7200, 5700};
     private static final long WHOLE_PERCENT = 100L;
 
     private ArenaSizing() {
@@ -35,7 +36,8 @@ public final class ArenaSizing {
                     * ArenaDemand.cellsPerColumn(level) * budgetedQuadsPerCell(level);
         }
 
-        long bytes = Math.ceilDiv(quads * QUAD_BYTES * WHOLE_PERCENT * WHOLE_PERCENT,
+        long slots = quads + Math.ceilDiv(quads, OcclusionWord.PER_SLOT);
+        long bytes = Math.ceilDiv(slots * QUAD_BYTES * WHOLE_PERCENT * WHOLE_PERCENT,
                 (long) ArenaPressure.HIGH_WATER_PERCENT * BLOCK_FILL_PERCENT);
         return Math.max(bytes, MIN_BYTES);
     }

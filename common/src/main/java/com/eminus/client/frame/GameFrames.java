@@ -36,7 +36,8 @@ public final class GameFrames {
         return new GameFrame(eye.x, eye.y, eye.z, camera.getViewRotationMatrix(new Matrix4f()), camera.getFov(),
                 camera.getFluidInCamera() == FogType.NONE, fog(state), state.optionsRenderState.renderDistance,
                 Mth.floor(state.optionsRenderState.chunkSectionFadeInTime * MILLIS_PER_SECOND),
-                new FaceShade(shade.down(), shade.up(), shade.north(), shade.south(), shade.west(), shade.east()));
+                new FaceShade(shade.down(), shade.up(), shade.north(), shade.south(), shade.west(), shade.east()),
+                state.optionsRenderState.ambientOcclusion);
     }
 
     public static GameFog fog() {

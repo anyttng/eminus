@@ -95,4 +95,9 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     public boolean solid(int stateId) {
         return index.state(stateId).isSolid();
     }
+
+    @Override
+    public int shade(int stateId) {
+        return StateShade.of(index.state(stateId));
+    }
 }

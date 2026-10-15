@@ -130,14 +130,14 @@ public final class FluidCorners {
     }
 
     private double height(int x, int y, int z) {
-        long entry = voxels.around(x, y, z);
+        long entry = voxels.entry(x, y, z);
         if (VoxelEntry.isAir(entry)) {
             return OPEN;
         }
 
         int stateId = VoxelEntry.state(entry);
         if (models.sameFluid(fluid, stateId)) {
-            long above = voxels.around(x, y + 1, z);
+            long above = voxels.entry(x, y + 1, z);
             return !VoxelEntry.isAir(above) && models.sameFluid(fluid, VoxelEntry.state(above))
                     ? FULL
                     : models.fluidHeight(stateId);

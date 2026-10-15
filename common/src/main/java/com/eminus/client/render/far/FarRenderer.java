@@ -85,7 +85,6 @@ public final class FarRenderer implements AutoCloseable {
     private final NearMaskPass mask;
     private final NearSectionTable nearSections;
     private final OpaquePass opaque;
-    private final OcclusionPass occlusion;
     private final TranslucentPass translucent;
     private final CompositePass composite;
     private final BoxPass boxes;
@@ -118,8 +117,8 @@ public final class FarRenderer implements AutoCloseable {
 
     private FarRenderer(Gpu gpu, DepthConvention depth, DimensionRuntime runtime, ClientBakery baking,
             ModelPublisher models, GeometryArena arena, FarTarget target, FarFrame frame, NearMaskPass mask,
-            NearSectionTable nearSections, OpaquePass opaque, OcclusionPass occlusion, TranslucentPass translucent,
-            CompositePass composite, BoxPass boxes, IndirectCommands indirect, int heightCells, int nodeCapacity) {
+            NearSectionTable nearSections, OpaquePass opaque, TranslucentPass translucent, CompositePass composite,
+            BoxPass boxes, IndirectCommands indirect, int heightCells, int nodeCapacity) {
         this.gpu = gpu;
         this.runtime = runtime;
         this.baking = baking;
@@ -130,7 +129,6 @@ public final class FarRenderer implements AutoCloseable {
         this.mask = mask;
         this.nearSections = nearSections;
         this.opaque = opaque;
-        this.occlusion = occlusion;
         this.translucent = translucent;
         this.composite = composite;
         this.boxes = boxes;
@@ -163,12 +161,10 @@ public final class FarRenderer implements AutoCloseable {
         NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOUR_FORMAT, support.depth(),
                 CompositePass.DEPTH_BIAS);
         OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw());
-        OcclusionPass occlusion = OcclusionPass.create(gpu, support.depth());
         TranslucentPass translucent = TranslucentPass.create(gpu, support.depth(), baking.variantDraw());
         CompositePass composite = CompositePass.create(gpu, support.depth());
         BoxPass boxes = BoxPass.create(gpu, support.depth());
-        List<Pipeline> pipelines = new ArrayList<>(List.of(mask.pipeline(), opaque.pipeline(),
-                occlusion.pipeline()));
+        List<Pipeline> pipelines = new ArrayList<>(List.of(mask.pipeline(), opaque.pipeline()));
         pipelines.addAll(translucent.pipelines());
         pipelines.add(composite.pipeline());
         pipelines.addAll(boxes.pipelines());
@@ -179,7 +175,6 @@ public final class FarRenderer implements AutoCloseable {
             baking.stop();
             boxes.close();
             composite.close();
-            occlusion.close();
             mask.close();
             arena.close();
             gpu.close();
@@ -190,7 +185,7 @@ public final class FarRenderer implements AutoCloseable {
                 ModelPublisher.start(gpu, baking.bakery(),
                         Integer.getInteger(ATLAS_FIRST_MIP_PROPERTY, settings.lodQuality().atlasFirstMip())), arena,
                 FarTarget.create(gpu, support.depthFormat(), main.width(), main.height()), FarFrame.create(gpu),
-                mask, NearSectionTable.create(gpu), opaque, occlusion, translucent, composite, boxes,
+                mask, NearSectionTable.create(gpu), opaque, translucent, composite, boxes,
                 IndirectCommands.create(gpu, START_COMMANDS),
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL),
                 NodeTable.capacity(runtime.lowestStoredLevel(), focal, settings.detailDistance().pixels(),
@@ -259,9 +254,6 @@ public final class FarRenderer implements AutoCloseable {
             Texture lightmap = gpu.lightmap();
             opaque.draw(target, arena, models, lightmap, indirect.buffer(), 0,
                     terrainDrawn ? commands.opaqueCount() : 0, frame.buffer(), nearSections.texels());
-            if (terrainDrawn && client.options.ambientOcclusion().get()) {
-                occlusion.draw(target, mainDepth, farViewProjection, gameViewProjection);
-            }
             if (terrainDrawn) {
                 translucent.draw(target, arena, models, lightmap, indirect.buffer(), commands.opaqueCount(),
                         commands.translucentCount(), frame.buffer(), nearSections.texels());
@@ -382,7 +374,7 @@ public final class FarRenderer implements AutoCloseable {
         fillNearSections(client, game);
 
         frame.write(farViewProjection, game.viewRotation(), runtime.frame().minBlockY(),
-                models.atlas(), nearSections.sections(), game.shade(),
+                models.atlas(), nearSections.sections(), game.shade(), game.smoothLighting(),
                 CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
         draw.frame(indirect.buffer(), commands.opaqueCount(), commands.translucentCount(), gpu.lightmap(),
                 farProjection, game.viewRotation(), FarDistance.cellsToBlocks(settings.farRenderCells()));
@@ -465,7 +457,6 @@ public final class FarRenderer implements AutoCloseable {
         shadow.close();
         boxes.close();
         composite.close();
-        occlusion.close();
         mask.close();
         nearSections.close();
         frame.close();

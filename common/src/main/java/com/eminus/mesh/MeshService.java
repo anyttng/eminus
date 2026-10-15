@@ -12,14 +12,11 @@ import com.eminus.cell.cache.CellAccess;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.work.WorkService;
 
-import net.minecraft.core.Direction;
-
 import org.jspecify.annotations.Nullable;
 
 public final class MeshService {
-    private static final Direction[] FACES = Direction.values();
-    private static final int[][] DIAGONALS = {{-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
-    private static final Direction[] HORIZONTALS = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
+    private static final int STEPS_PER_AXIS = 3;
+    private static final int[][] NEIGHBOURS = neighbours();
     private static final int LAST = DetailLevel.VOXELS_PER_SIDE - 1;
 
     private final WorkService<MeshScratch> work;
@@ -94,8 +91,7 @@ public final class MeshService {
     }
 
     void build(MeshTask task, MeshScratch scratch) {
-        CellHandle[] handles = new CellHandle[1 + FACES.length + DIAGONALS.length + HORIZONTALS.length
-                + DIAGONALS.length];
+        CellHandle[] handles = new CellHandle[1 + NEIGHBOURS.length];
         CellHandle held = task.held();
         int radius = TintBlend.columns(blendRadius, task.level());
         boolean corners = task.level() == FluidCorners.LEVEL;
@@ -114,66 +110,30 @@ public final class MeshService {
 
             scratch.voxels().loadCoverage(coverage, task.key());
 
-            for (Direction face : FACES) {
-                CellHandle handle = cells.open(CellKey.neighbour(task.key(), face));
-                handles[face.get3DDataValue() + 1] = handle;
+            CellVoxels voxels = scratch.voxels();
+            for (int at = 0; at < NEIGHBOURS.length; at++) {
+                int[] step = NEIGHBOURS[at];
+                int stepX = step[0];
+                int stepY = step[1];
+                int stepZ = step[2];
+                if (!reads(voxels, stepX, stepY, stepZ, radius, corners)) {
+                    continue;
+                }
+
+                CellHandle handle = cells.open(CellKey.pack(task.level(), x + stepX, y + stepY, z + stepZ));
+                handles[at + 1] = handle;
                 handle.withCell(cell -> {
-                    scratch.voxels().loadNeighbour(face, cell);
-                    if (face == Direction.DOWN && edgeFluidReachesBottom(scratch.voxels())) {
-                        scratch.voxels().loadBelow(cell);
+                    voxels.loadRegion(stepX, stepY, stepZ, cell);
+                    if (stepX == 0 && stepY < 0 && stepZ == 0 && edgeFluidReachesBottom(voxels)) {
+                        voxels.loadBelow(cell);
                     }
 
-                    if (radius > 0 && face.getAxis().isHorizontal()) {
-                        scratch.voxels().loadBiomes(cell, face.getStepX(), face.getStepZ(), radius);
+                    if (radius > 0 && stepY == 0) {
+                        voxels.loadBiomes(cell, stepX, stepZ, radius);
                     }
 
                     return null;
                 });
-            }
-
-            int slot = FACES.length + 1;
-            if (radius > 0 || corners) {
-                for (int[] diagonal : DIAGONALS) {
-                    int cellX = diagonal[0];
-                    int cellZ = diagonal[1];
-                    CellHandle handle = cells.open(CellKey.pack(task.level(), x + cellX, y, z + cellZ));
-                    handles[slot++] = handle;
-                    handle.withCell(cell -> {
-                        if (radius > 0) {
-                            scratch.voxels().loadBiomes(cell, cellX, cellZ, radius);
-                        }
-
-                        scratch.voxels().loadDiagonal(cellX, cellZ, cell);
-                        return null;
-                    });
-                }
-            }
-
-            if (corners) {
-                for (Direction side : HORIZONTALS) {
-                    if (topEdgeHoldsFluid(scratch.voxels(), side.getStepX(), side.getStepZ())) {
-                        CellHandle handle = cells.open(
-                                CellKey.pack(task.level(), x + side.getStepX(), y + 1, z + side.getStepZ()));
-                        handles[slot++] = handle;
-                        handle.withCell(cell -> {
-                            scratch.voxels().loadAboveSide(side, cell);
-                            return null;
-                        });
-                    }
-                }
-
-                for (int[] diagonal : DIAGONALS) {
-                    int cellX = diagonal[0];
-                    int cellZ = diagonal[1];
-                    if (topEdgeHoldsFluid(scratch.voxels(), cellX, cellZ)) {
-                        CellHandle handle = cells.open(CellKey.pack(task.level(), x + cellX, y + 1, z + cellZ));
-                        handles[slot++] = handle;
-                        handle.withCell(cell -> {
-                            scratch.voxels().loadAboveCorner(cellX, cellZ, cell);
-                            return null;
-                        });
-                    }
-                }
             }
 
             scratch.begin(frame, task.key(), tints, blendRadius);
@@ -202,6 +162,39 @@ public final class MeshService {
         }
     }
 
+    private static int[][] neighbours() {
+        int[][] steps = new int[STEPS_PER_AXIS * STEPS_PER_AXIS * STEPS_PER_AXIS - 1][];
+        int at = 0;
+        for (int stepY = -1; stepY <= 1; stepY++) {
+            for (int stepZ = -1; stepZ <= 1; stepZ++) {
+                for (int stepX = -1; stepX <= 1; stepX++) {
+                    if (stepX != 0 || stepY != 0 || stepZ != 0) {
+                        steps[at++] = new int[] {stepX, stepY, stepZ};
+                    }
+                }
+            }
+        }
+
+        return steps;
+    }
+
+    private boolean reads(CellVoxels voxels, int stepX, int stepY, int stepZ, int radius, boolean corners) {
+        int across = Math.abs(stepX) + Math.abs(stepY) + Math.abs(stepZ);
+        if (across == 1) {
+            return true;
+        }
+
+        if (stepY == 0 && (radius > 0 || corners)) {
+            return true;
+        }
+
+        if (stepY > 0 && corners && topEdgeHoldsFluid(voxels, stepX, stepZ)) {
+            return true;
+        }
+
+        return voxels.holdsNear(stepX, stepY, stepZ);
+    }
+
     private boolean topEdgeHoldsFluid(CellVoxels voxels, int stepX, int stepZ) {
         int fromX = stepX > 0 ? LAST : 0;
         int toX = stepX < 0 ? 0 : LAST;
@@ -210,7 +203,7 @@ public final class MeshService {
 
         for (int z = fromZ; z <= toZ; z++) {
             for (int x = fromX; x <= toX; x++) {
-                long entry = voxels.inside(x, LAST, z);
+                long entry = voxels.entry(x, LAST, z);
                 if (!VoxelEntry.isAir(entry) && models.holdsFluid(VoxelEntry.state(entry))) {
                     return true;
                 }
@@ -227,7 +220,7 @@ public final class MeshService {
                     continue;
                 }
 
-                long entry = voxels.inside(x, 0, z);
+                long entry = voxels.entry(x, 0, z);
                 if (!VoxelEntry.isAir(entry) && models.holdsFluid(VoxelEntry.state(entry))) {
                     return true;
                 }

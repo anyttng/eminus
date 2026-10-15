@@ -54,6 +54,7 @@ public final class FacePasses {
     private final Runnable whenBaked;
     private final Sink sink;
     private final @Nullable FluidCorners corners;
+    private final FaceOcclusion occlusion;
     private final int voxelBlocks;
     private final Side low = new Side(FIRST_PLANE);
     private final Side high = new Side(LAST_PLANE);
@@ -85,6 +86,7 @@ public final class FacePasses {
         this.whenBaked = whenBaked;
         this.sink = sink;
         corners = level == FluidCorners.LEVEL ? new FluidCorners(scratch.voxels(), models) : null;
+        occlusion = new FaceOcclusion(scratch.voxels(), models, level);
         voxelBlocks = DetailLevel.blocksPerVoxel(level);
     }
 
@@ -304,13 +306,13 @@ public final class FacePasses {
 
         if (liquid) {
             if (shown(side, occludingFaces(side.facing, side.drawn))) {
-                quads.set(u, v, fluidData(side.facing, metadata, sided(drawn, side), shape()));
+                quads.set(u, v, fluidData(side.facing, metadata, sided(drawn, side), shape()), OcclusionWord.NONE);
             }
 
             return;
         }
 
-        quads.set(u, v, data(side.facing, metadata, sidedBlock ? sided(drawn, side) : drawn));
+        quads.set(u, v, data(side.facing, metadata, sidedBlock ? sided(drawn, side) : drawn), occluded(side));
     }
 
     private void placeBorder(Side side, FacePlane quads) {
@@ -321,13 +323,18 @@ public final class FacePasses {
         long lit = borderLit(side);
         if (liquid) {
             if (shown(side, FaceMask.NONE)) {
-                quads.set(u, v, fluidData(lit, metadata, sided(drawn, side), shape()));
+                quads.set(u, v, fluidData(lit, metadata, sided(drawn, side), shape()), OcclusionWord.NONE);
             }
 
             return;
         }
 
-        quads.set(u, v, data(lit, metadata, drawn));
+        quads.set(u, v, data(lit, metadata, drawn), occluded(side));
+    }
+
+    private int occluded(Side side) {
+        return occlusion.face(side.towards, x, y, z, stateId, metadata,
+                models.inset(drawn, side.towards.get3DDataValue()));
     }
 
     private boolean shown(Side side, int facingOccluding) {
@@ -359,11 +366,11 @@ public final class FacePasses {
         int inward = models.inwardModelId(seabed, drawn);
         long quad = fluidData(drawnModels.seabedLight(), models.metadata(inward), inward, shape());
         if (lowCut) {
-            scratch.positiveInwardPlane().set(u, v, quad);
+            scratch.positiveInwardPlane().set(u, v, quad, OcclusionWord.NONE);
         }
 
         if (highCut) {
-            scratch.negativeInwardPlane().set(u, v, quad);
+            scratch.negativeInwardPlane().set(u, v, quad, OcclusionWord.NONE);
         }
 
         return true;

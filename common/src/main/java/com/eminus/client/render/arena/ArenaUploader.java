@@ -10,13 +10,14 @@ import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.Staging;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshBuffer;
+import com.eminus.mesh.OcclusionWord;
 import com.eminus.render.arena.ArenaSizing;
 
 import org.jspecify.annotations.Nullable;
 
 public final class ArenaUploader implements AutoCloseable {
     public static final int MAX_QUADS = MeshBuffer.MAX_QUADS;
-    public static final int MAX_SLOTS = MAX_QUADS + MeshBuffer.MAX_COLOURS;
+    public static final int MAX_SLOTS = MAX_QUADS + OcclusionWord.slots(MAX_QUADS) + MeshBuffer.MAX_COLOURS;
     public static final int MAX_MESH_BYTES = MAX_SLOTS * ArenaSizing.QUAD_BYTES;
     public static final String MAPPED_STAGING_PROPERTY = "eminus.staging.mappedKiB";
 
@@ -62,6 +63,7 @@ public final class ArenaUploader implements AutoCloseable {
     private ByteBuffer fill(CellMesh mesh) {
         quads.clear();
         quads.put(mesh.quads(), 0, mesh.quadCount());
+        quads.put(mesh.occlusion());
         quads.put(mesh.colours());
 
         return scratch.clear().limit(mesh.slotCount() * ArenaSizing.QUAD_BYTES);

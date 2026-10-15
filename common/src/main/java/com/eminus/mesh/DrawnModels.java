@@ -63,9 +63,9 @@ final class DrawnModels {
 
     int seabed(int atX, int atY, int atZ) {
         CellVoxels voxels = scratch.voxels();
-        long above = voxels.inside(atX, atY, atZ);
+        long above = voxels.entry(atX, atY, atZ);
         for (int down = atY - 1; down >= FIRST_LAYER; down--) {
-            long entry = voxels.inside(atX, down, atZ);
+            long entry = voxels.entry(atX, down, atZ);
             if (solid(entry)) {
                 seabedLight = above;
                 return at(VoxelEntry.state(entry), atX, down, atZ);
