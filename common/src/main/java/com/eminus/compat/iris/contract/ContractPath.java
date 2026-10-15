@@ -9,6 +9,7 @@ import com.eminus.client.render.far.FarDraw;
 import com.eminus.compat.iris.PackContract;
 import com.eminus.compat.iris.PackPath;
 import com.eminus.compat.iris.PackProgram;
+import com.eminus.compat.iris.PackSlot;
 import com.eminus.compat.iris.mixin.IrisRenderingPipelineAccessor;
 import com.eminus.compat.iris.mixin.ShaderPackAccessor;
 
@@ -84,6 +85,11 @@ public final class ContractPath implements PackPath {
     @Override
     public boolean distantHorizons() {
         return false;
+    }
+
+    @Override
+    public PackSlot translucentSlot() {
+        return PackSlot.BEFORE_COMPOSITES;
     }
 
     @Override

@@ -6,6 +6,7 @@ import java.util.function.ToIntFunction;
 import com.eminus.client.render.far.FarDraw;
 import com.eminus.compat.iris.PackPath;
 import com.eminus.compat.iris.PackProgram;
+import com.eminus.compat.iris.PackSlot;
 import com.eminus.compat.iris.PackSources;
 
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
@@ -61,6 +62,11 @@ public final class DhPath implements PackPath {
     @Override
     public boolean distantHorizons() {
         return true;
+    }
+
+    @Override
+    public PackSlot translucentSlot() {
+        return PackSlot.BEFORE_NEAR_TRANSLUCENT;
     }
 
     @Override

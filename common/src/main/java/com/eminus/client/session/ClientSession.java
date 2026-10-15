@@ -7,6 +7,7 @@ import java.util.function.ToIntFunction;
 import com.eminus.Eminus;
 import com.eminus.box.BoxRegistry;
 import com.eminus.compat.iris.IrisShaderPack;
+import com.eminus.compat.iris.PackSlot;
 import com.eminus.compat.vitrail.VitrailShaderPack;
 import com.eminus.handoff.NearFieldOverride;
 import com.eminus.ingest.IngestService;
@@ -140,9 +141,9 @@ public final class ClientSession {
         }
     }
 
-    public static void drawFarLayerInShaderPack(Object pipeline, boolean translucent) {
+    public static void drawFarLayerInShaderPack(Object pipeline, PackSlot slot) {
         if (renderer != null && inShaderPack) {
-            IrisShaderPack.drawInPack(renderer, pipeline, translucent);
+            IrisShaderPack.drawInPack(renderer, pipeline, slot);
         }
     }
 
