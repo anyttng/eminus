@@ -1,103 +1,103 @@
 #ifndef EMINUS_FAR_VARIANT_GLSL
 #define EMINUS_FAR_VARIANT_GLSL
 
-struct FarLong {
+struct EminusLong {
     uint low;
     uint high;
 };
 
-const uint FAR_HALF_MASK = 0xFFFFu;
-const uint FAR_HALF_BITS = 16u;
-const uint FAR_STATE_HIGH_MASK = 0xFFFFu;
-const uint FAR_POSITIVE_MASK = 0x7FFFFFFFu;
-const uint FAR_SEED_X = 3129871u;
-const FarLong FAR_SEED_Z = FarLong(116129781u, 0u);
-const FarLong FAR_SEED_SQUARE = FarLong(42317861u, 0u);
-const FarLong FAR_SEED_LINEAR = FarLong(11u, 0u);
-const FarLong FAR_LCG_MULTIPLIER = FarLong(0xDEECE66Du, 0x5u);
-const FarLong FAR_LCG_INCREMENT = FarLong(11u, 0u);
+const uint EMINUS_HALF_MASK = 0xFFFFu;
+const uint EMINUS_HALF_BITS = 16u;
+const uint EMINUS_STATE_HIGH_MASK = 0xFFFFu;
+const uint EMINUS_POSITIVE_MASK = 0x7FFFFFFFu;
+const uint EMINUS_SEED_X = 3129871u;
+const EminusLong EMINUS_SEED_Z = EminusLong(116129781u, 0u);
+const EminusLong EMINUS_SEED_SQUARE = EminusLong(42317861u, 0u);
+const EminusLong EMINUS_SEED_LINEAR = EminusLong(11u, 0u);
+const EminusLong EMINUS_LCG_MULTIPLIER = EminusLong(0xDEECE66Du, 0x5u);
+const EminusLong EMINUS_LCG_INCREMENT = EminusLong(11u, 0u);
 
-FarLong far_long(int value) {
-    return FarLong(uint(value), value < 0 ? 0xFFFFFFFFu : 0u);
+EminusLong eminus_long(int value) {
+    return EminusLong(uint(value), value < 0 ? 0xFFFFFFFFu : 0u);
 }
 
-FarLong far_multiply_words(uint a, uint b) {
-    uint aLow = a & FAR_HALF_MASK;
-    uint aHigh = a >> FAR_HALF_BITS;
-    uint bLow = b & FAR_HALF_MASK;
-    uint bHigh = b >> FAR_HALF_BITS;
+EminusLong eminus_multiply_words(uint a, uint b) {
+    uint aLow = a & EMINUS_HALF_MASK;
+    uint aHigh = a >> EMINUS_HALF_BITS;
+    uint bLow = b & EMINUS_HALF_MASK;
+    uint bHigh = b >> EMINUS_HALF_BITS;
     uint lowLow = aLow * bLow;
     uint lowHigh = aLow * bHigh;
     uint highLow = aHigh * bLow;
     uint highHigh = aHigh * bHigh;
-    uint middle = (lowLow >> FAR_HALF_BITS) + (lowHigh & FAR_HALF_MASK) + (highLow & FAR_HALF_MASK);
-    return FarLong((lowLow & FAR_HALF_MASK) | (middle << FAR_HALF_BITS),
-                   highHigh + (lowHigh >> FAR_HALF_BITS) + (highLow >> FAR_HALF_BITS) + (middle >> FAR_HALF_BITS));
+    uint middle = (lowLow >> EMINUS_HALF_BITS) + (lowHigh & EMINUS_HALF_MASK) + (highLow & EMINUS_HALF_MASK);
+    return EminusLong((lowLow & EMINUS_HALF_MASK) | (middle << EMINUS_HALF_BITS),
+                   highHigh + (lowHigh >> EMINUS_HALF_BITS) + (highLow >> EMINUS_HALF_BITS) + (middle >> EMINUS_HALF_BITS));
 }
 
-FarLong far_multiply(FarLong a, FarLong b) {
-    FarLong product = far_multiply_words(a.low, b.low);
+EminusLong eminus_multiply(EminusLong a, EminusLong b) {
+    EminusLong product = eminus_multiply_words(a.low, b.low);
     product.high += a.low * b.high + a.high * b.low;
     return product;
 }
 
-FarLong far_add(FarLong a, FarLong b) {
+EminusLong eminus_add(EminusLong a, EminusLong b) {
     uint low = a.low + b.low;
-    return FarLong(low, a.high + b.high + (low < a.low ? 1u : 0u));
+    return EminusLong(low, a.high + b.high + (low < a.low ? 1u : 0u));
 }
 
-FarLong far_xor(FarLong a, FarLong b) {
-    return FarLong(a.low ^ b.low, a.high ^ b.high);
+EminusLong eminus_xor(EminusLong a, EminusLong b) {
+    return EminusLong(a.low ^ b.low, a.high ^ b.high);
 }
 
-FarLong far_block_random(ivec3 block) {
-    FarLong seed = far_xor(far_xor(far_long(int(uint(block.x) * FAR_SEED_X)),
-                                   far_multiply(far_long(block.z), FAR_SEED_Z)),
-                           far_long(block.y));
-    FarLong mixed = far_add(far_multiply(far_multiply(seed, seed), FAR_SEED_SQUARE),
-                            far_multiply(seed, FAR_SEED_LINEAR));
+EminusLong eminus_block_random(ivec3 block) {
+    EminusLong seed = eminus_xor(eminus_xor(eminus_long(int(uint(block.x) * EMINUS_SEED_X)),
+                                   eminus_multiply(eminus_long(block.z), EMINUS_SEED_Z)),
+                           eminus_long(block.y));
+    EminusLong mixed = eminus_add(eminus_multiply(eminus_multiply(seed, seed), EMINUS_SEED_SQUARE),
+                            eminus_multiply(seed, EMINUS_SEED_LINEAR));
     uint low = (mixed.low >> 16u) | (mixed.high << 16u);
     uint high = mixed.high >> 16u;
-    return FarLong(low ^ FAR_LCG_MULTIPLIER.low, (high ^ FAR_LCG_MULTIPLIER.high) & FAR_STATE_HIGH_MASK);
+    return EminusLong(low ^ EMINUS_LCG_MULTIPLIER.low, (high ^ EMINUS_LCG_MULTIPLIER.high) & EMINUS_STATE_HIGH_MASK);
 }
 
-void far_advance(inout FarLong state) {
-    state = far_add(far_multiply(state, FAR_LCG_MULTIPLIER), FAR_LCG_INCREMENT);
-    state.high &= FAR_STATE_HIGH_MASK;
+void eminus_advance(inout EminusLong state) {
+    state = eminus_add(eminus_multiply(state, EMINUS_LCG_MULTIPLIER), EMINUS_LCG_INCREMENT);
+    state.high &= EMINUS_STATE_HIGH_MASK;
 }
 
 #ifdef VARIANT_NEXT_LONG_MODULO
-const uint FAR_SIGN_BIT = 0x80000000u;
+const uint EMINUS_SIGN_BIT = 0x80000000u;
 
-int far_next32(inout FarLong state) {
-    far_advance(state);
-    return int((state.low >> FAR_HALF_BITS) | (state.high << FAR_HALF_BITS));
+int eminus_next32(inout EminusLong state) {
+    eminus_advance(state);
+    return int((state.low >> EMINUS_HALF_BITS) | (state.high << EMINUS_HALF_BITS));
 }
 
-int far_pick(inout FarLong state, int bound) {
-    far_next32(state);
-    int low = far_next32(state);
+int eminus_pick(inout EminusLong state, int bound) {
+    eminus_next32(state);
+    int low = eminus_next32(state);
     uint magnitude = low < 0 ? 0u - uint(low) : uint(low);
     int modulo = int(magnitude % uint(bound));
-    return uint(low) == FAR_SIGN_BIT ? -modulo : modulo;
+    return uint(low) == EMINUS_SIGN_BIT ? -modulo : modulo;
 }
 #else
-int far_next31(inout FarLong state) {
-    far_advance(state);
-    return int(((state.low >> 17u) | (state.high << 15u)) & FAR_POSITIVE_MASK);
+int eminus_next31(inout EminusLong state) {
+    eminus_advance(state);
+    return int(((state.low >> 17u) | (state.high << 15u)) & EMINUS_POSITIVE_MASK);
 }
 
-int far_pick(inout FarLong state, int bound) {
+int eminus_pick(inout EminusLong state, int bound) {
     if ((bound & (bound - 1)) == 0) {
-        FarLong product = far_multiply_words(uint(bound), uint(far_next31(state)));
+        EminusLong product = eminus_multiply_words(uint(bound), uint(eminus_next31(state)));
         return int((product.low >> 31u) | (product.high << 1u));
     }
 
-    int draw = far_next31(state);
+    int draw = eminus_next31(state);
     int modulo = draw % bound;
     for (int attempt = 0; attempt < MAX_VARIANT_REJECTIONS
-            && uint(draw - modulo) + uint(bound - 1) > FAR_POSITIVE_MASK; attempt++) {
-        draw = far_next31(state);
+            && uint(draw - modulo) + uint(bound - 1) > EMINUS_POSITIVE_MASK; attempt++) {
+        draw = eminus_next31(state);
         modulo = draw % bound;
     }
 
@@ -105,19 +105,19 @@ int far_pick(inout FarLong state, int bound) {
 }
 #endif
 
-int far_variant_model(int start, int count, ivec3 block) {
-    int total = int(texelFetch(ModelVariants, start + count - 1).r);
-    FarLong state = far_block_random(block);
-    int selection = far_pick(state, total);
+int eminus_variant_model(int start, int count, ivec3 block) {
+    int total = int(texelFetch(EminusModelVariants,start + count - 1).r);
+    EminusLong state = eminus_block_random(block);
+    int selection = eminus_pick(state, total);
 
     for (int entry = 0; entry < count; entry++) {
-        uvec4 variant = texelFetch(ModelVariants, start + entry);
+        uvec4 variant = texelFetch(EminusModelVariants,start + entry);
         if (selection < int(variant.r)) {
             return int(variant.g);
         }
     }
 
-    return int(texelFetch(ModelVariants, start).g);
+    return int(texelFetch(EminusModelVariants,start).g);
 }
 
 #endif

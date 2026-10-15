@@ -1,8 +1,8 @@
-const float MIN_AXIS_LENGTH = 1.0e-6;
+const float EMINUS_MIN_AXIS_LENGTH = 1.0e-6;
 
-vec4 far_surface(ivec2 atlasCell, vec2 faceUV, vec3 tint) {
-    vec2 cell = vec2(1.0) / float(AtlasCells);
-    float margin = 0.5 / float(AtlasCellSide);
+vec4 eminus_surface(ivec2 atlasCell, vec2 faceUV, vec3 tint) {
+    vec2 cell = vec2(1.0) / float(EminusAtlasCells);
+    float margin = 0.5 / float(EminusAtlasCellSide);
 
     vec2 gradX = dFdx(faceUV);
     vec2 gradY = dFdy(faceUV);
@@ -10,7 +10,7 @@ vec4 far_surface(ivec2 atlasCell, vec2 faceUV, vec3 tint) {
     vec2 longAxis = alongX ? gradX : gradY;
     vec2 shortAxis = alongX ? gradY : gradX;
 
-    float ratio = length(longAxis) / max(length(shortAxis), MIN_AXIS_LENGTH);
+    float ratio = length(longAxis) / max(length(shortAxis), EMINUS_MIN_AXIS_LENGTH);
     int samples = int(clamp(ceil(ratio), 1.0, float(MAX_SAMPLES)));
     vec2 stride = longAxis / float(samples);
     vec2 gradLong = stride * cell;
@@ -22,8 +22,8 @@ vec4 far_surface(ivec2 atlasCell, vec2 faceUV, vec3 tint) {
     for (int index = 0; index < samples; index++) {
         vec2 within = clamp(fract(point), margin, 1.0 - margin);
         vec2 uv = (vec2(atlasCell) + within) * cell;
-        colour += textureGrad(Atlas, uv, gradLong, gradShort);
-        mask += textureGrad(TintMask, uv, gradLong, gradShort).r;
+        colour += textureGrad(EminusAtlas, uv, gradLong, gradShort);
+        mask += textureGrad(EminusTintMask, uv, gradLong, gradShort).r;
         point += stride;
     }
 

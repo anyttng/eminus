@@ -2,9 +2,9 @@
 
 #moj_import <eminus:far_frame.glsl>
 
-uniform sampler2D Atlas;
-uniform sampler2D TintMask;
-uniform usamplerBuffer ModelVariants;
+uniform sampler2D EminusAtlas;
+uniform sampler2D EminusTintMask;
+uniform usamplerBuffer EminusModelVariants;
 
 #moj_import <eminus:far_surface.glsl>
 #moj_import <eminus:far_variant.glsl>
@@ -18,7 +18,7 @@ flat in ivec3 cellOrigin;
 in vec3 voxelPoint;
 
 #ifdef NEAR_SECTIONS
-uniform usamplerBuffer NearSections;
+uniform usamplerBuffer EminusNearSections;
 in vec3 nearPoint;
 
 #moj_import <eminus:far_near.glsl>
@@ -28,7 +28,7 @@ out vec4 fragColor;
 
 void main() {
 #ifdef NEAR_SECTIONS
-    if (far_in_near_section(nearPoint)) {
+    if (eminus_in_near_section(nearPoint)) {
         discard;
     }
 #endif
@@ -36,12 +36,12 @@ void main() {
     ivec2 cell = atlasCell;
     if (variantInfo.y > 0) {
         ivec3 voxel = clamp(ivec3(floor(voxelPoint)), ivec3(0), ivec3(VOXELS_PER_SIDE - 1));
-        int slot = far_variant_model(variantInfo.x, variantInfo.y, cellOrigin + (voxel << variantInfo.w))
+        int slot = eminus_variant_model(variantInfo.x, variantInfo.y, cellOrigin + (voxel << variantInfo.w))
                 * MODEL_FACES + variantInfo.z;
-        cell = ivec2(slot % AtlasCells, slot / AtlasCells);
+        cell = ivec2(slot % EminusAtlasCells, slot / EminusAtlasCells);
     }
 
-    vec4 colour = far_surface(cell, faceUV, tintColour) * vertexColor;
+    vec4 colour = eminus_surface(cell, faceUV, tintColour) * vertexColor;
     if (colour.a < ALPHA_CUTOUT) {
         discard;
     }
