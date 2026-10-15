@@ -3,20 +3,20 @@ package com.eminus.settings;
 import java.util.Optional;
 
 public enum LodQuality {
-    FULL("full", 0, false),
-    HIGH("high", 0, true),
+    FULL("full", 0, true),
+    HIGH("high", 0, false),
     MEDIUM("medium", 1, false),
     LOW("low", 2, false),
     MINIMAL("minimal", 3, false);
 
     private final String key;
     private final int storedLevel;
-    private final boolean economy;
+    private final boolean fullDetail;
 
-    LodQuality(String key, int storedLevel, boolean economy) {
+    LodQuality(String key, int storedLevel, boolean fullDetail) {
         this.key = key;
         this.storedLevel = storedLevel;
-        this.economy = economy;
+        this.fullDetail = fullDetail;
     }
 
     public String key() {
@@ -27,16 +27,12 @@ public enum LodQuality {
         return storedLevel;
     }
 
-    public boolean economy() {
-        return economy;
-    }
-
     public boolean cutoutLeaves(boolean seeThroughLeaves) {
-        return seeThroughLeaves && !economy;
+        return seeThroughLeaves && fullDetail;
     }
 
     public boolean drawsBlades() {
-        return !economy;
+        return fullDetail;
     }
 
     public static Optional<LodQuality> fromKey(String key) {
@@ -51,7 +47,7 @@ public enum LodQuality {
 
     public static LodQuality fromLowestStoredLevel(int level) {
         for (LodQuality quality : values()) {
-            if (!quality.economy && quality.storedLevel >= level) {
+            if (quality.storedLevel >= level) {
                 return quality;
             }
         }
