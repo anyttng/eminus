@@ -5,7 +5,7 @@ import com.eminus.cell.DetailLevel;
 public final class GreedyMerger {
     @FunctionalInterface
     public interface Emitter {
-        void emit(int u, int v, int width, int height, long data);
+        void emit(int u, int v, int width, int height, long data, int occlusion);
 
         default boolean merges(long data) {
             return true;
@@ -28,11 +28,14 @@ public final class GreedyMerger {
     private final int[] rowStart = new int[SIDE];
     private final int[] rowWidth = new int[SIDE];
     private final long[] rowData = new long[SIDE];
+    private final int[] rowOcclusion = new int[SIDE];
 
     private int[] open = new int[SIDE];
     private long[] openData = new long[SIDE];
+    private int[] openOcclusion = new int[SIDE];
     private int[] grown = new int[SIDE];
     private long[] grownData = new long[SIDE];
+    private int[] grownOcclusion = new int[SIDE];
 
     private int openCount;
     private int rowCount;
@@ -46,7 +49,7 @@ public final class GreedyMerger {
         }
 
         for (int index = 0; index < openCount; index++) {
-            emit(open[index], openData[index], emitter);
+            emit(open[index], openData[index], openOcclusion[index], emitter);
         }
     }
 
@@ -62,18 +65,22 @@ public final class GreedyMerger {
             }
 
             long data = plane.data(u, v);
+            int occlusion = plane.occlusion(u, v);
             int width = 1;
             boolean merges = emitter.merges(data);
 
             while (merges && width < MAX_RUN && u + width < SIDE
                     && (present & (1 << (u + width))) != 0
-                    && plane.data(u + width, v) == data) {
+                    && plane.data(u + width, v) == data
+                    && OcclusionWord.joinsAlongU(occlusion, plane.occlusion(u + width, v))) {
+                occlusion = OcclusionWord.joinAlongU(occlusion, plane.occlusion(u + width, v));
                 width++;
             }
 
             rowStart[count] = u;
             rowWidth[count] = width;
             rowData[count] = data;
+            rowOcclusion[count] = occlusion;
             count++;
             u += width;
         }
@@ -89,47 +96,53 @@ public final class GreedyMerger {
             int start = rowStart[at];
             int width = rowWidth[at];
             long data = rowData[at];
+            int occlusion = rowOcclusion[at];
             boolean merged = false;
 
             while (index < openCount && start(open[index]) <= start) {
                 if (start(open[index]) == start && width(open[index]) == width
                         && openData[index] == data && height(open[index]) < MAX_RUN && emitter.merges(data)
-                        && emitter.stacks(data)) {
+                        && emitter.stacks(data) && OcclusionWord.joinsAlongV(openOcclusion[index], occlusion)) {
                     grown[grownCount] = taller(open[index]);
                     grownData[grownCount] = data;
+                    grownOcclusion[grownCount] = OcclusionWord.joinAlongV(openOcclusion[index], occlusion);
                     grownCount++;
                     index++;
                     merged = true;
                     break;
                 }
 
-                emit(open[index], openData[index], emitter);
+                emit(open[index], openData[index], openOcclusion[index], emitter);
                 index++;
             }
 
             if (!merged) {
                 grown[grownCount] = run(start, width, v, 1);
                 grownData[grownCount] = data;
+                grownOcclusion[grownCount] = occlusion;
                 grownCount++;
             }
         }
 
         while (index < openCount) {
-            emit(open[index], openData[index], emitter);
+            emit(open[index], openData[index], openOcclusion[index], emitter);
             index++;
         }
 
         int[] carriedRuns = open;
         long[] carriedData = openData;
+        int[] carriedOcclusion = openOcclusion;
         open = grown;
         openData = grownData;
+        openOcclusion = grownOcclusion;
         grown = carriedRuns;
         grownData = carriedData;
+        grownOcclusion = carriedOcclusion;
         openCount = grownCount;
     }
 
-    private static void emit(int run, long data, Emitter emitter) {
-        emitter.emit(start(run), row(run), width(run), height(run), data);
+    private static void emit(int run, long data, int occlusion, Emitter emitter) {
+        emitter.emit(start(run), row(run), width(run), height(run), data, occlusion);
     }
 
     private static int run(int start, int width, int row, int height) {

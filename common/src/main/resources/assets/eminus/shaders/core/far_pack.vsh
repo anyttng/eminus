@@ -22,6 +22,11 @@ flat out ivec3 eminus_cellOrigin;
 flat out int eminus_face;
 flat out float eminus_emission;
 flat out int eminus_blockId;
+#ifndef DH_PROGRAM
+out vec2 eminus_occlusionPoint;
+flat out vec2 eminus_occlusionSize;
+flat out uvec2 eminus_occlusion;
+#endif
 #ifdef PACK_VERTEX
 struct EminusVertex {
     vec3 playerPos;
@@ -134,6 +139,11 @@ void eminus_vertex() {
     eminus_cellOrigin = vertex.cellOrigin;
     eminus_face = vertex.face;
     eminus_emission = float(vertex.emission) / float(MAX_EMISSION);
+#ifndef DH_PROGRAM
+    eminus_occlusionPoint = vertex.occlusionPoint;
+    eminus_occlusionSize = vertex.occlusionSize;
+    eminus_occlusion = uvec2(vertex.occlusion, vertex.mainDiagonal ? 1u : 0u);
+#endif
 
 #ifdef DH_PROGRAM
     eminus_culled = vertex.culled;

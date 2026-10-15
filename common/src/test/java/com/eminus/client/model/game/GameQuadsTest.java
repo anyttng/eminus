@@ -38,7 +38,7 @@ class GameQuadsTest {
                 new BakedQuad.MaterialInfo(null, ChunkSectionLayer.TRANSLUCENT, null, TINT_LAYER, true,
                         EMISSION));
 
-        ModelQuad quad = GameQuads.of(game);
+        ModelQuad quad = GameQuads.of(game, true);
 
         for (int corner = 0; corner < ModelQuad.CORNERS; corner++) {
             assertEquals(game.position(corner), quad.corner(corner), "corner " + corner);
@@ -57,7 +57,8 @@ class GameQuadsTest {
     @Test
     void anUntintedSolidQuadReadsAsNeither() {
         ModelQuad quad = GameQuads.of(quad(Direction.UP,
-                new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID, null, ModelQuad.NO_TINT, true, 0)));
+                new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID, null, ModelQuad.NO_TINT, true, 0)),
+                true);
 
         assertEquals(ModelQuad.NO_TINT, quad.tintLayer());
         assertFalse(quad.tinted());

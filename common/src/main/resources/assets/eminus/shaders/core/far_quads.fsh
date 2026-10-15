@@ -8,6 +8,7 @@ uniform usamplerBuffer EminusModelVariants;
 
 #moj_import <eminus:far_surface.glsl>
 #moj_import <eminus:far_variant.glsl>
+#moj_import <eminus:far_corners.glsl>
 
 in vec2 faceUV;
 in vec4 vertexColor;
@@ -16,6 +17,9 @@ flat in ivec2 atlasCell;
 flat in ivec4 variantInfo;
 flat in ivec3 cellOrigin;
 in vec3 voxelPoint;
+in vec2 occlusionPoint;
+flat in vec2 occlusionSize;
+flat in uvec2 occlusionWord;
 
 #ifdef NEAR_SECTIONS
 uniform usamplerBuffer EminusNearSections;
@@ -27,6 +31,7 @@ in vec3 nearPoint;
 out vec4 fragColor;
 
 void main() {
+    vec2 occlusionFootprint = fwidth(occlusionPoint);
 #ifdef NEAR_SECTIONS
     if (eminus_in_near_section(nearPoint)) {
         discard;
@@ -45,6 +50,9 @@ void main() {
     if (colour.a < ALPHA_CUTOUT) {
         discard;
     }
+
+    colour.rgb *= eminus_corner_occlusion(occlusionWord.x, occlusionPoint, occlusionSize, occlusionWord.y != 0u,
+            occlusionFootprint);
 
 #ifdef FULL_COVERAGE
     fragColor = vec4(colour.rgb, 1.0);
