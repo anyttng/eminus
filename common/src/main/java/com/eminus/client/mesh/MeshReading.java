@@ -11,6 +11,7 @@ import com.eminus.client.session.ClientSession;
 import com.eminus.mesh.CellMesh;
 import com.eminus.mesh.MeshModels;
 import com.eminus.mesh.ObjWriter;
+import com.eminus.mesh.Quad;
 import com.eminus.mesh.QuadGroups;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
@@ -27,7 +28,8 @@ public final class MeshReading {
     public static final int CELL_Y = 2;
     public static final int CELL_Z = 3;
     public static final int QUADS = 4;
-    public static final int FIRST_GROUP = 5;
+    public static final int BLADE_QUADS = 5;
+    public static final int FIRST_GROUP = 6;
 
     private static final int TIMEOUT_SECONDS = 60;
 
@@ -62,6 +64,10 @@ public final class MeshReading {
         row[CELL_Y] = CellKey.y(key);
         row[CELL_Z] = CellKey.z(key);
         row[QUADS] = mesh.quadCount();
+        for (int index = 0; index < mesh.quadCount(); index++) {
+            row[BLADE_QUADS] += Quad.isBlade(mesh.quad(index)) ? 1 : 0;
+        }
+
         for (int group = 0; group < QuadGroups.COUNT; group++) {
             row[FIRST_GROUP + group] = mesh.groupCount(group);
         }
