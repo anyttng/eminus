@@ -219,6 +219,10 @@ public final class FarRenderer implements AutoCloseable {
         return baking.cutoutLeaves();
     }
 
+    public boolean drawsBlades() {
+        return baking.drawsBlades();
+    }
+
     public static boolean recreates(Settings built, Settings updated) {
         return built.farRenderCells() != updated.farRenderCells()
                 || built.detailDistance() != updated.detailDistance()
