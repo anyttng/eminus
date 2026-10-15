@@ -3,20 +3,25 @@ package com.eminus.settings;
 import java.util.Optional;
 
 public enum LodQuality {
-    FULL("full", 0, true),
-    HIGH("high", 0, false),
-    MEDIUM("medium", 1, false),
-    LOW("low", 2, false),
-    MINIMAL("minimal", 3, false);
+    FULL("full", 0, true, true),
+    HIGH("high", 0, false, true),
+    MEDIUM("medium", 1, false, true),
+    LOW("low", 2, false, false),
+    MINIMAL("minimal", 3, false, false);
+
+    private static final int FULL_ATLAS_MIP = 0;
+    private static final int ECONOMY_ATLAS_MIP = 1;
 
     private final String key;
     private final int storedLevel;
     private final boolean fullDetail;
+    private final boolean fullAtlas;
 
-    LodQuality(String key, int storedLevel, boolean fullDetail) {
+    LodQuality(String key, int storedLevel, boolean fullDetail, boolean fullAtlas) {
         this.key = key;
         this.storedLevel = storedLevel;
         this.fullDetail = fullDetail;
+        this.fullAtlas = fullAtlas;
     }
 
     public String key() {
@@ -33,6 +38,10 @@ public enum LodQuality {
 
     public boolean drawsBlades() {
         return fullDetail;
+    }
+
+    public int atlasFirstMip() {
+        return fullAtlas ? FULL_ATLAS_MIP : ECONOMY_ATLAS_MIP;
     }
 
     public static Optional<LodQuality> fromKey(String key) {

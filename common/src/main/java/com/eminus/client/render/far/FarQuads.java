@@ -78,7 +78,6 @@ final class FarQuads {
                 .withDefine("EMISSION_BITS", Integer.bitCount(ModelMetadata.MAX_EMISSION))
                 .withDefine("MAX_EMISSION", ModelMetadata.MAX_EMISSION)
                 .withDefine("CORNER_STEPS", FluidCorners.STEPS)
-                .withDefine("FACE_SIDE", BakedModel.FACE_SIDE)
                 .withDefine("MAX_VARIANT_REJECTIONS", BakedModel.MAX_VARIANT_REJECTIONS)
                 .withDefine("ALPHA_CUTOUT", alphaCutout)
                 .withDefine("SHADE_BLADE", SHADE_BLADE)

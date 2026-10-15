@@ -71,6 +71,7 @@ public final class FarRenderer implements AutoCloseable {
     public static final int START_COMMANDS = 32768;
     public static final String ARENA_CAP_PROPERTY = "eminus.arena.maxMiB";
     public static final String ARENA_FLOOR_PROPERTY = "eminus.arena.minMiB";
+    public static final String ATLAS_FIRST_MIP_PROPERTY = "eminus.atlas.firstMip";
 
     private static final String PROGRAM_REFUSED = "program %s did not compile";
 
@@ -186,7 +187,8 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         FarRenderer renderer = new FarRenderer(gpu, support.depth(), runtime, baking,
-                ModelPublisher.start(gpu, baking.bakery()), arena,
+                ModelPublisher.start(gpu, baking.bakery(),
+                        Integer.getInteger(ATLAS_FIRST_MIP_PROPERTY, settings.lodQuality().atlasFirstMip())), arena,
                 FarTarget.create(gpu, support.depthFormat(), main.width(), main.height()), FarFrame.create(gpu),
                 mask, NearSectionTable.create(gpu), opaque, occlusion, translucent, composite, boxes,
                 IndirectCommands.create(gpu, START_COMMANDS),
@@ -289,7 +291,7 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         return shadow.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(),
-                game, models.atlas().cellsPerSide(), nearSections.sections(), farViewProjection, shadowView,
+                game, models.atlas(), nearSections.sections(), farViewProjection, shadowView,
                 shadowProjection) ? shadow : null;
     }
 
@@ -380,7 +382,7 @@ public final class FarRenderer implements AutoCloseable {
         fillNearSections(client, game);
 
         frame.write(farViewProjection, game.viewRotation(), runtime.frame().minBlockY(),
-                models.atlas().cellsPerSide(), nearSections.sections(), game.shade(),
+                models.atlas(), nearSections.sections(), game.shade(),
                 CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
         draw.frame(indirect.buffer(), commands.opaqueCount(), commands.translucentCount(), gpu.lightmap(),
                 farProjection, game.viewRotation(), FarDistance.cellsToBlocks(settings.farRenderCells()));
