@@ -1,24 +1,24 @@
 #ifndef EMINUS_FAR_FRAME_GLSL
 #define EMINUS_FAR_FRAME_GLSL
 
-layout(std140) uniform FarFrame {
-    mat4 FarProjView;
-    mat4 FarView;
-    int MinBlockY;
-    int AtlasCells;
-    int AtlasCellSide;
-    int AtlasMeanLevel;
-    int NearSide;
-    int NearHeight;
-    ivec3 NearOrigin;
-    float ShadeDown;
-    float ShadeUp;
-    float ShadeNorth;
-    float ShadeSouth;
-    float ShadeWest;
-    float ShadeEast;
-    ivec3 CameraBlockPos;
-    vec3 CameraOffset;
+layout(std140) uniform EminusFrame {
+    mat4 EminusProjView;
+    mat4 EminusView;
+    int EminusMinBlockY;
+    int EminusAtlasCells;
+    int EminusAtlasCellSide;
+    int EminusAtlasMeanLevel;
+    int EminusNearSide;
+    int EminusNearHeight;
+    ivec3 EminusNearOrigin;
+    float EminusShadeDown;
+    float EminusShadeUp;
+    float EminusShadeNorth;
+    float EminusShadeSouth;
+    float EminusShadeWest;
+    float EminusShadeEast;
+    ivec3 EminusCameraBlockPos;
+    vec3 EminusCameraOffset;
 };
 
 #endif

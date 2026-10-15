@@ -42,4 +42,4 @@ Everything Iris hands a `gbuffers` program is available: its uniforms, your cust
 - `gtexture` is a white pixel: the LOD's texture arrives in `fragment.color`;
 - `gl_ProjectionMatrix` is the LOD's own projection ([Depth](depth.md)) and `gl_ModelViewMatrix` the camera's rotation.
 
-Do not declare a name that begins with `eminus`, `Eminus`, `far_`, `FAR_` or `Far`, nor any of `Atlas`, `TintMask`, `ModelVariants`, `NearSections`, `MinBlockY`, `AtlasCells`, `AtlasCellSide`, `AtlasMeanLevel`, `NearSide`, `NearHeight`, `NearOrigin`, `ShadeDown`, `ShadeUp`, `ShadeNorth`, `ShadeSouth`, `ShadeWest`, `ShadeEast`, `CameraBlockPos`, `CameraOffset` or `MIN_AXIS_LENGTH`: Eminus declares them in front of your code. Iris reserves `iris_`, `dh_` and `dhBlockAtlas`.
+Do not declare a name that begins with `eminus`, `Eminus` or `EMINUS`: Eminus declares its own names under these prefixes in front of your code. Iris reserves `iris_`, `dh_` and `dhBlockAtlas`.
