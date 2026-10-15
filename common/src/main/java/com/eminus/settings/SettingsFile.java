@@ -18,6 +18,7 @@ import com.google.gson.JsonPrimitive;
 
 public final class SettingsFile {
     public static final String INGESTION_KEY = "ingestion";
+    public static final String LOD_QUALITY_KEY = "lod_quality";
     public static final String LOWEST_STORED_LEVEL_KEY = "lowest_stored_level";
     public static final String FAR_RENDER_CELLS_KEY = "far_render_cells";
     public static final String WORKER_THREADS_KEY = "worker_threads";
@@ -27,11 +28,12 @@ public final class SettingsFile {
     public static final String SHADER_PACK_LOD_KEY = "shader_pack_lod";
     public static final String LOD_ANIMATIONS_KEY = "lod_animations";
 
-    private static final String LOWEST_STORED_LEVEL_COMMENT = """
-            Finest detail level kept on disk, 0..4: one voxel covers 2^level blocks
-            (0 = 1 block, 1 = 2, 2 = 4, 3 = 8, 4 = 16). 0 keeps single blocks such as
-            flowers visible at LOD's nearest edge; 1 drops that level and
-            cuts the store to about a seventh.""";
+    private static final String LOD_QUALITY_COMMENT = """
+            LOD quality: full, high, medium, low or minimal. One voxel at LOD's nearest
+            edge covers 1 block under full and high, 2 under medium, 4 under low and 8
+            under minimal. high keeps full's block resolution and draws fewer details:
+            leaves opaque, no grass or flowers, textures at half resolution. full and
+            high share one store; each coarser step stores less.""";
 
     private static final String FAR_RENDER_CELLS_COMMENT = """
             Radius of LOD, in top-level cells of 512 blocks (32 chunks each):
@@ -77,6 +79,9 @@ public final class SettingsFile {
             block id, so the pack moves nothing it would pick by block, and saves the GPU
             time that costs on every LOD vertex.""";
 
+    private static final int FORMER_STORED_LEVEL_MIN = 0;
+    private static final int FORMER_STORED_LEVEL_MAX = 4;
+
     private static final Gson GSON = new Gson();
     private static final String INDENT = "  ";
 
@@ -92,10 +97,9 @@ public final class SettingsFile {
             return defaults;
         }
 
-        return new Settings(
+        Settings loaded = new Settings(
                 bool(json, INGESTION_KEY, defaults.ingestion()),
-                bounded(json, LOWEST_STORED_LEVEL_KEY, defaults.lowestStoredLevel(),
-                        Settings.MIN_DETAIL_LEVEL, Settings.MAX_DETAIL_LEVEL),
+                lodQuality(json, defaults.lodQuality()),
                 bounded(json, FAR_RENDER_CELLS_KEY, defaults.farRenderCells(),
                         Settings.MIN_FAR_RENDER_CELLS, Settings.MAX_FAR_RENDER_CELLS),
                 bounded(json, WORKER_THREADS_KEY, defaults.workerThreads(),
@@ -105,13 +109,17 @@ public final class SettingsFile {
                 bool(json, FADE_KEY, defaults.fade()),
                 keyed(json, SHADER_PACK_LOD_KEY, defaults.shaderPackLod(), ShaderPackLod::fromKey),
                 bool(json, LOD_ANIMATIONS_KEY, defaults.lodAnimations()));
+        if (holdsStoredLevelOnly(json)) {
+            save(file, loaded);
+        }
+
+        return loaded;
     }
 
     public static void save(Path file, Settings settings) {
         List<String> entries = new ArrayList<>();
         entries.add(entry(INGESTION_KEY, new JsonPrimitive(settings.ingestion()), null));
-        entries.add(entry(LOWEST_STORED_LEVEL_KEY, new JsonPrimitive(settings.lowestStoredLevel()),
-                LOWEST_STORED_LEVEL_COMMENT));
+        entries.add(entry(LOD_QUALITY_KEY, new JsonPrimitive(settings.lodQuality().key()), LOD_QUALITY_COMMENT));
         entries.add(entry(FAR_RENDER_CELLS_KEY, new JsonPrimitive(settings.farRenderCells()),
                 FAR_RENDER_CELLS_COMMENT));
         entries.add(entry(WORKER_THREADS_KEY, new JsonPrimitive(settings.workerThreads()),
@@ -162,6 +170,19 @@ public final class SettingsFile {
         }
 
         return null;
+    }
+
+    private static LodQuality lodQuality(JsonObject json, LodQuality fallback) {
+        if (holdsStoredLevelOnly(json)) {
+            return LodQuality.fromLowestStoredLevel(bounded(json, LOWEST_STORED_LEVEL_KEY, fallback.storedLevel(),
+                    FORMER_STORED_LEVEL_MIN, FORMER_STORED_LEVEL_MAX));
+        }
+
+        return keyed(json, LOD_QUALITY_KEY, fallback, LodQuality::fromKey);
+    }
+
+    private static boolean holdsStoredLevelOnly(JsonObject json) {
+        return !json.has(LOD_QUALITY_KEY) && json.has(LOWEST_STORED_LEVEL_KEY);
     }
 
     private static boolean bool(JsonObject json, String key, boolean fallback) {

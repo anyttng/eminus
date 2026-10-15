@@ -19,12 +19,14 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.Direction;
 
 import org.joml.FrustumIntersection;
+import org.jspecify.annotations.Nullable;
 
 final class TreeTraversal {
     private static final Direction[] FACES = Direction.values();
     private static final Comparator<Candidate> LARGEST_FIRST =
             (first, second) -> Float.compare(second.size(), first.size());
     private static final int UNSERVED = -1;
+    private static final float PREFETCH_SHARE = 0.8F;
 
     private final NodeTable nodes;
     private final TreeExtent extent;
@@ -45,8 +47,15 @@ final class TreeTraversal {
     private final FloatArrayList requestedPriorities = new FloatArrayList();
     private final List<TreeNode> outOfViewRequested = new ArrayList<>();
     private final FloatArrayList outOfViewSizes = new FloatArrayList();
+    private final PendingColumns pending = new PendingColumns();
+    private final PendingColumns pendingOutOfView = new PendingColumns();
+    private final ArrivalFront front = new ArrivalFront();
 
     private boolean starved;
+    private boolean listing;
+    private int hiddenBehind;
+    private int hiddenUnder;
+    private int hiddenUnderOutOfView;
 
     private record Candidate(TreeNode node, float size) {
     }
@@ -70,6 +79,10 @@ final class TreeTraversal {
         requestedPriorities.clear();
         outOfViewRequested.clear();
         outOfViewSizes.clear();
+        pending.clear();
+        pendingOutOfView.clear();
+        front.begin(camera.eyeX(), camera.eyeZ(), (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL
+                - DetailLevel.blocksPerCell(DetailLevel.MAX));
         starved = false;
         double farBlocks = (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
 
@@ -85,7 +98,8 @@ final class TreeTraversal {
         }
 
         if (!camera.pressure()) {
-            starved = hand(candidates, budget, requested, requestedPriorities) == UNSERVED;
+            starved = hand(candidates, budget, requested, requestedPriorities, camera, camera.inViewPixelsPerBlock())
+                    == UNSERVED;
             int outOfViewLeft = outOfViewBudget - requested.size();
             if (!starved && outOfViewLeft > 0) {
                 requestOutOfView(camera, farBlocks, outOfViewLeft);
@@ -100,6 +114,7 @@ final class TreeTraversal {
         double farBlocks = (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
         current.clear();
         current.addAll(outside);
+        listing = true;
 
         while (!current.isEmpty()) {
             next.clear();
@@ -112,10 +127,38 @@ final class TreeTraversal {
             current.addAll(next);
         }
 
+        listing = false;
+        hiddenBehind = 0;
+        hiddenUnder = 0;
+        hiddenUnderOutOfView = 0;
         List<MeshSummary> meshes = new ArrayList<>(drawn.size() + outOfViewDrawn.size());
-        meshes.addAll(drawn);
-        meshes.addAll(outOfViewDrawn);
+        keepUncovered(drawn, drawnKeys, true, meshes);
+        keepUncovered(outOfViewDrawn, outOfViewDrawnKeys, false, meshes);
+        for (MeshSummary mesh : meshes) {
+            front.shown(mesh.key());
+        }
+
+        front.finish();
         return new RenderList(List.copyOf(meshes), borders(meshes), camera);
+    }
+
+    private void keepUncovered(List<MeshSummary> from, LongOpenHashSet keys, boolean inView,
+            List<MeshSummary> into) {
+        for (MeshSummary mesh : from) {
+            if (pending.under(extent.frame(), mesh.key())) {
+                hiddenUnder++;
+                keys.remove(mesh.key());
+            } else if (pendingOutOfView.under(extent.frame(), mesh.key())) {
+                hiddenUnder++;
+                hiddenUnderOutOfView += inView ? 1 : 0;
+                keys.remove(mesh.key());
+            } else if (front.holds(mesh.key(), inView)) {
+                hiddenBehind++;
+                keys.remove(mesh.key());
+            } else {
+                into.add(mesh);
+            }
+        }
     }
 
     private Long2IntMap borders(List<MeshSummary> meshes) {
@@ -184,6 +227,14 @@ final class TreeTraversal {
         return starved;
     }
 
+    int waitingInView() {
+        return front.waitingNear();
+    }
+
+    FrontState front(long now) {
+        return front.state(extent.frame(), hiddenBehind, hiddenUnder, hiddenUnderOutOfView, now);
+    }
+
 
     private void visit(TreeNode node, CameraFrame camera, double farBlocks, long walk) {
         box.set(extent.frame(), node.key(), camera);
@@ -200,21 +251,41 @@ final class TreeTraversal {
         node.seen(walk);
 
         float size = ProjectedSize.of(box, camera.inViewPixelsPerBlock());
-        if (node.level() > extent.lowestLevel() && size > camera.subdivisionPixels() && withinHorizon(node)) {
+        if (refines(node, size, camera)) {
             if (node.missingOctants() != OccupancyMask.EMPTY) {
                 candidates.add(new Candidate(node, size));
             }
 
             keepChildren(node, walk);
-            if (node.occupancy() != OccupancyMask.EMPTY && node.childrenReady()) {
+            if (givesWay(node, camera)) {
                 node.markDescended();
                 descendedKeys.add(node.key());
                 descend(node);
                 return;
             }
+        } else if (prefetches(node, size, camera)) {
+            if (node.missingOctants() != OccupancyMask.EMPTY) {
+                candidates.add(new Candidate(node, size));
+            }
+
+            keepChildren(node, walk);
         }
 
         draw(node);
+    }
+
+    private boolean prefetches(TreeNode node, float size, CameraFrame camera) {
+        return node.level() > extent.lowestLevel() && size > camera.subdivisionPixels() * PREFETCH_SHARE
+                && withinHorizon(node);
+    }
+
+    private boolean givesWay(TreeNode node, CameraFrame camera) {
+        return node.occupancy() != OccupancyMask.EMPTY
+                && (node.childrenReady() || (!camera.pressure() && nodes.free() > 0 && !node.childStuck()));
+    }
+
+    private boolean refines(TreeNode node, float size, CameraFrame camera) {
+        return node.level() > extent.lowestLevel() && size > camera.subdivisionPixels() && withinHorizon(node);
     }
 
     private void listOutOfView(TreeNode node, CameraFrame camera, double farBlocks) {
@@ -224,8 +295,7 @@ final class TreeTraversal {
             return;
         }
 
-        if (node.level() > extent.lowestLevel() && ProjectedSize.of(box, camera.pixelsPerBlock()) > camera.subdivisionPixels()
-                && withinHorizon(node) && node.occupancy() != OccupancyMask.EMPTY && node.childrenReady()) {
+        if (refines(node, ProjectedSize.of(box, camera.pixelsPerBlock()), camera) && givesWay(node, camera)) {
             node.markDescended();
             outOfViewDescendedKeys.add(node.key());
             descend(node);
@@ -234,7 +304,9 @@ final class TreeTraversal {
 
         outOfViewDrawnKeys.add(node.key());
         MeshSummary mesh = node.mesh();
-        if (mesh != null && !mesh.isEmpty()) {
+        if (mesh == null) {
+            waiting(node.key(), node);
+        } else if (!mesh.isEmpty()) {
             outOfViewDrawn.add(mesh);
         }
     }
@@ -264,7 +336,7 @@ final class TreeTraversal {
             current.addAll(next);
         }
 
-        hand(candidates, budget, outOfViewRequested, outOfViewSizes);
+        hand(candidates, budget, outOfViewRequested, outOfViewSizes, camera, camera.pixelsPerBlock());
     }
 
     private void collectOutOfView(TreeNode node, CameraFrame camera, double farBlocks) {
@@ -296,22 +368,26 @@ final class TreeTraversal {
         return horizon.refines(TreeHorizon.key(box.horizontalDistance(), node.level()));
     }
 
-    private int hand(List<Candidate> from, int budget, List<TreeNode> into, FloatArrayList sizes) {
+    private int hand(List<Candidate> from, int budget, List<TreeNode> into, FloatArrayList sizes, CameraFrame camera,
+            float pixelsPerBlock) {
         from.sort(LARGEST_FIRST);
         int left = budget;
 
         for (Candidate candidate : from) {
-            int missing = candidate.node().missingOctants();
+            TreeNode parent = candidate.node();
+            int missing = parent.missingOctants();
 
             while (missing != 0 && left > 0) {
-                TreeNode child = nodes.child(candidate.node(), Integer.numberOfTrailingZeros(missing));
+                int octant = Integer.numberOfTrailingZeros(missing);
+                TreeNode child = nodes.child(parent, octant);
                 if (child == null) {
                     return UNSERVED;
                 }
 
                 into.add(child);
                 sizes.add(candidate.size());
-                left--;
+                left = handGrandchildren(parent.grandchildren(octant), child, left - 1, into, sizes,
+                        candidate.size(), camera, pixelsPerBlock);
                 missing &= missing - 1;
             }
 
@@ -323,12 +399,42 @@ final class TreeTraversal {
         return left;
     }
 
+    private int handGrandchildren(int occupied, TreeNode child, int budget, List<TreeNode> into, FloatArrayList sizes,
+            float size, CameraFrame camera, float pixelsPerBlock) {
+        box.set(extent.frame(), child.key(), camera);
+        if (occupied == OccupancyMask.EMPTY || !refines(child, ProjectedSize.of(box, pixelsPerBlock), camera)) {
+            return budget;
+        }
+
+        int left = budget;
+        int remaining = occupied;
+        while (remaining != 0 && left > 0) {
+            TreeNode grandchild = nodes.child(child, Integer.numberOfTrailingZeros(remaining));
+            if (grandchild == null) {
+                return left;
+            }
+
+            into.add(grandchild);
+            sizes.add(size);
+            left--;
+            remaining &= remaining - 1;
+        }
+
+        return left;
+    }
+
     private void descend(TreeNode node) {
         int occupied = node.occupancy();
 
         for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
+            if (!OccupancyMask.isSet(occupied, octant)) {
+                continue;
+            }
+
             TreeNode child = node.child(octant);
-            if (OccupancyMask.isSet(occupied, octant) && child != null) {
+            if (child == null) {
+                waiting(CellKey.child(node.key(), octant), null);
+            } else {
                 next.add(child);
             }
         }
@@ -337,8 +443,20 @@ final class TreeTraversal {
     private void draw(TreeNode node) {
         drawnKeys.add(node.key());
         MeshSummary mesh = node.mesh();
-        if (mesh != null && !mesh.isEmpty()) {
+        if (mesh == null) {
+            waiting(node.key(), node);
+        } else if (!mesh.isEmpty()) {
             drawn.add(mesh);
+        }
+    }
+
+    private void waiting(long key, @Nullable TreeNode node) {
+        if (listing) {
+            pendingOutOfView.waiting(extent.frame(), key);
+            front.waitingOutside(key);
+        } else {
+            pending.waiting(extent.frame(), key);
+            front.waiting(key, node);
         }
     }
 }

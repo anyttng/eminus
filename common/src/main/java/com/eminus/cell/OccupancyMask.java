@@ -6,8 +6,21 @@ public final class OccupancyMask {
 
     private static final int HALF_SIDE = DetailLevel.VOXELS_PER_SIDE / 2;
 
+    public static final long NO_GRANDCHILDREN = 0L;
+
+    private static final int GRANDCHILD_BYTE = 0xFF;
+
     public static int octantOf(int x, int y, int z) {
         return ((y / HALF_SIDE) << 2) | ((z / HALF_SIDE) << 1) | (x / HALF_SIDE);
+    }
+
+    public static int grandchildOf(int x, int y, int z) {
+        return octantOf(x, y, z) * OCTANTS
+                + octantOf((x % HALF_SIDE) << 1, (y % HALF_SIDE) << 1, (z % HALF_SIDE) << 1);
+    }
+
+    public static int grandchildren(long mask, int octant) {
+        return (int) (mask >>> (octant * OCTANTS)) & GRANDCHILD_BYTE;
     }
 
     public static int set(int mask, int octant) {

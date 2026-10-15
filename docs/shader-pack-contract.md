@@ -10,9 +10,47 @@ It works under Iris on the game's OpenGL backend. On Vulkan, Eminus logs `Shader
 
 ### 1. Shade the LOD with your terrain code
 
-1. Copy [`example-pack/shaders/eminus_opaque.glsl`](example-pack/shaders/eminus_opaque.glsl) into your pack's `shaders/` folder.
-2. Change its `RENDERTARGETS` to the buffers your `gbuffers_terrain` writes, and replace the body with your terrain fragment code. Where that code reads a varying, read the field of the same name on `fragment` instead (`texcoord`, `lmcoord`, `glcolor`, `normal`, `viewPos`), and take the texture colour from `fragment.color` rather than sampling `gtexture`.
-3. Reload shaders with Iris's Reload Shaders key (F3 + R by default). The log line `Shader pack carries the Eminus contract: the far layer draws inside the pack` confirms it took.
+Your terrain fragment code then runs in two programs: `gbuffers_terrain` for the near terrain and `eminus_opaque.glsl` for the LOD. Keep it in one include that both call, and a change to your terrain shading reaches both.
+
+1. Move the part of your `gbuffers_terrain` fragment code that comes after its texture sample and alpha cutout into a function in an include, with a parameter for each input it reads. The example pack's function reads the tinted texture colour and the light coordinates; a pack whose code reads `normal`, `viewPos` or `blockId` adds them as parameters.
+
+   ```glsl
+   // shaders/lib/terrain.glsl
+   uniform sampler2D lightmap;
+
+   vec4 shadeTerrain(vec4 albedo, vec2 lmcoord) {
+       return albedo * texture(lightmap, lmcoord);
+   }
+   ```
+
+2. Call it from `gbuffers_terrain` with your varyings:
+
+   ```glsl
+   #include "/lib/terrain.glsl"
+
+   void main() {
+       vec4 albedo = texture(gtexture, texcoord) * glcolor;
+       if (albedo.a < ALPHA_CUTOUT) {
+           discard;
+       }
+       color = shadeTerrain(albedo, lmcoord);
+   }
+   ```
+
+3. Copy [`example-pack/shaders/eminus_opaque.glsl`](example-pack/shaders/eminus_opaque.glsl) into your pack's `shaders/` folder, change its `RENDERTARGETS` to the buffers your `gbuffers_terrain` writes, and call the same function with the fields of `fragment`:
+
+   ```glsl
+   #include "/lib/terrain.glsl"
+
+   void eminus_emitFragment(EminusFragment fragment) {
+       color = shadeTerrain(fragment.color, fragment.lmcoord);
+   }
+   ```
+
+   `fragment.color` takes the place of the texture colour times `glcolor`: it is already tinted and past the cutout, so pass it where `gbuffers_terrain` passes that product, and never multiply it by `fragment.glcolor` again. Every other input is the field named after the varying it replaces (`texcoord`, `lmcoord`, `glcolor`, `normal`, `viewPos`), and `fragment.blockId` replaces `mc_Entity.x`.
+4. Reload shaders with Iris's Reload Shaders key (F3 + R by default). The log line `Shader pack carries the Eminus contract: the far layer draws inside the pack` confirms it took.
+
+Without an include, copy your terrain fragment code into `eminus_emitFragment` instead, reading the field of `fragment` wherever the code reads a varying and taking the texture colour from `fragment.color` rather than sampling `gtexture`. The copy then has to follow every later change to your terrain code by hand.
 
 A pack that lights and fogs terrain in its `gbuffers` programs is done here. Every field of `fragment`: [The fragment function](shader-packs/fragment.md).
 
@@ -40,7 +78,7 @@ If your `shadow` program colours the shadow of stained glass or water, add `emin
 
 If your `gbuffers_terrain` vertex program changes the position it projects (temporal anti-aliasing jitter, a render scale, a shadow distortion), add `eminus_vertex.glsl` with the same code, so the LOD reaches your later passes where they expect your terrain. [The vertex hook](shader-packs/vertex-hook.md) has the details. If it animates blocks, name the blocks it moves in `eminus.properties` ([Blocks your hook moves](shader-packs/vertex-hook.md#blocks-your-hook-moves)), or gaps open in the LOD where they sway.
 
-The [example pack](example-pack/) is a complete minimal pack: textured, lit terrain, the contract file, and a fog composite that is step 2 in one call. It carries its own MIT [license](example-pack/LICENSE), so a pack may copy any part of it.
+The [example pack](example-pack/) is a complete minimal pack: textured, lit terrain, the contract file sharing its shading through one include, and a fog composite that is step 2 in one call. It carries its own MIT [license](example-pack/LICENSE), so a pack may copy any part of it.
 
 ## Reference
 

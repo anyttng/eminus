@@ -990,6 +990,20 @@ class CellMesherTest {
     }
 
     @Test
+    void gappedLeafVoxelsHideTheFacesTheyShareWhetherTheirModelIsOpaqueOrCutout() {
+        defineBlocks();
+
+        CellMesh opaque = mesh(gappedLeaves(OPAQUE_LEAVES), airAround(), COARSE_LEVEL);
+        CellMesh cutout = mesh(gappedLeaves(CUTOUT_LEAVES), airAround(), COARSE_LEVEL);
+
+        assertEquals(opaque.quadCount(), cutout.quadCount());
+        assertTrue(absent(cutout, Direction.EAST, 4, 4, 4));
+        assertTrue(absent(cutout, Direction.WEST, 5, 4, 4));
+        assertTrue(absent(cutout, Direction.UP, 8, 4, 8));
+        assertTrue(absent(cutout, Direction.DOWN, 8, 5, 8));
+    }
+
+    @Test
     void aTintedFloorSplitsItsQuadsWhereTheColourChangesAndCarriesBothColours() {
         defineBlocks();
         tints.define(GRASS_ROW, PLAINS, PLAINS_GREEN);
@@ -1272,9 +1286,9 @@ class CellMesherTest {
     }
 
     private static ColumnCoverage coverage(long... chunks) {
-        ColumnCoverage coverage = new ColumnCoverage(chunk -> { });
+        ColumnCoverage coverage = new ColumnCoverage(DetailLevel.MIN, (chunk, lowestLevel) -> { });
         for (long chunk : chunks) {
-            coverage.load(chunk);
+            coverage.load(chunk, DetailLevel.MIN);
         }
 
         return coverage;
@@ -1302,6 +1316,15 @@ class CellMesherTest {
     private long tinted(int biome) {
         tints.define(GRASS_ROW, biome, biome);
         return VoxelEntry.pack(GRASS_BLOCK, biome, VoxelEntry.light(FULL_SKY, NO_BLOCK_LIGHT));
+    }
+
+    private static Cell gappedLeaves(int stateId) {
+        Cell cell = blank();
+        cell.set(4, 4, 4, VoxelEntry.withGaps(block(stateId), 0, 1));
+        cell.set(5, 4, 4, VoxelEntry.withGaps(block(stateId), 0, 1));
+        cell.set(8, 4, 8, VoxelEntry.withGaps(block(stateId), 1, 0));
+        cell.set(8, 5, 8, VoxelEntry.withGaps(block(stateId), 0, 1));
+        return cell;
     }
 
     private static Cell cube(int stateId) {

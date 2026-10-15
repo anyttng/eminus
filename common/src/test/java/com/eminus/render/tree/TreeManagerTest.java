@@ -47,6 +47,7 @@ class TreeManagerTest {
     private static final long KEY = CellKey.pack(DetailLevel.MAX, CELL_X, 0, CELL_Z);
     private static final long WEST = CellKey.neighbour(KEY, Direction.WEST);
     private static final long ABOVE = CellKey.neighbour(KEY, Direction.UP);
+    private static final long BELOW = CellKey.neighbour(KEY, Direction.DOWN);
     private static final long OUTSIDE = CellKey.pack(DetailLevel.MIN, 1, 2, 3);
     private static final int RING_COLUMNS = 5;
     private static final int ONE_CELL = 1;
@@ -57,6 +58,7 @@ class TreeManagerTest {
     private static final double TELEPORT = 2_000.0;
     private static final int ONE_OCTANT = 0b1;
     private static final int ALL_OCTANTS = 0xFF;
+    private static final int LOWEST_BELOW_TOP = DetailLevel.MAX - 1;
     private static final int OLDER_QUADS = 2;
     private static final int NEWER_QUADS = 3;
     private static final int QUEUED_ROOTS = 800;
@@ -155,6 +157,7 @@ class TreeManagerTest {
 
     @Test
     void aChildIsUploadedNoLaterThanTheListThatDrawsIt() {
+        restartOverLeafChildren();
         startRing();
         CellMesh parent = TestMeshes.of(KEY, ONE_OCTANT);
         manager.meshed(parent, rootRequests.get(KEY));
@@ -162,7 +165,7 @@ class TreeManagerTest {
 
         FakeBuilds.Call request = builds.take();
         assertEquals(CellKey.child(KEY, 0), request.key());
-        CellMesh child = TestMeshes.of(request.key(), OccupancyMask.EMPTY);
+        CellMesh child = TestMeshes.of(request.key(), ONE_OCTANT);
         manager.meshed(child, request.request());
         manager.frame(close(EYE_X + ONE_BLOCK, EYE_Z));
 
@@ -236,6 +239,32 @@ class TreeManagerTest {
         FakeBuilds.Call neighbour = builds.take();
         assertEquals(KEY, neighbour.key());
         assertNull(neighbour.handle());
+        assertTrue(builds.idle());
+    }
+
+    @Test
+    void aChangeInsideTheCellBelowRebuildsTheNodeWhoseMeshReadItWhole() {
+        settleRingReadingBelow(true);
+
+        CellHandle handle = open(BELOW);
+        manager.changed(handle, FaceMask.NONE, EdgeMask.NONE);
+
+        assertSame(handle, builds.takeRelease().handle());
+        FakeBuilds.Call above = builds.take();
+        assertEquals(KEY, above.key());
+        assertNull(above.handle());
+        assertTrue(builds.idle());
+    }
+
+    @Test
+    void aChangeInsideTheCellBelowLeavesANodeThatNeverReadItAlone() {
+        settleRingReadingBelow(false);
+
+        CellHandle handle = open(BELOW);
+        manager.changed(handle, FaceMask.NONE, EdgeMask.NONE);
+
+        assertSame(handle, builds.takeRelease().handle());
+        syncMessages();
         assertTrue(builds.idle());
     }
 
@@ -352,11 +381,12 @@ class TreeManagerTest {
 
     @Test
     void underArenaPressureASetInViewIsEvictedAndNotRequestedAgain() throws Exception {
+        restartOverLeafChildren();
         startRing();
         manager.meshed(TestMeshes.of(KEY, ONE_OCTANT), rootRequests.get(KEY));
         manager.frame(close(EYE_X, EYE_Z));
         FakeBuilds.Call request = builds.take();
-        CellMesh child = TestMeshes.of(request.key(), OccupancyMask.EMPTY);
+        CellMesh child = TestMeshes.of(request.key(), ONE_OCTANT);
         manager.meshed(child, request.request());
         awaitRenderList(close(EYE_X + ONE_BLOCK, EYE_Z), list -> list.meshes().contains(child.summary()),
                 meshes -> { });
@@ -376,11 +406,12 @@ class TreeManagerTest {
 
     @Test
     void aSetEvictedUnderPressureLeavesTheHorizonBoundedOnceThePressureLifts() throws Exception {
+        restartOverLeafChildren();
         startRing();
         manager.meshed(TestMeshes.of(KEY, ONE_OCTANT), rootRequests.get(KEY));
         manager.frame(close(EYE_X, EYE_Z));
         FakeBuilds.Call request = builds.take();
-        CellMesh child = TestMeshes.of(request.key(), OccupancyMask.EMPTY);
+        CellMesh child = TestMeshes.of(request.key(), ONE_OCTANT);
         manager.meshed(child, request.request());
         awaitRenderList(close(EYE_X + ONE_BLOCK, EYE_Z), list -> list.meshes().contains(child.summary()),
                 meshes -> { });
@@ -487,6 +518,11 @@ class TreeManagerTest {
         fail("The mesh is still reachable after its batch was taken, so something holds its quads and colours.");
     }
 
+    private void restartOverLeafChildren() {
+        manager.stop();
+        manager = TreeManager.start(builds, new TreeExtent(new CellFrame(0), 1, LOWEST_BELOW_TOP));
+    }
+
     private void startRing() {
         manager.frame(frame(EYE_X, EYE_Z));
 
@@ -508,6 +544,13 @@ class TreeManagerTest {
         manager.meshed(CellMesh.empty(WEST), rootRequests.get(WEST));
         manager.changed(open(OUTSIDE), FaceMask.NONE, EdgeMask.NONE);
         builds.takeRelease();
+    }
+
+    private void settleRingReadingBelow(boolean readsBelow) {
+        startRing();
+        manager.meshed(CellMesh.empty(KEY).readingBelow(readsBelow), rootRequests.get(KEY));
+        manager.meshed(CellMesh.empty(WEST), rootRequests.get(WEST));
+        syncMessages();
     }
 
     private static CameraFrame frame(double x, double z) {

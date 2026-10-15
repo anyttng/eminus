@@ -27,6 +27,7 @@ public final class ModelBaker implements StateBaker {
     private final FluidBaker fluids;
     private final SpriteTexels sprites;
     private final BiomeColours colours;
+    private final boolean drawsBlades;
     private final FaceRasterizer rasterizer = new FaceRasterizer();
     private final CountingRandom random = new CountingRandom();
     private final List<ModelQuad> quads = new ArrayList<>();
@@ -34,12 +35,13 @@ public final class ModelBaker implements StateBaker {
     private boolean swept;
 
     public ModelBaker(BlockModels blockModels, BlockTints blockTints, FluidBaker fluids, SpriteTexels sprites,
-            BiomeColours colours) {
+            BiomeColours colours, boolean drawsBlades) {
         this.blockModels = blockModels;
         this.blockTints = blockTints;
         this.fluids = fluids;
         this.sprites = sprites;
         this.colours = colours;
+        this.drawsBlades = drawsBlades;
     }
 
     @Override
@@ -115,6 +117,10 @@ public final class ModelBaker implements StateBaker {
     }
 
     private BakedModel rasterize(BlockState shape) {
+        if (!drawsBlades && FaceRasterizer.bladed(quads)) {
+            return BakedModel.empty();
+        }
+
         return rasterizer.rasterize(quads, (quad, u, v) -> sprites.argb(quad.sprite(), u, v),
                 layer -> colours.resolve(blockTints.source(shape, layer), shape), blockModels.forceOpaque(shape));
     }

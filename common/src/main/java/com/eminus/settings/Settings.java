@@ -2,7 +2,7 @@ package com.eminus.settings;
 
 public record Settings(
         boolean ingestion,
-        int lowestStoredLevel,
+        LodQuality lodQuality,
         int farRenderCells,
         int workerThreads,
         DetailDistance detailDistance,
@@ -12,7 +12,7 @@ public record Settings(
         boolean lodAnimations) {
 
     public static final boolean DEFAULT_INGESTION = true;
-    public static final int DEFAULT_LOWEST_STORED_LEVEL = 0;
+    public static final LodQuality DEFAULT_LOD_QUALITY = LodQuality.FULL;
     public static final int DEFAULT_FAR_RENDER_CELLS = 16;
     public static final DetailDistance DEFAULT_DETAIL_DISTANCE = DetailDistance.MEDIUM;
     public static final boolean DEFAULT_FOG = true;
@@ -20,8 +20,6 @@ public record Settings(
     public static final ShaderPackLod DEFAULT_SHADER_PACK_LOD = ShaderPackLod.DEFAULT;
     public static final boolean DEFAULT_LOD_ANIMATIONS = true;
 
-    public static final int MIN_DETAIL_LEVEL = 0;
-    public static final int MAX_DETAIL_LEVEL = 4;
     public static final int MIN_FAR_RENDER_CELLS = 1;
     public static final int MAX_FAR_RENDER_CELLS = 64;
     public static final int MIN_WORKER_THREADS = 1;
@@ -33,7 +31,7 @@ public record Settings(
     public static Settings defaults() {
         return new Settings(
                 DEFAULT_INGESTION,
-                DEFAULT_LOWEST_STORED_LEVEL,
+                DEFAULT_LOD_QUALITY,
                 DEFAULT_FAR_RENDER_CELLS,
                 defaultWorkerThreads(Runtime.getRuntime().availableProcessors()),
                 DEFAULT_DETAIL_DISTANCE,
@@ -48,47 +46,47 @@ public record Settings(
     }
 
     public Settings withIngestion(boolean value) {
-        return new Settings(value, lowestStoredLevel, farRenderCells, workerThreads, detailDistance, fog, fade,
+        return new Settings(value, lodQuality, farRenderCells, workerThreads, detailDistance, fog, fade,
                 shaderPackLod, lodAnimations);
     }
 
-    public Settings withLowestStoredLevel(int value) {
+    public Settings withLodQuality(LodQuality value) {
         return new Settings(ingestion, value, farRenderCells, workerThreads, detailDistance, fog, fade,
                 shaderPackLod, lodAnimations);
     }
 
     public Settings withFarRenderCells(int value) {
-        return new Settings(ingestion, lowestStoredLevel, value, workerThreads, detailDistance, fog, fade,
+        return new Settings(ingestion, lodQuality, value, workerThreads, detailDistance, fog, fade,
                 shaderPackLod, lodAnimations);
     }
 
     public Settings withWorkerThreads(int value) {
-        return new Settings(ingestion, lowestStoredLevel, farRenderCells, value, detailDistance, fog, fade,
+        return new Settings(ingestion, lodQuality, farRenderCells, value, detailDistance, fog, fade,
                 shaderPackLod, lodAnimations);
     }
 
     public Settings withDetailDistance(DetailDistance value) {
-        return new Settings(ingestion, lowestStoredLevel, farRenderCells, workerThreads, value, fog, fade,
+        return new Settings(ingestion, lodQuality, farRenderCells, workerThreads, value, fog, fade,
                 shaderPackLod, lodAnimations);
     }
 
     public Settings withFog(boolean value) {
-        return new Settings(ingestion, lowestStoredLevel, farRenderCells, workerThreads, detailDistance, value, fade,
+        return new Settings(ingestion, lodQuality, farRenderCells, workerThreads, detailDistance, value, fade,
                 shaderPackLod, lodAnimations);
     }
 
     public Settings withFade(boolean value) {
-        return new Settings(ingestion, lowestStoredLevel, farRenderCells, workerThreads, detailDistance, fog, value,
+        return new Settings(ingestion, lodQuality, farRenderCells, workerThreads, detailDistance, fog, value,
                 shaderPackLod, lodAnimations);
     }
 
     public Settings withShaderPackLod(ShaderPackLod value) {
-        return new Settings(ingestion, lowestStoredLevel, farRenderCells, workerThreads, detailDistance, fog, fade,
+        return new Settings(ingestion, lodQuality, farRenderCells, workerThreads, detailDistance, fog, fade,
                 value, lodAnimations);
     }
 
     public Settings withLodAnimations(boolean value) {
-        return new Settings(ingestion, lowestStoredLevel, farRenderCells, workerThreads, detailDistance, fog, fade,
+        return new Settings(ingestion, lodQuality, farRenderCells, workerThreads, detailDistance, fog, fade,
                 shaderPackLod, value);
     }
 }

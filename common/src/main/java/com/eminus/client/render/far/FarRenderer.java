@@ -9,7 +9,6 @@ import com.eminus.Eminus;
 import com.eminus.box.BoxRegistry;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
-import com.eminus.cell.cache.CellHandle;
 import com.eminus.handoff.NearPlane;
 import com.eminus.handoff.NearReach;
 import com.eminus.ingest.IngestService;
@@ -48,7 +47,6 @@ import com.eminus.render.tree.NodeRow;
 import com.eminus.render.tree.NodeTable;
 import com.eminus.render.tree.RenderList;
 import com.eminus.render.tree.TreeBatch;
-import com.eminus.render.tree.TreeBuilds;
 import com.eminus.render.tree.TreeExtent;
 import com.eminus.render.tree.TreeManager;
 import com.eminus.session.DimensionRuntime;
@@ -73,6 +71,7 @@ public final class FarRenderer implements AutoCloseable {
     public static final int START_COMMANDS = 32768;
     public static final String ARENA_CAP_PROPERTY = "eminus.arena.maxMiB";
     public static final String ARENA_FLOOR_PROPERTY = "eminus.arena.minMiB";
+    public static final String ATLAS_FIRST_MIP_PROPERTY = "eminus.atlas.firstMip";
 
     private static final String PROGRAM_REFUSED = "program %s did not compile";
 
@@ -138,7 +137,7 @@ public final class FarRenderer implements AutoCloseable {
         this.indirect = indirect;
         draw = new FarDraw(gpu, depth, baking.variantDraw(), arena, models, frame, nearSections, target);
         shadow = FarShadow.create(gpu);
-        tree =TreeManager.start(new Builds(),
+        tree = TreeManager.start(new FarBuilds(() -> meshes),
                 new TreeExtent(runtime.frame(), heightCells, runtime.lowestStoredLevel()), nodeCapacity);
     }
 
@@ -188,7 +187,8 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         FarRenderer renderer = new FarRenderer(gpu, support.depth(), runtime, baking,
-                ModelPublisher.start(gpu, baking.bakery()), arena,
+                ModelPublisher.start(gpu, baking.bakery(),
+                        Integer.getInteger(ATLAS_FIRST_MIP_PROPERTY, settings.lodQuality().atlasFirstMip())), arena,
                 FarTarget.create(gpu, support.depthFormat(), main.width(), main.height()), FarFrame.create(gpu),
                 mask, NearSectionTable.create(gpu), opaque, occlusion, translucent, composite, boxes,
                 IndirectCommands.create(gpu, START_COMMANDS),
@@ -217,9 +217,18 @@ public final class FarRenderer implements AutoCloseable {
         return arena.committedBytes();
     }
 
+    public boolean cutoutLeaves() {
+        return baking.cutoutLeaves();
+    }
+
+    public boolean drawsBlades() {
+        return baking.drawsBlades();
+    }
+
     public static boolean recreates(Settings built, Settings updated) {
         return built.farRenderCells() != updated.farRenderCells()
-                || built.detailDistance() != updated.detailDistance();
+                || built.detailDistance() != updated.detailDistance()
+                || built.lodQuality() != updated.lodQuality();
     }
 
     public void captureLevelProjection(Matrix4fc levelProjection, Matrix4fc cameraProjection) {
@@ -282,7 +291,7 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         return shadow.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(),
-                game, models.atlas().cellsPerSide(), nearSections.sections(), farViewProjection, shadowView,
+                game, models.atlas(), nearSections.sections(), farViewProjection, shadowView,
                 shadowProjection) ? shadow : null;
     }
 
@@ -371,7 +380,7 @@ public final class FarRenderer implements AutoCloseable {
         fillNearSections(client, game);
 
         frame.write(farViewProjection, game.viewRotation(), runtime.frame().minBlockY(),
-                models.atlas().cellsPerSide(), nearSections.sections(), game.shade(),
+                models.atlas(), nearSections.sections(), game.shade(),
                 CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
         draw.frame(indirect.buffer(), commands.opaqueCount(), commands.translucentCount(), gpu.lightmap(),
                 farProjection, game.viewRotation(), FarDistance.cellsToBlocks(settings.farRenderCells()));
@@ -472,22 +481,5 @@ public final class FarRenderer implements AutoCloseable {
                 NearSections.section(Mth.floor(game.eyeX())), NearSections.section(Mth.floor(game.eyeY())),
                 NearSections.section(Mth.floor(game.eyeZ())), renderDistance,
                 renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, level.getMinSectionY(), level.getSectionsCount());
-    }
-
-    private final class Builds implements TreeBuilds {
-        @Override
-        public void build(long key, @Nullable CellHandle handle, int references, long request, float priority) {
-            meshes.request(key, handle, references, request, priority);
-        }
-
-        @Override
-        public void release(CellHandle handle, int references) {
-            meshes.release(handle, references);
-        }
-
-        @Override
-        public int backlog() {
-            return meshes.backlog();
-        }
     }
 }

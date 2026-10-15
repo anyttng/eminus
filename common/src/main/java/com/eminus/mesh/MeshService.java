@@ -2,6 +2,7 @@ package com.eminus.mesh;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.eminus.Eminus;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.ColumnCoverage;
@@ -30,11 +31,14 @@ public final class MeshService {
     private final int blendRadius;
     private final MeshOpacity opacity;
     private final MeshListener listener;
+    private final int urgentWeight;
     private final MeshQueue queue = new MeshQueue();
 
     public MeshService(WorkService<MeshScratch> work, CellAccess cells, ColumnCoverage coverage, CellFrame frame,
-            MeshModels models, BiomeTints tints, int blendRadius, MeshOpacity opacity, MeshListener listener) {
+            MeshModels models, BiomeTints tints, int blendRadius, MeshOpacity opacity, MeshListener listener,
+            int urgentWeight) {
         this.work = work;
+        this.urgentWeight = urgentWeight;
         this.cells = cells;
         this.coverage = coverage;
         this.frame = frame;
@@ -65,6 +69,14 @@ public final class MeshService {
         return queue.size();
     }
 
+    public void urgent(boolean urgent) {
+        if (urgent) {
+            work.raise(urgentWeight);
+        } else {
+            work.lower();
+        }
+    }
+
     public void drop() {
         queue.clear();
     }
@@ -93,8 +105,10 @@ public final class MeshService {
 
         try {
             handles[0] = held == null ? cells.open(task.key()) : held;
+            long[] grandchildren = new long[1];
             int occupancy = handles[0].withCell(cell -> {
                 scratch.voxels().load(cell);
+                grandchildren[0] = cell.grandchildOccupancy();
                 return cell.occupancy();
             });
 
@@ -172,8 +186,16 @@ public final class MeshService {
                 }
             });
             if (mesh != null) {
-                listener.meshed(mesh, task.request());
+                CellMesh masked = mesh.withGrandchildren(grandchildren[0])
+                        .readingBelow(scratch.voxels().belowLoaded());
+                listener.meshed(coverage.missingColumns(task.key()) ? masked.lackingColumns() : masked,
+                        task.request());
             }
+        } catch (RuntimeException failure) {
+            long key = task.key();
+            Eminus.LOGGER.warn("Meshing cell {} at level {} ({}, {}, {}) threw, so the tree asks for it again: {}",
+                    key, CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key), failure.toString());
+            listener.failed(key, task.request());
         } finally {
             release(handles);
             releaseCarried(held, task.references());

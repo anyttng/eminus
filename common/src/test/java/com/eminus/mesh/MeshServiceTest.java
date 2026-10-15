@@ -1,9 +1,11 @@
 package com.eminus.mesh;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -68,6 +70,12 @@ class MeshServiceTest {
     private static final int COARSE_LEVEL = 1;
     private static final long KEY = CellKey.pack(LEVEL, 1, 2, 3);
     private static final long COARSE_KEY = CellKey.pack(COARSE_LEVEL, 1, 2, 3);
+    private static final int HELD_CHUNK_X = 2;
+    private static final int DROPPED_CHUNK_X = 3;
+    private static final int KEY_CHUNK_Z = 6;
+    private static final String PARTIAL_SERVICE = "partial";
+    private static final int URGENT_WEIGHT = 60;
+    private static final long FAILED_REQUEST = 7L;
 
     private final FakeCellStore store = new FakeCellStore();
     private final WorkerHarness harness = new WorkerHarness(WORKER_THREADS);
@@ -76,9 +84,9 @@ class MeshServiceTest {
     private final AtomicReference<CellMesh> delivered = new AtomicReference<>();
     private final StateOpacity opacity = stateId -> stateId == STONE ? StateTable.FULL_OPACITY : 0;
 
-    private final MeshService service = new MeshService(
-            harness.register(MESH_SERVICE, MeshScratch::new), cache, ColumnCoverage.everything(), FRAME, models,
-            new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh));
+    private final WorkService<MeshScratch> work = harness.register(MESH_SERVICE, MeshScratch::new);
+    private final MeshService service = new MeshService(work, cache, ColumnCoverage.everything(), FRAME, models,
+            new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh), URGENT_WEIGHT);
 
     @BeforeAll
     static void bootstrapVanilla() {
@@ -102,6 +110,30 @@ class MeshServiceTest {
         assertEquals(QuadGroups.DIRECTIONAL_COUNT, delivered.get().quadCount());
         assertEquals(0, cache.liveCount());
         assertEquals(OPENED_CELLS, cache.parkedCount());
+    }
+
+    @Test
+    void theMeshCarriesTheGrandchildMaskOfItsCell() {
+        models.define(STONE, STONE_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
+        Cell cell = Cell.blank(COARSE_KEY);
+        cell.set(CUBE_AT, CUBE_AT, CUBE_AT, lit(STONE));
+        store.write(cell);
+
+        harness.run(() -> service.build(MeshTask.fresh(COARSE_KEY), new MeshScratch()));
+
+        assertEquals(1L << OccupancyMask.grandchildOf(CUBE_AT, CUBE_AT, CUBE_AT), delivered.get().grandchildren());
+    }
+
+    @Test
+    void anUrgentServiceDrawsAtTheUrgentWeightUntilItIsLowered() {
+        int base = work.weight();
+
+        service.urgent(true);
+        assertEquals(URGENT_WEIGHT, work.weight());
+
+        service.urgent(false);
+        assertEquals(base, work.weight());
     }
 
     @Test
@@ -135,15 +167,30 @@ class MeshServiceTest {
     }
 
     @Test
-    void aMeshThatThrowsStillLeavesNoCellHeld() {
+    void aMeshThatThrowsTellsTheListenerItFailedAndLeavesNoCellHeld() {
         models.define(STONE, STONE_MODEL,
                 ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
         models.throwOnMetadata();
         seedCube();
+        AtomicReference<long[]> failure = new AtomicReference<>();
+        MeshService failing = new MeshService(work, cache, ColumnCoverage.everything(), FRAME, models,
+                new FakeTints(), NO_BLEND, level -> opacity, new MeshListener() {
+                    @Override
+                    public void meshed(CellMesh mesh, long request) {
+                        delivered.set(mesh);
+                    }
 
-        assertThrows(IllegalStateException.class,
-                () -> harness.run(() -> service.build(MeshTask.fresh(KEY), new MeshScratch())));
+                    @Override
+                    public void failed(long key, long request) {
+                        failure.set(new long[] {key, request});
+                    }
+                }, URGENT_WEIGHT);
 
+        harness.run(() -> failing.build(MeshTask.carrying(KEY, null, 0, FAILED_REQUEST, MeshTask.LOWEST_PRIORITY),
+                new MeshScratch()));
+
+        assertNull(delivered.get());
+        assertArrayEquals(new long[] {KEY, FAILED_REQUEST}, failure.get());
         assertEquals(0, cache.liveCount());
         assertEquals(OPENED_CELLS, cache.parkedCount());
     }
@@ -194,6 +241,26 @@ class MeshServiceTest {
     }
 
     @Test
+    void theMeshMarksACellMissingColumnsItsParentHolds() {
+        models.define(STONE, STONE_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
+        seedCube();
+        ColumnCoverage coverage = new ColumnCoverage(LEVEL, (chunk, lowestLevel) -> { });
+        coverage.load(ColumnCoverage.pack(HELD_CHUNK_X, KEY_CHUNK_Z), LEVEL);
+        coverage.load(ColumnCoverage.pack(DROPPED_CHUNK_X, KEY_CHUNK_Z), COARSE_LEVEL);
+        MeshService partial = new MeshService(harness.register(PARTIAL_SERVICE, MeshScratch::new), cache, coverage,
+                FRAME, models, new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh), URGENT_WEIGHT);
+
+        harness.run(() -> service.build(MeshTask.fresh(KEY), new MeshScratch()));
+        boolean whole = delivered.get().missingColumns();
+        harness.run(() -> partial.build(MeshTask.fresh(KEY), new MeshScratch()));
+
+        assertFalse(whole);
+        assertTrue(delivered.get().missingColumns());
+        assertTrue(delivered.get().summary().missingColumns());
+    }
+
+    @Test
     void oneFailedAttemptQueuesOneRetryHoweverManyStatesItWaitsOn() {
         models.define(GLASS, GLASS_MODEL,
                 ModelMetadata.pack(FaceMask.ALL, FaceMask.NONE, FaceMask.ALL, 0, 0));
@@ -204,7 +271,7 @@ class MeshServiceTest {
         WorkerPool idle = WorkerPool.start(NO_WORKERS);
         WorkService<MeshScratch> queued = idle.register(QUEUED_SERVICE, 1, WorkService.UNLIMITED, MeshScratch::new);
         MeshService waiting = new MeshService(queued, cache, ColumnCoverage.everything(), FRAME, models,
-                new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh));
+                new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh), URGENT_WEIGHT);
 
         try {
             harness.run(() -> waiting.build(MeshTask.fresh(KEY), new MeshScratch()));

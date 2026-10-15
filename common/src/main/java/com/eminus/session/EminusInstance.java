@@ -23,6 +23,7 @@ public final class EminusInstance {
     public static final int INGEST_WEIGHT = 60;
     public static final int SAVE_WEIGHT = 30;
     public static final int BUILD_WEIGHT = 10;
+    public static final int URGENT_BUILD_WEIGHT = INGEST_WEIGHT;
 
     private final Path storeBase;
     private final int lowestStoredLevel;
@@ -150,7 +151,7 @@ public final class EminusInstance {
         DimensionRuntime runtime = new DimensionRuntime(identity,
                 StoreFolders.dimensionFolder(storeBase, identity), new CellFrame(minBlockY), lowestStoredLevel);
         runtime.createFolder();
-        runtime.openStore();
+        runtime.openStore(clock);
         runtime.openCells(save, ingest, clock);
         Eminus.LOGGER.info("Dimension runtime opened for {} at {}", identity.dimension(), runtime.folder());
         return runtime;

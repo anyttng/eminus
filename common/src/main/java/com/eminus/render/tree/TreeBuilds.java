@@ -11,4 +11,6 @@ public interface TreeBuilds {
     void release(CellHandle handle, int references);
 
     int backlog();
+
+    void urgent(boolean urgent);
 }

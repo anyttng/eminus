@@ -3,6 +3,7 @@ package com.eminus.session;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
@@ -25,6 +26,9 @@ import com.eminus.store.SqliteCellStore;
 import com.eminus.work.WorkService;
 
 public final class DimensionRuntime {
+    private static final String DROP_GRACE_PROPERTY = "eminus.store.dropGraceHours";
+    private static final int DROP_GRACE_HOURS = 2;
+
     private final WorldIdentity identity;
     private final Path folder;
     private final CellFrame frame;
@@ -33,6 +37,7 @@ public final class DimensionRuntime {
     private final AtomicReference<CellChangeListener> changes = new AtomicReference<>();
 
     private CellStore store;
+    private int ingestLevel;
     private SaveService saves;
     private CellCache cells;
     private ColumnCoverage coverage;
@@ -112,11 +117,15 @@ public final class DimensionRuntime {
         }
     }
 
-    void openStore() {
+    void openStore(LongSupplier clock) {
+        long dropGraceMillis = TimeUnit.HOURS.toMillis(Integer.getInteger(DROP_GRACE_PROPERTY, DROP_GRACE_HOURS));
         try {
-            store = SqliteCellStore.open(folder, lowestStoredLevel);
+            SqliteCellStore opened = SqliteCellStore.open(folder, lowestStoredLevel, dropGraceMillis, clock);
+            store = opened;
+            ingestLevel = opened.heldLevel();
         } catch (RuntimeException failure) {
             store = EmptyCellStore.INSTANCE;
+            ingestLevel = lowestStoredLevel;
             Eminus.LOGGER.error("Could not open the cell store in {}; {} runs without one.",
                     folder, identity.dimension(), failure);
         }
@@ -133,12 +142,13 @@ public final class DimensionRuntime {
         coverage = openCoverage();
         changes.set((handle, faceMask, edgeMask) -> cells.release(handle));
         Changes forwarded = new Changes();
-        merger = new CellMerger(cells, frame, lowestStoredLevel, forwarded);
+        merger = new CellMerger(cells, frame, ingestLevel, forwarded);
         ingest = new IngestService(ingestService, states, biomes, merger, coverage, forwarded);
     }
 
     private ColumnCoverage openCoverage() {
-        ColumnCoverage opened = new ColumnCoverage(chunk -> store.putColumn(chunk));
+        ColumnCoverage opened = new ColumnCoverage(ingestLevel,
+                (chunk, lowestLevel) -> store.putColumn(chunk, lowestLevel));
 
         try {
             store.readColumns(opened::load);

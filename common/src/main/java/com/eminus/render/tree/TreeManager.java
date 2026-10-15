@@ -9,20 +9,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.eminus.Eminus;
-import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
-import com.eminus.cell.EdgeMask;
-import com.eminus.cell.FaceMask;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.ingest.CellChangeListener;
 import com.eminus.mesh.CellMesh;
-import com.eminus.mesh.FluidCorners;
 import com.eminus.mesh.MeshListener;
 import com.eminus.mesh.MeshSummary;
-import com.eminus.settings.FarDistance;
-
-import net.minecraft.core.Direction;
 
 import org.joml.Matrix4f;
 import org.jspecify.annotations.Nullable;
@@ -32,10 +25,8 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     public static final double STILL_BLOCKS = 0.5;
 
     private static final int THREAD_PRIORITY = Thread.NORM_PRIORITY - 1;
-    private static final Direction[] FACES = Direction.values();
     private static final double STILL_BLOCKS_SQUARED = STILL_BLOCKS * STILL_BLOCKS;
     private static final float MATRIX_EPSILON = 1.0e-6F;
-    private static final int ONE_REFERENCE = 1;
     private static final String PRESSURE_ON = "on";
     private static final String PRESSURE_OFF = "off";
 
@@ -49,9 +40,11 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private final TreeHorizon horizon = new TreeHorizon();
     private final TreeChurn churn = new TreeChurn();
     private final TreeDispatch dispatch;
+    private final TreeChanges changes;
     private final BlockingQueue<TreeMessage> messages = new LinkedBlockingQueue<>();
     private final AtomicReference<CameraFrame> frames = new AtomicReference<>();
     private final TreeBatches batches = new TreeBatches();
+    private final FailedBuilds failed = new FailedBuilds();
     private final Matrix4f lastViewProjection = new Matrix4f();
     private final Thread thread = new Thread(this::serve, THREAD_NAME);
 
@@ -59,11 +52,14 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private boolean treeChanged = true;
     private int lastRequested;
     private boolean lastStarved;
+    private int lastWaiting;
+    private FrontState lastFront = FrontState.none(0, 0, 0);
     private int lastDrawn;
     private long pressureEvictions;
     private boolean outOfViewDue;
     private boolean lastTablePressure;
     private boolean lastArenaPressure;
+    private boolean urgent;
     private @Nullable CameraFrame camera;
     private double lastEyeX;
     private double lastEyeY;
@@ -79,6 +75,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         nodes = new NodeTable(capacity);
         traversal = new TreeTraversal(nodes, extent, horizon);
         dispatch = new TreeDispatch(builds, extent);
+        changes = new TreeChanges(nodes, extent, builds, dispatch);
     }
 
     public static TreeManager start(TreeBuilds builds, TreeExtent extent) {
@@ -107,6 +104,11 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     @Override
     public void meshed(CellMesh mesh, long request) {
         messages.add(new TreeMessage.CellMeshed(mesh, request));
+    }
+
+    @Override
+    public void failed(long key, long request) {
+        messages.add(new TreeMessage.CellFailed(key, request));
     }
 
     public void frame(CameraFrame frame) {
@@ -155,6 +157,11 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             Thread.currentThread().interrupt();
         }
 
+        if (urgent) {
+            urgent = false;
+            builds.urgent(false);
+        }
+
         for (TreeMessage left : messages) {
             switch (left) {
                 case TreeMessage.Snapshot snapshot -> snapshot.answer().completeExceptionally(stopped());
@@ -189,9 +196,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private void apply(TreeMessage message) {
         switch (message) {
             case TreeMessage.CellChanged changed ->
-                    applyChange(changed.handle(), changed.faceMask(), changed.edgeMask());
+                    changes.changed(changed.handle(), changed.faceMask(), changed.edgeMask(), camera);
             case TreeMessage.CellMeshed meshed -> applyMesh(meshed.mesh(), meshed.request());
-            case TreeMessage.ColumnCovered covered -> applyCovered(covered.chunkX(), covered.chunkZ());
+            case TreeMessage.CellFailed failure -> applyFailure(failure.key(), failure.request());
+            case TreeMessage.ColumnCovered covered -> changes.covered(covered.chunkX(), covered.chunkZ(), camera);
             case TreeMessage.FrameReady ready -> applyFrame();
             case TreeMessage.Describe describe ->
                     describe.answer().complete(NodeRow.describe(nodes, describe.rows(), walks));
@@ -232,49 +240,12 @@ public final class TreeManager implements CellChangeListener, MeshListener {
 
         int backlog = builds.backlog();
         boolean batchWaiting = !batch.isEmpty() || batches.waiting();
-        boolean settled = building == 0 && !treeChanged && lastRequested == 0 && !lastStarved && backlog == 0
-                && !batchWaiting && horizon.settled();
+        boolean settled = building == 0 && failed.isEmpty() && !treeChanged && lastRequested == 0 && !lastStarved
+                && backlog == 0 && !batchWaiting && horizon.settled();
 
         return new TreeState(walks, nodes.size(), nodes.free(), lastDrawn, backlog, building, lastRequested,
-                lastStarved, treeChanged, batchWaiting, pressureEvictions, settled, List.copyOf(levels));
-    }
-
-    private void applyChange(CellHandle handle, int faceMask, int edgeMask) {
-        long key = handle.key();
-        TreeNode node = nodes.get(key);
-        if (node == null) {
-            builds.release(handle, ONE_REFERENCE);
-        } else {
-            node.hold(handle);
-            requestBuild(node);
-        }
-
-        requestNeighbours(key, faceMask);
-        if (CellKey.level(key) == FluidCorners.LEVEL) {
-            requestAcrossEdges(key, edgeMask);
-        }
-    }
-
-    private void applyCovered(int chunkX, int chunkZ) {
-        int firstBlockX = chunkX * FarDistance.BLOCKS_PER_CHUNK;
-        int firstBlockZ = chunkZ * FarDistance.BLOCKS_PER_CHUNK;
-
-        for (int level = extent.lowestLevel(); level <= DetailLevel.MAX; level++) {
-            int heightCells = extent.heightCells() << (DetailLevel.MAX - level);
-            int lastCellX = CellFrame.cellX(firstBlockX + FarDistance.BLOCKS_PER_CHUNK, level);
-            int lastCellZ = CellFrame.cellZ(firstBlockZ + FarDistance.BLOCKS_PER_CHUNK, level);
-
-            for (int cellX = CellFrame.cellX(firstBlockX - 1, level); cellX <= lastCellX; cellX++) {
-                for (int cellZ = CellFrame.cellZ(firstBlockZ - 1, level); cellZ <= lastCellZ; cellZ++) {
-                    for (int cellY = 0; cellY < heightCells; cellY++) {
-                        TreeNode node = nodes.get(CellKey.pack(level, cellX, cellY, cellZ));
-                        if (node != null) {
-                            requestBuild(node);
-                        }
-                    }
-                }
-            }
-        }
+                lastStarved, treeChanged, batchWaiting, pressureEvictions, settled, lastWaiting, lastFront,
+                List.copyOf(levels));
     }
 
     private void applyMesh(CellMesh mesh, long request) {
@@ -295,6 +266,30 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         if (node.takeRebuild()) {
             dispatch.build(node, dispatch.priority(node, camera), false);
         }
+    }
+
+    private void applyFailure(long key, long request) {
+        TreeNode node = nodes.get(key);
+        if (node == null || node.request() != request || !node.building()) {
+            return;
+        }
+
+        if (!node.isRoot()) {
+            dispatch.settle(node);
+        }
+
+        node.buildFailed();
+        failed.add(node, System.nanoTime());
+    }
+
+    private void retryFailed() {
+        for (TreeNode node : failed.take()) {
+            if (nodes.get(node.key()) == node && !node.building()) {
+                dispatch.build(node, dispatch.priority(node, camera), node.outOfViewBuild());
+            }
+        }
+
+        treeChanged = true;
     }
 
     private void applyFrame() {
@@ -328,6 +323,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             treeChanged = true;
         }
 
+        if (failed.due(System.nanoTime())) {
+            retryFailed();
+        }
+
         boolean still = still(camera);
         if (!treeChanged && still && !outOfViewDue) {
             return;
@@ -352,6 +351,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         List<TreeNode> outOfView = traversal.outOfViewRequested();
         lastRequested = requested.size() + outOfView.size();
         lastStarved = traversal.starved();
+        lastWaiting = traversal.waitingInView();
         outOfViewDue = !still;
 
         for (int index = 0; index < requested.size(); index++) {
@@ -365,6 +365,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         }
 
         RenderList listed = traversal.list(camera);
+        lastFront = traversal.front(System.nanoTime());
         batch.renderList(listed);
         lastDrawn = listed.meshes().size();
         treeChanged = !stale.isEmpty();
@@ -427,46 +428,15 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         treeChanged = true;
     }
 
-    private void requestNeighbours(long key, int faceMask) {
-        for (Direction face : FACES) {
-            if ((faceMask & FaceMask.bit(face)) == 0) {
-                continue;
-            }
-
-            TreeNode neighbour = nodes.get(CellKey.neighbour(key, face));
-            if (neighbour != null) {
-                requestBuild(neighbour);
-            }
-        }
-    }
-
-    private void requestAcrossEdges(long key, int edgeMask) {
-        int remaining = edgeMask;
-
-        while (remaining != 0) {
-            int slot = Integer.numberOfTrailingZeros(remaining);
-            TreeNode neighbour = nodes.get(CellKey.pack(CellKey.level(key), CellKey.x(key) + EdgeMask.stepX(slot),
-                    CellKey.y(key) + EdgeMask.stepY(slot), CellKey.z(key) + EdgeMask.stepZ(slot)));
-            if (neighbour != null) {
-                requestBuild(neighbour);
-            }
-
-            remaining &= remaining - 1;
-        }
-    }
-
-    private void requestBuild(TreeNode node) {
-        if (node.building()) {
-            node.markRebuild();
-            return;
-        }
-
-        dispatch.build(node, dispatch.priority(node, camera), false);
-    }
-
     private void publish() {
         if (!batch.isEmpty() && batches.offer(batch)) {
             batch = new TreeBatch();
+        }
+
+        boolean refining = dispatch.refining();
+        if (refining != urgent) {
+            urgent = refining;
+            builds.urgent(refining);
         }
     }
 

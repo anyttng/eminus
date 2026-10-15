@@ -20,6 +20,8 @@ public interface PackPath {
 
     boolean distantHorizons();
 
+    PackSlot translucentSlot();
+
     @Nullable ToIntFunction<BlockState> blockIds(IrisRenderingPipeline pipeline,
             @Nullable ToIntFunction<BlockState> rendered);
 
