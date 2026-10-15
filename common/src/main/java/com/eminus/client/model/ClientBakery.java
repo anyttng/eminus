@@ -15,7 +15,8 @@ import com.eminus.settings.SettingsService;
 
 import net.minecraft.client.Minecraft;
 
-public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cutoutLeaves, VariantDraw variantDraw) {
+public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cutoutLeaves, boolean drawsBlades,
+        VariantDraw variantDraw) {
     public static ClientBakery start(Minecraft client) {
         return start(client, PackBlocks.NONE);
     }
@@ -39,7 +40,7 @@ public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cut
         boolean drawsBlades = SettingsService.get().settings().lodQuality().drawsBlades();
         ModelBakery bakery = ModelBakery.start(new ModelBaker(game.blocks(), game.tints(),
                 new FluidBaker(game.fluids(), sprites), sprites, colours, drawsBlades), packBlocks);
-        return new ClientBakery(bakery, colours, cutoutLeaves, game.blocks().variantDraw());
+        return new ClientBakery(bakery, colours, cutoutLeaves, drawsBlades, game.blocks().variantDraw());
     }
 
     public MeshOpacity opacity(StateTable states) {
