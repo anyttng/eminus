@@ -35,6 +35,10 @@ public enum LodQuality {
         return seeThroughLeaves && !economy;
     }
 
+    public boolean drawsBlades() {
+        return !economy;
+    }
+
     public static Optional<LodQuality> fromKey(String key) {
         for (LodQuality quality : values()) {
             if (quality.key.equals(key)) {
