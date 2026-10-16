@@ -33,7 +33,7 @@ class ModelIndexTest {
     @Test
     void aStateIdAnswersWithItsModelIdOnceTheBakeLands() throws InterruptedException {
         StateTable states = new StateTable(new Dictionary<>((id, value) -> { }));
-        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
         ModelIndex index = new ModelIndex(states, bakery);
 
         try {
@@ -51,7 +51,7 @@ class ModelIndexTest {
     @Test
     void aPositionalStateIdAnswersWithThePositionalMarker() throws InterruptedException {
         StateTable states = new StateTable(new Dictionary<>((id, value) -> { }));
-        ModelBakery bakery = ModelBakery.start(
+        ModelBakery bakery = TestBakery.start(
                 state -> new BakedState(BakedModel.solid(WHITE), null, null, List.of(), true));
         ModelIndex index = new ModelIndex(states, bakery);
 
@@ -70,7 +70,7 @@ class ModelIndexTest {
     @Test
     void aStateIdAnswersWithItsFluidModelIdOnceTheBakeLands() throws InterruptedException {
         StateTable states = new StateTable(new Dictionary<>((id, value) -> { }));
-        ModelBakery bakery = ModelBakery.start(
+        ModelBakery bakery = TestBakery.start(
                 state -> new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE)));
         ModelIndex index = new ModelIndex(states, bakery);
 
@@ -89,7 +89,7 @@ class ModelIndexTest {
     @Test
     void aStateIdWithoutAFluidAnswersNoFluid() throws InterruptedException {
         StateTable states = new StateTable(new Dictionary<>((id, value) -> { }));
-        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
         ModelIndex index = new ModelIndex(states, bakery);
 
         try {

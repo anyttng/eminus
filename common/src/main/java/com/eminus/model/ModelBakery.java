@@ -12,7 +12,9 @@ import java.util.function.IntSupplier;
 
 import com.eminus.Eminus;
 import com.eminus.cell.Dictionary;
+import com.eminus.cell.FaceMask;
 import com.eminus.cell.IdTable;
+import com.eminus.model.port.MipBlend;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -41,6 +43,7 @@ public final class ModelBakery implements ModelSource {
 
     private final StateBaker baker;
     private final PackBlocks packBlocks;
+    private final MipBlend blend;
     private final Dictionary<BakedModel> models = new Dictionary<>((id, model) -> { });
     private final Map<BlockState, Integer> idByState = new ConcurrentHashMap<>();
     private final Map<BlockState, Integer> fluidIdByState = new ConcurrentHashMap<>();
@@ -57,18 +60,15 @@ public final class ModelBakery implements ModelSource {
 
     private volatile boolean running = true;
 
-    private ModelBakery(StateBaker baker, PackBlocks packBlocks) {
+    private ModelBakery(StateBaker baker, PackBlocks packBlocks, MipBlend blend) {
         this.baker = baker;
         this.packBlocks = packBlocks;
-    }
-
-    public static ModelBakery start(StateBaker baker) {
-        return start(baker, PackBlocks.NONE);
+        this.blend = blend;
     }
 
     @SuppressWarnings("ThreadPriorityCheck")
-    public static ModelBakery start(StateBaker baker, PackBlocks packBlocks) {
-        ModelBakery bakery = new ModelBakery(baker, packBlocks);
+    public static ModelBakery start(StateBaker baker, PackBlocks packBlocks, MipBlend blend) {
+        ModelBakery bakery = new ModelBakery(baker, packBlocks, blend);
         bakery.thread.setDaemon(true);
         bakery.thread.setPriority(THREAD_PRIORITY);
         bakery.thread.start();
@@ -234,19 +234,22 @@ public final class ModelBakery implements ModelSource {
         List<WeightedModel> variants = baked.variants();
         int[] table = new int[variants.size() * BakedModel.VARIANT_WORDS];
         int upperBound = 0;
+        int solid = FaceMask.ALL;
 
         for (int entry = 0; entry < variants.size(); entry++) {
             WeightedModel variant = variants.get(entry);
             upperBound += variant.weight();
+            BakedModel model = stamped(variant.model(), packId);
+            solid &= model.solidFaces();
             table[entry * BakedModel.VARIANT_WORDS] = upperBound;
-            table[entry * BakedModel.VARIANT_WORDS + 1] = models.register(stamped(variant.model(), packId));
+            table[entry * BakedModel.VARIANT_WORDS + 1] = models.register(model);
         }
 
-        return models.register(stamped(variants.getFirst().model().withVariants(table), packId));
+        return models.register(stamped(variants.getFirst().model(), packId).withVariants(table, solid));
     }
 
     private BakedModel stamped(BakedModel model, int packId) {
-        BakedModel stamped = model.withPackId(packId);
+        BakedModel stamped = model.withPackId(packId).solidUnder(blend);
         return packBlocks.moved().contains(packId) ? stamped.withMetadata(stamped.metadata() | ModelMetadata.MOVED)
                 : stamped;
     }

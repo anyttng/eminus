@@ -3,13 +3,10 @@ package com.eminus.model;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.lang.reflect.Method;
 import java.util.Arrays;
 
 import com.eminus.model.port.MipBlend;
 import com.eminus.model.port.MipStrategy;
-
-import net.minecraft.client.renderer.texture.MipmapGenerator;
 
 import org.junit.jupiter.api.Test;
 
@@ -23,10 +20,9 @@ class FaceMipsTest {
     private static final int GAMMA_HALF_WHITE = 0xBAFF_FFFF;
     private static final int DRAWN_HALF_GREY = 0xBABA_BABA;
     private static final int DRAWN_QUARTER_GREY = 0x0087_8787;
-    private static final String GAME_BLEND = "alphaBlend";
     private static final FaceMip MEAN = FaceMip.MEAN;
     private static final FaceMip CUTOUT = new FaceMip(MipStrategy.CUTOUT);
-    private static final MipBlend VANILLA = vanilla();
+    private static final MipBlend VANILLA = VanillaMipBlend.BLEND;
 
     @Test
     void aFaceHasOneLevelPerHalvingDownToASingleTexel() {
@@ -87,22 +83,5 @@ class FaceMipsTest {
 
         assertArrayEquals(new int[] {WHITE, WHITE, WHITE, WHITE}, levels[0]);
         assertArrayEquals(new int[] {Argb.opaque(DRAWN_HALF_GREY)}, levels[1]);
-    }
-
-    private static MipBlend vanilla() {
-        try {
-            Method blend = MipmapGenerator.class.getDeclaredMethod(GAME_BLEND,
-                    int.class, int.class, int.class, int.class, boolean.class);
-            blend.setAccessible(true);
-            return (first, second, third, fourth, cutout) -> {
-                try {
-                    return (int) blend.invoke(null, first, second, third, fourth, cutout);
-                } catch (ReflectiveOperationException unreachable) {
-                    throw new IllegalStateException(unreachable);
-                }
-            };
-        } catch (NoSuchMethodException absent) {
-            throw new IllegalStateException(absent);
-        }
     }
 }

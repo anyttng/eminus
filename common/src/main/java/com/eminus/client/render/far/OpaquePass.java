@@ -1,5 +1,6 @@
 package com.eminus.client.render.far;
 
+import java.util.List;
 import java.util.OptionalDouble;
 
 import com.eminus.Eminus;
@@ -25,45 +26,56 @@ public final class OpaquePass {
     public static final float ALPHA_CUTOUT = 0.5F;
 
     private static final Location PIPELINE = new Location(Eminus.MODID, "far_opaque");
+    private static final Location SOLID_PIPELINE = new Location(Eminus.MODID, "far_opaque_solid");
     private static final String PASS_LABEL = "eminus-far-opaque";
     private static final Vector4fc CLEAR_COLOUR = new Vector4f(0.0F, 0.0F, 0.0F, 0.0F);
+    private static final int FIRST_COMMAND = 0;
 
     private final Gpu gpu;
+    private final Pipeline solid;
     private final Pipeline pipeline;
 
-    private OpaquePass(Gpu gpu, Pipeline pipeline) {
+    private OpaquePass(Gpu gpu, Pipeline solid, Pipeline pipeline) {
         this.gpu = gpu;
+        this.solid = solid;
         this.pipeline = pipeline;
     }
 
     public static OpaquePass create(Gpu gpu, DepthConvention depth, VariantDraw variantDraw) {
         gpu.assertRenderThread();
-        return new OpaquePass(gpu, gpu.pipeline(pipeline(depth, gpu.capabilities(), variantDraw)));
+        Capabilities capabilities = gpu.capabilities();
+        return new OpaquePass(gpu,
+                gpu.pipeline(target(FarQuads.solidPipeline(SOLID_PIPELINE, capabilities, variantDraw), depth)),
+                gpu.pipeline(target(FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT, capabilities, variantDraw)
+                        .withDefine("NEAR_SECTIONS"), depth)));
     }
 
-    public Pipeline pipeline() {
-        return pipeline;
+    public List<Pipeline> pipelines() {
+        return List.of(solid, pipeline);
     }
 
     public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer commands,
-            int firstCommand, int drawCount, Buffer frame, TexelView nearSections) {
+            int solidCount, int drawCount, Buffer frame, TexelView nearSections) {
         gpu.assertRenderThread();
 
         try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, target.colour(), CLEAR_COLOUR)
                 .withDepth(target.depth(), OptionalDouble.empty()))) {
+            if (solidCount > 0) {
+                pass.pipeline(solid);
+                FarQuads.bind(pass, arena, models, lightmap, frame, null);
+                pass.drawIndexedIndirect(commands, FIRST_COMMAND, solidCount);
+            }
+
             pass.pipeline(pipeline);
             FarQuads.bind(pass, arena, models, lightmap, frame, nearSections);
-
-            if (drawCount > 0) {
-                pass.drawIndexedIndirect(commands, firstCommand, drawCount);
+            if (drawCount > solidCount) {
+                pass.drawIndexedIndirect(commands, solidCount, drawCount - solidCount);
             }
         }
     }
 
-    private static PipelineSpec pipeline(DepthConvention depth, Capabilities capabilities, VariantDraw variantDraw) {
-        return FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT, capabilities, variantDraw)
-                .withDefine("FULL_COVERAGE")
-                .withDefine("NEAR_SECTIONS")
+    private static PipelineSpec target(PipelineSpec.Builder builder, DepthConvention depth) {
+        return builder.withDefine("FULL_COVERAGE")
                 .withColourTarget(FarTarget.COLOUR_FORMAT, null, true)
                 .withDepthTest(depth.compare(), true)
                 .build();

@@ -3,6 +3,7 @@ package com.eminus.client.model;
 import com.eminus.cell.StateTable;
 import com.eminus.client.frame.GameFrames;
 import com.eminus.client.model.game.GameModels;
+import com.eminus.client.model.game.SpriteMips;
 import com.eminus.mesh.MeshOpacity;
 import com.eminus.model.BiomeColours;
 import com.eminus.model.FluidBaker;
@@ -39,7 +40,7 @@ public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cut
         BiomeColours colours = new BiomeColours(game.biomes());
         boolean drawsBlades = SettingsService.get().settings().lodQuality().drawsBlades();
         ModelBakery bakery = ModelBakery.start(new ModelBaker(game.blocks(), game.tints(),
-                new FluidBaker(game.fluids(), sprites), sprites, colours, drawsBlades), packBlocks);
+                new FluidBaker(game.fluids(), sprites), sprites, colours, drawsBlades), packBlocks, SpriteMips::blend);
         return new ClientBakery(bakery, colours, cutoutLeaves, drawsBlades, game.blocks().variantDraw());
     }
 

@@ -47,9 +47,11 @@ void main() {
     }
 
     vec4 colour = eminus_surface(cell, faceUV, tintColour) * vertexColor;
+#ifndef SOLID
     if (colour.a < ALPHA_CUTOUT) {
         discard;
     }
+#endif
 
     colour.rgb *= eminus_corner_occlusion(occlusionWord.x, occlusionPoint, occlusionSize, occlusionWord.y != 0u,
             occlusionFootprint);

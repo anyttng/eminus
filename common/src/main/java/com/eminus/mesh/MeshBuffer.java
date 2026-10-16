@@ -6,6 +6,7 @@ import com.eminus.Eminus;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 
+import it.unimi.dsi.fastutil.booleans.BooleanArrayList;
 import it.unimi.dsi.fastutil.ints.Int2IntLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -35,6 +36,7 @@ public final class MeshBuffer {
 
     private final LongArrayList[] groups = new LongArrayList[QuadGroups.COUNT];
     private final IntArrayList[] occlusions = new IntArrayList[QuadGroups.COUNT];
+    private final BooleanArrayList[] solids = new BooleanArrayList[QuadGroups.COUNT];
     private final IntArrayList translucentOrders = new IntArrayList();
     private final LongArrayList colours = new LongArrayList();
     private final Long2IntMap colourIndices = new Long2IntOpenHashMap();
@@ -49,6 +51,7 @@ public final class MeshBuffer {
         for (int group = 0; group < QuadGroups.COUNT; group++) {
             groups[group] = new LongArrayList();
             occlusions[group] = new IntArrayList();
+            solids[group] = new BooleanArrayList();
         }
 
         colourIndices.defaultReturnValue(ABSENT);
@@ -94,6 +97,10 @@ public final class MeshBuffer {
     }
 
     public void add(int group, long quad, int occlusion) {
+        add(group, quad, occlusion, false);
+    }
+
+    public void add(int group, long quad, int occlusion, boolean solid) {
         if (group == QuadGroups.TRANSLUCENT) {
             addTranslucent(quad, TranslucentOrder.unplaced(quad), occlusion);
             return;
@@ -107,6 +114,7 @@ public final class MeshBuffer {
 
         quads.add(quad);
         occlusions[group].add(occlusion);
+        solids[group].add(solid);
     }
 
     public void addTranslucent(long quad, int order, int occlusion) {
@@ -141,6 +149,7 @@ public final class MeshBuffer {
         int[] words = new int[total];
         int[] starts = new int[QuadGroups.COUNT];
         int[] counts = new int[QuadGroups.COUNT];
+        int[] solidCounts = new int[QuadGroups.COUNT];
         int at = 0;
 
         for (int group = 0; group < QuadGroups.COUNT; group++) {
@@ -150,13 +159,12 @@ public final class MeshBuffer {
             if (group == QuadGroups.TRANSLUCENT) {
                 orderTranslucent(quads, occlusions[group], packed, words, at);
             } else {
-                quads.getElements(0, packed, at, quads.size());
-                occlusions[group].getElements(0, words, at, quads.size());
+                solidCounts[group] = solidFirst(group, packed, words, at);
             }
             at += quads.size();
         }
 
-        return new CellMesh(key, occupancy, packed, OcclusionWord.pack(words, total), starts, counts,
+        return new CellMesh(key, occupancy, packed, OcclusionWord.pack(words, total), starts, counts, solidCounts,
                 colours.toLongArray());
     }
 
@@ -173,6 +181,30 @@ public final class MeshBuffer {
                 addColour(entry);
             }
         }
+    }
+
+    private int solidFirst(int group, long[] packed, int[] words, int at) {
+        LongArrayList quads = groups[group];
+        IntArrayList occlusion = occlusions[group];
+        BooleanArrayList solid = solids[group];
+        int next = at;
+
+        for (int index = 0; index < quads.size(); index++) {
+            if (solid.getBoolean(index)) {
+                packed[next] = quads.getLong(index);
+                words[next++] = occlusion.getInt(index);
+            }
+        }
+
+        int solidCount = next - at;
+        for (int index = 0; index < quads.size(); index++) {
+            if (!solid.getBoolean(index)) {
+                packed[next] = quads.getLong(index);
+                words[next++] = occlusion.getInt(index);
+            }
+        }
+
+        return solidCount;
     }
 
     private void orderTranslucent(LongArrayList quads, IntArrayList occlusion, long[] packed, int[] words, int at) {
@@ -193,6 +225,7 @@ public final class MeshBuffer {
         for (int group = 0; group < QuadGroups.COUNT; group++) {
             groups[group].clear();
             occlusions[group].clear();
+            solids[group].clear();
         }
 
         translucentOrders.clear();

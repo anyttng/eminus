@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.eminus.VanillaBootstrap;
+import com.eminus.cell.FaceMask;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Mth;
@@ -33,6 +34,7 @@ class ModelBakeryTest {
     private static final int WHITE = 0xFFFF_FFFF;
     private static final int BLUE = 0xFF00_00FF;
     private static final int GREEN = 0xFF00_FF00;
+    private static final int CLEAR_GREEN = 0x0000_FF00;
     private static final int BOTH_MODELS = 2;
     private static final int SECONDS = 5;
     private static final int RACED_STATES = 2000;
@@ -57,7 +59,7 @@ class ModelBakeryTest {
 
     @Test
     void twoStatesThatBakeToTheSameResultShareOneModelId() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
 
         try {
             awaitBake(bakery, stone);
@@ -72,7 +74,7 @@ class ModelBakeryTest {
 
     @Test
     void aRequestForAnUnbakedStateIsAnsweredOnceItIsServed() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
 
         try {
             CountDownLatch served = new CountDownLatch(1);
@@ -88,7 +90,7 @@ class ModelBakeryTest {
     @Test
     void everyRequesterOfOneStateIsAnsweredByTheSingleBake() throws InterruptedException {
         CountDownLatch release = new CountDownLatch(1);
-        ModelBakery bakery = ModelBakery.start(state -> {
+        ModelBakery bakery = TestBakery.start(state -> {
             await(release);
             return new BakedState(BakedModel.solid(WHITE), null);
         });
@@ -110,7 +112,7 @@ class ModelBakeryTest {
     @Test
     @SuppressWarnings("ReferenceEquality")
     void aThrowingBakeYieldsThePlaceholderAndLeavesTheThreadServing() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(state -> {
+        ModelBakery bakery = TestBakery.start(state -> {
             if (state == stone) {
                 throw new IllegalStateException("no model for " + state);
             }
@@ -131,7 +133,7 @@ class ModelBakeryTest {
 
     @Test
     void aStateWithNoFluidPublishesNoFluidModel() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
 
         try {
             awaitBake(bakery, stone);
@@ -145,7 +147,7 @@ class ModelBakeryTest {
 
     @Test
     void aStateWithAFluidPublishesASecondModelId() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(
+        ModelBakery bakery = TestBakery.start(
                 state -> new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE)));
 
         try {
@@ -163,7 +165,7 @@ class ModelBakeryTest {
     @Test
     @SuppressWarnings("ReferenceEquality")
     void aSubmergedTwinAnswersForTheFluidModelAndEveryOtherModelAnswersItself() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(state -> state == stone
+        ModelBakery bakery = TestBakery.start(state -> state == stone
                 ? new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE), BakedModel.solid(GREEN))
                 : new BakedState(BakedModel.solid(BLUE), null, BakedModel.solid(GREEN)));
 
@@ -182,7 +184,7 @@ class ModelBakeryTest {
 
     @Test
     void twoStatesWithTheSameBlockAndFluidShareBothIds() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(
+        ModelBakery bakery = TestBakery.start(
                 state -> new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE)));
 
         try {
@@ -200,7 +202,7 @@ class ModelBakeryTest {
     @Test
     @SuppressWarnings("ReferenceEquality")
     void twoStatesThePackTellsApartTakeTheirOwnModelsAndIds() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null),
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null),
                 new PackBlocks(state -> state == stone ? STONE_PACK_ID : DIRT_PACK_ID, IntSet.of()));
 
         try {
@@ -217,7 +219,7 @@ class ModelBakeryTest {
 
     @Test
     void twoStatesThePackGivesOneIdShareOneModel() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null),
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null),
                 new PackBlocks(state -> STONE_PACK_ID, IntSet.of()));
 
         try {
@@ -235,7 +237,7 @@ class ModelBakeryTest {
     void aFluidModelAndItsSubmergedTwinTakeTheFluidsIdAndTheBlockModelTheStatesId() throws InterruptedException {
         BlockState waterloggedSlab = Blocks.OAK_SLAB.defaultBlockState()
                 .setValue(BlockStateProperties.WATERLOGGED, true);
-        ModelBakery bakery = ModelBakery.start(
+        ModelBakery bakery = TestBakery.start(
                 state -> new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE), BakedModel.solid(GREEN)),
                 new PackBlocks(state -> state.is(Blocks.WATER) ? WATER_PACK_ID : SLAB_PACK_ID, IntSet.of()));
 
@@ -255,7 +257,7 @@ class ModelBakeryTest {
     void theModelsOfAnIdThePackMovesCarryTheFlagAndNoOtherDoes() throws InterruptedException {
         BlockState waterloggedSlab = Blocks.OAK_SLAB.defaultBlockState()
                 .setValue(BlockStateProperties.WATERLOGGED, true);
-        ModelBakery bakery = ModelBakery.start(
+        ModelBakery bakery = TestBakery.start(
                 state -> new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE), BakedModel.solid(GREEN)),
                 new PackBlocks(state -> state.is(Blocks.WATER) ? WATER_PACK_ID : SLAB_PACK_ID,
                         IntSet.of(WATER_PACK_ID)));
@@ -274,7 +276,7 @@ class ModelBakeryTest {
 
     @Test
     void everyVariantOfAMovedWeightedStateCarriesTheFlag() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null, null,
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null, null,
                 List.of(new WeightedModel(BakedModel.solid(BLUE), LIGHT_WEIGHT),
                         new WeightedModel(BakedModel.solid(GREEN), HEAVY_WEIGHT)),
                 false), new PackBlocks(state -> STONE_PACK_ID, IntSet.of(STONE_PACK_ID)));
@@ -293,7 +295,7 @@ class ModelBakeryTest {
 
     @Test
     void aPackThatDeclaresNothingMovesNoModel() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(
+        ModelBakery bakery = TestBakery.start(
                 state -> new BakedState(BakedModel.solid(WHITE), BakedModel.solid(BLUE), BakedModel.solid(GREEN)),
                 new PackBlocks(state -> STONE_PACK_ID, IntSet.of()));
 
@@ -312,7 +314,7 @@ class ModelBakeryTest {
     @Test
     void anIdIsVisibleOnlyOnceTheModelCountCoversIt() throws InterruptedException {
         AtomicInteger colour = new AtomicInteger();
-        ModelBakery bakery = ModelBakery.start(state -> new BakedState(
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(
                 BakedModel.solid(colour.incrementAndGet()), BakedModel.solid(colour.incrementAndGet())));
         List<BlockState> states = BuiltInRegistries.BLOCK.stream()
                 .flatMap(block -> block.getStateDefinition().getPossibleStates().stream())
@@ -342,7 +344,7 @@ class ModelBakeryTest {
 
     @Test
     void aWeightedStatePublishesEveryVariantAndATableOfCumulativeWeights() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null, null,
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null, null,
                 List.of(new WeightedModel(BakedModel.solid(BLUE), LIGHT_WEIGHT),
                         new WeightedModel(BakedModel.solid(GREEN), HEAVY_WEIGHT)),
                 false));
@@ -363,8 +365,26 @@ class ModelBakeryTest {
     }
 
     @Test
+    void aWeightedStateIsSolidOnlyOnTheFacesEveryVariantHoldsSolid() throws InterruptedException {
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null, null,
+                List.of(new WeightedModel(BakedModel.solid(BLUE), LIGHT_WEIGHT),
+                        new WeightedModel(BakedModel.solid(CLEAR_GREEN), HEAVY_WEIGHT)),
+                false));
+
+        try {
+            awaitBake(bakery, stone);
+
+            int[] table = bakery.model(bakery.modelId(stone)).variants();
+            assertEquals(FaceMask.ALL, bakery.model(table[1]).solidFaces());
+            assertEquals(FaceMask.NONE, bakery.model(bakery.modelId(stone)).solidFaces());
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
     void aSingleVariantStateKeepsOneModelAndNoTable() throws InterruptedException {
-        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
 
         try {
             awaitBake(bakery, stone);
@@ -380,7 +400,7 @@ class ModelBakeryTest {
     @Test
     void aPositionalStateTakesThePartsItsBlockSeedSelects() throws InterruptedException {
         BlockState upperDoor = Blocks.OAK_DOOR.defaultBlockState().setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER);
-        ModelBakery bakery = ModelBakery.start(new PartBaker());
+        ModelBakery bakery = TestBakery.start(new PartBaker());
 
         try {
             awaitBake(bakery, upperDoor);
