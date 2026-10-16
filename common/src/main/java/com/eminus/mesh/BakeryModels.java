@@ -1,5 +1,6 @@
 package com.eminus.mesh;
 
+import com.eminus.cell.FaceMask;
 import com.eminus.model.BakedModel;
 import com.eminus.model.BiomeColours;
 import com.eminus.model.ModelIndex;
@@ -51,6 +52,12 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     public float inset(int modelId, int face) {
         BakedModel model = models.model(modelId);
         return model == null ? BakedModel.EMPTY_INSET : model.insets()[face];
+    }
+
+    @Override
+    public int solidFaces(int modelId) {
+        BakedModel model = models.model(modelId);
+        return model == null ? FaceMask.NONE : model.solidFaces();
     }
 
     @Override

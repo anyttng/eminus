@@ -32,6 +32,8 @@ import com.eminus.gpu.pipeline.PipelineSpec;
 import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
 
+import org.jspecify.annotations.Nullable;
+
 final class FarQuads {
     static final float SHADE_BLADE = 1.0F;
     static final int MAX_SAMPLES = 8;
@@ -55,14 +57,27 @@ final class FarQuads {
 
     static PipelineSpec.Builder pipeline(Location location, Location shader, float alphaCutout,
             Capabilities capabilities, VariantDraw variantDraw) {
+        return pipeline(location, shader, alphaCutout, capabilities, variantDraw, true);
+    }
+
+    static PipelineSpec.Builder solidPipeline(Location location, Capabilities capabilities, VariantDraw variantDraw) {
+        return pipeline(location, SHADER, OpaquePass.ALPHA_CUTOUT, capabilities, variantDraw, false)
+                .withDefine("SOLID");
+    }
+
+    private static PipelineSpec.Builder pipeline(Location location, Location shader, float alphaCutout,
+            Capabilities capabilities, VariantDraw variantDraw, boolean nearSections) {
         PipelineSpec.Builder builder = PipelineSpec.builder(location, shader, shader)
                 .withBinding(Binding.uniform(FarFrame.BLOCK.name()))
                 .withBinding(Binding.texel(QUADS, GeometryArena.QUAD_FORMAT))
                 .withBinding(Binding.texel(MESH_RECORDS, MeshRecords.TEXEL_FORMAT))
                 .withBinding(Binding.texel(MODEL_RECORDS, ModelRecords.TEXEL_FORMAT))
-                .withBinding(Binding.texel(MODEL_VARIANTS, ModelVariants.TEXEL_FORMAT))
-                .withBinding(Binding.texel(NEAR_SECTIONS, NearSectionTable.TEXEL_FORMAT))
-                .withBinding(Binding.sampled(ATLAS))
+                .withBinding(Binding.texel(MODEL_VARIANTS, ModelVariants.TEXEL_FORMAT));
+        if (nearSections) {
+            builder.withBinding(Binding.texel(NEAR_SECTIONS, NearSectionTable.TEXEL_FORMAT));
+        }
+
+        builder.withBinding(Binding.sampled(ATLAS))
                 .withBinding(Binding.sampled(TINT_MASK))
                 .withBinding(Binding.sampled(LIGHTMAP))
                 .withDefine("QUADS_PER_BLOCK", ArenaAllocator.QUADS_PER_BLOCK)
@@ -164,13 +179,15 @@ final class FarQuads {
     }
 
     static void bind(Pass pass, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer frame,
-            TexelView nearSections) {
+            @Nullable TexelView nearSections) {
         pass.bind(FarFrame.BLOCK.name(), frame);
         pass.bind(QUADS, arena.quads());
         pass.bind(MESH_RECORDS, arena.records().texels());
         pass.bind(MODEL_RECORDS, models.records().texels());
         pass.bind(MODEL_VARIANTS, models.variants().texels());
-        pass.bind(NEAR_SECTIONS, nearSections);
+        if (nearSections != null) {
+            pass.bind(NEAR_SECTIONS, nearSections);
+        }
         pass.bind(ATLAS, models.atlas().colour(), Sampler.NEAREST_MIPPED);
         pass.bind(TINT_MASK, models.atlas().tintMask(), Sampler.NEAREST_MIPPED);
         pass.bind(LIGHTMAP, lightmap, Sampler.LINEAR);

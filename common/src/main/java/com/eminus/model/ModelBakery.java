@@ -12,6 +12,7 @@ import java.util.function.IntSupplier;
 
 import com.eminus.Eminus;
 import com.eminus.cell.Dictionary;
+import com.eminus.cell.FaceMask;
 import com.eminus.cell.IdTable;
 
 import net.minecraft.core.BlockPos;
@@ -234,15 +235,17 @@ public final class ModelBakery implements ModelSource {
         List<WeightedModel> variants = baked.variants();
         int[] table = new int[variants.size() * BakedModel.VARIANT_WORDS];
         int upperBound = 0;
+        int solid = FaceMask.ALL;
 
         for (int entry = 0; entry < variants.size(); entry++) {
             WeightedModel variant = variants.get(entry);
             upperBound += variant.weight();
+            solid &= variant.model().solidFaces();
             table[entry * BakedModel.VARIANT_WORDS] = upperBound;
             table[entry * BakedModel.VARIANT_WORDS + 1] = models.register(stamped(variant.model(), packId));
         }
 
-        return models.register(stamped(variants.getFirst().model().withVariants(table), packId));
+        return models.register(stamped(variants.getFirst().model().withVariants(table, solid), packId));
     }
 
     private BakedModel stamped(BakedModel model, int packId) {

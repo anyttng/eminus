@@ -9,6 +9,7 @@ import com.eminus.Eminus;
 import com.eminus.box.BoxRegistry;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
+import com.eminus.handoff.NearBox;
 import com.eminus.handoff.NearPlane;
 import com.eminus.handoff.NearReach;
 import com.eminus.ingest.IngestService;
@@ -164,7 +165,8 @@ public final class FarRenderer implements AutoCloseable {
         TranslucentPass translucent = TranslucentPass.create(gpu, support.depth(), baking.variantDraw());
         CompositePass composite = CompositePass.create(gpu, support.depth());
         BoxPass boxes = BoxPass.create(gpu, support.depth());
-        List<Pipeline> pipelines = new ArrayList<>(List.of(mask.pipeline(), opaque.pipeline()));
+        List<Pipeline> pipelines = new ArrayList<>(List.of(mask.pipeline()));
+        pipelines.addAll(opaque.pipelines());
         pipelines.addAll(translucent.pipelines());
         pipelines.add(composite.pipeline());
         pipelines.addAll(boxes.pipelines());
@@ -252,7 +254,7 @@ public final class FarRenderer implements AutoCloseable {
         if (farFrame && (terrainDrawn || boxes.drawsAny())) {
             drawMask();
             Texture lightmap = gpu.lightmap();
-            opaque.draw(target, arena, models, lightmap, indirect.buffer(), 0,
+            opaque.draw(target, arena, models, lightmap, indirect.buffer(), terrainDrawn ? commands.solidCount() : 0,
                     terrainDrawn ? commands.opaqueCount() : 0, frame.buffer(), nearSections.texels());
             if (terrainDrawn) {
                 translucent.draw(target, arena, models, lightmap, indirect.buffer(), commands.opaqueCount(),
@@ -360,7 +362,10 @@ public final class FarRenderer implements AutoCloseable {
         farFrame = true;
         order.update(renderList, runtime.frame(), game.eyeX(), game.eyeY(), game.eyeZ());
         commands.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(),
-                drawFrustum.set(farViewProjection), game.eyeX(), game.eyeY(), game.eyeZ());
+                drawFrustum.set(farViewProjection),
+                NearBox.around(NearSections.section(Mth.floor(game.eyeX())),
+                        NearSections.section(Mth.floor(game.eyeZ())), renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS),
+                game.eyeX(), game.eyeY(), game.eyeZ());
         if (commands.count() == 0) {
             return;
         }
