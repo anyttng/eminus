@@ -65,7 +65,8 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
             buffer.addTranslucent(quad,
                     TranslucentOrder.of(quad, level, buffer.placementAt(Quad.colourIndex(data)), models), occlusion);
         } else {
-            buffer.add(group, quad, occlusion);
+            buffer.add(group, quad, occlusion,
+                    (models.solidFaces(Quad.modelId(data)) & 1 << face.get3DDataValue()) != 0);
         }
     }
 

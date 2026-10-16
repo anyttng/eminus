@@ -6,12 +6,16 @@ import java.nio.IntBuffer;
 import java.util.List;
 
 import com.eminus.cell.CellFrame;
+import com.eminus.cell.CellKey;
+import com.eminus.cell.DetailLevel;
 import com.eminus.gpu.pass.Pass;
+import com.eminus.handoff.NearBox;
 import com.eminus.mesh.MeshSummary;
 import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.MeshSlot;
 import com.eminus.render.arena.MeshSlots;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2IntFunction;
 
 import org.joml.FrustumIntersection;
@@ -25,6 +29,7 @@ public final class DrawCommands {
     private static final int FIRST_INDEX = 0;
     private static final int FIRST_INSTANCE = 0;
     private static final int GROWTH = 2;
+    private static final int REST_WORDS = 2;
 
     private final float[] bounds = new float[MeshSlot.BOUNDS];
     private final float[] relative = new float[MeshSlot.BOUNDS];
@@ -32,7 +37,10 @@ public final class DrawCommands {
     private int capacity;
     private ByteBuffer bytes;
     private IntBuffer commands;
+    private final IntArrayList rest = new IntArrayList();
+
     private int opaqueCount;
+    private int solidCount;
     private int translucentCount;
     private int quads;
 
@@ -52,6 +60,10 @@ public final class DrawCommands {
         return opaqueCount;
     }
 
+    public int solidCount() {
+        return solidCount;
+    }
+
     public int translucentCount() {
         return translucentCount;
     }
@@ -69,16 +81,16 @@ public final class DrawCommands {
     }
 
     public void write(List<MeshSummary> opaque, List<MeshSummary> translucent, Long2IntFunction borderFaces,
-            MeshSlots slots, CellFrame frame, FrustumIntersection frustum, double cameraX, double cameraY,
-            double cameraZ) {
-        writeOpaque(opaque, borderFaces, slots, frame, frustum, null, true, cameraX, cameraY, cameraZ);
+            MeshSlots slots, CellFrame frame, FrustumIntersection frustum, NearBox near, double cameraX,
+            double cameraY, double cameraZ) {
+        writeOpaque(opaque, borderFaces, slots, frame, frustum, null, near, true, cameraX, cameraY, cameraZ);
         writeTranslucent(translucent, slots, frame, frustum, null, cameraX, cameraY, cameraZ);
     }
 
     public void writeShadow(List<MeshSummary> opaque, List<MeshSummary> translucent, Long2IntFunction borderFaces,
             MeshSlots slots, CellFrame frame, FrustumIntersection frustum, ShadowCasterVolume casters,
             double cameraX, double cameraY, double cameraZ) {
-        writeOpaque(opaque, borderFaces, slots, frame, frustum, casters, false, cameraX, cameraY, cameraZ);
+        writeOpaque(opaque, borderFaces, slots, frame, frustum, casters, null, false, cameraX, cameraY, cameraZ);
         writeTranslucent(translucent, slots, frame, frustum, casters, cameraX, cameraY, cameraZ);
     }
 
@@ -87,17 +99,21 @@ public final class DrawCommands {
             double cameraZ) {
         for (MeshSummary mesh : translucent) {
             MeshSlot slot = slots.slot(mesh.key());
-            if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)
-                    && (casters == null || casts(casters)) && put(slot, QuadGroups.TRANSLUCENT)) {
+            if (slot != null && slot.groupCount(QuadGroups.TRANSLUCENT) > 0
+                    && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)
+                    && (casters == null || casts(casters))) {
+                put(slot.baseQuad() + slot.groupStart(QuadGroups.TRANSLUCENT),
+                        slot.groupCount(QuadGroups.TRANSLUCENT));
                 translucentCount++;
             }
         }
     }
 
     private void writeOpaque(List<MeshSummary> opaque, Long2IntFunction borderFaces, MeshSlots slots,
-            CellFrame frame, FrustumIntersection frustum, @Nullable ShadowCasterVolume casters, boolean facing,
-            double cameraX, double cameraY, double cameraZ) {
+            CellFrame frame, FrustumIntersection frustum, @Nullable ShadowCasterVolume casters,
+            @Nullable NearBox near, boolean facing, double cameraX, double cameraY, double cameraZ) {
         commands.clear();
+        rest.clear();
         opaqueCount = 0;
         translucentCount = 0;
         quads = 0;
@@ -106,9 +122,21 @@ public final class DrawCommands {
             MeshSlot slot = slots.slot(mesh.key());
             if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)
                     && (casters == null || casts(casters))) {
-                writeGroups(slot, borderFaces.get(mesh.key()), facing, cameraX, cameraY, cameraZ);
+                writeGroups(slot, borderFaces.get(mesh.key()), near != null && outside(slot.key(), near), facing,
+                        cameraX, cameraY, cameraZ);
             }
         }
+
+        solidCount = opaqueCount;
+        for (int index = 0; index < rest.size(); index += REST_WORDS) {
+            put(rest.getInt(index), rest.getInt(index + 1));
+            opaqueCount++;
+        }
+    }
+
+    private static boolean outside(long key, NearBox near) {
+        return !near.meets(CellFrame.originXOf(key), CellFrame.originZOf(key),
+                DetailLevel.blocksPerCell(CellKey.level(key)));
     }
 
     private boolean inView(MeshSlot slot, CellFrame frame, FrustumIntersection frustum, double cameraX,
@@ -129,8 +157,8 @@ public final class DrawCommands {
                 relative[MeshSlot.MAX_X], relative[MeshSlot.MAX_Y], relative[MeshSlot.MAX_Z]);
     }
 
-    private void writeGroups(MeshSlot slot, int borderFaces, boolean facing, double cameraX, double cameraY,
-            double cameraZ) {
+    private void writeGroups(MeshSlot slot, int borderFaces, boolean outsideNear, boolean facing, double cameraX,
+            double cameraY, double cameraZ) {
         for (int group = 0; group < QuadGroups.COUNT; group++) {
             if (group == QuadGroups.TRANSLUCENT
                     || (QuadGroups.isBorder(group) && (borderFaces & 1 << QuadGroups.direction(group)) == 0)
@@ -139,29 +167,32 @@ public final class DrawCommands {
                 continue;
             }
 
-            if (put(slot, group)) {
+            int first = slot.baseQuad() + slot.groupStart(group);
+            int count = slot.groupCount(group);
+            int solid = outsideNear ? slot.groupSolid(group) : 0;
+            if (solid > 0) {
+                put(first, solid);
                 opaqueCount++;
+            }
+
+            if (count > solid) {
+                rest.add(first + solid);
+                rest.add(count - solid);
             }
         }
     }
 
-    private boolean put(MeshSlot slot, int group) {
-        int groupQuads = slot.groupCount(group);
-        if (groupQuads == 0) {
-            return false;
-        }
-
+    private void put(int firstQuad, int quadCount) {
         if (count() == capacity) {
             grow();
         }
 
-        commands.put(groupQuads * INDICES_PER_QUAD)
+        commands.put(quadCount * INDICES_PER_QUAD)
                 .put(ONE_INSTANCE)
                 .put(FIRST_INDEX)
-                .put((slot.baseQuad() + slot.groupStart(group)) * VERTICES_PER_QUAD)
+                .put(firstQuad * VERTICES_PER_QUAD)
                 .put(FIRST_INSTANCE);
-        quads += groupQuads;
-        return true;
+        quads += quadCount;
     }
 
     private void grow() {
