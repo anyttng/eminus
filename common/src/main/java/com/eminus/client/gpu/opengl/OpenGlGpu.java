@@ -391,6 +391,6 @@ public final class OpenGlGpu implements Gpu, Foreign {
         }
         GL30C.glDeleteVertexArrays(vertexArray);
         objects.deleted(OpenGlObjects.Kind.VERTEX_ARRAY);
-        Eminus.LOGGER.info("[eminus-gl] objects live={}{}", objects.liveTotal(), objects.report());
+        Eminus.LOGGER.info("[eminus/gl] objects live={}{}", objects.liveTotal(), objects.report());
     }
 }

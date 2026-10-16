@@ -9,7 +9,7 @@ import com.mojang.logging.LogUtils;
 public final class VitrailMixinPlugin extends ModPresenceGatePlugin {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private static final ModPresence VITRAIL = ModPresence.gate(LOGGER, "[eminus-compat] gate vitrail_present")
+    private static final ModPresence VITRAIL = ModPresence.gate(LOGGER, "[eminus/compat] gate vitrail_present")
             .probing("dev/vitrail/render/PackChain.class")
             .checking("eminus.compat.vitrail.mixins.json")
             .build();
