@@ -21,6 +21,7 @@ public final class CellHandle {
     private final ReentrantLock cellLock = new ReentrantLock();
 
     private Cell cell;
+    private Throwable loadFailure;
     private int references;
     private boolean dirty;
     private long dirtySince;
@@ -92,8 +93,17 @@ public final class CellHandle {
         notifyAll();
     }
 
+    synchronized void fail(Throwable failure) {
+        loadFailure = failure;
+        notifyAll();
+    }
+
     synchronized void awaitLoaded() {
         while (cell == null) {
+            if (loadFailure != null) {
+                throw new StoreException("Cell " + key + " could not be read.", loadFailure);
+            }
+
             try {
                 wait();
             } catch (InterruptedException interrupted) {
