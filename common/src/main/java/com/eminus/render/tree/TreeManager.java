@@ -312,7 +312,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         if (tablePressure != lastTablePressure) {
             lastTablePressure = tablePressure;
             treeChanged = true;
-            Eminus.LOGGER.info("[eminus-tree] table pressure={} nodes={} capacity={} walk={}",
+            Eminus.LOGGER.info("[eminus/tree] table pressure={} nodes={} capacity={} walk={}",
                     tablePressure ? PRESSURE_ON : PRESSURE_OFF, nodes.size(), nodes.capacity(), walks);
         }
 
