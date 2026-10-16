@@ -27,6 +27,7 @@ final class FakeModels implements MeshModels {
     private final Map<Integer, Integer> fluidIds = new HashMap<>();
     private final Map<Integer, Integer> submergedIds = new HashMap<>();
     private final Map<Integer, Integer> words = new HashMap<>();
+    private final Map<Integer, Integer> solidFaces = new HashMap<>();
     private final Map<Integer, Integer> tintRows = new HashMap<>();
     private final Map<Integer, BlockState> offsetStates = new HashMap<>();
     private final Map<Integer, PositionalIds> positional = new HashMap<>();
@@ -57,6 +58,10 @@ final class FakeModels implements MeshModels {
 
     void describe(int modelId, int metadata) {
         words.put(modelId, metadata);
+    }
+
+    void solidFaces(int modelId, int faces) {
+        solidFaces.put(modelId, faces);
     }
 
     void tint(int modelId, int row) {
@@ -201,6 +206,11 @@ final class FakeModels implements MeshModels {
     @Override
     public float inset(int modelId, int face) {
         return FLUSH;
+    }
+
+    @Override
+    public int solidFaces(int modelId) {
+        return solidFaces.getOrDefault(modelId, FaceMask.NONE);
     }
 
     @Override

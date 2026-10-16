@@ -26,6 +26,8 @@ public interface MeshModels {
 
     float inset(int modelId, int face);
 
+    int solidFaces(int modelId);
+
     boolean skipsFace(int stateId, int facingStateId, Direction face);
 
     int tintRow(int modelId);

@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.eminus.VanillaBootstrap;
+import com.eminus.cell.FaceMask;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Mth;
@@ -33,6 +34,7 @@ class ModelBakeryTest {
     private static final int WHITE = 0xFFFF_FFFF;
     private static final int BLUE = 0xFF00_00FF;
     private static final int GREEN = 0xFF00_FF00;
+    private static final int CLEAR_GREEN = 0x0000_FF00;
     private static final int BOTH_MODELS = 2;
     private static final int SECONDS = 5;
     private static final int RACED_STATES = 2000;
@@ -357,6 +359,24 @@ class ModelBakeryTest {
             assertEquals(LIGHT_WEIGHT + HEAVY_WEIGHT, table[2]);
             assertEquals(BakedModel.solid(GREEN), bakery.model(table[3]));
             assertFalse(bakery.positional(stone));
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void aWeightedStateIsSolidOnlyOnTheFacesEveryVariantHoldsSolid() throws InterruptedException {
+        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null, null,
+                List.of(new WeightedModel(BakedModel.solid(BLUE), LIGHT_WEIGHT),
+                        new WeightedModel(BakedModel.solid(CLEAR_GREEN), HEAVY_WEIGHT)),
+                false));
+
+        try {
+            awaitBake(bakery, stone);
+
+            int[] table = bakery.model(bakery.modelId(stone)).variants();
+            assertEquals(FaceMask.ALL, bakery.model(table[1]).solidFaces());
+            assertEquals(FaceMask.NONE, bakery.model(bakery.modelId(stone)).solidFaces());
         } finally {
             bakery.stop();
         }
