@@ -18,6 +18,7 @@ public final class FakeCellStore implements CellStore {
     private volatile CountDownLatch readGate;
     private volatile CountDownLatch readStarted;
     private volatile boolean refuseWrites;
+    private volatile Throwable readFailure;
 
     @Override
     public Cell read(long key) {
@@ -27,6 +28,15 @@ public final class FakeCellStore implements CellStore {
         if (gate != null) {
             readStarted.countDown();
             awaitQuietly(gate);
+        }
+
+        Throwable failure = readFailure;
+        if (failure instanceof RuntimeException refused) {
+            throw refused;
+        }
+
+        if (failure instanceof Error broken) {
+            throw broken;
         }
 
         return cells.get(key);
@@ -77,6 +87,10 @@ public final class FakeCellStore implements CellStore {
 
     public void refuseWrites(boolean refuse) {
         refuseWrites = refuse;
+    }
+
+    public void failReads(Throwable failure) {
+        readFailure = failure;
     }
 
     public void holdReads() {
