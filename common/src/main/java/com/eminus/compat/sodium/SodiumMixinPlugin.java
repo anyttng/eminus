@@ -9,7 +9,7 @@ import com.mojang.logging.LogUtils;
 public final class SodiumMixinPlugin extends ModPresenceGatePlugin {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private static final ModPresence SODIUM = ModPresence.gate(LOGGER, "[eminus-compat] gate sodium_present")
+    private static final ModPresence SODIUM = ModPresence.gate(LOGGER, "[eminus/compat] gate sodium_present")
             .probing("net/caffeinemc/mods/sodium/client/render/chunk/UniformBufferManager.class")
             .checking("eminus.compat.sodium.mixins.json")
             .build();

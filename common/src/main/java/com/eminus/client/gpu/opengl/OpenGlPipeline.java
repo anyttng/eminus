@@ -177,7 +177,7 @@ final class OpenGlPipeline implements Pipeline {
             resolved.append(' ').append(slot.getKey()).append(':')
                     .append(slot.getValue() == null ? INACTIVE : slot.getValue().kind() + "" + slot.getValue().index());
         }
-        Eminus.LOGGER.info("[eminus-gl] program name={} blocks={} units={} text={}", spec.location(),
+        Eminus.LOGGER.info("[eminus/gl] program name={} blocks={} units={} text={}", spec.location(),
                 nextBlock, nextUnit, resolved.toString().strip());
         return nextUnit;
     }

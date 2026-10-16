@@ -10,7 +10,7 @@ public final class Gpus {
 
     public static Gpu create() {
         Gpu gpu = OpenGlGpu.create();
-        Eminus.LOGGER.info("[eminus-gl] implementation text={}", gpu.capabilities().backend());
+        Eminus.LOGGER.info("[eminus/gl] implementation text={}", gpu.capabilities().backend());
         return gpu;
     }
 }
