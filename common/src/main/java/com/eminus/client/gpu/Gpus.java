@@ -16,7 +16,7 @@ public final class Gpus {
         String backend = GameGpu.backendName();
         boolean forced = GAME_IMPLEMENTATION.equals(System.getProperty(IMPLEMENTATION_PROPERTY));
         Gpu gpu = DeviceQueries.OPENGL.equals(backend) && !forced ? OpenGlGpu.create() : GameGpu.create();
-        Eminus.LOGGER.info("[eminus-gl] implementation backend={} forced={} text={}", backend, forced,
+        Eminus.LOGGER.info("[eminus/gl] implementation backend={} forced={} text={}", backend, forced,
                 gpu.capabilities().backend());
         return gpu;
     }
