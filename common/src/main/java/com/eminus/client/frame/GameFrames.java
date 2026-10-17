@@ -8,7 +8,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 import net.minecraft.client.Camera;
-import net.minecraft.client.GraphicsStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -58,10 +57,6 @@ public final class GameFrames {
     public static GameFog fog() {
         return fog(RenderSystem.getShaderFogStart(), RenderSystem.getShaderFogEnd(), renderDistanceFog,
                 new Vector4f(RenderSystem.getShaderFogColor()));
-    }
-
-    public static boolean cutoutLeaves(Minecraft client) {
-        return client.options.graphicsMode().get().getId() >= GraphicsStatus.FANCY.getId();
     }
 
     public static boolean sectionCompiled(LevelRenderer renderer, BlockPos pos) {

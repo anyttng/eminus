@@ -48,7 +48,6 @@ public final class ClientSession {
     public static final int CLIENT_EXTRA_CHUNKS = 3;
 
     private static boolean heldChunksPending;
-    private static boolean renderedCutoutLeaves;
     private static boolean overShaderPack;
     private static boolean inShaderPack;
     private static boolean throughDhPrograms;
@@ -229,8 +228,7 @@ public final class ClientSession {
             swapLevel(current);
         }
 
-        if (renderer != null && (ClientBakery.cutoutLeaves(minecraft) != renderedCutoutLeaves
-                || minecraft.options.biomeBlendRadius().get() != renderedBiomeBlend)) {
+        if (renderer != null && minecraft.options.biomeBlendRadius().get() != renderedBiomeBlend) {
             restartRenderer();
         }
 
@@ -360,7 +358,6 @@ public final class ClientSession {
     private static void startRenderer(Gpu gpu, long replacedArenaBytes) {
         Minecraft minecraft = Minecraft.getInstance();
         rendered = SettingsService.get().settings();
-        renderedCutoutLeaves = ClientBakery.cutoutLeaves(minecraft);
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
         renderedPackIds = IrisShaderPack.packIds(renderedPackIds);
         renderedPackBlocks = renderedPackIds == null ? PackBlocks.NONE
