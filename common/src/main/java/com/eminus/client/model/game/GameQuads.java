@@ -38,7 +38,8 @@ final class GameQuads {
 
         BakedQuad.MaterialInfo material = quad.materialInfo();
         return new ModelQuad(corners, uvs, new GameSprite(material.sprite()), material.tintIndex(),
-                material.layer().translucent(), material.lightEmission(), quad.direction(), smooth);
+                material.layer().translucent(), material.lightEmission(), quad.direction(),
+                material.shade() ? quad.direction() : Direction.UP, smooth);
     }
 
     private static void add(List<BakedQuad> quads, boolean smooth, List<ModelQuad> into) {
