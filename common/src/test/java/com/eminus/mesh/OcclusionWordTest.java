@@ -29,6 +29,14 @@ class OcclusionWordTest {
     }
 
     @Test
+    void wordsThatAreAllNoneLeaveNoStreamAndReadBackAsNone() {
+        long[] slots = OcclusionWord.pack(new int[OcclusionWord.PER_SLOT + 1], OcclusionWord.PER_SLOT + 1);
+
+        assertEquals(0, slots.length);
+        assertEquals(OcclusionWord.NONE, OcclusionWord.unpack(slots, OcclusionWord.PER_SLOT));
+    }
+
+    @Test
     void aFloorBesideAWallJoinsAlongTheWall() {
         assertTrue(OcclusionWord.joinsAlongU(WALL_BELOW, WALL_BELOW));
         assertEquals(WALL_BELOW, OcclusionWord.joinAlongU(WALL_BELOW, WALL_BELOW));

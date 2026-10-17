@@ -30,6 +30,7 @@ class DrawCommandsTest {
     private static final int LEVEL = 0;
     private static final int BLOCK = 3;
     private static final int NO_COLOURS = 0;
+    private static final int NO_STREAM = 0;
     private static final int FAR_BLOCK = 9;
     private static final int UP_QUADS = 5;
     private static final int DOWN_QUADS = 7;
@@ -388,7 +389,7 @@ class DrawCommandsTest {
             groupCount[group] = UP_QUADS;
         }
 
-        write(slots(new MeshSlot(key, BLOCK, QuadGroups.DIRECTIONAL_COUNT * UP_QUADS, NO_COLOURS, groupStart,
+        write(slots(new MeshSlot(key, BLOCK, QuadGroups.DIRECTIONAL_COUNT * UP_QUADS, NO_STREAM, NO_COLOURS, groupStart,
                 groupCount, new int[QuadGroups.COUNT])), INSIDE);
 
         assertEquals(QuadGroups.DIRECTIONAL_COUNT, commands.opaqueCount());
@@ -424,7 +425,7 @@ class DrawCommandsTest {
         groupCount[Direction.DOWN.get3DDataValue()] = DOWN_QUADS;
         groupStart[Direction.UP.get3DDataValue()] = DOWN_QUADS;
         groupCount[Direction.UP.get3DDataValue()] = UP_QUADS;
-        return new MeshSlot(key, block, DOWN_QUADS + UP_QUADS, NO_COLOURS, groupStart, groupCount,
+        return new MeshSlot(key, block, DOWN_QUADS + UP_QUADS, NO_STREAM, NO_COLOURS, groupStart, groupCount,
                 new int[QuadGroups.COUNT]);
     }
 
@@ -439,7 +440,7 @@ class DrawCommandsTest {
         int[] groupCount = new int[QuadGroups.COUNT];
         groupStart[QuadGroups.TRANSLUCENT] = WATER_START;
         groupCount[QuadGroups.TRANSLUCENT] = WATER_QUADS;
-        return new MeshSlot(key, block, WATER_START + WATER_QUADS, NO_COLOURS, groupStart, groupCount,
+        return new MeshSlot(key, block, WATER_START + WATER_QUADS, NO_STREAM, NO_COLOURS, groupStart, groupCount,
                 new int[QuadGroups.COUNT]);
     }
 
@@ -448,7 +449,7 @@ class DrawCommandsTest {
         int[] groupCount = new int[QuadGroups.COUNT];
         groupStart[QuadGroups.border(Direction.EAST)] = WATER_START;
         groupCount[QuadGroups.border(Direction.EAST)] = BORDER_QUADS;
-        return new MeshSlot(key, block, WATER_START + BORDER_QUADS, NO_COLOURS, groupStart, groupCount,
+        return new MeshSlot(key, block, WATER_START + BORDER_QUADS, NO_STREAM, NO_COLOURS, groupStart, groupCount,
                 new int[QuadGroups.COUNT]);
     }
 
@@ -458,7 +459,7 @@ class DrawCommandsTest {
         int[] groupCount = opaque.groupCount().clone();
         groupStart[QuadGroups.TRANSLUCENT] = WATER_START;
         groupCount[QuadGroups.TRANSLUCENT] = WATER_QUADS;
-        return new MeshSlot(key, block, WATER_START + WATER_QUADS, NO_COLOURS, groupStart, groupCount,
+        return new MeshSlot(key, block, WATER_START + WATER_QUADS, NO_STREAM, NO_COLOURS, groupStart, groupCount,
                 new int[QuadGroups.COUNT]);
     }
 

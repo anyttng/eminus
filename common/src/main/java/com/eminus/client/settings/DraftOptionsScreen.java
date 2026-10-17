@@ -1,5 +1,6 @@
 package com.eminus.client.settings;
 
+import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 import com.eminus.settings.Settings;
@@ -21,14 +22,18 @@ abstract class DraftOptionsScreen extends OptionsSubScreen {
     private static final int FOOTER_SPACING = 8;
 
     protected final SettingsDraft draft;
-    private final Runnable beforeReturn;
+    private final Consumer<Screen> back;
     private @Nullable Button applyChanges;
     private @Nullable HeaderedOptionsList headeredList;
 
-    DraftOptionsScreen(Screen lastScreen, Component title, SettingsDraft draft, Runnable beforeReturn) {
+    DraftOptionsScreen(Screen lastScreen, Component title, SettingsDraft draft, Consumer<Screen> back) {
         super(lastScreen, Minecraft.getInstance().options, title);
         this.draft = draft;
-        this.beforeReturn = beforeReturn;
+        this.back = back;
+    }
+
+    static void open(Screen screen) {
+        Minecraft.getInstance().gui.setScreen(screen);
     }
 
     @Override
@@ -72,8 +77,7 @@ abstract class DraftOptionsScreen extends OptionsSubScreen {
     @Override
     public void onClose() {
         this.write();
-        this.beforeReturn.run();
-        this.minecraft.gui.setScreen(this.lastScreen);
+        this.back.accept(this.lastScreen);
     }
 
     private void write() {

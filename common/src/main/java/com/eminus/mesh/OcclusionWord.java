@@ -15,6 +15,7 @@ public final class OcclusionWord {
     public static final int HIGH_U_HIGH_V = 1 << 8;
 
     private static final long MASK = (1L << BITS) - 1;
+    private static final long[] NO_STREAM = new long[0];
     private static final int HIGH_U_END = HIGH_U | HIGH_U_LOW_V | HIGH_U_HIGH_V;
     private static final int HIGH_V_END = HIGH_V | LOW_U_HIGH_V | HIGH_U_HIGH_V;
 
@@ -24,14 +25,21 @@ public final class OcclusionWord {
 
     public static long[] pack(int[] words, int count) {
         long[] slots = new long[slots(count)];
+        long any = 0L;
         for (int index = 0; index < count; index++) {
-            slots[index / PER_SLOT] |= (words[index] & MASK) << (index % PER_SLOT * BITS);
+            long word = words[index] & MASK;
+            slots[index / PER_SLOT] |= word << (index % PER_SLOT * BITS);
+            any |= word;
         }
 
-        return slots;
+        return any == NONE ? NO_STREAM : slots;
     }
 
     public static int unpack(long[] slots, int index) {
+        if (slots.length == 0) {
+            return NONE;
+        }
+
         return (int) (slots[index / PER_SLOT] >>> (index % PER_SLOT * BITS) & MASK);
     }
 

@@ -9,6 +9,7 @@ import java.util.List;
 
 import com.eminus.gpu.Location;
 import com.eminus.gpu.pipeline.Pipeline;
+import com.eminus.settings.CornerOcclusion;
 import com.eminus.settings.DetailDistance;
 import com.eminus.settings.LeafMode;
 import com.eminus.settings.LodChoice;
@@ -58,6 +59,7 @@ class FarRendererTest {
         assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withDrawsBlades(false))));
         assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withLeaves(LeafMode.OPAQUE))));
         assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withFullTextures(false))));
+        assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withCornerOcclusion(CornerOcclusion.OFF))));
     }
 
     @Test
