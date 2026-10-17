@@ -11,9 +11,9 @@ public final class Quad {
     public static final int SIDE_BITS = 4;
     public static final int LIGHT_BITS = 8;
     public static final int MODEL_BITS = 18;
-    public static final int COLOUR_BITS = 12;
+    public static final int COLOR_BITS = 12;
     public static final int MAX_MODEL_ID = (1 << MODEL_BITS) - 1;
-    public static final int MAX_COLOUR_INDEX = (1 << COLOUR_BITS) - 1;
+    public static final int MAX_COLOR_INDEX = (1 << COLOR_BITS) - 1;
 
     public static final int FACE_SHIFT = 0;
     public static final int X_SHIFT = FACE_SHIFT + FACE_BITS;
@@ -23,19 +23,19 @@ public final class Quad {
     public static final int HEIGHT_SHIFT = WIDTH_SHIFT + SIDE_BITS;
     public static final int LIGHT_SHIFT = HEIGHT_SHIFT + SIDE_BITS;
     public static final int MODEL_SHIFT = LIGHT_SHIFT + LIGHT_BITS;
-    public static final int COLOUR_SHIFT = MODEL_SHIFT + MODEL_BITS;
+    public static final int COLOR_SHIFT = MODEL_SHIFT + MODEL_BITS;
 
     private static final long FACE_MASK = (1L << FACE_BITS) - 1;
     private static final long COORDINATE_MASK = (1L << COORDINATE_BITS) - 1;
     private static final long SIDE_MASK = (1L << SIDE_BITS) - 1;
     private static final long LIGHT_MASK = (1L << LIGHT_BITS) - 1;
     private static final long MODEL_MASK = MAX_MODEL_ID;
-    private static final long COLOUR_MASK = MAX_COLOUR_INDEX;
+    private static final long COLOR_MASK = MAX_COLOR_INDEX;
 
-    public static long data(int light, int modelId, int colourIndex) {
+    public static long data(int light, int modelId, int colorIndex) {
         return ((light & LIGHT_MASK) << LIGHT_SHIFT)
                 | ((modelId & MODEL_MASK) << MODEL_SHIFT)
-                | ((colourIndex & COLOUR_MASK) << COLOUR_SHIFT);
+                | ((colorIndex & COLOR_MASK) << COLOR_SHIFT);
     }
 
     public static long of(long data, int face, int x, int y, int z, int width, int height) {
@@ -92,8 +92,8 @@ public final class Quad {
         return (int) ((quad >>> MODEL_SHIFT) & MODEL_MASK);
     }
 
-    public static int colourIndex(long quad) {
-        return (int) ((quad >>> COLOUR_SHIFT) & COLOUR_MASK);
+    public static int colorIndex(long quad) {
+        return (int) ((quad >>> COLOR_SHIFT) & COLOR_MASK);
     }
 
     private Quad() {

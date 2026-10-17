@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.eminus.VanillaBootstrap;
-import com.eminus.model.BiomeColours;
+import com.eminus.model.BiomeColors;
 import com.eminus.model.Tint;
 import com.eminus.model.TintSweep;
 import com.eminus.model.port.TintBiome;
@@ -53,49 +53,49 @@ class GameTintsTest {
         TintSource grass = new GameTintSource(BlockTintSources.grass());
 
         for (int biome : new int[] {FIRST_BIOME, SECOND_BIOME}) {
-            assertEquals(TintLevel.colour(biome, GRASS_RESOLVER),
-                    grass.colour(stone, new TintLevel(biome), SAMPLE_COLUMN, SAMPLE_COLUMN) & RGB_MASK);
+            assertEquals(TintLevel.color(biome, GRASS_RESOLVER),
+                    grass.color(stone, new TintLevel(biome), SAMPLE_COLUMN, SAMPLE_COLUMN) & RGB_MASK);
         }
     }
 
     @Test
-    void twoVanillaInstancesWithTheSameColoursShareOneRow() {
-        BiomeColours colours = colours(TWO_BIOMES);
+    void twoVanillaInstancesWithTheSameColorsShareOneRow() {
+        BiomeColors colors = colors(TWO_BIOMES);
         TintSource grass = new GameTintSource(BlockTintSources.grass());
         TintSource grassBlock = new GameTintSource(BlockTintSources.grassBlock());
-        colours.assign(List.of(colours.sample(grass, stone)));
+        colors.assign(List.of(colors.sample(grass, stone)));
 
-        assertEquals(Tint.row(0), colours.resolve(grassBlock, stone));
+        assertEquals(Tint.row(0), colors.resolve(grassBlock, stone));
     }
 
     @Test
     void aStateDependentVanillaSourceResolvesPerState() {
-        BiomeColours colours = colours(TWO_BIOMES);
+        BiomeColors colors = colors(TWO_BIOMES);
         TintSource redstone = new GameTintSource(BlockTintSources.redstone());
         BlockState unpowered = Blocks.REDSTONE_WIRE.defaultBlockState().setValue(RedstoneWireBlock.POWER, UNPOWERED);
         BlockState powered = unpowered.setValue(RedstoneWireBlock.POWER, FULL_POWER);
-        colours.assign(List.of(colours.sample(redstone, unpowered), colours.sample(redstone, powered)));
+        colors.assign(List.of(colors.sample(redstone, unpowered), colors.sample(redstone, powered)));
 
-        assertNotEquals(colours.resolve(redstone, unpowered), colours.resolve(redstone, powered));
+        assertNotEquals(colors.resolve(redstone, unpowered), colors.resolve(redstone, powered));
     }
 
     @Test
-    void vanillaColoursNeedARowPerBiomeSetAndPerConstant() {
+    void vanillaColorsNeedARowPerBiomeSetAndPerConstant() {
         GameTints tints = new GameTints(BlockColors.createDefault());
         TintSource water = new GameTintSource(BlockTintSources.water());
-        BiomeColours colours = colours(THREE_BIOMES);
+        BiomeColors colors = colors(THREE_BIOMES);
 
         TintSweep.sweep(Block.BLOCK_STATE_REGISTRY, tints,
-                fluid -> fluid.getType().isSame(Fluids.WATER) ? water : null, state -> state, colours);
+                fluid -> fluid.getType().isSame(Fluids.WATER) ? water : null, state -> state, colors);
 
-        assertEquals(VANILLA_ROWS, colours.rowCount());
+        assertEquals(VANILLA_ROWS, colors.rowCount());
         BlockState grassBlock = Blocks.GRASS_BLOCK.defaultBlockState();
-        assertTrue(colours.resolve(tints.source(grassBlock, FIRST_LAYER), grassBlock).hasRow());
+        assertTrue(colors.resolve(tints.source(grassBlock, FIRST_LAYER), grassBlock).hasRow());
 
         BlockState spruce = Blocks.SPRUCE_LEAVES.defaultBlockState();
-        Tint spruceTint = colours.resolve(tints.source(spruce, FIRST_LAYER), spruce);
+        Tint spruceTint = colors.resolve(tints.source(spruce, FIRST_LAYER), spruce);
         assertTrue(spruceTint.hasRow());
-        assertEquals(SPRUCE_LEAVES & RGB_MASK, colours.constant(spruceTint.row()));
+        assertEquals(SPRUCE_LEAVES & RGB_MASK, colors.constant(spruceTint.row()));
     }
 
     @Test
@@ -106,12 +106,12 @@ class GameTintsTest {
         assertTrue(tints.sources(stone).isEmpty());
     }
 
-    private static BiomeColours colours(int count) {
+    private static BiomeColors colors(int count) {
         List<TintBiome> biomes = new ArrayList<>();
         for (int biome = 0; biome < count; biome++) {
             biomes.add(new TintLevel(biome));
         }
 
-        return new BiomeColours(biomes);
+        return new BiomeColors(biomes);
     }
 }

@@ -26,7 +26,7 @@ class FaceRasterizerTest {
     private static final int YELLOW = 0xFFFF_FF00;
     private static final int TRANSPARENT = 0x0000_0000;
     private static final float BAND_TOP = 0.5F;
-    private static final float CENTRE = 0.5F;
+    private static final float CENTER = 0.5F;
     private static final float HEAD_PLANE = 9.6F / 16.0F;
     private static final float HEAD_BOTTOM = -1.0F / 16.0F;
     private static final float HEAD_TOP = 15.0F / 16.0F;
@@ -206,7 +206,7 @@ class FaceRasterizerTest {
     }
 
     @Test
-    void aBladeOffTheVoxelCentreStartsItsSpriteAtItsBoundsEdge() {
+    void aBladeOffTheVoxelCenterStartsItsSpriteAtItsBoundsEdge() {
         assertSpriteFillsBladeImage(List.of(blade(STEM_FROM, STEM_TO, STEM_SHIFT, 0.0F, 1.0F)));
     }
 
@@ -241,7 +241,7 @@ class FaceRasterizerTest {
     void aTiltedHeadKeepsItsTiltOnTheSidesItFaces() {
         BakedModel model = rasterizer.rasterize(sunflowerTop(), HEAD_FRONT_YELLOW_BACK_GREEN, FaceRasterizerTest::noTints);
         float tilt = (float) Math.tan(HEAD_TILT);
-        float[] centre = tilted(new float[] {HEAD_PLANE, CENTRE, CENTRE});
+        float[] center = tilted(new float[] {HEAD_PLANE, CENTER, CENTER});
         int east = Direction.EAST.get3DDataValue();
         int west = Direction.WEST.get3DDataValue();
 
@@ -250,22 +250,22 @@ class FaceRasterizerTest {
         assertEquals(tilt, model.slopeAlongHeight(east), SLOPE_TOLERANCE);
         assertEquals(0.0F, model.slopeAlongWidth(west), SLOPE_TOLERANCE);
         assertEquals(-tilt, model.slopeAlongHeight(west), SLOPE_TOLERANCE);
-        assertEquals(1.0F - centre[0], model.insets()[east] + tilt * centre[1], SLOPE_TOLERANCE);
-        assertEquals(centre[0], model.insets()[west] - tilt * centre[1], SLOPE_TOLERANCE);
+        assertEquals(1.0F - center[0], model.insets()[east] + tilt * center[1], SLOPE_TOLERANCE);
+        assertEquals(center[0], model.insets()[west] - tilt * center[1], SLOPE_TOLERANCE);
     }
 
     @Test
     void anUprightPlaneBesideACrossIsNotSloped() {
         List<ModelQuad> quads = new ArrayList<>(cross());
-        quads.add(quad(Direction.NORTH, new float[] {1, 1, CENTRE, 1, 0, CENTRE, 0, 0, CENTRE, 0, 1, CENTRE}, FACE_UV));
-        quads.add(quad(Direction.SOUTH, new float[] {0, 1, CENTRE, 0, 0, CENTRE, 1, 0, CENTRE, 1, 1, CENTRE}, FACE_UV));
+        quads.add(quad(Direction.NORTH, new float[] {1, 1, CENTER, 1, 0, CENTER, 0, 0, CENTER, 0, 1, CENTER}, FACE_UV));
+        quads.add(quad(Direction.SOUTH, new float[] {0, 1, CENTER, 0, 0, CENTER, 1, 0, CENTER, 1, 1, CENTER}, FACE_UV));
 
         BakedModel model = rasterizer.rasterize(quads, OPAQUE_WHITE, FaceRasterizerTest::noTints);
 
         assertTrue(ModelMetadata.has(model.metadata(), ModelMetadata.BLADED));
         assertEquals(FaceMask.NORTH | FaceMask.SOUTH, ModelMetadata.present(model.metadata()));
         assertFalse(ModelMetadata.has(model.metadata(), ModelMetadata.SLOPED));
-        assertEquals(CENTRE, model.insets()[Direction.NORTH.get3DDataValue()], SLOPE_TOLERANCE);
+        assertEquals(CENTER, model.insets()[Direction.NORTH.get3DDataValue()], SLOPE_TOLERANCE);
     }
 
     @Test
@@ -316,7 +316,7 @@ class FaceRasterizerTest {
             assertFalse(model.tinted(overlaid, texel), "texel " + texel);
         }
 
-        assertEquals(BiomeColours.NO_ROW, model.tintRow());
+        assertEquals(BiomeColors.NO_ROW, model.tintRow());
         assertFalse(ModelMetadata.has(model.metadata(), ModelMetadata.TINTED));
     }
 
@@ -414,10 +414,10 @@ class FaceRasterizerTest {
         float sin = (float) Math.sin(HEAD_TILT);
         float[] rotated = positions.clone();
         for (int corner = 0; corner < positions.length; corner += 3) {
-            float alongX = positions[corner] - CENTRE;
-            float alongY = positions[corner + 1] - CENTRE;
-            rotated[corner] = CENTRE + alongX * cos - alongY * sin;
-            rotated[corner + 1] = CENTRE + alongX * sin + alongY * cos;
+            float alongX = positions[corner] - CENTER;
+            float alongY = positions[corner + 1] - CENTER;
+            rotated[corner] = CENTER + alongX * cos - alongY * sin;
+            rotated[corner + 1] = CENTER + alongX * sin + alongY * cos;
         }
 
         return rotated;

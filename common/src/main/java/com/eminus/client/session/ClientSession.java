@@ -327,13 +327,13 @@ public final class ClientSession {
         }
 
         heldChunksPending = false;
-        ChunkPos centre = minecraft.player.chunkPosition();
+        ChunkPos center = minecraft.player.chunkPosition();
         int radius = minecraft.options.getEffectiveRenderDistance() + CLIENT_EXTRA_CHUNKS;
 
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
-                int chunkX = centre.x() + dx;
-                int chunkZ = centre.z() + dz;
+                int chunkX = center.x() + dx;
+                int chunkZ = center.z() + dz;
                 LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
                 if (chunk != null) {
                     ingest.submitChunk(chunk, IngestTrigger.HELD);

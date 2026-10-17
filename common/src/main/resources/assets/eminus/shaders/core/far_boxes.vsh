@@ -38,7 +38,7 @@ float box_shade(int face) {
         : BoxShadeEast;
 }
 
-vec4 box_colour(uint argb) {
+vec4 box_color(uint argb) {
     return vec4(float((argb >> 16) & 255u), float((argb >> 8) & 255u), float(argb & 255u), float(argb >> 24))
         / 255.0;
 }
@@ -63,9 +63,9 @@ void main() {
     eyePoint = position;
     gl_Position = dot(NORMALS[face], position) < 0.0 ? BoxProjView * vec4(position, 1.0) : CULLED_POSITION;
 
-    vec4 colour = box_colour(low.w);
+    vec4 color = box_color(low.w);
     if ((high.w & uint(BOX_EMISSIVE)) == 0u) {
-        colour.rgb *= far_lightmap(Lightmap, ivec2(0, FULL_SKY_LIGHT)).rgb * box_shade(face);
+        color.rgb *= far_lightmap(Lightmap, ivec2(0, FULL_SKY_LIGHT)).rgb * box_shade(face);
     }
-    vertexColor = colour;
+    vertexColor = color;
 }

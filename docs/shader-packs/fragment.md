@@ -6,7 +6,7 @@ Part of the [Eminus shader-pack contract](../shader-pack-contract.md).
 void eminus_emitFragment(EminusFragment fragment);
 ```
 
-Eminus calls it once per LOD pixel that survives its own tests, after those tests have run: pixels the near field draws are already discarded, and so are pixels whose texture alpha falls under the cutout (`0.5` in the opaque program, `0.1` in the translucent one). Your function never sees a pixel the near field owns.
+Eminus calls it once per LOD pixel that survives its own tests, after those tests have run. Pixels the near field draws are already discarded, and so are pixels whose texture alpha falls under the cutout (`0.5` in the opaque program, `0.1` in the translucent one). Your function never sees a pixel the near field owns.
 
 | Field | Type | Meaning |
 | --- | --- | --- |

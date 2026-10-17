@@ -449,13 +449,13 @@ public final class FacePasses {
     }
 
     private long data(long facing, int quadMetadata, int modelId) {
-        int colourIndex = QuadTint.of(scratch, models, owner, modelId, x, y, z);
-        return Quad.data(QuadLight.of(facing, quadMetadata), modelId, colourIndex);
+        int colorIndex = QuadTint.of(scratch, models, owner, modelId, x, y, z);
+        return Quad.data(QuadLight.of(facing, quadMetadata), modelId, colorIndex);
     }
 
     private long fluidData(long facing, int quadMetadata, int modelId, int surface) {
-        int colourIndex = QuadTint.ofFluid(scratch, models, owner, modelId, surface, x, y, z);
-        return Quad.data(QuadLight.of(facing, quadMetadata), modelId, colourIndex);
+        int colorIndex = QuadTint.ofFluid(scratch, models, owner, modelId, surface, x, y, z);
+        return Quad.data(QuadLight.of(facing, quadMetadata), modelId, colorIndex);
     }
 
     private static boolean covered(long owner, long facing, Direction face) {

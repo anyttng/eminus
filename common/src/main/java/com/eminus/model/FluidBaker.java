@@ -39,7 +39,7 @@ public final class FluidBaker {
 
         boolean translucent = model.translucent();
         long[] tintMask = tint == null ? BakedModel.untintedMask() : BakedModel.tintedMask();
-        int tintRow = BiomeColours.NO_ROW;
+        int tintRow = BiomeColors.NO_ROW;
         if (tint != null) {
             tint.apply(tintMask);
             tintRow = tint.row();
@@ -47,7 +47,7 @@ public final class FluidBaker {
 
         int flags = ModelMetadata.FLUID
                 | (translucent ? ModelMetadata.TRANSLUCENT : 0)
-                | (tintRow == BiomeColours.NO_ROW ? 0 : ModelMetadata.TINTED);
+                | (tintRow == BiomeColors.NO_ROW ? 0 : ModelMetadata.TINTED);
         float height = fluid.getOwnHeight();
         float[] bounds = surfaceBounds(height);
         int metadata = ModelMetadata.pack(FaceMask.ALL, occluding(bounds, seeThrough(flags, faces)),

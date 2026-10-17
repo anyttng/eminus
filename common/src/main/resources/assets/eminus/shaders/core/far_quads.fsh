@@ -13,7 +13,7 @@ uniform usamplerBuffer EminusModelVariants;
 
 layout(location = 0) in vec2 faceUV;
 layout(location = 1) in vec4 vertexColor;
-layout(location = 2) flat in vec3 tintColour;
+layout(location = 2) flat in vec3 tintColor;
 layout(location = 3) flat in ivec2 atlasCell;
 layout(location = 5) flat in ivec4 variantInfo;
 layout(location = 6) flat in ivec3 cellOrigin;
@@ -47,19 +47,19 @@ void main() {
         cell = ivec2(slot % EminusAtlasCells, slot / EminusAtlasCells);
     }
 
-    vec4 colour = eminus_surface(cell, faceUV, tintColour) * vertexColor;
+    vec4 color = eminus_surface(cell, faceUV, tintColor) * vertexColor;
 #ifndef SOLID
-    if (colour.a < ALPHA_CUTOUT) {
+    if (color.a < ALPHA_CUTOUT) {
         discard;
     }
 #endif
 
-    colour.rgb *= eminus_corner_occlusion(occlusionWord.x, occlusionPoint, occlusionSize, occlusionWord.y != 0u,
+    color.rgb *= eminus_corner_occlusion(occlusionWord.x, occlusionPoint, occlusionSize, occlusionWord.y != 0u,
             occlusionFootprint);
 
 #ifdef FULL_COVERAGE
-    fragColor = vec4(colour.rgb, 1.0);
+    fragColor = vec4(color.rgb, 1.0);
 #else
-    fragColor = colour;
+    fragColor = color;
 #endif
 }

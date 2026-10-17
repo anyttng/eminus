@@ -37,12 +37,12 @@ public final class BackendCheck {
 
     private static final Location PROBE_PIPELINE = new Location(Eminus.MODID, "depth_probe");
     private static final Location PROBE_SHADER = new Location(Eminus.MODID, "core/depth_probe");
-    private static final String COLOUR_LABEL = "eminus-probe-colour";
+    private static final String COLOR_LABEL = "eminus-probe-color";
     private static final String DEPTH_LABEL = "eminus-probe-depth";
     private static final String PASS_LABEL = "eminus-probe-pass";
     private static final String UNIFORM_LABEL = "eminus-probe-uniform";
-    private static final Format COLOUR_FORMAT = Format.RGBA8_UNORM;
-    private static final Vector4fc CLEAR_COLOUR = new Vector4f();
+    private static final Format COLOR_FORMAT = Format.RGBA8_UNORM;
+    private static final Vector4fc CLEAR_COLOR = new Vector4f();
     private static final Set<TextureUsage> TARGET_USAGE = EnumSet.of(TextureUsage.ATTACHMENT);
     private static final Set<BufferUsage> UNIFORM_USAGE = EnumSet.of(BufferUsage.UNIFORM);
     private static final int PROBE_SIDE = 1;
@@ -87,10 +87,10 @@ public final class BackendCheck {
 
     private static boolean draws(Gpu gpu, Pipeline probe, Format format, DepthConvention convention) {
         try (Buffer uniform = probeUniform(gpu);
-                Texture colour = gpu.texture(COLOUR_LABEL, TARGET_USAGE, COLOUR_FORMAT, PROBE_SIDE, PROBE_SIDE,
+                Texture color = gpu.texture(COLOR_LABEL, TARGET_USAGE, COLOR_FORMAT, PROBE_SIDE, PROBE_SIDE,
                         PROBE_MIPS);
                 Texture depth = gpu.texture(DEPTH_LABEL, TARGET_USAGE, format, PROBE_SIDE, PROBE_SIDE, PROBE_MIPS);
-                Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, colour, CLEAR_COLOUR)
+                Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, color, CLEAR_COLOR)
                         .withDepth(depth, OptionalDouble.of(convention.farthest())))) {
             pass.pipeline(probe);
             pass.bind(BLOCK.name(), uniform);
@@ -112,7 +112,7 @@ public final class BackendCheck {
     private static PipelineSpec probePipeline(DepthConvention depth) {
         return PipelineSpec.builder(PROBE_PIPELINE, CompositePass.FULL_SCREEN_SHADER, PROBE_SHADER)
                 .withBinding(Binding.uniform(BLOCK.name()))
-                .withColourTarget(COLOUR_FORMAT, null, true)
+                .withColorTarget(COLOR_FORMAT, null, true)
                 .withDepthTest(depth.compare(), true)
                 .build();
     }

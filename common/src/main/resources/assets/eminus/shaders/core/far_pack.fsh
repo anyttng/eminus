@@ -76,8 +76,8 @@ EminusFragment eminus_fragment() {
     eminus_cell = cell;
 #endif
 
-    vec4 colour = eminus_surface(cell, eminus_faceUV, eminus_tint);
-    if (colour.a < ALPHA_CUTOUT) {
+    vec4 color = eminus_surface(cell, eminus_faceUV, eminus_tint);
+    if (color.a < ALPHA_CUTOUT) {
         discard;
     }
 
@@ -85,9 +85,9 @@ EminusFragment eminus_fragment() {
     float margin = 0.5 / float(EminusAtlasCellSide);
     EminusFragment fragment;
 #ifdef FULL_COVERAGE
-    fragment.color = vec4(colour.rgb, 1.0);
+    fragment.color = vec4(color.rgb, 1.0);
 #else
-    fragment.color = colour;
+    fragment.color = color;
 #endif
     fragment.texcoord = (vec2(cell) + clamp(fract(eminus_faceUV), margin, 1.0 - margin)) * atlasCell;
     fragment.texcoordDx = dFdx(eminus_faceUV) * atlasCell;
@@ -125,9 +125,9 @@ vec2 eminus_albedoUV(vec2 faceUV) {
     return (vec2(eminus_cell) + clamp(fract(faceUV), margin, 1.0 - margin)) / float(EminusAtlasCells);
 }
 
-vec4 eminus_albedoTinted(vec4 colour, float mask) {
-    colour.rgb *= mix(vec3(1.0), eminus_tint, mask);
-    return colour;
+vec4 eminus_albedoTinted(vec4 color, float mask) {
+    color.rgb *= mix(vec3(1.0), eminus_tint, mask);
+    return color;
 }
 
 vec4 eminus_albedo(sampler2D packTexture, vec2 faceUV) {

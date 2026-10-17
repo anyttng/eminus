@@ -137,7 +137,7 @@ class MeshServiceTest {
     }
 
     @Test
-    void aCoarseLevelWithoutBlendOpensOnlyItsFaceNeighbours() {
+    void aCoarseLevelWithoutBlendOpensOnlyItsFaceNeighbors() {
         models.define(STONE, STONE_MODEL,
                 ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
         Cell cell = Cell.blank(COARSE_KEY);
@@ -322,7 +322,7 @@ class MeshServiceTest {
         cell.set(FIRST_VOXEL + 1, CUBE_AT, CUBE_AT, lit(UNBAKED_ABOVE));
         store.write(cell);
 
-        Cell west = Cell.blank(CellKey.neighbour(KEY, Direction.WEST));
+        Cell west = Cell.blank(CellKey.neighbor(KEY, Direction.WEST));
         west.set(LAST_VOXEL, CUBE_AT, CUBE_AT, lit(UNBAKED_BELOW));
         store.write(west);
     }

@@ -26,7 +26,7 @@ class ArenaDemandTest {
     }
 
     @Test
-    void theColumnsAreTheCellsWhoseCentreLiesInsideTheReach() {
+    void theColumnsAreTheCellsWhoseCenterLiesInsideTheReach() {
         int level = DetailLevel.MIN;
         double reach = 2.0 * ArenaDemand.subdivisionRadius(level, FOCAL_PIXELS, SUBDIVISION);
         int side = DetailLevel.blocksPerCell(level);
@@ -35,10 +35,10 @@ class ArenaDemandTest {
 
         for (int x = -span; x <= span; x++) {
             for (int z = -span; z <= span; z++) {
-                double centreX = (x + 0.5) * side;
-                double centreZ = (z + 0.5) * side;
+                double centerX = (x + 0.5) * side;
+                double centerZ = (z + 0.5) * side;
 
-                if (centreX * centreX + centreZ * centreZ <= reach * reach) {
+                if (centerX * centerX + centerZ * centerZ <= reach * reach) {
                     counted++;
                 }
             }

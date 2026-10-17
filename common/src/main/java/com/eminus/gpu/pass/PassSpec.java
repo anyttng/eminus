@@ -9,16 +9,16 @@ import org.jspecify.annotations.Nullable;
 
 public record PassSpec(
         String label,
-        Texture colour,
-        @Nullable Vector4fc clearColour,
+        Texture color,
+        @Nullable Vector4fc clearColor,
         @Nullable Texture depth,
         OptionalDouble clearDepth) {
 
-    public static PassSpec of(String label, Texture colour, @Nullable Vector4fc clearColour) {
-        return new PassSpec(label, colour, clearColour, null, OptionalDouble.empty());
+    public static PassSpec of(String label, Texture color, @Nullable Vector4fc clearColor) {
+        return new PassSpec(label, color, clearColor, null, OptionalDouble.empty());
     }
 
     public PassSpec withDepth(Texture depth, OptionalDouble clearDepth) {
-        return new PassSpec(label, colour, clearColour, depth, clearDepth);
+        return new PassSpec(label, color, clearColor, depth, clearDepth);
     }
 }

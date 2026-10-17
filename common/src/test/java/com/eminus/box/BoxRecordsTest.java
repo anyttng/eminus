@@ -28,7 +28,7 @@ class BoxRecordsTest {
     }
 
     @Test
-    void aRecordCarriesBothCornersTheColourAndTheFlag() {
+    void aRecordCarriesBothCornersTheColorAndTheFlag() {
         FarBox box = new FarBox(-WORLD_EDGE + 0.5, -64.0, 12.25, WORLD_EDGE - 0.5, 320.0, 13.0, 0x80FF8000, true);
         ByteBuffer written = ByteBuffer.allocate((int) BoxRecords.bytes(1)).order(ByteOrder.nativeOrder());
 

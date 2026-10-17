@@ -45,9 +45,9 @@ class TreeManagerTest {
     private static final int CELL_X = 1;
     private static final int CELL_Z = 3;
     private static final long KEY = CellKey.pack(DetailLevel.MAX, CELL_X, 0, CELL_Z);
-    private static final long WEST = CellKey.neighbour(KEY, Direction.WEST);
-    private static final long ABOVE = CellKey.neighbour(KEY, Direction.UP);
-    private static final long BELOW = CellKey.neighbour(KEY, Direction.DOWN);
+    private static final long WEST = CellKey.neighbor(KEY, Direction.WEST);
+    private static final long ABOVE = CellKey.neighbor(KEY, Direction.UP);
+    private static final long BELOW = CellKey.neighbor(KEY, Direction.DOWN);
     private static final long OUTSIDE = CellKey.pack(DetailLevel.MIN, 1, 2, 3);
     private static final int RING_COLUMNS = 5;
     private static final int ONE_CELL = 1;
@@ -197,7 +197,7 @@ class TreeManagerTest {
     }
 
     @Test
-    void aBoundaryChangeRebuildsOnlyTheNeighboursThatAreNodes() {
+    void aBoundaryChangeRebuildsOnlyTheNeighborsThatAreNodes() {
         settleRing();
 
         CellHandle handle = open(KEY);
@@ -207,10 +207,10 @@ class TreeManagerTest {
         assertEquals(KEY, own.key());
         assertSame(handle, own.handle());
 
-        FakeBuilds.Call neighbour = builds.take();
-        assertEquals(WEST, neighbour.key());
-        assertNull(neighbour.handle());
-        assertEquals(0, neighbour.references());
+        FakeBuilds.Call neighbor = builds.take();
+        assertEquals(WEST, neighbor.key());
+        assertNull(neighbor.handle());
+        assertEquals(0, neighbor.references());
         assertTrue(builds.idle());
     }
 
@@ -227,7 +227,7 @@ class TreeManagerTest {
     }
 
     @Test
-    void aBoundaryChangeOnACellWithoutANodeStillRebuildsTheNeighbourNode() {
+    void aBoundaryChangeOnACellWithoutANodeStillRebuildsTheNeighborNode() {
         settleRing();
 
         CellHandle handle = open(ABOVE);
@@ -236,9 +236,9 @@ class TreeManagerTest {
         FakeBuilds.Release released = builds.takeRelease();
         assertSame(handle, released.handle());
 
-        FakeBuilds.Call neighbour = builds.take();
-        assertEquals(KEY, neighbour.key());
-        assertNull(neighbour.handle());
+        FakeBuilds.Call neighbor = builds.take();
+        assertEquals(KEY, neighbor.key());
+        assertNull(neighbor.handle());
         assertTrue(builds.idle());
     }
 
@@ -515,7 +515,7 @@ class TreeManagerTest {
             }
         }
 
-        fail("The mesh is still reachable after its batch was taken, so something holds its quads and colours.");
+        fail("The mesh is still reachable after its batch was taken, so something holds its quads and colors.");
     }
 
     private void restartOverLeafChildren() {

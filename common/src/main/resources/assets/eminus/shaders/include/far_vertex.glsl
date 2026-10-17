@@ -190,7 +190,7 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
     int height = int(eminus_field(quad, QUAD_HEIGHT_SHIFT, QUAD_SIDE_BITS)) + 1;
     uint light = eminus_field(quad, QUAD_LIGHT_SHIFT, QUAD_LIGHT_BITS);
     int modelId = int(eminus_field(quad, QUAD_MODEL_SHIFT, QUAD_MODEL_BITS));
-    int colourIndex = int(eminus_field(quad, QUAD_COLOUR_SHIFT, QUAD_COLOUR_BITS));
+    int colorIndex = int(eminus_field(quad, QUAD_COLOR_SHIFT, QUAD_COLOR_BITS));
     int quadInMesh = quadIndex - int(mesh.z);
     bool occluded = (mesh.w >> MESH_UNOCCLUDED_SHIFT) == 0u;
     int meshQuads = int(mesh.w & ((1u << MESH_UNOCCLUDED_SHIFT) - 1u));
@@ -219,8 +219,8 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
     bool inward = (flags & INWARD_FLAG) != 0;
     uint placement = 0u;
     vertex.tint = vec3(1.0);
-    if (colourIndex != 0) {
-        uvec2 entry = texelFetch(EminusQuads,streamStart + occlusionSlots + colourIndex).rg;
+    if (colorIndex != 0) {
+        uvec2 entry = texelFetch(EminusQuads,streamStart + occlusionSlots + colorIndex).rg;
         vertex.tint = vec3(eminus_field(entry.r, TINT_RED_SHIFT, TINT_CHANNEL_BITS),
                            eminus_field(entry.r, TINT_GREEN_SHIFT, TINT_CHANNEL_BITS),
                            eminus_field(entry.r, TINT_BLUE_SHIFT, TINT_CHANNEL_BITS))

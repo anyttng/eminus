@@ -4,14 +4,14 @@ import com.eminus.cell.OccupancyMask;
 
 @SuppressWarnings("ArrayRecordComponent")
 public record CellMesh(long key, int occupancy, long[] quads, long[] occlusion, int[] groupStart, int[] groupCount,
-        int[] groupSolid, long[] colours, boolean missingColumns, long grandchildren, boolean readsBelow) {
-    public CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, long[] colours) {
-        this(key, occupancy, quads, new long[0], groupStart, groupCount, new int[QuadGroups.COUNT], colours);
+        int[] groupSolid, long[] colors, boolean missingColumns, long grandchildren, boolean readsBelow) {
+    public CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, long[] colors) {
+        this(key, occupancy, quads, new long[0], groupStart, groupCount, new int[QuadGroups.COUNT], colors);
     }
 
     public CellMesh(long key, int occupancy, long[] quads, long[] occlusion, int[] groupStart, int[] groupCount,
-            int[] groupSolid, long[] colours) {
-        this(key, occupancy, quads, occlusion, groupStart, groupCount, groupSolid, colours, false,
+            int[] groupSolid, long[] colors) {
+        this(key, occupancy, quads, occlusion, groupStart, groupCount, groupSolid, colors, false,
                 OccupancyMask.NO_GRANDCHILDREN, false);
     }
 
@@ -34,22 +34,22 @@ public record CellMesh(long key, int occupancy, long[] quads, long[] occlusion, 
     }
 
     public CellMesh lackingColumns() {
-        return new CellMesh(key, occupancy, quads, occlusion, groupStart, groupCount, groupSolid, colours, true,
+        return new CellMesh(key, occupancy, quads, occlusion, groupStart, groupCount, groupSolid, colors, true,
                 grandchildren, readsBelow);
     }
 
     public CellMesh withGrandchildren(long mask) {
-        return new CellMesh(key, occupancy, quads, occlusion, groupStart, groupCount, groupSolid, colours,
+        return new CellMesh(key, occupancy, quads, occlusion, groupStart, groupCount, groupSolid, colors,
                 missingColumns, mask, readsBelow);
     }
 
     public CellMesh readingBelow(boolean read) {
-        return new CellMesh(key, occupancy, quads, occlusion, groupStart, groupCount, groupSolid, colours,
+        return new CellMesh(key, occupancy, quads, occlusion, groupStart, groupCount, groupSolid, colors,
                 missingColumns, grandchildren, read);
     }
 
     public int slotCount() {
-        return quads.length + occlusion.length + colours.length;
+        return quads.length + occlusion.length + colors.length;
     }
 
     public boolean isEmpty() {
@@ -76,11 +76,11 @@ public record CellMesh(long key, int occupancy, long[] quads, long[] occlusion, 
         return OcclusionWord.unpack(occlusion, index);
     }
 
-    public int colour(long quad) {
-        return MeshBuffer.colourOf(colours[Quad.colourIndex(quad)]);
+    public int color(long quad) {
+        return MeshBuffer.colorOf(colors[Quad.colorIndex(quad)]);
     }
 
     public int placement(long quad) {
-        return MeshBuffer.placementOf(colours[Quad.colourIndex(quad)]);
+        return MeshBuffer.placementOf(colors[Quad.colorIndex(quad)]);
     }
 }

@@ -40,9 +40,9 @@ final class TreeChanges {
             requestBuild(node, camera);
         }
 
-        requestNeighbours(key, faceMask, camera);
+        requestNeighbors(key, faceMask, camera);
         if ((faceMask & FaceMask.UP) == 0) {
-            TreeNode above = nodes.get(CellKey.neighbour(key, Direction.UP));
+            TreeNode above = nodes.get(CellKey.neighbor(key, Direction.UP));
             MeshSummary aboveMesh = above == null ? null : above.mesh();
             if (above != null && aboveMesh != null && aboveMesh.readsBelow()) {
                 requestBuild(above, camera);
@@ -76,15 +76,15 @@ final class TreeChanges {
         }
     }
 
-    private void requestNeighbours(long key, int faceMask, @Nullable CameraFrame camera) {
+    private void requestNeighbors(long key, int faceMask, @Nullable CameraFrame camera) {
         for (Direction face : FACES) {
             if ((faceMask & FaceMask.bit(face)) == 0) {
                 continue;
             }
 
-            TreeNode neighbour = nodes.get(CellKey.neighbour(key, face));
-            if (neighbour != null) {
-                requestBuild(neighbour, camera);
+            TreeNode neighbor = nodes.get(CellKey.neighbor(key, face));
+            if (neighbor != null) {
+                requestBuild(neighbor, camera);
             }
         }
     }
@@ -94,10 +94,10 @@ final class TreeChanges {
 
         while (remaining != 0) {
             int slot = Integer.numberOfTrailingZeros(remaining);
-            TreeNode neighbour = nodes.get(CellKey.pack(CellKey.level(key), CellKey.x(key) + EdgeMask.stepX(slot),
+            TreeNode neighbor = nodes.get(CellKey.pack(CellKey.level(key), CellKey.x(key) + EdgeMask.stepX(slot),
                     CellKey.y(key) + EdgeMask.stepY(slot), CellKey.z(key) + EdgeMask.stepZ(slot)));
-            if (neighbour != null) {
-                requestBuild(neighbour, camera);
+            if (neighbor != null) {
+                requestBuild(neighbor, camera);
             }
 
             remaining &= remaining - 1;
