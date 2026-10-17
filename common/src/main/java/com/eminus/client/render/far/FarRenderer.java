@@ -225,7 +225,7 @@ public final class FarRenderer implements AutoCloseable {
     public static boolean recreates(Settings built, Settings updated) {
         return built.farRenderCells() != updated.farRenderCells()
                 || built.detailDistance() != updated.detailDistance()
-                || built.lodQuality() != updated.lodQuality();
+                || !built.lodQuality().equals(updated.lodQuality());
     }
 
     public void captureLevelProjection(Matrix4fc levelProjection, Matrix4fc cameraProjection) {
