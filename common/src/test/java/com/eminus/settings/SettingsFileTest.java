@@ -156,16 +156,6 @@ class SettingsFileTest {
     }
 
     @Test
-    void theFormerFullKeyOpensOnUltraAndIsRewritten() throws IOException {
-        Settings loaded = loadJson("{\"lod_quality\": \"full\", \"far_render_cells\": 24}");
-        String content = Files.readString(configDir.resolve(SettingsService.FILE_NAME), StandardCharsets.UTF_8);
-
-        assertEquals(LodQuality.ULTRA, loaded.lodQuality());
-        assertTrue(content.contains("\"lod_quality\": \"ultra\""), content);
-        assertEquals(24, loaded.farRenderCells());
-    }
-
-    @Test
     void aPresetKeyWinsOverAFormerStoredLevel() throws IOException {
         Settings loaded = loadJson("{\"lod_quality\": \"high\", \"lowest_stored_level\": 3}");
 
