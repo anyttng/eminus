@@ -8,7 +8,7 @@ public final class SliderPositions {
     public static final int LAST_DETAIL_DISTANCE = DetailDistance.values().length - 1;
 
     private static final LodChoice[] LOD_CHOICES = {
-            LodChoice.MINIMAL, LodChoice.LOW, LodChoice.MEDIUM, LodChoice.HIGH, LodChoice.ULTRA, LodChoice.CUSTOM};
+            LodChoice.LOW, LodChoice.MEDIUM, LodChoice.HIGH, LodChoice.ULTRA, LodChoice.CUSTOM};
     private static final DetailDistance[] DETAIL_DISTANCES = DetailDistance.values();
 
     public static final int LAST_LOD_CHOICE = LOD_CHOICES.length - 1;

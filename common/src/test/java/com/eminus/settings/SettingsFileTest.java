@@ -45,7 +45,7 @@ class SettingsFileTest {
         SettingsFile.save(file, written);
         String content = Files.readString(file, StandardCharsets.UTF_8);
 
-        assertTrue(content.contains("// LOD quality: ultra, high, medium, low, minimal or custom."), content);
+        assertTrue(content.contains("// LOD quality: ultra, high, medium, low or custom."), content);
         assertTrue(content.contains("// Radius of LOD, in top-level cells"), content);
         assertTrue(content.contains("// Background worker threads."), content);
         assertTrue(content.contains("// How far out the finer detail levels reach"), content);
@@ -137,8 +137,7 @@ class SettingsFileTest {
 
     @Test
     void aFormerStoredLevelOpensOnItsPreset() throws IOException {
-        LodChoice[] expected = {LodChoice.ULTRA, LodChoice.MEDIUM, LodChoice.LOW, LodChoice.MINIMAL,
-                LodChoice.MINIMAL};
+        LodChoice[] expected = {LodChoice.ULTRA, LodChoice.MEDIUM, LodChoice.LOW, LodChoice.LOW, LodChoice.LOW};
 
         for (int level = 0; level < expected.length; level++) {
             assertEquals(expected[level], loadJson("{\"lowest_stored_level\": " + level + "}").lodChoice());
@@ -154,6 +153,16 @@ class SettingsFileTest {
         assertFalse(content.contains("lowest_stored_level"), content);
         assertEquals(loaded, SettingsFile.load(configDir.resolve(SettingsService.FILE_NAME)));
         assertEquals(24, loaded.farRenderCells());
+    }
+
+    @Test
+    void theFormerMinimalOpensAsLowAndIsRewritten() throws IOException {
+        Settings loaded = loadJson("{\"lod_quality\": \"minimal\"}");
+        String content = Files.readString(configDir.resolve(SettingsService.FILE_NAME), StandardCharsets.UTF_8);
+
+        assertEquals(LodChoice.LOW, loaded.lodChoice());
+        assertTrue(content.contains("\"lod_quality\": \"low\""), content);
+        assertFalse(content.contains("minimal\""), content);
     }
 
     @Test
