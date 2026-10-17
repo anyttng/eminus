@@ -23,6 +23,7 @@ public final class SettingsFile {
     public static final String LOD_SEE_THROUGH_LEAVES_KEY = "lod_see_through_leaves";
     public static final String LOD_GRASS_AND_FLOWERS_KEY = "lod_grass_and_flowers";
     public static final String LOD_TEXTURES_KEY = "lod_textures";
+    public static final String LOD_CORNER_OCCLUSION_KEY = "lod_corner_occlusion";
     public static final String LOWEST_STORED_LEVEL_KEY = "lowest_stored_level";
     public static final String FAR_RENDER_CELLS_KEY = "far_render_cells";
     public static final String WORKER_THREADS_KEY = "worker_threads";
@@ -38,7 +39,7 @@ public final class SettingsFile {
             and 8 under minimal. high keeps ultra's block resolution and draws fewer
             details: leaves opaque, no grass or flowers. low and minimal draw textures at
             half resolution. ultra and high share one store; each coarser step stores
-            less. custom takes the four lod_ keys below it, which the Custom LOD Quality
+            less. custom takes the five lod_ keys below it, which the Custom LOD Quality
             screen sets.""";
 
     private static final String LOD_CUSTOM_COMMENT = """
@@ -47,7 +48,10 @@ public final class SettingsFile {
             1, 2, 4 or 8. lod_see_through_leaves: whether leaves keep their holes,
             whatever the game's See-Through Leaves says. lod_grass_and_flowers: whether
             grass, ferns, flowers and saplings are drawn. lod_textures: full keeps 16 by
-            16 texels per face, half keeps 8 by 8.""";
+            16 texels per face, half keeps 8 by 8. lod_corner_occlusion: where the game's
+            Smooth Lighting darkens the corners blocks meet in, every_level darkens them
+            at every LOD level, finest_level at the finest level alone, so a brightness
+            step shows where it meets the next level, and off at none.""";
 
     private static final String FAR_RENDER_CELLS_COMMENT = """
             Radius of LOD, in top-level cells of 512 blocks (32 chunks each):
@@ -145,6 +149,7 @@ public final class SettingsFile {
         entries.add(entry(LOD_GRASS_AND_FLOWERS_KEY, new JsonPrimitive(custom.drawsBlades()), null));
         entries.add(entry(LOD_TEXTURES_KEY,
                 new JsonPrimitive(custom.fullTextures() ? TEXTURES_FULL : TEXTURES_HALF), null));
+        entries.add(entry(LOD_CORNER_OCCLUSION_KEY, new JsonPrimitive(custom.cornerOcclusion().key()), null));
 
         entries.add(entry(FAR_RENDER_CELLS_KEY, new JsonPrimitive(settings.farRenderCells()),
                 FAR_RENDER_CELLS_COMMENT));
@@ -219,7 +224,8 @@ public final class SettingsFile {
                 LeafMode.of(bool(json, LOD_SEE_THROUGH_LEAVES_KEY, fallback.leaves() == LeafMode.SEE_THROUGH)),
                 bool(json, LOD_GRASS_AND_FLOWERS_KEY, fallback.drawsBlades()),
                 keyed(json, LOD_TEXTURES_KEY, fallback.fullTextures(),
-                        key -> named(key, TEXTURES_FULL, TEXTURES_HALF)));
+                        key -> named(key, TEXTURES_FULL, TEXTURES_HALF)),
+                keyed(json, LOD_CORNER_OCCLUSION_KEY, fallback.cornerOcclusion(), CornerOcclusion::fromKey));
     }
 
     private static boolean holdsStoredLevelOnly(JsonObject json) {
@@ -228,7 +234,8 @@ public final class SettingsFile {
 
     private static boolean holdsCustomLod(JsonObject json) {
         return json.has(LOD_NEAREST_VOXEL_KEY) || json.has(LOD_SEE_THROUGH_LEAVES_KEY)
-                || json.has(LOD_GRASS_AND_FLOWERS_KEY) || json.has(LOD_TEXTURES_KEY);
+                || json.has(LOD_GRASS_AND_FLOWERS_KEY) || json.has(LOD_TEXTURES_KEY)
+                || json.has(LOD_CORNER_OCCLUSION_KEY);
     }
 
     private static int nearestVoxelLevel(JsonObject json, int fallbackLevel) {

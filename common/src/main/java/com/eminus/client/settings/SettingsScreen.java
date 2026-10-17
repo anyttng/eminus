@@ -51,13 +51,14 @@ public final class SettingsScreen extends DraftOptionsScreen {
     private @Nullable Button customLodButton;
 
     public SettingsScreen(Screen lastScreen) {
-        super(lastScreen, Component.translatable(TITLE_KEY), SettingsDraft.of(SettingsService.get()), () -> { });
+        super(lastScreen, Component.translatable(TITLE_KEY), SettingsDraft.of(SettingsService.get()),
+                DraftOptionsScreen::open);
 
         Settings settings = this.draft.settings();
 
-        this.ingestion = OptionInstance.createBoolean(INGESTION_KEY, tooltip(INGESTION_KEY), settings.ingestion(),
-                value -> this.editFromOptions());
-        this.lodChoicePosition = new OptionInstance<>(LOD_QUALITY_KEY, tooltip(LOD_QUALITY_KEY),
+        this.ingestion = OptionInstance.createBoolean(INGESTION_KEY, tooltip(SettingsText.toggleHint(INGESTION_KEY)),
+                settings.ingestion(), value -> this.editFromOptions());
+        this.lodChoicePosition = new OptionInstance<>(LOD_QUALITY_KEY, tooltip(SettingsText.lodChoiceHint()),
                 (caption, position) -> Options.genericValueLabel(caption,
                         SettingsText.lodChoice(SliderPositions.lodChoice(position))),
                 coarseToFine(SliderPositions.LAST_LOD_CHOICE),
@@ -78,24 +79,26 @@ public final class SettingsScreen extends DraftOptionsScreen {
                         SettingsText.detailDistance(SliderPositions.detailDistance(position))),
                 coarseToFine(SliderPositions.LAST_DETAIL_DISTANCE),
                 SliderPositions.detailDistancePosition(settings.detailDistance()), value -> this.editFromOptions());
-        this.fog = OptionInstance.createBoolean(FOG_KEY, tooltip(FOG_KEY), settings.fog(),
+        this.fog = OptionInstance.createBoolean(FOG_KEY, tooltip(SettingsText.toggleHint(FOG_KEY)), settings.fog(),
                 value -> this.editFromOptions());
-        this.fade = OptionInstance.createBoolean(FADE_KEY, tooltip(FADE_KEY), settings.fade(),
+        this.fade = OptionInstance.createBoolean(FADE_KEY, tooltip(SettingsText.toggleHint(FADE_KEY)), settings.fade(),
                 value -> this.editFromOptions());
-        this.shaderPackLod = new OptionInstance<>(SHADER_PACK_LOD_KEY, tooltip(SHADER_PACK_LOD_KEY),
+        this.shaderPackLod = new OptionInstance<>(SHADER_PACK_LOD_KEY, tooltip(SettingsText.shaderPackLodHint()),
                 (caption, value) -> SettingsText.shaderPackLod(value),
                 new OptionInstance.Enum<>(List.of(ShaderPackLod.values()),
                         Codec.STRING.xmap(key -> ShaderPackLod.fromKey(key).orElse(Settings.DEFAULT_SHADER_PACK_LOD),
                                 ShaderPackLod::key)),
                 settings.shaderPackLod(), value -> this.editFromOptions());
-        this.lodAnimations = OptionInstance.createBoolean(LOD_ANIMATIONS_KEY, tooltip(LOD_ANIMATIONS_KEY),
-                settings.lodAnimations(), value -> this.editFromOptions());
+        this.lodAnimations = OptionInstance.createBoolean(LOD_ANIMATIONS_KEY,
+                tooltip(SettingsText.toggleHint(LOD_ANIMATIONS_KEY)), settings.lodAnimations(),
+                value -> this.editFromOptions());
     }
 
     @Override
     protected void addOptions() {
         this.customLodButton = Button.builder(Component.translatable(CUSTOM_LOD_KEY),
-                        button -> this.minecraft.setScreen(new CustomLodScreen(this, this.draft, () -> { })))
+                        button -> this.minecraft.setScreen(
+                                new CustomLodScreen(this, this.draft, DraftOptionsScreen::open)))
                 .tooltip(Tooltip.create(SettingsText.hint(CUSTOM_LOD_KEY)))
                 .build();
         this.addHeader(QUALITY_CATEGORY_KEY);

@@ -10,7 +10,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class LodQualityTest {
-    private static final LodQuality CUSTOM = new LodQuality(2, LeafMode.SEE_THROUGH, true, false);
+    private static final LodQuality CUSTOM = new LodQuality(2, LeafMode.SEE_THROUGH, true, false, CornerOcclusion.EVERY_LEVEL);
 
     @Test
     void ultraDrawsSeeThroughLeaves() {
@@ -81,6 +81,20 @@ class LodQualityTest {
     }
 
     @Test
+    void everyPresetDarkensCornersOnTheFinestLevelOnly() {
+        for (LodChoice choice : presets()) {
+            assertEquals(CornerOcclusion.FINEST_LEVEL, preset(choice).cornerOcclusion(), choice.key());
+        }
+    }
+
+    @Test
+    void everyCornerOcclusionReadsBackFromItsKey() {
+        for (CornerOcclusion occlusion : CornerOcclusion.values()) {
+            assertEquals(Optional.of(occlusion), CornerOcclusion.fromKey(occlusion.key()));
+        }
+    }
+
+    @Test
     void eachDetailActsOnItsOwn() {
         LodQuality seeThroughAlone = preset(LodChoice.HIGH).withLeaves(LeafMode.SEE_THROUGH);
 
@@ -93,9 +107,9 @@ class LodQualityTest {
     @Test
     void aStoredLevelOutsideTheSliderIsRefused() {
         assertThrows(IllegalArgumentException.class,
-                () -> new LodQuality(LodQuality.MAX_STORED_LEVEL + 1, LeafMode.OPAQUE, false, true));
+                () -> new LodQuality(LodQuality.MAX_STORED_LEVEL + 1, LeafMode.OPAQUE, false, true, CornerOcclusion.EVERY_LEVEL));
         assertThrows(IllegalArgumentException.class,
-                () -> new LodQuality(LodQuality.MIN_STORED_LEVEL - 1, LeafMode.OPAQUE, false, true));
+                () -> new LodQuality(LodQuality.MIN_STORED_LEVEL - 1, LeafMode.OPAQUE, false, true, CornerOcclusion.EVERY_LEVEL));
     }
 
     private static LodQuality preset(LodChoice choice) {
