@@ -13,11 +13,11 @@ public final class BladePass {
     private final Runnable whenBaked;
     private final FaceOcclusion occlusion;
 
-    public BladePass(MeshScratch scratch, MeshModels models, int level, Runnable whenBaked) {
+    public BladePass(MeshScratch scratch, MeshModels models, int level, boolean occluded, Runnable whenBaked) {
         this.scratch = scratch;
         this.models = models;
         this.whenBaked = whenBaked;
-        occlusion = new FaceOcclusion(scratch.voxels(), models, level);
+        occlusion = new FaceOcclusion(scratch.voxels(), models, level, occluded);
     }
 
     public boolean run() {

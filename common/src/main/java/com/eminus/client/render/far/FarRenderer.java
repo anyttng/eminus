@@ -150,7 +150,8 @@ public final class FarRenderer implements AutoCloseable {
         float focal = FarProjection.focalPixels(client.options.fov().get(), main.height());
         @Nullable Sparse sparse = ArenaBudget.sparse(gpu);
         long bytes = ArenaBudget.bytes(ArenaSizing.wanted(settings.farRenderCells(),
-                settings.detailDistance().pixels(), focal, runtime.lowestStoredLevel()), ceiling, sparse);
+                settings.detailDistance().pixels(), focal, runtime.lowestStoredLevel(),
+                MeshWiring.occlusion(settings.lodQuality().cornerOcclusion())), ceiling, sparse);
         BackendSupport support = BackendCheck.run(gpu, bytes);
         GeometryArena arena = GeometryArena.create(gpu, support, bytes, sparse);
         if (arena == null) {

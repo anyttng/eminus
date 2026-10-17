@@ -189,9 +189,16 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
     int modelId = int(eminus_field(quad, QUAD_MODEL_SHIFT, QUAD_MODEL_BITS));
     int colourIndex = int(eminus_field(quad, QUAD_COLOUR_SHIFT, QUAD_COLOUR_BITS));
     int quadInMesh = quadIndex - int(mesh.z);
-    int occlusionSlots = (int(mesh.w) + OCCLUSION_PER_SLOT - 1) / OCCLUSION_PER_SLOT;
-    uvec2 occlusionSlot = texelFetch(EminusQuads, int(mesh.z + mesh.w) + quadInMesh / OCCLUSION_PER_SLOT).xy;
-    vertex.occlusion = eminus_field(occlusionSlot, quadInMesh % OCCLUSION_PER_SLOT * OCCLUSION_BITS, OCCLUSION_BITS);
+    bool occluded = (mesh.w >> MESH_UNOCCLUDED_SHIFT) == 0u;
+    int meshQuads = int(mesh.w & ((1u << MESH_UNOCCLUDED_SHIFT) - 1u));
+    int streamStart = int(mesh.z) + meshQuads;
+    int occlusionSlots = occluded ? (meshQuads + OCCLUSION_PER_SLOT - 1) / OCCLUSION_PER_SLOT : 0;
+    vertex.occlusion = 0u;
+    if (occluded) {
+        uvec2 occlusionSlot = texelFetch(EminusQuads, streamStart + quadInMesh / OCCLUSION_PER_SLOT).xy;
+        vertex.occlusion = eminus_field(occlusionSlot, quadInMesh % OCCLUSION_PER_SLOT * OCCLUSION_BITS,
+                                        OCCLUSION_BITS);
+    }
     vertex.mainDiagonal = face >= FIRST_BLADE_FACE || face == 1 || face == 2 || face == 5;
 
     vec4 first = texelFetch(EminusModelRecords,modelId * MODEL_TEXELS);
@@ -210,7 +217,7 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
     uint placement = 0u;
     vertex.tint = vec3(1.0);
     if (colourIndex != 0) {
-        uvec2 entry = texelFetch(EminusQuads,int(mesh.z + mesh.w) + occlusionSlots + colourIndex).rg;
+        uvec2 entry = texelFetch(EminusQuads,streamStart + occlusionSlots + colourIndex).rg;
         vertex.tint = vec3(eminus_field(entry.r, TINT_RED_SHIFT, TINT_CHANNEL_BITS),
                            eminus_field(entry.r, TINT_GREEN_SHIFT, TINT_CHANNEL_BITS),
                            eminus_field(entry.r, TINT_BLUE_SHIFT, TINT_CHANNEL_BITS))
