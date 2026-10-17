@@ -1,0 +1,87 @@
+package com.eminus.client.settings;
+
+import java.util.function.UnaryOperator;
+
+import com.eminus.settings.Settings;
+import com.eminus.settings.SettingsDraft;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.layouts.LinearLayout;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.options.OptionsSubScreen;
+import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.network.chat.Component;
+
+import org.jspecify.annotations.Nullable;
+
+abstract class DraftOptionsScreen extends OptionsSubScreen {
+    private static final Component APPLY_CHANGES = Component.translatable("menu.multiplayerOptions.applyChanges");
+    private static final int FOOTER_SPACING = 8;
+
+    protected final SettingsDraft draft;
+    private final Runnable beforeReturn;
+    private @Nullable Button applyChanges;
+    private @Nullable HeaderedOptionsList headeredList;
+
+    DraftOptionsScreen(Screen lastScreen, Component title, SettingsDraft draft, Runnable beforeReturn) {
+        super(lastScreen, Minecraft.getInstance().options, title);
+        this.draft = draft;
+        this.beforeReturn = beforeReturn;
+    }
+
+    @Override
+    protected void addContents() {
+        this.headeredList = this.layout.addToContents(new HeaderedOptionsList(this.minecraft, this.width, this));
+        this.list = this.headeredList;
+        this.addOptions();
+    }
+
+    protected void addHeader(String key) {
+        if (this.headeredList != null) {
+            this.headeredList.addPlainHeader(Component.translatable(key).withStyle(ChatFormatting.UNDERLINE,
+                    ChatFormatting.BOLD));
+        }
+    }
+
+    @Override
+    protected void addFooter() {
+        LinearLayout footer = this.layout.addToFooter(LinearLayout.horizontal().spacing(FOOTER_SPACING));
+        this.applyChanges = footer.addChild(Button.builder(APPLY_CHANGES, button -> this.write()).build());
+        footer.addChild(Button.builder(CommonComponents.GUI_DONE, button -> this.onClose()).build());
+        this.draftChanged();
+    }
+
+    protected void edit(UnaryOperator<Settings> edit) {
+        this.draft.edit(edit);
+        this.draftChanged();
+    }
+
+    protected void draftChanged() {
+        if (this.applyChanges != null) {
+            this.applyChanges.active = this.draft.changed();
+        }
+    }
+
+    // Vanilla's OptionsSubScreen rewrites options.txt here, and this screen owns no vanilla option.
+    @Override
+    public void removed() {
+    }
+
+    @Override
+    public void onClose() {
+        this.write();
+        this.beforeReturn.run();
+        this.minecraft.gui.setScreen(this.lastScreen);
+    }
+
+    private void write() {
+        if (this.list != null) {
+            this.list.applyUnsavedChanges();
+        }
+
+        this.draft.write();
+        this.draftChanged();
+    }
+}
