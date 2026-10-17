@@ -3,7 +3,7 @@ package com.eminus.settings;
 import java.util.Optional;
 
 public enum LodQuality {
-    FULL("full", 0, true, true),
+    ULTRA("ultra", 0, true, true),
     HIGH("high", 0, false, true),
     MEDIUM("medium", 1, false, true),
     LOW("low", 2, false, false),

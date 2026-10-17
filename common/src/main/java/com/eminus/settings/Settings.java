@@ -12,7 +12,7 @@ public record Settings(
         boolean lodAnimations) {
 
     public static final boolean DEFAULT_INGESTION = true;
-    public static final LodQuality DEFAULT_LOD_QUALITY = LodQuality.FULL;
+    public static final LodQuality DEFAULT_LOD_QUALITY = LodQuality.ULTRA;
     public static final int DEFAULT_FAR_RENDER_CELLS = 16;
     public static final DetailDistance DEFAULT_DETAIL_DISTANCE = DetailDistance.MEDIUM;
     public static final boolean DEFAULT_FOG = true;

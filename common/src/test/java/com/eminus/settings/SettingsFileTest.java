@@ -45,7 +45,7 @@ class SettingsFileTest {
         SettingsFile.save(file, written);
         String content = Files.readString(file, StandardCharsets.UTF_8);
 
-        assertTrue(content.contains("// LOD quality: full, high, medium, low or minimal."), content);
+        assertTrue(content.contains("// LOD quality: ultra, high, medium, low or minimal."), content);
         assertTrue(content.contains("// Radius of LOD, in top-level cells"), content);
         assertTrue(content.contains("// Background worker threads."), content);
         assertTrue(content.contains("// How far out the finer detail levels reach"), content);
@@ -136,7 +136,7 @@ class SettingsFileTest {
 
     @Test
     void aFormerStoredLevelOpensOnItsPreset() throws IOException {
-        LodQuality[] expected = {LodQuality.FULL, LodQuality.MEDIUM, LodQuality.LOW, LodQuality.MINIMAL,
+        LodQuality[] expected = {LodQuality.ULTRA, LodQuality.MEDIUM, LodQuality.LOW, LodQuality.MINIMAL,
                 LodQuality.MINIMAL};
 
         for (int level = 0; level < expected.length; level++) {
@@ -152,6 +152,16 @@ class SettingsFileTest {
         assertTrue(content.contains("\"lod_quality\": \"medium\""), content);
         assertFalse(content.contains("lowest_stored_level"), content);
         assertEquals(loaded, SettingsFile.load(configDir.resolve(SettingsService.FILE_NAME)));
+        assertEquals(24, loaded.farRenderCells());
+    }
+
+    @Test
+    void theFormerFullKeyOpensOnUltraAndIsRewritten() throws IOException {
+        Settings loaded = loadJson("{\"lod_quality\": \"full\", \"far_render_cells\": 24}");
+        String content = Files.readString(configDir.resolve(SettingsService.FILE_NAME), StandardCharsets.UTF_8);
+
+        assertEquals(LodQuality.ULTRA, loaded.lodQuality());
+        assertTrue(content.contains("\"lod_quality\": \"ultra\""), content);
         assertEquals(24, loaded.farRenderCells());
     }
 
