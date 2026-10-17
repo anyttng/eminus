@@ -24,6 +24,7 @@
   "mixins": [
     "eminus.mixins.json",
     "eminus.compat.sodium.mixins.json",
+    "eminus.compat.sodium.settings.mixins.json",
     "eminus.compat.iris.mixins.json"
   ],
   "depends": {

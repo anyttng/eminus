@@ -3,6 +3,7 @@ package com.eminus.render.arena;
 import java.util.OptionalLong;
 
 import com.eminus.cell.DetailLevel;
+import com.eminus.mesh.MeshOcclusion;
 import com.eminus.mesh.OcclusionWord;
 import com.eminus.render.far.DrawCommands;
 
@@ -28,15 +29,16 @@ public final class ArenaSizing {
         return BUDGETED_QUADS_PER_CELL[level - DetailLevel.MIN];
     }
 
-    public static long wanted(int farRenderCells, int subdivisionPixels, float focalPixels, int lowestLevel) {
-        long quads = 0;
+    public static long wanted(int farRenderCells, int subdivisionPixels, float focalPixels, int lowestLevel,
+            MeshOcclusion occlusion) {
+        long slots = 0;
 
         for (int level = Math.max(lowestLevel, DetailLevel.MIN); level <= DetailLevel.MAX; level++) {
-            quads += (long) ArenaDemand.columns(level, focalPixels, subdivisionPixels, farRenderCells)
+            long quads = (long) ArenaDemand.columns(level, focalPixels, subdivisionPixels, farRenderCells)
                     * ArenaDemand.cellsPerColumn(level) * budgetedQuadsPerCell(level);
+            slots += occlusion.at(level) ? quads + Math.ceilDiv(quads, OcclusionWord.PER_SLOT) : quads;
         }
 
-        long slots = quads + Math.ceilDiv(quads, OcclusionWord.PER_SLOT);
         long bytes = Math.ceilDiv(slots * QUAD_BYTES * WHOLE_PERCENT * WHOLE_PERCENT,
                 (long) ArenaPressure.HIGH_WATER_PERCENT * BLOCK_FILL_PERCENT);
         return Math.max(bytes, MIN_BYTES);

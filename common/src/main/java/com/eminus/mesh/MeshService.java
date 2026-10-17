@@ -27,13 +27,14 @@ public final class MeshService {
     private final BiomeTints tints;
     private final int blendRadius;
     private final MeshOpacity opacity;
+    private final MeshOcclusion occlusion;
     private final MeshListener listener;
     private final int urgentWeight;
     private final MeshQueue queue = new MeshQueue();
 
     public MeshService(WorkService<MeshScratch> work, CellAccess cells, ColumnCoverage coverage, CellFrame frame,
-            MeshModels models, BiomeTints tints, int blendRadius, MeshOpacity opacity, MeshListener listener,
-            int urgentWeight) {
+            MeshModels models, BiomeTints tints, int blendRadius, MeshOpacity opacity, MeshOcclusion occlusion,
+            MeshListener listener, int urgentWeight) {
         this.work = work;
         this.urgentWeight = urgentWeight;
         this.cells = cells;
@@ -43,6 +44,7 @@ public final class MeshService {
         this.tints = tints;
         this.blendRadius = blendRadius;
         this.opacity = opacity;
+        this.occlusion = occlusion;
         this.listener = listener;
     }
 
@@ -139,8 +141,8 @@ public final class MeshService {
             scratch.begin(frame, task.key(), tints, blendRadius);
 
             AtomicBoolean retried = new AtomicBoolean();
-            CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy,
-                    opacity.at(CellKey.level(task.key())), () -> {
+            CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy, opacity.at(task.level()),
+                    occlusion.at(task.level()), () -> {
                 if (retried.compareAndSet(false, true)) {
                     submit(task.retry());
                 }

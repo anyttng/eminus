@@ -11,6 +11,7 @@ public enum LodChoice {
     CUSTOM("custom", false, 0, LeafMode.OPAQUE, false, false);
 
     private static final LodChoice[] PRESETS_FINEST_FIRST = {ULTRA, HIGH, MEDIUM, LOW, MINIMAL};
+    private static final CornerOcclusion PRESET_CORNER_OCCLUSION = CornerOcclusion.FINEST_LEVEL;
 
     private final String key;
     private final boolean preset;
@@ -35,7 +36,8 @@ public enum LodChoice {
 
     public Optional<LodQuality> presetQuality() {
         return preset
-                ? Optional.of(new LodQuality(storedLevel, leaves, drawsBlades, fullTextures))
+                ? Optional.of(new LodQuality(storedLevel, leaves, drawsBlades, fullTextures,
+                        PRESET_CORNER_OCCLUSION))
                 : Optional.empty();
     }
 

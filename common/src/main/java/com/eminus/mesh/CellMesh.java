@@ -6,8 +6,7 @@ import com.eminus.cell.OccupancyMask;
 public record CellMesh(long key, int occupancy, long[] quads, long[] occlusion, int[] groupStart, int[] groupCount,
         int[] groupSolid, long[] colours, boolean missingColumns, long grandchildren, boolean readsBelow) {
     public CellMesh(long key, int occupancy, long[] quads, int[] groupStart, int[] groupCount, long[] colours) {
-        this(key, occupancy, quads, new long[OcclusionWord.slots(quads.length)], groupStart, groupCount,
-                new int[QuadGroups.COUNT], colours);
+        this(key, occupancy, quads, new long[0], groupStart, groupCount, new int[QuadGroups.COUNT], colours);
     }
 
     public CellMesh(long key, int occupancy, long[] quads, long[] occlusion, int[] groupStart, int[] groupCount,

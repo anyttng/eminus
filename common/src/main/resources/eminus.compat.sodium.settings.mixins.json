@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.eminus.compat.sodium.settings.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "plugin": "com.eminus.compat.sodium.settings.SodiumSettingsMixinPlugin",
+  "client": [
+    "VideoSettingsScreenAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

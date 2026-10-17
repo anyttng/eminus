@@ -170,7 +170,7 @@ class FaceOcclusionTest {
         }
 
         int stateId = world.get(centre);
-        int word = new FaceOcclusion(voxels(world), models, DetailLevel.MIN)
+        int word = new FaceOcclusion(voxels(world), models, DetailLevel.MIN, true)
                 .face(face, centre.getX(), centre.getY(), centre.getZ(), stateId, ModelMetadata.SMOOTH,
                         face == Direction.UP ? inset : NO_INSET);
 

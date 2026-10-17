@@ -164,7 +164,8 @@ final class FarQuads {
     }
 
     private static void occlusionLayout(PipelineSpec.Builder builder) {
-        builder.withDefine("OCCLUSION_BITS", OcclusionWord.BITS)
+        builder.withDefine("MESH_UNOCCLUDED_SHIFT", MeshRecords.UNOCCLUDED_SHIFT)
+                .withDefine("OCCLUSION_BITS", OcclusionWord.BITS)
                 .withDefine("OCCLUSION_PER_SLOT", OcclusionWord.PER_SLOT)
                 .withDefine("OCCLUSION_FRONT", OcclusionWord.FRONT)
                 .withDefine("OCCLUSION_LOW_U", OcclusionWord.LOW_U)

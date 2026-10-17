@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 class SettingsTest {
-    private static final LodQuality CUSTOM_EDIT = new LodQuality(3, LeafMode.OPAQUE, true, true);
+    private static final LodQuality CUSTOM_EDIT = new LodQuality(3, LeafMode.OPAQUE, true, true, CornerOcclusion.EVERY_LEVEL);
 
     @Test
     void defaultsCarryEverySettingOfTheFirstVersion() {
@@ -43,7 +43,7 @@ class SettingsTest {
 
     @Test
     void thePresetsAreReadUnderAPresetAndTheCustomSetUnderCustom() {
-        LodQuality custom = new LodQuality(1, LeafMode.SEE_THROUGH, true, false);
+        LodQuality custom = new LodQuality(1, LeafMode.SEE_THROUGH, true, false, CornerOcclusion.EVERY_LEVEL);
         Settings settings = Settings.defaults().withCustomLod(custom);
 
         assertEquals(LodChoice.ULTRA.presetQuality().orElseThrow(), settings.lodQuality());
@@ -52,7 +52,7 @@ class SettingsTest {
 
     @Test
     void theCustomSetSurvivesATripThroughAPreset() {
-        LodQuality custom = new LodQuality(1, LeafMode.SEE_THROUGH, true, false);
+        LodQuality custom = new LodQuality(1, LeafMode.SEE_THROUGH, true, false, CornerOcclusion.EVERY_LEVEL);
         Settings settings = Settings.defaults().withLodChoice(LodChoice.CUSTOM).withCustomLod(custom);
 
         assertEquals(custom, settings.withLodChoice(LodChoice.LOW).withLodChoice(LodChoice.CUSTOM).lodQuality());

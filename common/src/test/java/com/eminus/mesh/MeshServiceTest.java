@@ -86,7 +86,7 @@ class MeshServiceTest {
 
     private final WorkService<MeshScratch> work = harness.register(MESH_SERVICE, MeshScratch::new);
     private final MeshService service = new MeshService(work, cache, ColumnCoverage.everything(), FRAME, models,
-            new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh), URGENT_WEIGHT);
+            new FakeTints(), NO_BLEND, level -> opacity, MeshOcclusion.EVERY_LEVEL, (mesh, request) -> delivered.set(mesh), URGENT_WEIGHT);
 
     @BeforeAll
     static void bootstrapVanilla() {
@@ -174,7 +174,7 @@ class MeshServiceTest {
         seedCube();
         AtomicReference<long[]> failure = new AtomicReference<>();
         MeshService failing = new MeshService(work, cache, ColumnCoverage.everything(), FRAME, models,
-                new FakeTints(), NO_BLEND, level -> opacity, new MeshListener() {
+                new FakeTints(), NO_BLEND, level -> opacity, MeshOcclusion.EVERY_LEVEL, new MeshListener() {
                     @Override
                     public void meshed(CellMesh mesh, long request) {
                         delivered.set(mesh);
@@ -249,7 +249,7 @@ class MeshServiceTest {
         coverage.load(ColumnCoverage.pack(HELD_CHUNK_X, KEY_CHUNK_Z), LEVEL);
         coverage.load(ColumnCoverage.pack(DROPPED_CHUNK_X, KEY_CHUNK_Z), COARSE_LEVEL);
         MeshService partial = new MeshService(harness.register(PARTIAL_SERVICE, MeshScratch::new), cache, coverage,
-                FRAME, models, new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh), URGENT_WEIGHT);
+                FRAME, models, new FakeTints(), NO_BLEND, level -> opacity, MeshOcclusion.EVERY_LEVEL, (mesh, request) -> delivered.set(mesh), URGENT_WEIGHT);
 
         harness.run(() -> service.build(MeshTask.fresh(KEY), new MeshScratch()));
         boolean whole = delivered.get().missingColumns();
@@ -271,7 +271,7 @@ class MeshServiceTest {
         WorkerPool idle = WorkerPool.start(NO_WORKERS);
         WorkService<MeshScratch> queued = idle.register(QUEUED_SERVICE, 1, WorkService.UNLIMITED, MeshScratch::new);
         MeshService waiting = new MeshService(queued, cache, ColumnCoverage.everything(), FRAME, models,
-                new FakeTints(), NO_BLEND, level -> opacity, (mesh, request) -> delivered.set(mesh), URGENT_WEIGHT);
+                new FakeTints(), NO_BLEND, level -> opacity, MeshOcclusion.EVERY_LEVEL, (mesh, request) -> delivered.set(mesh), URGENT_WEIGHT);
 
         try {
             harness.run(() -> waiting.build(MeshTask.fresh(KEY), new MeshScratch()));
