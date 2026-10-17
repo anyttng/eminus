@@ -11,7 +11,7 @@ class SettingsTest {
         Settings defaults = Settings.defaults();
 
         assertTrue(defaults.ingestion());
-        assertEquals(LodQuality.FULL, defaults.lodQuality());
+        assertEquals(LodQuality.ULTRA, defaults.lodQuality());
         assertEquals(16, defaults.farRenderCells());
         assertEquals(DetailDistance.MEDIUM, defaults.detailDistance());
         assertTrue(defaults.fog());

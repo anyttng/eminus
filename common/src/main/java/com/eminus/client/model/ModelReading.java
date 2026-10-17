@@ -127,7 +127,7 @@ public final class ModelReading {
 
     private static void upload(ModelBakery bakery, long[] summary) {
         try (Gpu gpu = Gpus.create()) {
-            try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery, LodQuality.FULL.atlasFirstMip())) {
+            try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery, LodQuality.ULTRA.atlasFirstMip())) {
                 summary[CELLS_FROM] = publisher.atlas().cellsPerSide();
                 publisher.publish();
                 summary[UPLOADED] = publisher.published();

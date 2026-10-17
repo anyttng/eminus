@@ -29,10 +29,10 @@ public final class SettingsFile {
     public static final String LOD_ANIMATIONS_KEY = "lod_animations";
 
     private static final String LOD_QUALITY_COMMENT = """
-            LOD quality: full, high, medium, low or minimal. One voxel at LOD's nearest
-            edge covers 1 block under full and high, 2 under medium, 4 under low and 8
-            under minimal. high keeps full's block resolution and draws fewer details:
-            leaves opaque, no grass or flowers, textures at half resolution. full and
+            LOD quality: ultra, high, medium, low or minimal. One voxel at LOD's nearest
+            edge covers 1 block under ultra and high, 2 under medium, 4 under low and 8
+            under minimal. high keeps ultra's block resolution and draws fewer details:
+            leaves opaque, no grass or flowers, textures at half resolution. ultra and
             high share one store; each coarser step stores less.""";
 
     private static final String FAR_RENDER_CELLS_COMMENT = """
@@ -81,6 +81,7 @@ public final class SettingsFile {
 
     private static final int FORMER_STORED_LEVEL_MIN = 0;
     private static final int FORMER_STORED_LEVEL_MAX = 4;
+    private static final String FORMER_ULTRA_KEY = "full";
 
     private static final Gson GSON = new Gson();
     private static final String INDENT = "  ";
@@ -109,7 +110,7 @@ public final class SettingsFile {
                 bool(json, FADE_KEY, defaults.fade()),
                 keyed(json, SHADER_PACK_LOD_KEY, defaults.shaderPackLod(), ShaderPackLod::fromKey),
                 bool(json, LOD_ANIMATIONS_KEY, defaults.lodAnimations()));
-        if (holdsStoredLevelOnly(json)) {
+        if (holdsStoredLevelOnly(json) || holdsFormerUltraKey(json)) {
             save(file, loaded);
         }
 
@@ -178,11 +179,20 @@ public final class SettingsFile {
                     FORMER_STORED_LEVEL_MIN, FORMER_STORED_LEVEL_MAX));
         }
 
+        if (holdsFormerUltraKey(json)) {
+            return LodQuality.ULTRA;
+        }
+
         return keyed(json, LOD_QUALITY_KEY, fallback, LodQuality::fromKey);
     }
 
     private static boolean holdsStoredLevelOnly(JsonObject json) {
         return !json.has(LOD_QUALITY_KEY) && json.has(LOWEST_STORED_LEVEL_KEY);
+    }
+
+    private static boolean holdsFormerUltraKey(JsonObject json) {
+        JsonElement value = json.get(LOD_QUALITY_KEY);
+        return value != null && value.isJsonPrimitive() && FORMER_ULTRA_KEY.equals(value.getAsString());
     }
 
     private static boolean bool(JsonObject json, String key, boolean fallback) {
