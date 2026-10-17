@@ -35,12 +35,19 @@ class LodQualityTest {
     }
 
     @Test
-    void anOldStoredLevelMapsToTheFirstPresetStoringIt() {
+    void anOldStoredLevelMapsToItsPreset() {
         assertEquals(LodChoice.ULTRA, LodChoice.fromLowestStoredLevel(0));
         assertEquals(LodChoice.MEDIUM, LodChoice.fromLowestStoredLevel(1));
         assertEquals(LodChoice.LOW, LodChoice.fromLowestStoredLevel(2));
-        assertEquals(LodChoice.MINIMAL, LodChoice.fromLowestStoredLevel(3));
-        assertEquals(LodChoice.MINIMAL, LodChoice.fromLowestStoredLevel(4));
+        assertEquals(LodChoice.LOW, LodChoice.fromLowestStoredLevel(3));
+        assertEquals(LodChoice.LOW, LodChoice.fromLowestStoredLevel(4));
+    }
+
+    @Test
+    void everyPresetStoresTheFinestLevel() {
+        for (LodChoice choice : presets()) {
+            assertEquals(LodQuality.MIN_STORED_LEVEL, preset(choice).storedLevel(), choice.key());
+        }
     }
 
     @Test
@@ -51,12 +58,11 @@ class LodQualityTest {
     }
 
     @Test
-    void lowAndMinimalAloneUploadTheAtlasFromTheFirstMip() {
+    void mediumAndLowAloneUploadTheAtlasFromTheFirstMip() {
         assertEquals(0, preset(LodChoice.ULTRA).atlasFirstMip());
         assertEquals(0, preset(LodChoice.HIGH).atlasFirstMip());
-        assertEquals(0, preset(LodChoice.MEDIUM).atlasFirstMip());
+        assertEquals(1, preset(LodChoice.MEDIUM).atlasFirstMip());
         assertEquals(1, preset(LodChoice.LOW).atlasFirstMip());
-        assertEquals(1, preset(LodChoice.MINIMAL).atlasFirstMip());
     }
 
     @Test
@@ -81,9 +87,10 @@ class LodQualityTest {
     }
 
     @Test
-    void everyPresetDarkensCornersOnTheFinestLevelOnly() {
+    void lowAloneDarkensNoCorners() {
         for (LodChoice choice : presets()) {
-            assertEquals(CornerOcclusion.FINEST_LEVEL, preset(choice).cornerOcclusion(), choice.key());
+            CornerOcclusion expected = choice == LodChoice.LOW ? CornerOcclusion.OFF : CornerOcclusion.FINEST_LEVEL;
+            assertEquals(expected, preset(choice).cornerOcclusion(), choice.key());
         }
     }
 
@@ -117,6 +124,6 @@ class LodQualityTest {
     }
 
     private static LodChoice[] presets() {
-        return new LodChoice[] {LodChoice.ULTRA, LodChoice.HIGH, LodChoice.MEDIUM, LodChoice.LOW, LodChoice.MINIMAL};
+        return new LodChoice[] {LodChoice.ULTRA, LodChoice.HIGH, LodChoice.MEDIUM, LodChoice.LOW};
     }
 }
