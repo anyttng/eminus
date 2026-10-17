@@ -5,9 +5,11 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 import com.eminus.Eminus;
+import com.eminus.client.settings.CustomLodScreen;
 import com.eminus.client.settings.SettingsText;
 import com.eminus.client.settings.SliderPositions;
 import com.eminus.compat.iris.IrisShaderPack;
+import com.eminus.settings.LodChoice;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
 import com.eminus.settings.ShaderPackLod;
@@ -15,12 +17,15 @@ import com.eminus.settings.ShaderPackLod;
 import net.caffeinemc.mods.sodium.api.config.ConfigEntryPoint;
 import net.caffeinemc.mods.sodium.api.config.structure.ConfigBuilder;
 import net.caffeinemc.mods.sodium.api.config.structure.OptionGroupBuilder;
+import net.caffeinemc.mods.sodium.client.config.ConfigManager;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 public final class SodiumSettingsPage implements ConfigEntryPoint {
     private static final String INGESTION_ID = "ingestion";
     private static final String LOD_QUALITY_ID = "lod_quality";
+    private static final String CUSTOM_LOD_ID = "custom_lod";
     private static final String FAR_RENDER_CELLS_ID = "far_render_cells";
     private static final String WORKER_THREADS_ID = "worker_threads";
     private static final String DETAIL_DISTANCE_ID = "detail_distance";
@@ -30,6 +35,7 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
     private static final String LOD_ANIMATIONS_ID = "lod_animations";
 
     private static final int STEP = 1;
+    private static final int CUSTOM_POSITION = SliderPositions.lodChoicePosition(LodChoice.CUSTOM);
 
     private final List<UnaryOperator<Settings>> edits = new ArrayList<>();
 
@@ -49,12 +55,19 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setName(Component.translatable(SettingsText.LOD_QUALITY_KEY))
                         .setTooltip(SettingsText.hint(SettingsText.LOD_QUALITY_KEY))
                         .setStorageHandler(this::save)
-                        .setRange(SliderPositions.FIRST, SliderPositions.LAST_LOD_QUALITY, STEP)
-                        .setValueFormatter(position -> SettingsText.lodQuality(SliderPositions.lodQuality(position)))
-                        .setDefaultValue(SliderPositions.lodQualityPosition(defaults.lodQuality()))
-                        .setBinding(position -> edit(settings -> settings.withLodQuality(
-                                        SliderPositions.lodQuality(position))),
-                                () -> SliderPositions.lodQualityPosition(current().lodQuality())))
+                        .setRange(SliderPositions.FIRST, SliderPositions.LAST_LOD_CHOICE, STEP)
+                        .setValueFormatter(position -> SettingsText.lodChoice(SliderPositions.lodChoice(position)))
+                        .setDefaultValue(SliderPositions.lodChoicePosition(defaults.lodChoice()))
+                        .setBinding(position -> edit(settings -> settings.withLodChoice(
+                                        SliderPositions.lodChoice(position))),
+                                () -> SliderPositions.lodChoicePosition(current().lodChoice())))
+                .addOption(builder.createExternalButtonOption(id(CUSTOM_LOD_ID))
+                        .setName(Component.translatable(SettingsText.CUSTOM_LOD_KEY))
+                        .setTooltip(SettingsText.hint(SettingsText.CUSTOM_LOD_KEY))
+                        .setEnabledProvider(state -> state.readIntOption(id(LOD_QUALITY_ID)) == CUSTOM_POSITION,
+                                id(LOD_QUALITY_ID))
+                        .setScreenConsumer(screen -> Minecraft.getInstance().setScreen(
+                                new CustomLodScreen(screen, SodiumSettingsPage::reloadOptions))))
                 .addOption(builder.createIntegerOption(id(FAR_RENDER_CELLS_ID))
                         .setName(Component.translatable(SettingsText.FAR_RENDER_CELLS_KEY))
                         .setTooltip(SettingsText.hint(SettingsText.FAR_RENDER_CELLS_KEY))
@@ -134,6 +147,15 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
 
         edits.clear();
         SettingsService.get().update(updated);
+    }
+
+    private static void reloadOptions() {
+        try {
+            ConfigManager.CONFIG.resetAllOptionsFromBindings();
+        } catch (LinkageError changed) {
+            Eminus.LOGGER.warn("Sodium's options could not be reloaded after Custom LOD Quality; reopen its screen"
+                    + " to see them: {}", changed.toString());
+        }
     }
 
     private static Settings current() {

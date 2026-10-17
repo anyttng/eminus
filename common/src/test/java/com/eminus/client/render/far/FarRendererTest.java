@@ -10,14 +10,15 @@ import java.util.List;
 import com.eminus.gpu.Location;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.settings.DetailDistance;
-import com.eminus.settings.LodQuality;
+import com.eminus.settings.LeafMode;
+import com.eminus.settings.LodChoice;
 import com.eminus.settings.Settings;
 import com.eminus.settings.ShaderPackLod;
 
 import org.junit.jupiter.api.Test;
 
 class FarRendererTest {
-    private static final Settings BUILT = new Settings(true, LodQuality.ULTRA, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true);
+    private static final Settings BUILT = new Settings(true, LodChoice.ULTRA, Settings.DEFAULT_CUSTOM_LOD, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true);
     private static final Location MASK = new Location("eminus", "near_mask");
     private static final Location OPAQUE = new Location("eminus", "far_opaque");
     private static final Location TRANSLUCENT = new Location("eminus", "far_translucent");
@@ -39,26 +40,46 @@ class FarRendererTest {
 
     @Test
     void aFarDistanceChangeRecreatesTheRenderer() {
-        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, LodQuality.ULTRA, 32, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true)));
+        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, LodChoice.ULTRA, Settings.DEFAULT_CUSTOM_LOD, 32, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true)));
     }
 
     @Test
     void aDetailDistanceChangeRecreatesTheRenderer() {
-        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, LodQuality.ULTRA, 16, 4, DetailDistance.HIGH, true, true, ShaderPackLod.DEFAULT, true)));
+        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, LodChoice.ULTRA, Settings.DEFAULT_CUSTOM_LOD, 16, 4, DetailDistance.HIGH, true, true, ShaderPackLod.DEFAULT, true)));
     }
 
     @Test
     void aLodQualityChangeRecreatesTheRenderer() {
-        assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodQuality(LodQuality.HIGH)));
+        assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.HIGH)));
+    }
+
+    @Test
+    void aChangeOfOneLodDetailRecreatesTheRenderer() {
+        assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withDrawsBlades(false))));
+        assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withLeaves(LeafMode.OPAQUE))));
+        assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withFullTextures(false))));
+    }
+
+    @Test
+    void customWithThePresetsOwnValuesKeepsTheRenderer() {
+        Settings high = BUILT.withLodChoice(LodChoice.HIGH);
+        Settings custom = high.withCustomLod(LodChoice.HIGH.presetQuality().orElseThrow()).withLodChoice(LodChoice.CUSTOM);
+
+        assertFalse(FarRenderer.recreates(high, custom));
+    }
+
+    @Test
+    void aCustomSetEditedUnderAPresetKeepsTheRenderer() {
+        assertFalse(FarRenderer.recreates(BUILT, BUILT.withCustomLod(BUILT.customLod().withDrawsBlades(false))));
     }
 
     @Test
     void aFogOrFadeChangeKeepsTheRenderer() {
-        assertFalse(FarRenderer.recreates(BUILT, new Settings(true, LodQuality.ULTRA, 16, 4, DetailDistance.MEDIUM, false, false, ShaderPackLod.DEFAULT, true)));
+        assertFalse(FarRenderer.recreates(BUILT, new Settings(true, LodChoice.ULTRA, Settings.DEFAULT_CUSTOM_LOD, 16, 4, DetailDistance.MEDIUM, false, false, ShaderPackLod.DEFAULT, true)));
     }
 
     @Test
     void anIngestionOrWorkerChangeKeepsTheRenderer() {
-        assertFalse(FarRenderer.recreates(BUILT, new Settings(false, LodQuality.ULTRA, 16, 8, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true)));
+        assertFalse(FarRenderer.recreates(BUILT, new Settings(false, LodChoice.ULTRA, Settings.DEFAULT_CUSTOM_LOD, 16, 8, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true)));
     }
 }

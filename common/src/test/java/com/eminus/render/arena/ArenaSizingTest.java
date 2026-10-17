@@ -20,7 +20,7 @@ class ArenaSizingTest {
     private static final float FOCAL_PIXELS = 978.0F;
     private static final int FAR_CELLS = Settings.DEFAULT_FAR_RENDER_CELLS;
     private static final int SUBDIVISION = Settings.DEFAULT_DETAIL_DISTANCE.pixels();
-    private static final int LOWEST_LEVEL = Settings.DEFAULT_LOD_QUALITY.storedLevel();
+    private static final int LOWEST_LEVEL = Settings.defaults().lodQuality().storedLevel();
     private static final float MEASURED_FOCAL_PIXELS = 977.6F;
     private static final int MEASURED_FAR_CHUNKS = 128;
     private static final int MEASURED_FAR_CELLS = FarDistance.chunksToCells(MEASURED_FAR_CHUNKS);

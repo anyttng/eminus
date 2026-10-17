@@ -4,9 +4,11 @@ import com.eminus.client.render.far.FarRenderer;
 import com.eminus.client.session.ClientSession;
 import com.eminus.settings.DetailDistance;
 import com.eminus.settings.FarDistance;
+import com.eminus.settings.LodChoice;
 import com.eminus.settings.LodQuality;
 import com.eminus.settings.ShaderPackLod;
 
+import net.minecraft.client.OptionInstance;
 import net.minecraft.network.chat.Component;
 
 public final class SettingsText {
@@ -20,14 +22,26 @@ public final class SettingsText {
     public static final String FADE_KEY = "gui.eminus.settings.fade";
     public static final String SHADER_PACK_LOD_KEY = "gui.eminus.settings.shader_pack_lod";
     public static final String LOD_ANIMATIONS_KEY = "gui.eminus.settings.lod_animations";
+    public static final String CUSTOM_LOD_KEY = "gui.eminus.settings.custom_lod";
+    public static final String CUSTOM_LOD_TITLE_KEY = "gui.eminus.settings.custom_lod.title";
+    public static final String NEAREST_VOXEL_KEY = "gui.eminus.settings.custom_lod.nearest_voxel";
+    public static final String LEAVES_KEY = "gui.eminus.settings.custom_lod.leaves";
+    public static final String GRASS_AND_FLOWERS_KEY = "gui.eminus.settings.custom_lod.grass_and_flowers";
+    public static final String TEXTURES_KEY = "gui.eminus.settings.custom_lod.textures";
 
     private static final String HINT_SUFFIX = ".hint";
     private static final String LIMITED_SUFFIX = ".limited";
     private static final String PARAGRAPH = "\n\n";
     private static final String VANILLA_CHUNKS_KEY = "options.chunks";
+    private static final String TEXTURES_FULL_SUFFIX = ".full";
+    private static final String TEXTURES_HALF_SUFFIX = ".half";
 
     public static Component hint(String captionKey) {
         return Component.translatable(captionKey + HINT_SUFFIX);
+    }
+
+    public static <T> OptionInstance.TooltipSupplier<T> tooltip(String captionKey) {
+        return OptionInstance.cachedConstantTooltip(hint(captionKey));
     }
 
     public static Component detailDistanceHint() {
@@ -41,8 +55,16 @@ public final class SettingsText {
                 .append(Component.translatable(DETAIL_DISTANCE_KEY + LIMITED_SUFFIX));
     }
 
-    public static Component lodQuality(LodQuality quality) {
-        return Component.translatable(LOD_QUALITY_KEY + "." + quality.key());
+    public static Component lodChoice(LodChoice choice) {
+        return Component.translatable(LOD_QUALITY_KEY + "." + choice.key());
+    }
+
+    public static Component nearestVoxel(int storedLevel) {
+        return Component.translatable(NEAREST_VOXEL_KEY + "." + LodQuality.voxelBlocks(storedLevel));
+    }
+
+    public static Component textures(boolean full) {
+        return Component.translatable(TEXTURES_KEY + (full ? TEXTURES_FULL_SUFFIX : TEXTURES_HALF_SUFFIX));
     }
 
     public static Component detailDistance(DetailDistance distance) {
