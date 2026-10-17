@@ -17,7 +17,7 @@ import com.eminus.settings.ShaderPackLod;
 import org.junit.jupiter.api.Test;
 
 class FarRendererTest {
-    private static final Settings BUILT = new Settings(true, LodQuality.FULL, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true);
+    private static final Settings BUILT = new Settings(true, LodQuality.ULTRA, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true);
     private static final Location MASK = new Location("eminus", "near_mask");
     private static final Location OPAQUE = new Location("eminus", "far_opaque");
     private static final Location TRANSLUCENT = new Location("eminus", "far_translucent");
@@ -39,12 +39,12 @@ class FarRendererTest {
 
     @Test
     void aFarDistanceChangeRecreatesTheRenderer() {
-        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, LodQuality.FULL, 32, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true)));
+        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, LodQuality.ULTRA, 32, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true)));
     }
 
     @Test
     void aDetailDistanceChangeRecreatesTheRenderer() {
-        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, LodQuality.FULL, 16, 4, DetailDistance.HIGH, true, true, ShaderPackLod.DEFAULT, true)));
+        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, LodQuality.ULTRA, 16, 4, DetailDistance.HIGH, true, true, ShaderPackLod.DEFAULT, true)));
     }
 
     @Test
@@ -54,11 +54,11 @@ class FarRendererTest {
 
     @Test
     void aFogOrFadeChangeKeepsTheRenderer() {
-        assertFalse(FarRenderer.recreates(BUILT, new Settings(true, LodQuality.FULL, 16, 4, DetailDistance.MEDIUM, false, false, ShaderPackLod.DEFAULT, true)));
+        assertFalse(FarRenderer.recreates(BUILT, new Settings(true, LodQuality.ULTRA, 16, 4, DetailDistance.MEDIUM, false, false, ShaderPackLod.DEFAULT, true)));
     }
 
     @Test
     void anIngestionOrWorkerChangeKeepsTheRenderer() {
-        assertFalse(FarRenderer.recreates(BUILT, new Settings(false, LodQuality.FULL, 16, 8, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true)));
+        assertFalse(FarRenderer.recreates(BUILT, new Settings(false, LodQuality.ULTRA, 16, 8, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true)));
     }
 }
