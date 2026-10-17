@@ -24,34 +24,34 @@ public final class TintSweep {
 
     public static void sweep(Iterable<BlockState> states, BlockTints blockTints,
             Function<FluidState, @Nullable TintSource> fluidTints, UnaryOperator<BlockState> shapes,
-            BiomeColours colours) {
-        Map<BiomeColours.Colours, Set<Block>> users = new HashMap<>();
+            BiomeColors colors) {
+        Map<BiomeColors.Colors, Set<Block>> users = new HashMap<>();
 
         for (BlockState state : states) {
             BlockState shape = shapes.apply(state);
             for (TintSource tint : blockTints.sources(shape)) {
-                count(users, colours, tint, shape, state.getBlock());
+                count(users, colors, tint, shape, state.getBlock());
             }
 
             FluidState fluid = state.getFluidState();
             TintSource fluidTint = fluid.isEmpty() ? null : fluidTints.apply(fluid);
             if (fluidTint != null) {
-                count(users, colours, fluidTint, state, state.getBlock());
+                count(users, colors, fluidTint, state, state.getBlock());
             }
         }
 
-        List<BiomeColours.Colours> ranked = users.keySet().stream()
-                .sorted(Comparator.comparingInt((BiomeColours.Colours set) -> users.get(set).size()).reversed()
+        List<BiomeColors.Colors> ranked = users.keySet().stream()
+                .sorted(Comparator.comparingInt((BiomeColors.Colors set) -> users.get(set).size()).reversed()
                         .thenComparing(Comparator.naturalOrder()))
                 .toList();
-        colours.assign(ranked);
+        colors.assign(ranked);
     }
 
-    private static void count(Map<BiomeColours.Colours, Set<Block>> users, BiomeColours colours,
+    private static void count(Map<BiomeColors.Colors, Set<Block>> users, BiomeColors colors,
             TintSource tint, BlockState state, Block block) {
-        BiomeColours.Colours sampled;
+        BiomeColors.Colors sampled;
         try {
-            sampled = colours.sample(tint, state);
+            sampled = colors.sample(tint, state);
         } catch (RuntimeException failure) {
             return;
         }

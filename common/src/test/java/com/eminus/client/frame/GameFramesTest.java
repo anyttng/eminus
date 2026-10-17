@@ -15,20 +15,20 @@ class GameFramesTest {
     private static final boolean ENVIRONMENTAL_FOG = false;
     private static final float FOG_START = 128.0F;
     private static final float FOG_END = 192.0F;
-    private static final Vector4fc COLOUR = new Vector4f(0.5F, 0.6F, 0.7F, 1.0F);
+    private static final Vector4fc COLOR = new Vector4f(0.5F, 0.6F, 0.7F, 1.0F);
 
     @Test
     void theRenderDistanceBranchFillsTheRenderDistancePairAlone() {
-        GameFog fog = GameFrames.fog(FOG_START, FOG_END, RENDER_DISTANCE_FOG, COLOUR);
+        GameFog fog = GameFrames.fog(FOG_START, FOG_END, RENDER_DISTANCE_FOG, COLOR);
 
-        assertEquals(new GameFog(GameFrames.NO_FOG, GameFrames.NO_FOG, FOG_START, FOG_END, COLOUR), fog);
+        assertEquals(new GameFog(GameFrames.NO_FOG, GameFrames.NO_FOG, FOG_START, FOG_END, COLOR), fog);
     }
 
     @Test
     void everyOtherBranchFillsTheEnvironmentalPairAlone() {
-        GameFog fog = GameFrames.fog(FOG_START, FOG_END, ENVIRONMENTAL_FOG, COLOUR);
+        GameFog fog = GameFrames.fog(FOG_START, FOG_END, ENVIRONMENTAL_FOG, COLOR);
 
-        assertEquals(new GameFog(FOG_START, FOG_END, GameFrames.NO_FOG, GameFrames.NO_FOG, COLOUR), fog);
+        assertEquals(new GameFog(FOG_START, FOG_END, GameFrames.NO_FOG, GameFrames.NO_FOG, COLOR), fog);
     }
 
     @Test

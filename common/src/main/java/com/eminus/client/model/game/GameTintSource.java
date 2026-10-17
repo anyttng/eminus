@@ -12,7 +12,7 @@ record GameTintSource(BlockColors colors, int layer) implements TintSource {
     static final int SAMPLE_Y = 0;
 
     @Override
-    public int colour(BlockState state, TintBiome biome, int blockX, int blockZ) {
+    public int color(BlockState state, TintBiome biome, int blockX, int blockZ) {
         return colors.getColor(state, (BlockAndTintGetter) biome, new BlockPos(blockX, SAMPLE_Y, blockZ), layer);
     }
 }

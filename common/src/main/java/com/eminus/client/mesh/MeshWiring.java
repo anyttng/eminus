@@ -19,7 +19,7 @@ public final class MeshWiring {
     public static MeshService service(Minecraft client, DimensionRuntime runtime, EminusInstance instance,
             ClientBakery baking, MeshListener listener) {
         return new MeshService(instance.build(), runtime.cells(), runtime.coverage(), runtime.frame(),
-                models(runtime, baking), new BakeryTints(baking.colours(), runtime.biomes()),
+                models(runtime, baking), new BakeryTints(baking.colors(), runtime.biomes()),
                 client.options.biomeBlendRadius().get(), baking.opacity(runtime.states()),
                 occlusion(SettingsService.get().settings().lodQuality().cornerOcclusion()), listener,
                 EminusInstance.URGENT_BUILD_WEIGHT);

@@ -4,7 +4,7 @@ import com.eminus.model.port.MipBlend;
 import com.eminus.model.port.MipStrategy;
 
 public final class FaceMips {
-    public static int[][] colourLevels(int[] face, int side, FaceMip mip, boolean opaque, MipBlend blend) {
+    public static int[][] colorLevels(int[] face, int side, FaceMip mip, boolean opaque, MipBlend blend) {
         // A face is stored bottom-up; the game's float sums run over the sprite's rows top-down.
         flipRows(face, side);
         boolean cutout = mip.strategy() == MipStrategy.CUTOUT;

@@ -81,7 +81,7 @@ class ObjWriterTest {
     private List<float[]> written(int level, Direction face, int modelId, int placement, int x, int y, int z)
             throws IOException {
         MeshBuffer buffer = new MeshBuffer();
-        long data = Quad.data(0, modelId, buffer.colourIndex(MeshBuffer.WHITE, placement));
+        long data = Quad.data(0, modelId, buffer.colorIndex(MeshBuffer.WHITE, placement));
         buffer.add(face.get3DDataValue(), Quad.of(data, face.get3DDataValue(), x, y, z, 1, 1),
                 OcclusionWord.NONE);
         CellMesh mesh = buffer.freeze(CellKey.pack(level, 0, 0, 0), OccupancyMask.EMPTY);

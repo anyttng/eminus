@@ -56,13 +56,13 @@ public final class Solidify {
         }
     }
 
-    private static int spread(int[] queue, int tail, int[] source, int neighbour, int drawn) {
-        if (source[neighbour] != UNREACHED) {
+    private static int spread(int[] queue, int tail, int[] source, int neighbor, int drawn) {
+        if (source[neighbor] != UNREACHED) {
             return tail;
         }
 
-        source[neighbour] = drawn;
-        queue[tail] = neighbour;
+        source[neighbor] = drawn;
+        queue[tail] = neighbor;
         return tail + 1;
     }
 

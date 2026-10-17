@@ -36,7 +36,7 @@ public final class EminusApi {
     }
 
     /**
-     * The far render distance the player set, in blocks of horizontal distance from the camera: the far layer draws
+     * The LOD Distance the player set, in blocks of horizontal distance from the camera: the far layer draws
      * from the game's own render distance out to it. It answers the setting whether or not a far renderer runs, on
      * any thread, once mod loading has finished.
      */
@@ -46,7 +46,7 @@ public final class EminusApi {
 
     /**
      * The far layer's state for the dimension the client holds, or {@code null} unless {@link #status} answers
-     * {@link FarLayerStatus#RUNNING}. Call on the render thread. The tree is read on its own thread, so the future
+     * {@link FarLayerStatus#RUNNING}. Call on the render thread. Eminus keeps that state on a thread of its own, so the future
      * completes once that thread has taken the request, and completes exceptionally when the renderer stops first.
      */
     public static @Nullable CompletableFuture<FarLayerState> farLayer() {

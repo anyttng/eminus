@@ -27,7 +27,7 @@ public final class ModelBakery implements ModelSource {
     public static final int MISSING = Dictionary.MISSING;
     public static final int NO_FLUID = -2;
     public static final int POSITIONAL = -4;
-    public static final int PLACEHOLDER_COLOUR = 0xFFFF_00FF;
+    public static final int PLACEHOLDER_COLOR = 0xFFFF_00FF;
 
     private static final int THREAD_PRIORITY = Thread.NORM_PRIORITY - 1;
     private static final long LOW_WORD = 0xFFFF_FFFFL;
@@ -56,7 +56,7 @@ public final class ModelBakery implements ModelSource {
     private final Map<Request, List<Runnable>> waiting = new HashMap<>();
     private final ThreadLocal<Picker> pickers = ThreadLocal.withInitial(Picker::new);
     private final Thread thread = new Thread(this::serve, THREAD_NAME);
-    private final BakedModel placeholder = BakedModel.solid(PLACEHOLDER_COLOUR);
+    private final BakedModel placeholder = BakedModel.solid(PLACEHOLDER_COLOR);
 
     private volatile boolean running = true;
 

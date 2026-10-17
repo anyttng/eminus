@@ -84,7 +84,7 @@ class DepthConventionTest {
 
     private static List<PipelineSpec.Define> defines(DepthConvention depth) {
         return depth.define(PipelineSpec.builder(PIPELINE, PIPELINE, PIPELINE))
-                .withColourTarget(Format.RGBA8_UNORM, null, true)
+                .withColorTarget(Format.RGBA8_UNORM, null, true)
                 .build()
                 .defines();
     }

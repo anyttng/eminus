@@ -87,10 +87,10 @@ public final class GameFrames {
         }
     }
 
-    static GameFog fog(float start, float end, boolean renderDistance, Vector4fc colour) {
+    static GameFog fog(float start, float end, boolean renderDistance, Vector4fc color) {
         return renderDistance
-                ? new GameFog(NO_FOG, NO_FOG, start, end, colour)
-                : new GameFog(start, end, NO_FOG, NO_FOG, colour);
+                ? new GameFog(NO_FOG, NO_FOG, start, end, color)
+                : new GameFog(start, end, NO_FOG, NO_FOG, color);
     }
 
     static boolean clears(boolean renderDistance, boolean clearAtmosphericFog) {

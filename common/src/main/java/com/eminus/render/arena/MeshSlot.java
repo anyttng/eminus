@@ -6,7 +6,7 @@ import com.eminus.cell.DetailLevel;
 import com.eminus.mesh.CellMesh;
 
 @SuppressWarnings("ArrayRecordComponent")
-public record MeshSlot(long key, int block, int quads, int occlusion, int colours, int[] groupStart,
+public record MeshSlot(long key, int block, int quads, int occlusion, int colors, int[] groupStart,
         int[] groupCount, int[] groupSolid) {
     public static final int MIN_X = 0;
     public static final int MIN_Y = 1;
@@ -17,12 +17,12 @@ public record MeshSlot(long key, int block, int quads, int occlusion, int colour
     public static final int BOUNDS = 6;
 
     public static MeshSlot of(CellMesh mesh, int block) {
-        return new MeshSlot(mesh.key(), block, mesh.quadCount(), mesh.occlusion().length, mesh.colours().length,
+        return new MeshSlot(mesh.key(), block, mesh.quadCount(), mesh.occlusion().length, mesh.colors().length,
                 mesh.groupStart(), mesh.groupCount(), mesh.groupSolid());
     }
 
     public int slots() {
-        return quads + occlusion + colours;
+        return quads + occlusion + colors;
     }
 
     public boolean occluded() {

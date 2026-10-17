@@ -71,15 +71,15 @@ public final class CellQuadReading {
                 });
     }
 
-    private static long[] square(long centre, int ring) {
+    private static long[] square(long center, int ring) {
         int side = 2 * ring + 1;
         long[] keys = new long[side * side];
         int index = 0;
 
         for (int dx = -ring; dx <= ring; dx++) {
             for (int dz = -ring; dz <= ring; dz++) {
-                keys[index++] = CellKey.pack(CellKey.level(centre), CellKey.x(centre) + dx, CellKey.y(centre),
-                        CellKey.z(centre) + dz);
+                keys[index++] = CellKey.pack(CellKey.level(center), CellKey.x(center) + dx, CellKey.y(center),
+                        CellKey.z(center) + dz);
             }
         }
 

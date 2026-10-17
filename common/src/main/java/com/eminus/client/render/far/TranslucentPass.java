@@ -31,12 +31,12 @@ public final class TranslucentPass {
     private static final String DEPTH_PASS_LABEL = "eminus-far-translucent-depth";
 
     private final Gpu gpu;
-    private final Pipeline colour;
+    private final Pipeline color;
     private final Pipeline depth;
 
-    private TranslucentPass(Gpu gpu, Pipeline colour, Pipeline depth) {
+    private TranslucentPass(Gpu gpu, Pipeline color, Pipeline depth) {
         this.gpu = gpu;
-        this.colour = colour;
+        this.color = color;
         this.depth = depth;
     }
 
@@ -49,7 +49,7 @@ public final class TranslucentPass {
     }
 
     public List<Pipeline> pipelines() {
-        return List.of(colour, depth);
+        return List.of(color, depth);
     }
 
     public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer commands,
@@ -59,7 +59,7 @@ public final class TranslucentPass {
             return;
         }
 
-        draw(PASS_LABEL, colour, target, arena, models, lightmap, commands, firstCommand, drawCount, frame,
+        draw(PASS_LABEL, color, target, arena, models, lightmap, commands, firstCommand, drawCount, frame,
                 nearSections);
         draw(DEPTH_PASS_LABEL, depth, target, arena, models, lightmap, commands, firstCommand, drawCount, frame,
                 nearSections);
@@ -68,7 +68,7 @@ public final class TranslucentPass {
     private void draw(String label, Pipeline pipeline, FarTarget target, GeometryArena arena, ModelPublisher models,
             Texture lightmap, Buffer commands, int firstCommand, int drawCount, Buffer frame,
             TexelView nearSections) {
-        try (Pass pass = gpu.pass(PassSpec.of(label, target.colour(), null)
+        try (Pass pass = gpu.pass(PassSpec.of(label, target.color(), null)
                 .withDepth(target.depth(), OptionalDouble.empty()))) {
             pass.pipeline(pipeline);
             FarQuads.bind(pass, arena, models, lightmap, frame, nearSections);
@@ -76,11 +76,11 @@ public final class TranslucentPass {
         }
     }
 
-    private static PipelineSpec pipeline(Location location, @Nullable Blend blend, boolean writesColour,
+    private static PipelineSpec pipeline(Location location, @Nullable Blend blend, boolean writesColor,
             boolean writesDepth, DepthConvention depth, Capabilities capabilities, VariantDraw variantDraw) {
         return FarQuads.pipeline(location, ALPHA_CUTOUT, capabilities, variantDraw)
                 .withDefine("NEAR_SECTIONS")
-                .withColourTarget(FarTarget.COLOUR_FORMAT, blend, writesColour)
+                .withColorTarget(FarTarget.COLOR_FORMAT, blend, writesColor)
                 .withDepthTest(depth.compare(), writesDepth)
                 .build();
     }

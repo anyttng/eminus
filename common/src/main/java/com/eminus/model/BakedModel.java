@@ -65,7 +65,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
         float[] insets = new float[FACE_COUNT];
         Arrays.fill(insets, EMPTY_INSET);
         return new BakedModel(new int[FACE_COUNT * FACE_TEXELS], untintedMask(), insets,
-                new float[BOUNDS_LENGTH], 0, BiomeColours.NO_ROW, MEAN_MIPS);
+                new float[BOUNDS_LENGTH], 0, BiomeColors.NO_ROW, MEAN_MIPS);
     }
 
     public static BakedModel solid(int argb) {
@@ -73,7 +73,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
         Arrays.fill(faces, argb);
         int metadata = ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0);
         return new BakedModel(faces, untintedMask(), new float[FACE_COUNT], fullBounds(), metadata,
-                BiomeColours.NO_ROW);
+                BiomeColors.NO_ROW);
     }
 
     public static float[] fullBounds() {
@@ -195,7 +195,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
 
     private static boolean opaqueAtEveryLevel(int[] faces, int face, FaceMip mip, MipBlend blend) {
         int[] texels = Arrays.copyOfRange(faces, face * FACE_TEXELS, (face + 1) * FACE_TEXELS);
-        for (int[] level : FaceMips.colourLevels(texels, FACE_SIDE, mip, false, blend)) {
+        for (int[] level : FaceMips.colorLevels(texels, FACE_SIDE, mip, false, blend)) {
             for (int texel : level) {
                 if ((texel & FULL_ALPHA) != FULL_ALPHA) {
                     return false;

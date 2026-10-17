@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 
 class CellMesherOcclusionTest {
     private static final int SIDE = DetailLevel.VOXELS_PER_SIDE;
-    private static final int CENTRE = SIDE / 2;
+    private static final int CENTER = SIDE / 2;
     private static final int STONE = 1;
     private static final int STONE_MODEL = 10;
     private static final int BIOME = 3;
@@ -95,7 +95,7 @@ class CellMesherOcclusionTest {
     void aCubeWithNothingDarkAroundItCarriesNoStream() {
         defineStone();
         Cell cell = Cell.blank(CellKey.pack(DetailLevel.MIN, 0, 0, 0));
-        cell.set(CENTRE, CENTRE, CENTRE, block());
+        cell.set(CENTER, CENTER, CENTER, block());
 
         CellMesh mesh = mesh(cell, DetailLevel.MIN, MeshOcclusion.EVERY_LEVEL);
 
@@ -112,7 +112,7 @@ class CellMesherOcclusionTest {
             }
         }
 
-        cell.set(CENTRE, 1, CENTRE, block());
+        cell.set(CENTER, 1, CENTER, block());
         return cell;
     }
 

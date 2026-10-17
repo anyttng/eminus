@@ -43,7 +43,7 @@ public final class CellKey {
         return (int) ((key >>> Z_SHIFT) & HORIZONTAL_MASK) + MIN_HORIZONTAL;
     }
 
-    public static long neighbour(long key, Direction face) {
+    public static long neighbor(long key, Direction face) {
         int level = level(key);
         int step = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1 : -1;
 

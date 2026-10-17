@@ -43,7 +43,7 @@ public final class CellVoxels {
         }
     }
 
-    public void loadBiomes(Cell neighbour, int cellX, int cellZ, int radius) {
+    public void loadBiomes(Cell neighbor, int cellX, int cellZ, int radius) {
         int offsetX = cellX * SIDE;
         int offsetZ = cellZ * SIDE;
         int fromX = Math.max(-radius, offsetX);
@@ -54,7 +54,7 @@ public final class CellVoxels {
         for (int y = 0; y < SIDE; y++) {
             for (int z = fromZ; z < toZ; z++) {
                 for (int x = fromX; x < toX; x++) {
-                    biomes[biomeIndex(x, y, z)] = VoxelEntry.biome(neighbour.get(x - offsetX, y, z - offsetZ));
+                    biomes[biomeIndex(x, y, z)] = VoxelEntry.biome(neighbor.get(x - offsetX, y, z - offsetZ));
                 }
             }
         }
@@ -72,11 +72,11 @@ public final class CellVoxels {
         return covered[ColumnCoverage.index(x, z)];
     }
 
-    public void loadRegion(int stepX, int stepY, int stepZ, Cell neighbour) {
+    public void loadRegion(int stepX, int stepY, int stepZ, Cell neighbor) {
         for (int y = from(stepY); y < to(stepY); y++) {
             for (int z = from(stepZ); z < to(stepZ); z++) {
                 for (int x = from(stepX); x < to(stepX); x++) {
-                    padded[index(x, y, z)] = neighbour.get(x - stepX * SIDE, y - stepY * SIDE, z - stepZ * SIDE);
+                    padded[index(x, y, z)] = neighbor.get(x - stepX * SIDE, y - stepY * SIDE, z - stepZ * SIDE);
                 }
             }
         }
@@ -96,8 +96,8 @@ public final class CellVoxels {
         return false;
     }
 
-    public void loadBelow(Cell neighbour) {
-        neighbour.expand(below);
+    public void loadBelow(Cell neighbor) {
+        neighbor.expand(below);
         belowLoaded = true;
     }
 

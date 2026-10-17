@@ -51,44 +51,44 @@ class TintBlendTest {
     }
 
     @Test
-    void withoutBlendAVoxelTakesItsOwnBiomesColour() {
+    void withoutBlendAVoxelTakesItsOwnBiomesColor() {
         voxels.load(border(BORDER));
         blend.begin(voxels, tints, KEY, NO_RADIUS);
 
-        assertEquals(PLAINS_GREEN, blend.colour(ROW, BORDER - 1, LAYER, MIDDLE));
-        assertEquals(SWAMP_GREEN, blend.colour(ROW, BORDER, LAYER, MIDDLE));
+        assertEquals(PLAINS_GREEN, blend.color(ROW, BORDER - 1, LAYER, MIDDLE));
+        assertEquals(SWAMP_GREEN, blend.color(ROW, BORDER, LAYER, MIDDLE));
     }
 
     @Test
-    void acrossABorderTheColourIsTheGamesAverageOverTheSquare() {
+    void acrossABorderTheColorIsTheGamesAverageOverTheSquare() {
         voxels.load(border(BORDER));
         blend.begin(voxels, tints, KEY, GAME_RADIUS);
 
-        assertEquals(PLAINS_GREEN, blend.colour(ROW, BORDER - 3, LAYER, MIDDLE));
-        assertEquals(gameAverage(PLAINS_GREEN, 3, SWAMP_GREEN, 2), blend.colour(ROW, BORDER - 1, LAYER, MIDDLE));
-        assertEquals(gameAverage(PLAINS_GREEN, 2, SWAMP_GREEN, 3), blend.colour(ROW, BORDER, LAYER, MIDDLE));
-        assertEquals(SWAMP_GREEN, blend.colour(ROW, BORDER + 2, LAYER, MIDDLE));
+        assertEquals(PLAINS_GREEN, blend.color(ROW, BORDER - 3, LAYER, MIDDLE));
+        assertEquals(gameAverage(PLAINS_GREEN, 3, SWAMP_GREEN, 2), blend.color(ROW, BORDER - 1, LAYER, MIDDLE));
+        assertEquals(gameAverage(PLAINS_GREEN, 2, SWAMP_GREEN, 3), blend.color(ROW, BORDER, LAYER, MIDDLE));
+        assertEquals(SWAMP_GREEN, blend.color(ROW, BORDER + 2, LAYER, MIDDLE));
     }
 
     @Test
     void theFirstColumnIsRightAfterACellOfAnotherLevel() {
         voxels.load(filled(SWAMP, SIDE));
         blend.begin(voxels, tints, KEY, GAME_RADIUS);
-        blend.colour(ROW, LAST, LAYER, MIDDLE);
+        blend.color(ROW, LAST, LAYER, MIDDLE);
 
         voxels.load(filled(PLAINS, SIDE));
         blend.begin(voxels, tints, CellKey.pack(DetailLevel.MIN + 1, 0, 0, 0), GAME_RADIUS);
 
-        assertEquals(PLAINS_GREEN, blend.colour(ROW, 0, LAYER, MIDDLE));
+        assertEquals(PLAINS_GREEN, blend.color(ROW, 0, LAYER, MIDDLE));
     }
 
     @Test
-    void theNeighbourCellsColumnsJoinTheSquareAtTheCellEdge() {
+    void theNeighborCellsColumnsJoinTheSquareAtTheCellEdge() {
         voxels.load(filled(PLAINS, SIDE));
         voxels.loadBiomes(filled(SWAMP, SIDE), 1, 0, GAME_RADIUS);
         blend.begin(voxels, tints, KEY, GAME_RADIUS);
 
-        assertEquals(gameAverage(PLAINS_GREEN, 3, SWAMP_GREEN, 2), blend.colour(ROW, LAST, LAYER, MIDDLE));
+        assertEquals(gameAverage(PLAINS_GREEN, 3, SWAMP_GREEN, 2), blend.color(ROW, LAST, LAYER, MIDDLE));
     }
 
     @Test
@@ -96,26 +96,26 @@ class TintBlendTest {
         voxels.load(filled(PLAINS, BORDER));
         blend.begin(voxels, tints, KEY, GAME_RADIUS);
 
-        assertEquals(PLAINS_GREEN, blend.colour(ROW, BORDER - 1, LAYER, MIDDLE));
+        assertEquals(PLAINS_GREEN, blend.color(ROW, BORDER - 1, LAYER, MIDDLE));
     }
 
     @Test
-    void aBiomeWhoseColourVariesIsSampledAtEveryColumn() {
+    void aBiomeWhoseColorVariesIsSampledAtEveryColumn() {
         tints.vary(SWAMP);
         voxels.load(filled(SWAMP, SIDE));
         blend.begin(voxels, tints, KEY, NO_RADIUS);
 
-        assertNotEquals(blend.colour(ROW, MIDDLE, LAYER, MIDDLE), blend.colour(ROW, MIDDLE + 1, LAYER, MIDDLE));
+        assertNotEquals(blend.color(ROW, MIDDLE, LAYER, MIDDLE), blend.color(ROW, MIDDLE + 1, LAYER, MIDDLE));
     }
 
     @Test
-    void aConstantRowAnswersItsColourWhereNoColumnHoldsABiome() {
+    void aConstantRowAnswersItsColorWhereNoColumnHoldsABiome() {
         tints.fix(CONSTANT_ROW, SPRUCE_GREEN);
         voxels.load(filled(PLAINS, BORDER));
         blend.begin(voxels, tints, KEY, GAME_RADIUS);
 
-        assertEquals(SPRUCE_GREEN, blend.colour(CONSTANT_ROW, LAST, LAYER, MIDDLE));
-        assertEquals(SPRUCE_GREEN, blend.colour(CONSTANT_ROW, 0, LAYER, MIDDLE));
+        assertEquals(SPRUCE_GREEN, blend.color(CONSTANT_ROW, LAST, LAYER, MIDDLE));
+        assertEquals(SPRUCE_GREEN, blend.color(CONSTANT_ROW, 0, LAYER, MIDDLE));
     }
 
     private static int gameAverage(int first, int firstColumns, int second, int secondColumns) {

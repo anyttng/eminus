@@ -14,7 +14,7 @@ public record PipelineSpec(
         Location fragmentShader,
         List<Binding> bindings,
         List<Define> defines,
-        ColourTarget colour,
+        ColorTarget color,
         @Nullable DepthTest depth) {
 
     public static Builder builder(Location location, Location vertexShader, Location fragmentShader) {
@@ -24,7 +24,7 @@ public record PipelineSpec(
     public record Define(String name, @Nullable Number value) {
     }
 
-    public record ColourTarget(Format format, @Nullable Blend blend, boolean writes) {
+    public record ColorTarget(Format format, @Nullable Blend blend, boolean writes) {
     }
 
     public record DepthTest(DepthCompare compare, boolean writes) {
@@ -36,7 +36,7 @@ public record PipelineSpec(
         private final Location fragmentShader;
         private final List<Binding> bindings = new ArrayList<>();
         private final List<Define> defines = new ArrayList<>();
-        private @Nullable ColourTarget colour;
+        private @Nullable ColorTarget color;
         private @Nullable DepthTest depth;
 
         private Builder(Location location, Location vertexShader, Location fragmentShader) {
@@ -65,8 +65,8 @@ public record PipelineSpec(
             return this;
         }
 
-        public Builder withColourTarget(Format format, @Nullable Blend blend, boolean writes) {
-            colour = new ColourTarget(format, blend, writes);
+        public Builder withColorTarget(Format format, @Nullable Blend blend, boolean writes) {
+            color = new ColorTarget(format, blend, writes);
             return this;
         }
 
@@ -76,12 +76,12 @@ public record PipelineSpec(
         }
 
         public PipelineSpec build() {
-            if (colour == null) {
-                throw new IllegalStateException("Pipeline " + location + " declares no colour target");
+            if (color == null) {
+                throw new IllegalStateException("Pipeline " + location + " declares no color target");
             }
 
             return new PipelineSpec(location, vertexShader, fragmentShader, List.copyOf(bindings),
-                    List.copyOf(defines), colour, depth);
+                    List.copyOf(defines), color, depth);
         }
     }
 }

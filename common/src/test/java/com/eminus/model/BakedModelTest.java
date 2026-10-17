@@ -57,7 +57,7 @@ class BakedModelTest {
     private static BakedModel model(int[] faces, int present, int flags, FaceMip[] mips) {
         return new BakedModel(faces, BakedModel.untintedMask(), new float[BakedModel.FACE_COUNT],
                 BakedModel.fullBounds(), ModelMetadata.pack(present, FaceMask.NONE, FaceMask.NONE, 0, flags),
-                BiomeColours.NO_ROW, mips).solidUnder(VanillaMipBlend.BLEND);
+                BiomeColors.NO_ROW, mips).solidUnder(VanillaMipBlend.BLEND);
     }
 
     private static int[] filled(int argb) {

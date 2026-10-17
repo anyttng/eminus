@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 class EdgeMaskTest {
     @Test
-    void aVoxelOnOneSideFaceReachesNoCellPastItsFaceNeighbour() {
+    void aVoxelOnOneSideFaceReachesNoCellPastItsFaceNeighbor() {
         assertEquals(EdgeMask.NONE, EdgeMask.of(FaceMask.WEST));
         assertEquals(EdgeMask.NONE, EdgeMask.of(FaceMask.UP | FaceMask.SOUTH));
     }

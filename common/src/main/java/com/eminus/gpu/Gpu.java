@@ -35,7 +35,7 @@ public interface Gpu extends AutoCloseable {
 
     void write(Texture target, int mip, int x, int y, int width, int height, ByteBuffer data);
 
-    Texture mainColour();
+    Texture mainColor();
 
     Texture mainDepth();
 

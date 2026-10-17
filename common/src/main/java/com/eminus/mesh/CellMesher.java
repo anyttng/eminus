@@ -64,7 +64,7 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
         MeshBuffer buffer = scratch.buffer();
         if (group == QuadGroups.TRANSLUCENT) {
             buffer.addTranslucent(quad,
-                    TranslucentOrder.of(quad, level, buffer.placementAt(Quad.colourIndex(data)), models), occlusion);
+                    TranslucentOrder.of(quad, level, buffer.placementAt(Quad.colorIndex(data)), models), occlusion);
         } else {
             buffer.add(group, quad, occlusion,
                     (models.solidFaces(Quad.modelId(data)) & 1 << face.get3DDataValue()) != 0);
@@ -78,7 +78,7 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
 
     @Override
     public boolean stacks(long data) {
-        int placement = scratch.buffer().placementAt(Quad.colourIndex(data));
+        int placement = scratch.buffer().placementAt(Quad.colorIndex(data));
         return !coarse || face.getAxis() == Direction.Axis.Y
                 || (QuadPlacement.gaps(level, placement) == VoxelEntry.NO_GAPS
                         && models.fillsHeight(Quad.modelId(data)));

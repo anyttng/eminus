@@ -119,9 +119,9 @@ public final class FarDraw {
     }
 
     private PipelineSpec.Builder pack(Location location, float alphaCutout, @Nullable Blend blend,
-            boolean writesColour, boolean writesDepth, PackVertex vertex, boolean animated) {
+            boolean writesColor, boolean writesDepth, PackVertex vertex, boolean animated) {
         return withVertex(FarQuads.pipeline(location, PACK_SHADER, alphaCutout, gpu.capabilities(), variantDraw)
-                .withColourTarget(FarTarget.COLOUR_FORMAT, blend, writesColour)
+                .withColorTarget(FarTarget.COLOR_FORMAT, blend, writesColor)
                 .withDepthTest(depth.compare(), writesDepth), vertex, animated);
     }
 
@@ -130,7 +130,7 @@ public final class FarDraw {
         PipelineSpec.Builder builder = withVertex(FarQuads.pipeline(location, PACK_SHADER,
                         translucent ? TranslucentPass.ALPHA_CUTOUT : OpaquePass.ALPHA_CUTOUT, gpu.capabilities(),
                         variantDraw)
-                .withColourTarget(FarTarget.COLOUR_FORMAT, null, true)
+                .withColorTarget(FarTarget.COLOR_FORMAT, null, true)
                 .withDepthTest(DepthConvention.of(depth.zeroToOne(), false).compare(), true)
                 .withDefine(translucent ? "TRANSLUCENT_PASS" : "FULL_COVERAGE")
                 .withDefine("SHADOW_PASS"), vertex, animated);

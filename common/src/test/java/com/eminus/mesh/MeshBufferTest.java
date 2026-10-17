@@ -26,28 +26,28 @@ class MeshBufferTest {
     @Test
     void cornersTakeTheirOwnEntryWhileTheTableHasRoom() {
         MeshBuffer buffer = new MeshBuffer();
-        int flat = buffer.colourIndex(WATER_BLUE, QuadOffset.NONE);
+        int flat = buffer.colorIndex(WATER_BLUE, QuadOffset.NONE);
 
-        assertNotEquals(flat, buffer.colourIndex(WATER_BLUE, CORNERS));
+        assertNotEquals(flat, buffer.colorIndex(WATER_BLUE, CORNERS));
     }
 
     @Test
-    void cornersOverAFullTableFallBackToTheFlatEntryOfTheirColour() {
+    void cornersOverAFullTableFallBackToTheFlatEntryOfTheirColor() {
         MeshBuffer buffer = new MeshBuffer();
-        int flat = buffer.colourIndex(WATER_BLUE, QuadOffset.NONE);
+        int flat = buffer.colorIndex(WATER_BLUE, QuadOffset.NONE);
         fill(buffer);
 
-        assertEquals(flat, buffer.colourIndex(WATER_BLUE, CORNERS));
+        assertEquals(flat, buffer.colorIndex(WATER_BLUE, CORNERS));
         assertTrue(buffer.lostPlacements());
     }
 
     @Test
-    void aFullTableSubstitutesTheColourOfAPlacementItHolds() {
+    void aFullTableSubstitutesTheColorOfAPlacementItHolds() {
         MeshBuffer buffer = new MeshBuffer();
-        buffer.colourIndex(WATER_BLUE, CORNERS);
+        buffer.colorIndex(WATER_BLUE, CORNERS);
         fill(buffer);
 
-        assertEquals(CORNERS, buffer.placementAt(buffer.colourIndex(SWAMP_GREEN, CORNERS)));
+        assertEquals(CORNERS, buffer.placementAt(buffer.colorIndex(SWAMP_GREEN, CORNERS)));
         assertFalse(buffer.lostPlacements());
     }
 
@@ -55,12 +55,12 @@ class MeshBufferTest {
     void aReservingResetGivesALostPlacementItsEntryBeforeTheTableFills() {
         MeshBuffer buffer = new MeshBuffer();
         fill(buffer);
-        buffer.colourIndex(WATER_BLUE, CORNERS);
+        buffer.colorIndex(WATER_BLUE, CORNERS);
 
         buffer.resetReserving();
         fill(buffer);
 
-        assertEquals(CORNERS, buffer.placementAt(buffer.colourIndex(WATER_BLUE, CORNERS)));
+        assertEquals(CORNERS, buffer.placementAt(buffer.colorIndex(WATER_BLUE, CORNERS)));
         assertFalse(buffer.lostPlacements());
     }
 
@@ -74,7 +74,7 @@ class MeshBufferTest {
 
         assertEquals(0, mesh.occlusion().length);
         assertEquals(OcclusionWord.NONE, mesh.occlusion(1));
-        assertEquals(mesh.quadCount() + mesh.colours().length, mesh.slotCount());
+        assertEquals(mesh.quadCount() + mesh.colors().length, mesh.slotCount());
     }
 
     @Test
@@ -94,8 +94,8 @@ class MeshBufferTest {
     }
 
     private static void fill(MeshBuffer buffer) {
-        for (int colour = 1; colour < MeshBuffer.MAX_COLOURS; colour++) {
-            buffer.colourIndex(colour, QuadOffset.NONE);
+        for (int color = 1; color < MeshBuffer.MAX_COLORS; color++) {
+            buffer.colorIndex(color, QuadOffset.NONE);
         }
     }
 }

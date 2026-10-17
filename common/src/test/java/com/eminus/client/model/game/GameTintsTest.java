@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.eminus.VanillaBootstrap;
-import com.eminus.model.BiomeColours;
+import com.eminus.model.BiomeColors;
 import com.eminus.model.Tint;
 import com.eminus.model.TintSweep;
 import com.eminus.model.port.BlockModel;
@@ -20,7 +20,6 @@ import com.eminus.model.port.Variant;
 import com.eminus.model.port.VariantDraw;
 
 import net.minecraft.client.color.block.BlockColors;
-import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
@@ -51,99 +50,101 @@ class GameTintsTest {
     private static final int UNPOWERED = 0;
     private static final int FULL_POWER = 15;
 
-    private static BlockColors colors;
+    private static BlockColors blockColors;
     private static BlockState stone;
     private static BlockState grassBlock;
 
     @BeforeAll
     static void bootstrapVanilla() {
         VanillaBootstrap.ensure();
-        colors = BlockColors.createDefault();
+        blockColors = BlockColors.createDefault();
         stone = Blocks.STONE.defaultBlockState();
         grassBlock = Blocks.GRASS_BLOCK.defaultBlockState();
     }
 
     @Test
-    void aVanillaColourAnswersWithTheBiomeOfTheLevelItIsHanded() {
-        TintSource grass = new GameTintSource(colors, FIRST_LAYER);
+    void aVanillaColorAnswersWithTheBiomeOfTheLevelItIsHanded() {
+        TintSource grass = new GameTintSource(blockColors, FIRST_LAYER);
 
         for (int biome : new int[] {FIRST_BIOME, SECOND_BIOME}) {
-            assertEquals(TintLevel.colour(biome, GRASS_RESOLVER),
-                    grass.colour(grassBlock, new TintLevel(biome), SAMPLE_COLUMN, SAMPLE_COLUMN) & RGB_MASK);
+            assertEquals(TintLevel.color(biome, GRASS_RESOLVER),
+                    grass.color(grassBlock, new TintLevel(biome), SAMPLE_COLUMN, SAMPLE_COLUMN) & RGB_MASK);
         }
     }
 
     @Test
-    void twoVanillaColoursWithTheSameValuesShareOneRow() {
-        BiomeColours colours = colours(TWO_BIOMES);
-        TintSource layer = new GameTintSource(colors, FIRST_LAYER);
-        colours.assign(List.of(colours.sample(layer, grassBlock)));
+    void twoVanillaColorsWithTheSameValuesShareOneRow() {
+        BiomeColors colors = colors(TWO_BIOMES);
+        TintSource layer = new GameTintSource(blockColors, FIRST_LAYER);
+        colors.assign(List.of(colors.sample(layer, grassBlock)));
 
-        assertEquals(Tint.row(0), colours.resolve(layer, Blocks.SUGAR_CANE.defaultBlockState()));
+        assertEquals(Tint.row(0), colors.resolve(layer, Blocks.SUGAR_CANE.defaultBlockState()));
     }
 
     @Test
-    void aStateDependentVanillaColourResolvesPerState() {
-        BiomeColours colours = colours(TWO_BIOMES);
-        TintSource redstone = new GameTintSource(colors, FIRST_LAYER);
+    void aStateDependentVanillaColorResolvesPerState() {
+        BiomeColors colors = colors(TWO_BIOMES);
+        TintSource redstone = new GameTintSource(blockColors, FIRST_LAYER);
         BlockState unpowered = Blocks.REDSTONE_WIRE.defaultBlockState().setValue(RedStoneWireBlock.POWER, UNPOWERED);
         BlockState powered = unpowered.setValue(RedStoneWireBlock.POWER, FULL_POWER);
-        colours.assign(List.of(colours.sample(redstone, unpowered), colours.sample(redstone, powered)));
+        colors.assign(List.of(colors.sample(redstone, unpowered), colors.sample(redstone, powered)));
 
-        assertNotEquals(colours.resolve(redstone, unpowered), colours.resolve(redstone, powered));
+        assertNotEquals(colors.resolve(redstone, unpowered), colors.resolve(redstone, powered));
     }
 
     @Test
-    void vanillaColoursNeedARowPerBiomeSetAndPerConstant() {
-        GameTints tints = new GameTints(colors, new LayerModels(FIRST_LAYER));
+    void vanillaColorsNeedARowPerBiomeSetAndPerConstant() {
+        GameTints tints = new GameTints(blockColors, new LayerModels(FIRST_LAYER));
         TintSource water = (state, biome, blockX, blockZ) ->
-                BiomeColors.getAverageWaterColor((BlockAndTintGetter) biome, BlockPos.ZERO);
-        BiomeColours colours = colours(THREE_BIOMES);
+                net.minecraft.client.renderer.BiomeColors.getAverageWaterColor((BlockAndTintGetter) biome,
+                        BlockPos.ZERO);
+        BiomeColors colors = colors(THREE_BIOMES);
 
         TintSweep.sweep(Block.BLOCK_STATE_REGISTRY, tints,
-                fluid -> fluid.getType().isSame(Fluids.WATER) ? water : null, state -> state, colours);
+                fluid -> fluid.getType().isSame(Fluids.WATER) ? water : null, state -> state, colors);
 
-        assertEquals(VANILLA_ROWS, colours.rowCount());
-        assertTrue(colours.resolve(tints.source(grassBlock, FIRST_LAYER), grassBlock).hasRow());
+        assertEquals(VANILLA_ROWS, colors.rowCount());
+        assertTrue(colors.resolve(tints.source(grassBlock, FIRST_LAYER), grassBlock).hasRow());
 
         BlockState spruce = Blocks.SPRUCE_LEAVES.defaultBlockState();
-        Tint spruceTint = colours.resolve(tints.source(spruce, FIRST_LAYER), spruce);
+        Tint spruceTint = colors.resolve(tints.source(spruce, FIRST_LAYER), spruce);
         assertTrue(spruceTint.hasRow());
-        assertEquals(SPRUCE_LEAVES & RGB_MASK, colours.constant(spruceTint.row()));
+        assertEquals(SPRUCE_LEAVES & RGB_MASK, colors.constant(spruceTint.row()));
     }
 
     @Test
     void theSourcesAreTheDistinctTintedLayersOfTheModel() {
-        GameTints tints = new GameTints(colors,
+        GameTints tints = new GameTints(blockColors,
                 new LayerModels(SECOND_LAYER, ModelQuad.NO_TINT, SECOND_LAYER, FIRST_LAYER));
 
-        assertEquals(List.of(new GameTintSource(colors, FIRST_LAYER), new GameTintSource(colors, SECOND_LAYER)),
+        assertEquals(List.of(new GameTintSource(blockColors, FIRST_LAYER),
+                        new GameTintSource(blockColors, SECOND_LAYER)),
                 tints.sources(grassBlock));
     }
 
     @Test
     void aStateWhoseModelTintsNoQuadHasNoSource() {
-        GameTints tints = new GameTints(colors, new LayerModels(ModelQuad.NO_TINT));
+        GameTints tints = new GameTints(blockColors, new LayerModels(ModelQuad.NO_TINT));
 
         assertTrue(tints.sources(stone).isEmpty());
     }
 
     @Test
-    void aLayerOfABlockWithoutAColourAnswersWhite() {
-        GameTints tints = new GameTints(colors, new LayerModels());
+    void aLayerOfABlockWithoutAColorAnswersWhite() {
+        GameTints tints = new GameTints(blockColors, new LayerModels());
 
         assertEquals(WHITE,
-                tints.source(stone, FIRST_LAYER).colour(stone, new TintLevel(FIRST_BIOME), SAMPLE_COLUMN,
+                tints.source(stone, FIRST_LAYER).color(stone, new TintLevel(FIRST_BIOME), SAMPLE_COLUMN,
                         SAMPLE_COLUMN));
     }
 
-    private static BiomeColours colours(int count) {
+    private static BiomeColors colors(int count) {
         List<TintBiome> biomes = new ArrayList<>();
         for (int biome = 0; biome < count; biome++) {
             biomes.add(new TintLevel(biome));
         }
 
-        return new BiomeColours(biomes);
+        return new BiomeColors(biomes);
     }
 
     @SuppressWarnings("ArrayRecordComponent")

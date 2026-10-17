@@ -11,9 +11,9 @@ package com.eminus.api.v1;
  * @param maxX     the east face, in blocks, no less than {@code minX}
  * @param maxY     the top face, in blocks, no less than {@code minY}
  * @param maxZ     the south face, in blocks, no less than {@code minZ}
- * @param argb     the colour as {@code 0xAARRGGBB}; an alpha below {@code 0xFF} blends the box over what lies behind
+ * @param argb     the color as {@code 0xAARRGGBB}; an alpha below {@code 0xFF} blends the box over what lies behind
  *                 it
- * @param emissive whether the box keeps its colour in the dark; otherwise it is lit as daylight lights the open
+ * @param emissive whether the box keeps its color in the dark; otherwise it is lit as daylight lights the open
  *                 terrain, so it dims at night
  */
 public record FarBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, int argb,

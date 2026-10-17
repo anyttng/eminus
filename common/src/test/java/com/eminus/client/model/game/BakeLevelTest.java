@@ -26,16 +26,16 @@ class BakeLevelTest {
     void aTintResolverIsAnsweredWithTheLevelsOwnBiomeAndPosition() {
         BakeLevel level = new BakeLevel(null, NAME, false);
 
-        int colour = level.getBlockTint(SAMPLE, (biome, x, z) -> {
+        int color = level.getBlockTint(SAMPLE, (biome, x, z) -> {
             assertNull(biome);
             return ((int) x) * COLUMN + (int) z;
         });
 
-        assertEquals(SAMPLE.getX() * COLUMN + SAMPLE.getZ(), colour);
+        assertEquals(SAMPLE.getX() * COLUMN + SAMPLE.getZ(), color);
     }
 
     @Test
-    void theNeighbourhoodIsEmpty() {
+    void theNeighborhoodIsEmpty() {
         BakeLevel level = new BakeLevel(null, NAME, false);
 
         assertEquals(Blocks.AIR.defaultBlockState(), level.getBlockState(SAMPLE));

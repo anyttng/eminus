@@ -18,7 +18,7 @@ public interface Foreign {
 
     int texture(Texture texture);
 
-    Pass pass(int framebuffer, int width, int height, int colourTargets);
+    Pass pass(int framebuffer, int width, int height, int colorTargets);
 
-    void copyDepth(Texture colour, Texture from, Texture to);
+    void copyDepth(Texture color, Texture from, Texture to);
 }

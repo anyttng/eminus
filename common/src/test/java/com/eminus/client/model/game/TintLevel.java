@@ -25,7 +25,7 @@ record TintLevel(int biome) implements BlockAndTintGetter, TintBiome {
     private static final String PREFIX = "test:biome_";
     private static final float UNSHADED = 1.0F;
 
-    static int colour(int biome, int resolver) {
+    static int color(int biome, int resolver) {
         return (biome + 1) << BIOME_SHIFT | resolver + 1;
     }
 
@@ -41,7 +41,7 @@ record TintLevel(int biome) implements BlockAndTintGetter, TintBiome {
 
     @Override
     public int getBlockTint(BlockPos pos, ColorResolver color) {
-        return colour(biome, RESOLVERS.indexOf(color));
+        return color(biome, RESOLVERS.indexOf(color));
     }
 
     @Override

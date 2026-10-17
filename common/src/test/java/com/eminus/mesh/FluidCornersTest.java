@@ -53,7 +53,7 @@ class FluidCornersTest {
     }
 
     @Test
-    void aFlowInATroughAveragesEachCornerWithItsNeighbourAlongTheTrough() {
+    void aFlowInATroughAveragesEachCornerWithItsNeighborAlongTheTrough() {
         voxels.load(trough());
 
         int shape = corners.of(FLOW_SIX, SOURCE_X + 1, Y, Z);

@@ -44,7 +44,7 @@ class ModelBakeryTest {
     private static final int DIRT_PACK_ID = 10_002;
     private static final int SLAB_PACK_ID = 10_010;
     private static final int WATER_PACK_ID = 10_020;
-    private static final int[] PART_COLOURS = {0xFF11_1111, 0xFF22_2222, 0xFF33_3333, 0xFF44_4444};
+    private static final int[] PART_COLORS = {0xFF11_1111, 0xFF22_2222, 0xFF33_3333, 0xFF44_4444};
     private static final int[][] POSITIONS = {{0, 70, 0}, {-17, 64, 31}, {1025, 12, -4000}, {-30_000, 200, 9}};
 
     private static BlockState stone;
@@ -122,7 +122,7 @@ class ModelBakeryTest {
 
         try {
             awaitBake(bakery, stone);
-            assertEquals(BakedModel.solid(ModelBakery.PLACEHOLDER_COLOUR), bakery.model(bakery.modelId(stone)));
+            assertEquals(BakedModel.solid(ModelBakery.PLACEHOLDER_COLOR), bakery.model(bakery.modelId(stone)));
 
             awaitBake(bakery, dirt);
             assertEquals(BakedModel.solid(WHITE), bakery.model(bakery.modelId(dirt)));
@@ -313,9 +313,9 @@ class ModelBakeryTest {
 
     @Test
     void anIdIsVisibleOnlyOnceTheModelCountCoversIt() throws InterruptedException {
-        AtomicInteger colour = new AtomicInteger();
+        AtomicInteger color = new AtomicInteger();
         ModelBakery bakery = TestBakery.start(state -> new BakedState(
-                BakedModel.solid(colour.incrementAndGet()), BakedModel.solid(colour.incrementAndGet())));
+                BakedModel.solid(color.incrementAndGet()), BakedModel.solid(color.incrementAndGet())));
         List<BlockState> states = BuiltInRegistries.BLOCK.stream()
                 .flatMap(block -> block.getStateDefinition().getPossibleStates().stream())
                 .limit(RACED_STATES)
@@ -409,13 +409,13 @@ class ModelBakeryTest {
 
             for (int[] at : POSITIONS) {
                 int doorPart = new SingleThreadedRandomSource(Mth.getSeed(at[0], at[1] - 1, at[2]))
-                        .nextInt(PART_COLOURS.length);
-                assertEquals(BakedModel.solid(PART_COLOURS[doorPart]),
+                        .nextInt(PART_COLORS.length);
+                assertEquals(BakedModel.solid(PART_COLORS[doorPart]),
                         bakery.model(awaitPositional(bakery, upperDoor, at)), "door at y " + at[1]);
 
                 int stonePart = new SingleThreadedRandomSource(Mth.getSeed(at[0], at[1], at[2]))
-                        .nextInt(PART_COLOURS.length);
-                assertEquals(BakedModel.solid(PART_COLOURS[stonePart]),
+                        .nextInt(PART_COLORS.length);
+                assertEquals(BakedModel.solid(PART_COLORS[stonePart]),
                         bakery.model(awaitPositional(bakery, stone, at)), "stone at y " + at[1]);
             }
         } finally {
@@ -438,7 +438,7 @@ class ModelBakeryTest {
         private final List<Object> parts = new ArrayList<>();
 
         private PartBaker() {
-            for (int part = 0; part < PART_COLOURS.length; part++) {
+            for (int part = 0; part < PART_COLORS.length; part++) {
                 parts.add(new Object());
             }
         }
@@ -455,7 +455,7 @@ class ModelBakeryTest {
 
         @Override
         public BakedModel bakeParts(BlockState state, List<Object> picked) {
-            return BakedModel.solid(PART_COLOURS[parts.indexOf(picked.getFirst())]);
+            return BakedModel.solid(PART_COLORS[parts.indexOf(picked.getFirst())]);
         }
     }
 

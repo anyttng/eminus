@@ -30,7 +30,7 @@ final class GameHandles {
 
     private static final boolean DEPTH_REVERSED = false;
     private static final boolean LIGHTMAP_HALF_TEXEL = false;
-    private static final Format COLOUR_FORMAT = Format.RGBA8_UNORM;
+    private static final Format COLOR_FORMAT = Format.RGBA8_UNORM;
     private static final Format DEPTH_FORMAT = Format.D32_FLOAT;
     private static final Format LIGHTMAP_FORMAT = Format.RGBA8_UNORM;
     private static final int RED_BIT = 0b0001;
@@ -42,7 +42,7 @@ final class GameHandles {
     private static final int Y = 1;
     private static final int WIDTH = 2;
     private static final int HEIGHT = 3;
-    private static final int COLOUR_COMPONENTS = 4;
+    private static final int COLOR_COMPONENTS = 4;
     private static final int RED = 0;
     private static final int GREEN = 1;
     private static final int BLUE = 2;
@@ -63,15 +63,15 @@ final class GameHandles {
 
     record PipelineState(boolean cull, boolean blend, int sourceRgb, int destinationRgb, int sourceAlpha,
             int destinationAlpha, int equationRgb, int equationAlpha, boolean depthTest, int depthFunction,
-            boolean depthMask, int colourMask, boolean polygonOffset, int polygonMode, int activeTexture) {
+            boolean depthMask, int colorMask, boolean polygonOffset, int polygonMode, int activeTexture) {
     }
 
     private record Allocation(RenderTarget target, int generation) {
     }
 
-    static Handle mainColour() {
+    static Handle mainColor() {
         RenderTarget target = target();
-        return new Handle(allocation(target), target.getColorTextureId(), COLOUR_FORMAT);
+        return new Handle(allocation(target), target.getColorTextureId(), COLOR_FORMAT);
     }
 
     static Handle mainDepth() {
@@ -134,14 +134,14 @@ final class GameHandles {
                 GL11C.glGetInteger(GL14C.GL_BLEND_SRC_ALPHA), GL11C.glGetInteger(GL14C.GL_BLEND_DST_ALPHA),
                 GL11C.glGetInteger(GL20C.GL_BLEND_EQUATION_RGB), GL11C.glGetInteger(GL20C.GL_BLEND_EQUATION_ALPHA),
                 GL11C.glIsEnabled(GL11C.GL_DEPTH_TEST), GL11C.glGetInteger(GL11C.GL_DEPTH_FUNC),
-                GL11C.glGetBoolean(GL11C.GL_DEPTH_WRITEMASK), writtenColours(),
+                GL11C.glGetBoolean(GL11C.GL_DEPTH_WRITEMASK), writtenColors(),
                 GL11C.glIsEnabled(GL11C.GL_POLYGON_OFFSET_FILL), polygonMode[FRONT_FACES],
                 GlStateManager._getActiveTexture());
     }
 
-    private static int writtenColours() {
+    private static int writtenColors() {
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            ByteBuffer components = stack.malloc(COLOUR_COMPONENTS);
+            ByteBuffer components = stack.malloc(COLOR_COMPONENTS);
             GL11C.glGetBooleanv(GL11C.GL_COLOR_WRITEMASK, components);
             return (components.get(RED) != GL11C.GL_FALSE ? RED_BIT : 0)
                     | (components.get(GREEN) != GL11C.GL_FALSE ? GREEN_BIT : 0)
@@ -171,7 +171,7 @@ final class GameHandles {
         }
         GlStateManager._depthFunc(state.depthFunction());
         GlStateManager._depthMask(state.depthMask());
-        colourMask(state.colourMask());
+        colorMask(state.colorMask());
         if (state.polygonOffset()) {
             GlStateManager._enablePolygonOffset();
         } else {
@@ -262,11 +262,11 @@ final class GameHandles {
         GlStateManager._scissorBox(x, y, width, height);
     }
 
-    static void colourMask(int index, int mask) {
-        colourMask(mask);
+    static void colorMask(int index, int mask) {
+        colorMask(mask);
     }
 
-    private static void colourMask(int mask) {
+    private static void colorMask(int mask) {
         GlStateManager._colorMask((mask & RED_BIT) != 0, (mask & GREEN_BIT) != 0, (mask & BLUE_BIT) != 0,
                 (mask & ALPHA_BIT) != 0);
     }

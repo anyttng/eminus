@@ -10,7 +10,7 @@ import net.minecraft.core.Direction;
 import org.joml.Vector3fc;
 
 final class QuadPainter {
-    static final float CENTRE = 0.5F;
+    static final float CENTER = 0.5F;
     static final float[] UNIT_FRAME = {0.0F, 1.0F, 0.0F, 1.0F};
 
     private static final float MIN_AREA = 1.0E-6F;
@@ -79,11 +79,11 @@ final class QuadPainter {
             long[] tintMask, int offset, QuadTexels texels) {
         for (int vertex = 0; vertex < ModelQuad.CORNERS; vertex++) {
             Vector3fc position = quad.corner(vertex);
-            cornerU[vertex] = (CENTRE + along(position, uAxis) - frame[FRAME_U_FROM]) / frame[FRAME_U_SPAN]
+            cornerU[vertex] = (CENTER + along(position, uAxis) - frame[FRAME_U_FROM]) / frame[FRAME_U_SPAN]
                     * BakedModel.FACE_SIDE;
-            cornerV[vertex] = (CENTRE + along(position, vAxis) - frame[FRAME_V_FROM]) / frame[FRAME_V_SPAN]
+            cornerV[vertex] = (CENTER + along(position, vAxis) - frame[FRAME_V_FROM]) / frame[FRAME_V_SPAN]
                     * BakedModel.FACE_SIDE;
-            cornerDepth[vertex] = CENTRE - along(position, normal);
+            cornerDepth[vertex] = CENTER - along(position, normal);
 
             textureU[vertex] = quad.u(vertex);
             textureV[vertex] = quad.v(vertex);
@@ -112,8 +112,8 @@ final class QuadPainter {
 
         for (int v = fromV; v <= toV; v++) {
             for (int u = fromU; u <= toU; u++) {
-                float pointU = u + CENTRE;
-                float pointV = v + CENTRE;
+                float pointU = u + CENTER;
+                float pointV = v + CENTER;
                 float weightA = edge(cornerU[b], cornerV[b], cornerU[c], cornerV[c], pointU, pointV) / area;
                 float weightB = edge(cornerU[c], cornerV[c], cornerU[a], cornerV[a], pointU, pointV) / area;
                 float weightC = 1.0F - weightA - weightB;
@@ -144,9 +144,9 @@ final class QuadPainter {
     }
 
     static float along(Vector3fc position, Vector3fc axis) {
-        return (position.x() - CENTRE) * axis.x()
-                + (position.y() - CENTRE) * axis.y()
-                + (position.z() - CENTRE) * axis.z();
+        return (position.x() - CENTER) * axis.x()
+                + (position.y() - CENTER) * axis.y()
+                + (position.z() - CENTER) * axis.z();
     }
 
     private static float edge(float ax, float ay, float bx, float by, float pointX, float pointY) {

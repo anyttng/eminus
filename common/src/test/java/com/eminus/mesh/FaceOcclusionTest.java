@@ -119,22 +119,22 @@ class FaceOcclusionTest {
     void aFullFaceDarkensItsCornersAsTheGameDoes() throws ReflectiveOperationException {
         Random random = new Random(SEED);
         for (int trial = 0; trial < TRIALS; trial++) {
-            BlockPos centre = new BlockPos(INSIDE, INSIDE, INSIDE);
-            Map<BlockPos, Integer> world = around(random, centre, STONE);
+            BlockPos center = new BlockPos(INSIDE, INSIDE, INSIDE);
+            Map<BlockPos, Integer> world = around(random, center, STONE);
             for (Direction face : Direction.values()) {
-                assertMatches(world, centre, face, FULL, NO_INSET, trial);
+                assertMatches(world, center, face, FULL, NO_INSET, trial);
             }
         }
     }
 
     @Test
-    void aFullFaceAtTheCellCornerReadsTheNeighbourCells() throws ReflectiveOperationException {
+    void aFullFaceAtTheCellCornerReadsTheNeighborCells() throws ReflectiveOperationException {
         Random random = new Random(SEED + 1);
         for (int trial = 0; trial < TRIALS; trial++) {
-            BlockPos centre = new BlockPos(LAST, LAST, LAST);
-            Map<BlockPos, Integer> world = around(random, centre, STONE);
+            BlockPos center = new BlockPos(LAST, LAST, LAST);
+            Map<BlockPos, Integer> world = around(random, center, STONE);
             for (Direction face : Direction.values()) {
-                assertMatches(world, centre, face, FULL, NO_INSET, trial);
+                assertMatches(world, center, face, FULL, NO_INSET, trial);
             }
         }
     }
@@ -143,39 +143,39 @@ class FaceOcclusionTest {
     void aSlabTopReadsItsOwnLayer() throws ReflectiveOperationException {
         Random random = new Random(SEED + 2);
         for (int trial = 0; trial < TRIALS; trial++) {
-            BlockPos centre = new BlockPos(INSIDE, INSIDE, INSIDE);
-            Map<BlockPos, Integer> world = around(random, centre, SLAB);
-            assertMatches(world, centre, Direction.UP, HALF, HALF, trial);
+            BlockPos center = new BlockPos(INSIDE, INSIDE, INSIDE);
+            Map<BlockPos, Integer> world = around(random, center, SLAB);
+            assertMatches(world, center, Direction.UP, HALF, HALF, trial);
         }
     }
 
-    private Map<BlockPos, Integer> around(Random random, BlockPos centre, int stateId) {
+    private Map<BlockPos, Integer> around(Random random, BlockPos center, int stateId) {
         Map<BlockPos, Integer> world = new HashMap<>();
         for (int dy = -REACH; dy <= REACH; dy++) {
             for (int dz = -REACH; dz <= REACH; dz++) {
                 for (int dx = -REACH; dx <= REACH; dx++) {
-                    world.put(centre.offset(dx, dy, dz), random.nextInt(palette.size()));
+                    world.put(center.offset(dx, dy, dz), random.nextInt(palette.size()));
                 }
             }
         }
 
-        world.put(centre, stateId);
+        world.put(center, stateId);
         return world;
     }
 
-    private void assertMatches(Map<BlockPos, Integer> world, BlockPos centre, Direction face, float top, float inset,
+    private void assertMatches(Map<BlockPos, Integer> world, BlockPos center, Direction face, float top, float inset,
             int trial) throws ReflectiveOperationException {
         for (int id = 1; id < palette.size(); id++) {
             models.shadeAs(id, StateShade.of(palette.get(id)));
         }
 
-        int stateId = world.get(centre);
+        int stateId = world.get(center);
         int word = new FaceOcclusion(voxels(world), models, DetailLevel.MIN, true)
-                .face(face, centre.getX(), centre.getY(), centre.getZ(), stateId, ModelMetadata.SMOOTH,
+                .face(face, center.getX(), center.getY(), center.getZ(), stateId, ModelMetadata.SMOOTH,
                         face == Direction.UP ? inset : NO_INSET);
 
         Vector3fc[] corners = corners(face, top);
-        float[] game = gameBrightness(level(world), palette.get(stateId), centre, face, corners);
+        float[] game = gameBrightness(level(world), palette.get(stateId), center, face, corners);
 
         Direction.Axis width = PlaneAxes.width(face.getAxis());
         Direction.Axis height = PlaneAxes.height(face.getAxis());

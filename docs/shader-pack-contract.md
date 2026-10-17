@@ -1,18 +1,18 @@
 # Eminus shader-pack contract, version 6
 
-Eminus draws the terrain past the render distance as a level-of-detail layer (LOD). Under an Iris shader pack that does not know Eminus, the LOD is drawn over the pack's finished frame in Eminus's own shading ([A pack without the contract](shader-packs/without-contract.md)). A pack that ships the contract below shades the LOD itself: Eminus runs the geometry, your code colours each pixel and writes it into your own buffers, so your lighting, fog and post-processing apply to the LOD the way they apply to near terrain.
+Eminus draws the terrain past the render distance as a level-of-detail layer (LOD). Under an Iris shader pack that does not know Eminus, the LOD is drawn over the pack's finished frame in Eminus's own shading ([A pack without the contract](shader-packs/without-contract.md)). A pack that ships the contract below shades the LOD itself. Eminus runs the geometry, your code colors each pixel and writes it into your own buffers, so your lighting, fog and post-processing apply to the LOD the way they apply to near terrain.
 
 The contract is one fragment function, and optionally one vertex function.
 
 It works under Iris on the game's OpenGL backend. On Vulkan, Eminus logs `Shader pack file … is not used: the far layer runs on the game's GPU path` and draws the LOD over the pack's finished frame. Under a Vitrail shader pack, the LOD is always drawn over the finished frame.
 
-## Support in four steps
+## Adding support
 
 ### 1. Shade the LOD with your terrain code
 
 Your terrain fragment code then runs in two programs: `gbuffers_terrain` for the near terrain and `eminus_opaque.glsl` for the LOD. Keep it in one include that both call, and a change to your terrain shading reaches both.
 
-1. Move the part of your `gbuffers_terrain` fragment code that comes after its texture sample and alpha cutout into a function in an include, with a parameter for each input it reads. The example pack's function reads the tinted texture colour and the light coordinates; a pack whose code reads `normal`, `viewPos` or `blockId` adds them as parameters.
+1. Move the part of your `gbuffers_terrain` fragment code that comes after its texture sample and alpha cutout into a function in an include, with a parameter for each input it reads. The example pack's function reads the tinted texture color and the light coordinates; a pack whose code reads `normal`, `viewPos` or `blockId` adds them as parameters.
 
    ```glsl
    // shaders/lib/terrain.glsl
@@ -47,10 +47,10 @@ Your terrain fragment code then runs in two programs: `gbuffers_terrain` for the
    }
    ```
 
-   `fragment.color` takes the place of the texture colour times `glcolor`: it is already tinted and past the cutout, so pass it where `gbuffers_terrain` passes that product, and never multiply it by `fragment.glcolor` again. Every other input is the field named after the varying it replaces (`texcoord`, `lmcoord`, `glcolor`, `normal`, `viewPos`), and `fragment.blockId` replaces `mc_Entity.x`.
+   `fragment.color` takes the place of the texture color times `glcolor`: it is already tinted and past the cutout, so pass it where `gbuffers_terrain` passes that product, and never multiply it by `fragment.glcolor` again. Every other input is the field named after the varying it replaces (`texcoord`, `lmcoord`, `glcolor`, `normal`, `viewPos`), and `fragment.blockId` replaces `mc_Entity.x`.
 4. Reload shaders with Iris's Reload Shaders key (F3 + R by default). The log line `Shader pack carries the Eminus contract: the far layer draws inside the pack` confirms it took.
 
-Without an include, copy your terrain fragment code into `eminus_emitFragment` instead, reading the field of `fragment` wherever the code reads a varying and taking the texture colour from `fragment.color` rather than sampling `gtexture`. The copy then has to follow every later change to your terrain code by hand.
+Without an include, copy your terrain fragment code into `eminus_emitFragment` instead, reading the field of `fragment` wherever the code reads a varying and taking the texture color from `fragment.color` rather than sampling `gtexture`. The copy then has to follow every later change to your terrain code by hand.
 
 A pack that lights and fogs terrain in its `gbuffers` programs is done here. Every field of `fragment`: [The fragment function](shader-packs/fragment.md).
 
@@ -72,7 +72,7 @@ Nothing to add in most packs: without `eminus_shadow.glsl`, Eminus runs your own
 
 Add `eminus_shadow.glsl` beside `eminus_opaque.glsl` where your shadow program does not run on the LOD, where you want the LOD's shadows written differently, or where your vertex hook (step 4) animates blocks and their shadows should move with them. Put the body of your `shadow` fragment code in it. If your `shadow` vertex program distorts the shadow map, apply the same distortion in `eminus_vertex.glsl`.
 
-If your `shadow` program colours the shadow of stained glass or water, add `eminus_shadow_translucent.glsl` too, with the same body, and the LOD's translucent faces cast those shadows as well.
+If your `shadow` program colors the shadow of stained glass or water, add `eminus_shadow_translucent.glsl` too, with the same body, and the LOD's translucent faces cast those shadows as well.
 
 ### 4. Move the LOD's vertices with your vertex code
 
@@ -88,4 +88,4 @@ The [example pack](example-pack/) is a complete minimal pack: textured, lit terr
 - [Shadows](shader-packs/shadows.md): the shadow files, shadow planes, and your own shadow program run on the LOD.
 - [The vertex hook](shader-packs/vertex-hook.md): `eminus_vertexPosition`, `eminus_project`, and the blocks your hook moves.
 - [When a file does not build](shader-packs/troubleshooting.md): what a failure leaves running, and the log lines.
-- [A pack without the contract](shader-packs/without-contract.md): the Shader pack LOD setting and the Distant Horizons path.
+- [A pack without the contract](shader-packs/without-contract.md): the Shader Pack LOD setting and the Distant Horizons path.

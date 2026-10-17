@@ -17,7 +17,7 @@ import org.joml.Vector3fc;
 public final class FaceRasterizer {
     public static final int BLADE_COUNT = 2;
 
-    private static final float CENTRE = QuadPainter.CENTRE;
+    private static final float CENTER = QuadPainter.CENTER;
     private static final float FLUSH = 1.0F / 256.0F;
     private static final float MIN_FACING = 1.0E-3F;
     private static final float DIAGONAL = 0.70710677F;
@@ -108,7 +108,7 @@ public final class FaceRasterizer {
                 }
             }
 
-            insets[blade] = CENTRE;
+            insets[blade] = CENTER;
             mips[blade] = painter.mip();
             shades[blade] = painter.shade(FACES[blade]);
         }
@@ -223,7 +223,7 @@ public final class FaceRasterizer {
         planePoint.setComponent(widthAxis, width);
         planePoint.setComponent(heightAxis, height);
         planePoint.setComponent(normalAxis, origin.get(normalAxis) - across / planeNormal.get(normalAxis));
-        return CENTRE - QuadPainter.along(planePoint, FACE_NORMALS[face]);
+        return CENTER - QuadPainter.along(planePoint, FACE_NORMALS[face]);
     }
 
     private void boxFace(List<Facing> quads, int face, int[] faces, long[] tintMask, float[] insets,
@@ -284,7 +284,7 @@ public final class FaceRasterizer {
             float[] bounds, IntFunction<Tint> tints, int extraFlags) {
         int tintLayer = tintLayer(quads);
         Tint tint = tintLayer == ModelQuad.NO_TINT ? null : tints.apply(tintLayer);
-        int tintRow = BiomeColours.NO_ROW;
+        int tintRow = BiomeColors.NO_ROW;
         if (tint != null) {
             tint.apply(tintMask);
             tintRow = tint.row();
@@ -359,7 +359,7 @@ public final class FaceRasterizer {
     }
 
     private static int flags(List<ModelQuad> quads, int tintRow) {
-        int flags = tintRow == BiomeColours.NO_ROW ? 0 : ModelMetadata.TINTED;
+        int flags = tintRow == BiomeColors.NO_ROW ? 0 : ModelMetadata.TINTED;
 
         for (ModelQuad quad : quads) {
             if (quad.translucent()) {

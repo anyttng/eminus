@@ -10,7 +10,7 @@ import net.minecraft.world.level.material.FluidState;
 
 record GameFluidTint(LoaderModels loader, FluidState fluid) implements TintSource {
     @Override
-    public int colour(BlockState state, TintBiome biome, int blockX, int blockZ) {
+    public int color(BlockState state, TintBiome biome, int blockX, int blockZ) {
         return loader.fluidTint(fluid, (BlockAndTintGetter) biome,
                 new BlockPos(blockX, GameTintSource.SAMPLE_Y, blockZ));
     }
