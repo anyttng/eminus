@@ -47,13 +47,14 @@ void main() {
     occlusionWord = uvec2(vertex.occlusion, vertex.mainDiagonal ? 1u : 0u);
 
     vec4 colour = far_lightmap(Lightmap, ivec2(vertex.blockLight * LIGHT_STEP, vertex.skyLight * LIGHT_STEP));
-    float faceShade = vertex.face == 0 ? EminusShadeDown
-        : vertex.face == 1 ? EminusShadeUp
-        : vertex.face == 2 ? EminusShadeNorth
-        : vertex.face == 3 ? EminusShadeSouth
-        : vertex.face == 4 ? EminusShadeWest
-        : vertex.face == 5 ? EminusShadeEast
-        : SHADE_BLADE;
+    uint shades = uint(texelFetch(EminusModelRecords, vertex.modelId * MODEL_TEXELS + SHADES_TEXEL).y);
+    uint shade = eminus_field(shades, vertex.faceSlot * SHADE_BITS, SHADE_BITS);
+    float faceShade = shade == 0u ? EminusShadeDown
+        : shade == 1u ? EminusShadeUp
+        : shade == 2u ? EminusShadeNorth
+        : shade == 3u ? EminusShadeSouth
+        : shade == 4u ? EminusShadeWest
+        : EminusShadeEast;
     colour.rgb *= faceShade;
     vertexColor = colour;
 }

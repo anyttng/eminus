@@ -73,7 +73,8 @@ public final class GameQuads {
         }
 
         return new ModelQuad(corners, uvs, new GameSprite(quad.getSprite()), quad.getTintIndex(),
-                layered.translucent(), NO_EMISSION, quad.getDirection(), layered.smooth());
+                layered.translucent(), NO_EMISSION, quad.getDirection(),
+                quad.isShade() ? quad.getDirection() : Direction.UP, layered.smooth());
     }
 
     private GameQuads() {
