@@ -5,6 +5,6 @@ public enum IngestTrigger {
     UNLOAD,
     BLOCK,
     HELD,
-    NEIGHBOUR,
+    NEIGHBOR,
     LIGHT
 }

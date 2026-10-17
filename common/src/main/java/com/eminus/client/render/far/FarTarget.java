@@ -11,17 +11,17 @@ import com.eminus.gpu.texture.TextureUsage;
 import org.jspecify.annotations.Nullable;
 
 public final class FarTarget implements AutoCloseable {
-    private static final String COLOUR_LABEL = "eminus-far-colour";
+    private static final String COLOR_LABEL = "eminus-far-color";
     private static final String DEPTH_LABEL = "eminus-far-depth";
     private static final String OPAQUE_DEPTH_LABEL = "eminus-far-opaque-depth";
-    public static final Format COLOUR_FORMAT = Format.RGBA8_UNORM;
+    public static final Format COLOR_FORMAT = Format.RGBA8_UNORM;
     private static final Set<TextureUsage> USAGE = EnumSet.of(TextureUsage.ATTACHMENT, TextureUsage.SAMPLED);
     private static final int MIPS = 1;
 
     private final Gpu gpu;
     private final Format depthFormat;
 
-    private Texture colour;
+    private Texture color;
     private Texture depth;
     private @Nullable Texture opaqueDepth;
 
@@ -37,15 +37,15 @@ public final class FarTarget implements AutoCloseable {
     }
 
     public int width() {
-        return colour.width();
+        return color.width();
     }
 
     public int height() {
-        return colour.height();
+        return color.height();
     }
 
-    public Texture colour() {
-        return colour;
+    public Texture color() {
+        return color;
     }
 
     public Texture depth() {
@@ -75,12 +75,12 @@ public final class FarTarget implements AutoCloseable {
     }
 
     private void allocate(int width, int height) {
-        colour = gpu.texture(COLOUR_LABEL, USAGE, COLOUR_FORMAT, width, height, MIPS);
+        color = gpu.texture(COLOR_LABEL, USAGE, COLOR_FORMAT, width, height, MIPS);
         depth = gpu.texture(DEPTH_LABEL, USAGE, depthFormat, width, height, MIPS);
     }
 
     private void free() {
-        colour.close();
+        color.close();
         depth.close();
         if (opaqueDepth != null) {
             opaqueDepth.close();

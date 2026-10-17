@@ -31,12 +31,12 @@ class Std140Test {
         Std140.Member count = block.add(Std140.Type.INT, "Count");
         Std140.Member origin = block.add(Std140.Type.IVEC3, "Origin");
         Std140.Member scale = block.add(Std140.Type.FLOAT, "Scale");
-        Std140.Member colour = block.add(Std140.Type.VEC4, "Colour");
+        Std140.Member color = block.add(Std140.Type.VEC4, "Color");
         Std140.Member offset = block.add(Std140.Type.VEC3, "Offset");
 
         ByteBuffer written = block.into(direct(block.size()))
                 .putVec3(offset, -0.75F, -0.5F, -0.25F)
-                .putVec4(colour, VECTOR)
+                .putVec4(color, VECTOR)
                 .putFloat(scale, 0.5F)
                 .putIVec3(origin, -512, -64, 256)
                 .putInt(count, 33)

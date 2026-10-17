@@ -176,8 +176,8 @@ final class TreeTraversal {
     private int borderFaces(long key) {
         int faces = RenderList.NO_BORDER_FACES;
         for (Direction face : FACES) {
-            long neighbour = CellKey.neighbour(key, face);
-            if (!drawn(neighbour) && (descended(neighbour) || ancestorDrawn(neighbour))) {
+            long neighbor = CellKey.neighbor(key, face);
+            if (!drawn(neighbor) && (descended(neighbor) || ancestorDrawn(neighbor))) {
                 faces |= 1 << face.get3DDataValue();
             }
         }

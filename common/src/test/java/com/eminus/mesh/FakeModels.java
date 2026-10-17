@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.eminus.cell.FaceMask;
-import com.eminus.model.BiomeColours;
+import com.eminus.model.BiomeColors;
 import com.eminus.model.ModelMetadata;
 
 import net.minecraft.core.Direction;
@@ -220,7 +220,7 @@ final class FakeModels implements MeshModels {
 
     @Override
     public int tintRow(int modelId) {
-        return tintRows.getOrDefault(modelId, BiomeColours.NO_ROW);
+        return tintRows.getOrDefault(modelId, BiomeColors.NO_ROW);
     }
 
     @Override

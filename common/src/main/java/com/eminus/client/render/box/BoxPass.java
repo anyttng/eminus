@@ -45,7 +45,7 @@ public final class BoxPass implements AutoCloseable {
 
     private static final Std140.Member PROJ_VIEW = BLOCK.add(Std140.Type.MAT4, "BoxProjView");
     private static final Std140.Member VIEW = BLOCK.add(Std140.Type.MAT4, "BoxView");
-    private static final Std140.Member FOG_COLOUR = BLOCK.add(Std140.Type.VEC4, "BoxFogColour");
+    private static final Std140.Member FOG_COLOR = BLOCK.add(Std140.Type.VEC4, "BoxFogColor");
     private static final Std140.Member CAMERA_BLOCK_POS = BLOCK.add(Std140.Type.IVEC3, "BoxCameraBlockPos");
     private static final Std140.Member CAMERA_OFFSET = BLOCK.add(Std140.Type.VEC3, "BoxCameraOffset");
     private static final Std140.Member SHADE_DOWN = BLOCK.add(Std140.Type.FLOAT, "BoxShadeDown");
@@ -97,8 +97,8 @@ public final class BoxPass implements AutoCloseable {
     public static BoxPass create(Gpu gpu, DepthConvention depth) {
         gpu.assertRenderThread();
         return new BoxPass(gpu,
-                gpu.pipeline(pipeline(FAR_PIPELINE, depth, gpu, FarTarget.COLOUR_FORMAT).build()),
-                gpu.pipeline(pipeline(NEAR_PIPELINE, depth, gpu, gpu.mainColour().format())
+                gpu.pipeline(pipeline(FAR_PIPELINE, depth, gpu, FarTarget.COLOR_FORMAT).build()),
+                gpu.pipeline(pipeline(NEAR_PIPELINE, depth, gpu, gpu.mainColor().format())
                         .withDefine("NEAR_RANGE").build()),
                 gpu.buffer(FAR_LABEL, UNIFORM_USAGE, SIZE), gpu.buffer(NEAR_LABEL, UNIFORM_USAGE, SIZE));
     }
@@ -147,20 +147,20 @@ public final class BoxPass implements AutoCloseable {
         }
 
         write(farUniform, farViewProjection, game, NO_NEAR_PLANE, NO_FOG, 0.0F, 0.0F);
-        draw(far, farUniform, PassSpec.of(FAR_LABEL, target.colour(), null)
+        draw(far, farUniform, PassSpec.of(FAR_LABEL, target.color(), null)
                 .withDepth(target.depth(), OptionalDouble.empty()));
     }
 
-    public void drawNear(Texture colour, Texture depth, Matrix4fc gameViewProjection, GameFrame game,
+    public void drawNear(Texture color, Texture depth, Matrix4fc gameViewProjection, GameFrame game,
             float nearPlane) {
         if (count == 0) {
             return;
         }
 
         GameFog fog = game.fog();
-        write(nearUniform, gameViewProjection, game, nearPlane, fog.colour(), fog.environmentalStart(),
+        write(nearUniform, gameViewProjection, game, nearPlane, fog.color(), fog.environmentalStart(),
                 fog.environmentalEnd());
-        draw(near, nearUniform, PassSpec.of(NEAR_LABEL, colour, null).withDepth(depth, OptionalDouble.empty()));
+        draw(near, nearUniform, PassSpec.of(NEAR_LABEL, color, null).withDepth(depth, OptionalDouble.empty()));
     }
 
     @Override
@@ -182,7 +182,7 @@ public final class BoxPass implements AutoCloseable {
     }
 
     private void write(Buffer uniform, Matrix4fc viewProjection, GameFrame game, float nearPlane,
-            Vector4fc fogColour, float fogStart, float fogEnd) {
+            Vector4fc fogColor, float fogStart, float fogEnd) {
         CameraOrigin camera = CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ());
         FaceShade shade = game.shade();
 
@@ -190,7 +190,7 @@ public final class BoxPass implements AutoCloseable {
             ByteBuffer written = BLOCK.into(stack.malloc(SIZE))
                     .putMat4(PROJ_VIEW, viewProjection)
                     .putMat4(VIEW, game.viewRotation())
-                    .putVec4(FOG_COLOUR, fogColour)
+                    .putVec4(FOG_COLOR, fogColor)
                     .putIVec3(CAMERA_BLOCK_POS, camera.blockX(), camera.blockY(), camera.blockZ())
                     .putVec3(CAMERA_OFFSET, camera.offsetX(), camera.offsetY(), camera.offsetZ())
                     .putFloat(SHADE_DOWN, shade.down())
@@ -219,7 +219,7 @@ public final class BoxPass implements AutoCloseable {
     }
 
     private static PipelineSpec.Builder pipeline(Location location, DepthConvention depth, Gpu gpu,
-            Format colourFormat) {
+            Format colorFormat) {
         PipelineSpec.Builder builder = PipelineSpec.builder(location, SHADER, SHADER)
                 .withBinding(Binding.uniform(BLOCK.name()))
                 .withBinding(Binding.texel(RECORDS, TEXEL_FORMAT))
@@ -227,7 +227,7 @@ public final class BoxPass implements AutoCloseable {
                 .withDefine("BOX_VERTICES", BoxRecords.VERTICES)
                 .withDefine("BOX_TEXELS", BoxRecords.TEXELS)
                 .withDefine("BOX_EMISSIVE", BoxRecords.EMISSIVE)
-                .withColourTarget(colourFormat, Blend.TRANSLUCENT, true)
+                .withColorTarget(colorFormat, Blend.TRANSLUCENT, true)
                 .withDepthTest(depth.compare(), true);
         return gpu.capabilities().lightmapHalfTexel() ? builder.withDefine("LIGHTMAP_HALF_TEXEL") : builder;
     }

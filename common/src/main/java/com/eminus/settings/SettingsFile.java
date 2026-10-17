@@ -88,7 +88,7 @@ public final class SettingsFile {
             How LOD is drawn under an Iris shader pack that does not ship the Eminus
             contract: default draws it over the pack's finished image in Eminus's own
             shading; distant_horizons lets a pack with Distant Horizons programs draw it,
-            with the pack's light and fog but one flat colour per block. A pack that
+            with the pack's light and fog but one flat color per block. A pack that
             ships the contract always draws LOD itself.""";
 
     private static final String LOD_ANIMATIONS_COMMENT = """

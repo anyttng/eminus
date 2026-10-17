@@ -21,7 +21,7 @@ class OpenGlPipelineTest {
 
     private static PipelineSpec spec(int textureBindings) {
         PipelineSpec.Builder builder = PipelineSpec.builder(PIPELINE, PIPELINE, PIPELINE)
-                .withColourTarget(Format.RGBA8_UNORM, null, true)
+                .withColorTarget(Format.RGBA8_UNORM, null, true)
                 .withBinding(Binding.uniform(UNIFORM));
         for (int binding = 0; binding < textureBindings; binding++) {
             builder.withBinding(binding % 2 == 0 ? Binding.sampled(SAMPLER + binding)

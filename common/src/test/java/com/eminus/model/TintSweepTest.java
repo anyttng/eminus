@@ -56,12 +56,12 @@ class TintSweepTest {
             next += set + 1;
         }
 
-        BiomeColours colours = colours();
-        TintSweep.sweep(states(blocks), tints(byBlock), TintSweepTest::noFluidTints, OWN_SHAPE, colours);
+        BiomeColors colors = colors();
+        TintSweep.sweep(states(blocks), tints(byBlock), TintSweepTest::noFluidTints, OWN_SHAPE, colors);
 
-        assertEquals(SETS, colours.rowCount());
-        assertEquals(Tint.row(0), colours.resolve(sources.get(SETS - 1), blocks.getLast().defaultBlockState()));
-        assertEquals(Tint.row(SETS - 1), colours.resolve(sources.getFirst(), blocks.getFirst().defaultBlockState()));
+        assertEquals(SETS, colors.rowCount());
+        assertEquals(Tint.row(0), colors.resolve(sources.get(SETS - 1), blocks.getLast().defaultBlockState()));
+        assertEquals(Tint.row(SETS - 1), colors.resolve(sources.getFirst(), blocks.getFirst().defaultBlockState()));
     }
 
     @Test
@@ -70,14 +70,14 @@ class TintSweepTest {
         TintSource blank = (state, biome, x, z) -> WHITE;
         Map<Block, TintSource> byBlock = Map.of(blocks.get(0), spruce, blocks.get(1), blank);
 
-        BiomeColours colours = colours();
+        BiomeColors colors = colors();
         TintSweep.sweep(states(blocks.subList(0, 2)), tints(byBlock), TintSweepTest::noFluidTints, OWN_SHAPE,
-                colours);
+                colors);
 
-        assertEquals(1, colours.rowCount());
-        assertEquals(Tint.row(0), colours.resolve(spruce, blocks.get(0).defaultBlockState()));
-        assertEquals(SPRUCE & RGB_MASK, colours.constant(0));
-        assertEquals(Tint.UNTINTED, colours.resolve(blank, blocks.get(1).defaultBlockState()));
+        assertEquals(1, colors.rowCount());
+        assertEquals(Tint.row(0), colors.resolve(spruce, blocks.get(0).defaultBlockState()));
+        assertEquals(SPRUCE & RGB_MASK, colors.constant(0));
+        assertEquals(Tint.UNTINTED, colors.resolve(blank, blocks.get(1).defaultBlockState()));
     }
 
     @Test
@@ -92,8 +92,8 @@ class TintSweepTest {
             byBlock.put(users.get(set), source);
         }
 
-        BiomeColours forward = colours();
-        BiomeColours backward = colours();
+        BiomeColors forward = colors();
+        BiomeColors backward = colors();
         TintSweep.sweep(states(users), tints(byBlock), TintSweepTest::noFluidTints, OWN_SHAPE, forward);
         TintSweep.sweep(states(users.reversed()), tints(byBlock), TintSweepTest::noFluidTints, OWN_SHAPE, backward);
 
@@ -103,13 +103,13 @@ class TintSweepTest {
         }
     }
 
-    private static BiomeColours colours() {
+    private static BiomeColors colors() {
         List<TintBiome> biomes = new ArrayList<>();
         for (int biome = 0; biome < BIOMES; biome++) {
             biomes.add(new FakeBiome(biome));
         }
 
-        return new BiomeColours(biomes);
+        return new BiomeColors(biomes);
     }
 
     private static BlockTints tints(Map<Block, TintSource> byBlock) {

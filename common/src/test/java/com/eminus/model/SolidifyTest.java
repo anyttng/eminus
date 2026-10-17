@@ -15,7 +15,7 @@ class SolidifyTest {
     private static final int TRANSPARENT_BLUE = 0x0000_00FF;
 
     @Test
-    void oneDrawnPixelColoursEveryTransparentPixelAndKeepsTheirAlpha() {
+    void oneDrawnPixelColorsEveryTransparentPixelAndKeepsTheirAlpha() {
         int[] image = new int[16];
         image[0] = GREEN;
 
@@ -28,7 +28,7 @@ class SolidifyTest {
     }
 
     @Test
-    void aTransparentPixelTakesTheNearerOfTwoDrawnColours() {
+    void aTransparentPixelTakesTheNearerOfTwoDrawnColors() {
         int[] row = {RED, TRANSPARENT, TRANSPARENT, TRANSPARENT, TRANSPARENT, BLUE};
 
         Solidify.apply(row, 6, 1);
@@ -38,7 +38,7 @@ class SolidifyTest {
     }
 
     @Test
-    void aTieGoesToTheColourTheGamesColumnFirstSeedingReachesFirst() {
+    void aTieGoesToTheColorTheGamesColumnFirstSeedingReachesFirst() {
         int[] image = {TRANSPARENT, RED, BLUE, TRANSPARENT};
 
         Solidify.apply(image, 2, 2);

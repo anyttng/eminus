@@ -14,7 +14,7 @@ class NearBoxTest {
     private static final NearBox BOX = NearBox.around(0, 0, RADIUS);
 
     @Test
-    void theBoxSpansTheRadiusOfSectionsOnEachSideOfItsCentre() {
+    void theBoxSpansTheRadiusOfSectionsOnEachSideOfItsCenter() {
         assertEquals(new NearBox(BOX_MIN, BOX_MIN, BOX_END, BOX_END), BOX);
     }
 

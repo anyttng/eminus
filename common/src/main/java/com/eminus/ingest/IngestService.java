@@ -33,8 +33,8 @@ import net.minecraft.world.level.lighting.LevelLightEngine;
 import org.jspecify.annotations.Nullable;
 
 public final class IngestService {
-    private static final int NEIGHBOUR_REACH = 1;
-    private static final int NEIGHBOUR_SIDE = 2 * NEIGHBOUR_REACH + 1;
+    private static final int NEIGHBOR_REACH = 1;
+    private static final int NEIGHBOR_SIDE = 2 * NEIGHBOR_REACH + 1;
 
     private final WorkService<SectionPyramid> service;
     private final StateTable states;
@@ -90,12 +90,12 @@ public final class IngestService {
     }
 
     private void retryDeferred(Level level, int chunkX, int chunkZ) {
-        for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
-            for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
+        for (int dz = -NEIGHBOR_REACH; dz <= NEIGHBOR_REACH; dz++) {
+            for (int dx = -NEIGHBOR_REACH; dx <= NEIGHBOR_REACH; dx++) {
                 if ((dx != 0 || dz != 0) && deferred.remove(column(chunkX + dx, chunkZ + dz))) {
                     LevelChunk waiting = level.getChunkSource().getChunkNow(chunkX + dx, chunkZ + dz);
                     if (waiting != null) {
-                        ingestChunk(waiting, IngestTrigger.NEIGHBOUR);
+                        ingestChunk(waiting, IngestTrigger.NEIGHBOR);
                     }
                 }
             }
@@ -119,7 +119,7 @@ public final class IngestService {
 
         int chunkX = chunkPos.x();
         int chunkZ = chunkPos.z();
-        if (!neighboursLoaded(chunk.getLevel(), chunkX, chunkZ)) {
+        if (!neighborsLoaded(chunk.getLevel(), chunkX, chunkZ)) {
             deferred.add(column(chunkX, chunkZ));
             return;
         }
@@ -236,7 +236,7 @@ public final class IngestService {
             return;
         }
 
-        // The light engine drops the layers of an air-only section whose 26 neighbours are air-only too, for good.
+        // The light engine drops the layers of an air-only section whose 26 neighbors are air-only too, for good.
         if (!chunk.getSections()[index].hasOnlyAir() && !skyPublished(light, sectionPos(chunk, index))) {
             return;
         }
@@ -305,10 +305,10 @@ public final class IngestService {
     private static BiomeWindow biomeWindow(LevelChunk chunk, int sectionY) {
         Level level = chunk.getLevel();
         ChunkPos pos = chunk.getPos();
-        LevelChunk[] around = new LevelChunk[NEIGHBOUR_SIDE * NEIGHBOUR_SIDE];
-        for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
-            for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
-                around[neighbourIndex(dx, dz)] = dx == 0 && dz == 0
+        LevelChunk[] around = new LevelChunk[NEIGHBOR_SIDE * NEIGHBOR_SIDE];
+        for (int dz = -NEIGHBOR_REACH; dz <= NEIGHBOR_REACH; dz++) {
+            for (int dx = -NEIGHBOR_REACH; dx <= NEIGHBOR_REACH; dx++) {
+                around[neighborIndex(dx, dz)] = dx == 0 && dz == 0
                         ? chunk
                         : level.getChunkSource().getChunkNow(pos.x() + dx, pos.z() + dz);
             }
@@ -321,14 +321,14 @@ public final class IngestService {
 
     private static @Nullable Holder<Biome> noiseBiome(ChunkPos pos, LevelChunk[] around, int quartX, int quartY,
             int quartZ) {
-        LevelChunk neighbour = around[neighbourIndex(QuartPos.toSection(quartX) - pos.x(),
+        LevelChunk neighbor = around[neighborIndex(QuartPos.toSection(quartX) - pos.x(),
                 QuartPos.toSection(quartZ) - pos.z())];
-        return neighbour == null ? null : neighbour.getNoiseBiome(quartX, quartY, quartZ);
+        return neighbor == null ? null : neighbor.getNoiseBiome(quartX, quartY, quartZ);
     }
 
-    private static boolean neighboursLoaded(Level level, int chunkX, int chunkZ) {
-        for (int dz = -NEIGHBOUR_REACH; dz <= NEIGHBOUR_REACH; dz++) {
-            for (int dx = -NEIGHBOUR_REACH; dx <= NEIGHBOUR_REACH; dx++) {
+    private static boolean neighborsLoaded(Level level, int chunkX, int chunkZ) {
+        for (int dz = -NEIGHBOR_REACH; dz <= NEIGHBOR_REACH; dz++) {
+            for (int dx = -NEIGHBOR_REACH; dx <= NEIGHBOR_REACH; dx++) {
                 if (level.getChunkSource().getChunkNow(chunkX + dx, chunkZ + dz) == null) {
                     return false;
                 }
@@ -342,8 +342,8 @@ public final class IngestService {
         return SectionPos.getZeroNode(chunkX, chunkZ);
     }
 
-    private static int neighbourIndex(int dx, int dz) {
-        return (dz + NEIGHBOUR_REACH) * NEIGHBOUR_SIDE + dx + NEIGHBOUR_REACH;
+    private static int neighborIndex(int dx, int dz) {
+        return (dz + NEIGHBOR_REACH) * NEIGHBOR_SIDE + dx + NEIGHBOR_REACH;
     }
 
     private static boolean submits(LevelLightEngine light, LevelChunk chunk, int index) {

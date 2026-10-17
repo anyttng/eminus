@@ -35,7 +35,7 @@ final class GameHandles {
     record Handle(Object owner, int id) {
     }
 
-    static Handle mainColour() {
+    static Handle mainColor() {
         return handle(target().getColorTextureView());
     }
 
@@ -116,7 +116,7 @@ final class GameHandles {
         GlStateManager._scissorBox(x, y, width, height);
     }
 
-    static void colourMask(int index, int mask) {
+    static void colorMask(int index, int mask) {
         GlStateManager._colorMask(mask);
     }
 
