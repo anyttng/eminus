@@ -28,7 +28,7 @@ public final class OpaquePass {
     private static final Location PIPELINE = new Location(Eminus.MODID, "far_opaque");
     private static final Location SOLID_PIPELINE = new Location(Eminus.MODID, "far_opaque_solid");
     private static final String PASS_LABEL = "eminus-far-opaque";
-    private static final Vector4fc CLEAR_COLOUR = new Vector4f(0.0F, 0.0F, 0.0F, 0.0F);
+    private static final Vector4fc CLEAR_COLOR = new Vector4f(0.0F, 0.0F, 0.0F, 0.0F);
     private static final int FIRST_COMMAND = 0;
 
     private final Gpu gpu;
@@ -58,7 +58,7 @@ public final class OpaquePass {
             int solidCount, int drawCount, Buffer frame, TexelView nearSections) {
         gpu.assertRenderThread();
 
-        try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, target.colour(), CLEAR_COLOUR)
+        try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, target.color(), CLEAR_COLOR)
                 .withDepth(target.depth(), OptionalDouble.empty()))) {
             if (solidCount > 0) {
                 pass.pipeline(solid);
@@ -76,7 +76,7 @@ public final class OpaquePass {
 
     private static PipelineSpec target(PipelineSpec.Builder builder, DepthConvention depth) {
         return builder.withDefine("FULL_COVERAGE")
-                .withColourTarget(FarTarget.COLOUR_FORMAT, null, true)
+                .withColorTarget(FarTarget.COLOR_FORMAT, null, true)
                 .withDepthTest(depth.compare(), true)
                 .build();
     }

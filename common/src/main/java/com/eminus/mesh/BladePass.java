@@ -53,8 +53,8 @@ public final class BladePass {
             return;
         }
 
-        int colourIndex = QuadTint.of(scratch, models, entry, modelId, x, y, z);
-        long data = Quad.data(QuadLight.of(entry, metadata), modelId, colourIndex);
+        int colorIndex = QuadTint.of(scratch, models, entry, modelId, x, y, z);
+        long data = Quad.data(QuadLight.of(entry, metadata), modelId, colorIndex);
         int group = QuadGroups.ofBlade(metadata);
         int word = occlusion.blade(x, y, z, metadata);
 

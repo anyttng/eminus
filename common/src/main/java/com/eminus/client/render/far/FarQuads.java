@@ -138,8 +138,8 @@ final class FarQuads {
                 .withDefine("QUAD_LIGHT_BITS", Quad.LIGHT_BITS)
                 .withDefine("QUAD_MODEL_SHIFT", Quad.MODEL_SHIFT)
                 .withDefine("QUAD_MODEL_BITS", Quad.MODEL_BITS)
-                .withDefine("QUAD_COLOUR_SHIFT", Quad.COLOUR_SHIFT)
-                .withDefine("QUAD_COLOUR_BITS", Quad.COLOUR_BITS);
+                .withDefine("QUAD_COLOR_SHIFT", Quad.COLOR_SHIFT)
+                .withDefine("QUAD_COLOR_BITS", Quad.COLOR_BITS);
     }
 
     private static void placementLayout(PipelineSpec.Builder builder) {
@@ -189,7 +189,7 @@ final class FarQuads {
         if (nearSections != null) {
             pass.bind(NEAR_SECTIONS, nearSections);
         }
-        pass.bind(ATLAS, models.atlas().colour(), Sampler.NEAREST_MIPPED);
+        pass.bind(ATLAS, models.atlas().color(), Sampler.NEAREST_MIPPED);
         pass.bind(TINT_MASK, models.atlas().tintMask(), Sampler.NEAREST_MIPPED);
         pass.bind(LIGHTMAP, lightmap, Sampler.LINEAR);
         pass.quadIndices(MAX_GROUP_INDICES);

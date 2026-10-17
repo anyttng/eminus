@@ -1,6 +1,6 @@
 package com.eminus.mesh;
 
-import com.eminus.model.BiomeColours;
+import com.eminus.model.BiomeColors;
 
 public final class QuadTint {
     public static int of(MeshScratch scratch, MeshModels models, long entry, int modelId, int x, int y, int z) {
@@ -15,16 +15,16 @@ public final class QuadTint {
     private static int entry(MeshScratch scratch, MeshModels models, int placement, int modelId, int x, int y,
             int z) {
         int row = models.tintRow(modelId);
-        if (row == BiomeColours.NO_ROW && placement == QuadPlacement.NONE) {
+        if (row == BiomeColors.NO_ROW && placement == QuadPlacement.NONE) {
             return MeshBuffer.UNTINTED;
         }
 
-        return scratch.buffer().colourIndex(colour(scratch, row, x, y, z), placement);
+        return scratch.buffer().colorIndex(color(scratch, row, x, y, z), placement);
     }
 
-    private static int colour(MeshScratch scratch, int row, int x, int y, int z) {
-        int colour = row == BiomeColours.NO_ROW ? TintBlend.NO_COLOUR : scratch.blend().colour(row, x, y, z);
-        return colour == TintBlend.NO_COLOUR ? MeshBuffer.WHITE : colour;
+    private static int color(MeshScratch scratch, int row, int x, int y, int z) {
+        int color = row == BiomeColors.NO_ROW ? TintBlend.NO_COLOR : scratch.blend().color(row, x, y, z);
+        return color == TintBlend.NO_COLOR ? MeshBuffer.WHITE : color;
     }
 
     private QuadTint() {

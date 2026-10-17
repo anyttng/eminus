@@ -41,12 +41,12 @@ record GamePipeline(RenderPipeline pipeline, Location location) implements Pipel
             }
         }
 
-        PipelineSpec.ColourTarget colour = spec.colour();
+        PipelineSpec.ColorTarget color = spec.color();
         builder.withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
                 .withColorTargetState(new ColorTargetState(
-                        Optional.ofNullable(colour.blend()).map(GameTypes::blend),
-                        GameTypes.format(colour.format()),
-                        colour.writes() ? ColorTargetState.WRITE_ALL : ColorTargetState.WRITE_NONE))
+                        Optional.ofNullable(color.blend()).map(GameTypes::blend),
+                        GameTypes.format(color.format()),
+                        color.writes() ? ColorTargetState.WRITE_ALL : ColorTargetState.WRITE_NONE))
                 .withCull(false);
 
         PipelineSpec.DepthTest depth = spec.depth();

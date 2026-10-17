@@ -55,7 +55,7 @@ class MeshOrderTest {
     }
 
     @Test
-    void aCoarseCellSortsByItsOwnCentre() {
+    void aCoarseCellSortsByItsOwnCenter() {
         MeshSummary coarse = translucent(CellKey.pack(2, 1, 0, 0));
 
         update(list(coarse, far));

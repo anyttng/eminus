@@ -44,15 +44,15 @@ class CellKeyTest {
     }
 
     @Test
-    void eachNeighbourStepsOneCellAlongItsOwnAxis() {
+    void eachNeighborStepsOneCellAlongItsOwnAxis() {
         long key = CellKey.pack(1, 1, 2, 3);
 
-        assertEquals(CellKey.pack(1, 1, 2, 2), CellKey.neighbour(key, Direction.NORTH));
-        assertEquals(CellKey.pack(1, 1, 2, 4), CellKey.neighbour(key, Direction.SOUTH));
-        assertEquals(CellKey.pack(1, 0, 2, 3), CellKey.neighbour(key, Direction.WEST));
-        assertEquals(CellKey.pack(1, 2, 2, 3), CellKey.neighbour(key, Direction.EAST));
-        assertEquals(CellKey.pack(1, 1, 1, 3), CellKey.neighbour(key, Direction.DOWN));
-        assertEquals(CellKey.pack(1, 1, 3, 3), CellKey.neighbour(key, Direction.UP));
+        assertEquals(CellKey.pack(1, 1, 2, 2), CellKey.neighbor(key, Direction.NORTH));
+        assertEquals(CellKey.pack(1, 1, 2, 4), CellKey.neighbor(key, Direction.SOUTH));
+        assertEquals(CellKey.pack(1, 0, 2, 3), CellKey.neighbor(key, Direction.WEST));
+        assertEquals(CellKey.pack(1, 2, 2, 3), CellKey.neighbor(key, Direction.EAST));
+        assertEquals(CellKey.pack(1, 1, 1, 3), CellKey.neighbor(key, Direction.DOWN));
+        assertEquals(CellKey.pack(1, 1, 3, 3), CellKey.neighbor(key, Direction.UP));
     }
 
     @Test

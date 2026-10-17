@@ -26,7 +26,7 @@ public final class ModelBaker implements StateBaker {
     private final BlockTints blockTints;
     private final FluidBaker fluids;
     private final SpriteTexels sprites;
-    private final BiomeColours colours;
+    private final BiomeColors colors;
     private final boolean drawsBlades;
     private final FaceRasterizer rasterizer = new FaceRasterizer();
     private final CountingRandom random = new CountingRandom();
@@ -35,19 +35,19 @@ public final class ModelBaker implements StateBaker {
     private boolean swept;
 
     public ModelBaker(BlockModels blockModels, BlockTints blockTints, FluidBaker fluids, SpriteTexels sprites,
-            BiomeColours colours, boolean drawsBlades) {
+            BiomeColors colors, boolean drawsBlades) {
         this.blockModels = blockModels;
         this.blockTints = blockTints;
         this.fluids = fluids;
         this.sprites = sprites;
-        this.colours = colours;
+        this.colors = colors;
         this.drawsBlades = drawsBlades;
     }
 
     @Override
     public BakedState bake(BlockState state) {
         if (!swept) {
-            TintSweep.sweep(Block.BLOCK_STATE_REGISTRY, blockTints, fluids::tintSource, ModelBaker::baseOf, colours);
+            TintSweep.sweep(Block.BLOCK_STATE_REGISTRY, blockTints, fluids::tintSource, ModelBaker::baseOf, colors);
             swept = true;
         }
 
@@ -128,11 +128,11 @@ public final class ModelBaker implements StateBaker {
         }
 
         return rasterizer.rasterize(quads, (quad, u, v) -> sprites.argb(quad.sprite(), u, v),
-                layer -> colours.resolve(blockTints.source(shape, layer), shape), blockModels.forceOpaque(shape));
+                layer -> colors.resolve(blockTints.source(shape, layer), shape), blockModels.forceOpaque(shape));
     }
 
     private BakedModel fluidModel(FluidState fluid, BlockState state) {
-        return emissive(fluids.bake(fluid, colours.resolve(fluids.tintSource(fluid), state)), state);
+        return emissive(fluids.bake(fluid, colors.resolve(fluids.tintSource(fluid), state)), state);
     }
 
     private @Nullable BlockModel modelOf(BlockState shape) {

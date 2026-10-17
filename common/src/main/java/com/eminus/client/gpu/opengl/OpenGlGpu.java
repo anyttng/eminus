@@ -67,7 +67,7 @@ public final class OpenGlGpu implements Gpu, Foreign {
     private static final int ID_BITS = 32;
 
     private enum Borrowed {
-        MAIN_COLOUR,
+        MAIN_COLOR,
         MAIN_DEPTH,
         LIGHTMAP
     }
@@ -159,8 +159,8 @@ public final class OpenGlGpu implements Gpu, Foreign {
     }
 
     @Override
-    public Texture mainColour() {
-        return borrowed(Borrowed.MAIN_COLOUR, GameHandles.mainColour());
+    public Texture mainColor() {
+        return borrowed(Borrowed.MAIN_COLOR, GameHandles.mainColor());
     }
 
     @Override
@@ -230,13 +230,13 @@ public final class OpenGlGpu implements Gpu, Foreign {
     }
 
     @Override
-    public Pass pass(int framebuffer, int width, int height, int colourTargets) {
-        return OpenGlPass.openForeign(this, framebuffer, width, height, colourTargets);
+    public Pass pass(int framebuffer, int width, int height, int colorTargets) {
+        return OpenGlPass.openForeign(this, framebuffer, width, height, colorTargets);
     }
 
     @Override
-    public void copyDepth(Texture colour, Texture from, Texture to) {
-        OpenGlTexture carrier = (OpenGlTexture) colour;
+    public void copyDepth(Texture color, Texture from, Texture to) {
+        OpenGlTexture carrier = (OpenGlTexture) color;
         GameHandles.bindFramebuffers(framebuffer(carrier, (OpenGlTexture) from),
                 framebuffer(carrier, (OpenGlTexture) to));
         GL30C.glBlitFramebuffer(0, 0, from.width(), from.height(), 0, 0, to.width(), to.height(),
@@ -292,15 +292,15 @@ public final class OpenGlGpu implements Gpu, Foreign {
         return id;
     }
 
-    int framebuffer(OpenGlTexture colour, @Nullable OpenGlTexture depth) {
+    int framebuffer(OpenGlTexture color, @Nullable OpenGlTexture depth) {
         int depthId = depth == null ? NO_TEXTURE : depth.id();
-        return framebuffers.computeIfAbsent(key(colour.id(), depthId), key -> createFramebuffer(colour.id(), depthId));
+        return framebuffers.computeIfAbsent(key(color.id(), depthId), key -> createFramebuffer(color.id(), depthId));
     }
 
-    private int createFramebuffer(int colour, int depth) {
+    private int createFramebuffer(int color, int depth) {
         int id = GL30C.glGenFramebuffers();
         GameHandles.bindFramebuffer(id);
-        GL30C.glFramebufferTexture2D(GL30C.GL_FRAMEBUFFER, GL30C.GL_COLOR_ATTACHMENT0, GL11C.GL_TEXTURE_2D, colour,
+        GL30C.glFramebufferTexture2D(GL30C.GL_FRAMEBUFFER, GL30C.GL_COLOR_ATTACHMENT0, GL11C.GL_TEXTURE_2D, color,
                 BASE_MIP);
         GL30C.glFramebufferTexture2D(GL30C.GL_FRAMEBUFFER, GL30C.GL_DEPTH_ATTACHMENT, GL11C.GL_TEXTURE_2D, depth,
                 BASE_MIP);
@@ -308,11 +308,11 @@ public final class OpenGlGpu implements Gpu, Foreign {
         if (status != GL30C.GL_FRAMEBUFFER_COMPLETE) {
             GameHandles.bindFramebuffer(UNBOUND);
             GameHandles.deleteFramebuffer(id);
-            throw new IllegalStateException("Framebuffer of textures " + colour + " and " + depth
+            throw new IllegalStateException("Framebuffer of textures " + color + " and " + depth
                     + " is incomplete: status " + status);
         }
 
-        objects.created(OpenGlObjects.Kind.FRAMEBUFFER, id, FRAMEBUFFER_LABEL + colour + "-" + depth);
+        objects.created(OpenGlObjects.Kind.FRAMEBUFFER, id, FRAMEBUFFER_LABEL + color + "-" + depth);
         return id;
     }
 
@@ -320,7 +320,7 @@ public final class OpenGlGpu implements Gpu, Foreign {
         Iterator<Map.Entry<Long, Integer>> entries = framebuffers.entrySet().iterator();
         while (entries.hasNext()) {
             Map.Entry<Long, Integer> entry = entries.next();
-            if (colourOf(entry.getKey()) == texture || depthOf(entry.getKey()) == texture) {
+            if (colorOf(entry.getKey()) == texture || depthOf(entry.getKey()) == texture) {
                 GameHandles.deleteFramebuffer(entry.getValue());
                 objects.deleted(OpenGlObjects.Kind.FRAMEBUFFER);
                 entries.remove();
@@ -328,11 +328,11 @@ public final class OpenGlGpu implements Gpu, Foreign {
         }
     }
 
-    private static long key(int colour, int depth) {
-        return ((long) colour << ID_BITS) | Integer.toUnsignedLong(depth);
+    private static long key(int color, int depth) {
+        return ((long) color << ID_BITS) | Integer.toUnsignedLong(depth);
     }
 
-    private static int colourOf(long key) {
+    private static int colorOf(long key) {
         return (int) (key >>> ID_BITS);
     }
 

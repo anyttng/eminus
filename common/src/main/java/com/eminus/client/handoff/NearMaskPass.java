@@ -59,23 +59,23 @@ public final class NearMaskPass implements AutoCloseable {
         this.depthBias = depthBias;
     }
 
-    public static NearMaskPass create(Gpu gpu, Format colourFormat, DepthConvention depth, float depthBias) {
+    public static NearMaskPass create(Gpu gpu, Format colorFormat, DepthConvention depth, float depthBias) {
         gpu.assertRenderThread();
-        return new NearMaskPass(gpu, gpu.pipeline(pipeline(colourFormat, depth)),
+        return new NearMaskPass(gpu, gpu.pipeline(pipeline(colorFormat, depth)),
                 gpu.buffer(UNIFORM_LABEL, UNIFORM_USAGE, SIZE), depth, depthBias);
     }
 
-    // A GL render pass sizes its viewport from a colour attachment alone, so the far colour rides along unwritten.
+    // A GL render pass sizes its viewport from a color attachment alone, so the far color rides along unwritten.
     public Pipeline pipeline() {
         return pipeline;
     }
 
-    public void draw(Texture farDepth, Texture colour, Texture gameDepth, Matrix4fc farViewProjection,
+    public void draw(Texture farDepth, Texture color, Texture gameDepth, Matrix4fc farViewProjection,
             Matrix4fc gameViewProjection) {
         gpu.assertRenderThread();
         write(farViewProjection, gameViewProjection);
 
-        try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, colour, null)
+        try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, color, null)
                 .withDepth(farDepth, OptionalDouble.of(depth.farthest())))) {
             pass.pipeline(pipeline);
             pass.bind(BLOCK.name(), uniform);
@@ -101,11 +101,11 @@ public final class NearMaskPass implements AutoCloseable {
         }
     }
 
-    private static PipelineSpec pipeline(Format colourFormat, DepthConvention depth) {
+    private static PipelineSpec pipeline(Format colorFormat, DepthConvention depth) {
         return depth.define(PipelineSpec.builder(PIPELINE, CompositePass.FULL_SCREEN_SHADER, FRAGMENT_SHADER)
                         .withBinding(Binding.uniform(BLOCK.name()))
                         .withBinding(Binding.sampled(GAME_DEPTH)))
-                .withColourTarget(colourFormat, null, false)
+                .withColorTarget(colorFormat, null, false)
                 .withDepthTest(depth.compare(), true)
                 .build();
     }

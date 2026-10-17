@@ -29,12 +29,12 @@ public final class TreeRing {
     private double anchorX;
     private double anchorZ;
     private int radius = NO_RADIUS;
-    private int centreX;
-    private int centreZ;
+    private int centerX;
+    private int centerZ;
 
     public boolean update(double eyeX, double eyeZ, int radius, Columns columns) {
         if (this.radius != radius || moved(eyeX, eyeZ)) {
-            recentre(eyeX, eyeZ, radius);
+            recenter(eyeX, eyeZ, radius);
         }
 
         return drain(columns);
@@ -66,17 +66,17 @@ public final class TreeRing {
         return dx * dx + dz * dz >= MOVE_BLOCKS_SQUARED;
     }
 
-    private void recentre(double eyeX, double eyeZ, int radius) {
+    private void recenter(double eyeX, double eyeZ, int radius) {
         anchorX = eyeX;
         anchorZ = eyeZ;
         this.radius = radius;
-        centreX = CellFrame.cellX((int) Math.floor(eyeX), DetailLevel.MAX);
-        centreZ = CellFrame.cellZ((int) Math.floor(eyeZ), DetailLevel.MAX);
+        centerX = CellFrame.cellX((int) Math.floor(eyeX), DetailLevel.MAX);
+        centerZ = CellFrame.cellZ((int) Math.floor(eyeZ), DetailLevel.MAX);
         toAdd.clear();
         toRemove.clear();
 
-        for (int cellX = centreX - radius; cellX <= centreX + radius; cellX++) {
-            for (int cellZ = centreZ - radius; cellZ <= centreZ + radius; cellZ++) {
+        for (int cellX = centerX - radius; cellX <= centerX + radius; cellX++) {
+            for (int cellZ = centerZ - radius; cellZ <= centerZ + radius; cellZ++) {
                 long column = column(cellX, cellZ);
                 if (inDisc(cellX, cellZ) && !present.contains(column)) {
                     toAdd.add(column);
@@ -96,14 +96,14 @@ public final class TreeRing {
     }
 
     private boolean inDisc(int cellX, int cellZ) {
-        int dx = cellX - centreX;
-        int dz = cellZ - centreZ;
+        int dx = cellX - centerX;
+        int dz = cellZ - centerZ;
         return dx * dx + dz * dz <= radius * radius;
     }
 
     private long distanceSquared(long column) {
-        long dx = (long) cellX(column) - centreX;
-        long dz = (long) cellZ(column) - centreZ;
+        long dx = (long) cellX(column) - centerX;
+        long dz = (long) cellZ(column) - centerZ;
         return dx * dx + dz * dz;
     }
 

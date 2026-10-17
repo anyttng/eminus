@@ -19,7 +19,7 @@ public final class MeshBuffer {
     public static final int MAX_QUADS_PER_BORDER = DetailLevel.VOXELS_PER_SIDE * DetailLevel.VOXELS_PER_SIDE;
     public static final int MAX_QUADS = QuadGroups.FIRST_BORDER * MAX_QUADS_PER_GROUP
             + QuadGroups.DIRECTIONAL_COUNT * MAX_QUADS_PER_BORDER;
-    public static final int MAX_COLOURS = Quad.MAX_COLOUR_INDEX + 1;
+    public static final int MAX_COLORS = Quad.MAX_COLOR_INDEX + 1;
     public static final int UNTINTED = 0;
     public static final int WHITE = 0xFF_FFFF;
     public static final int CHANNEL_BITS = 8;
@@ -30,7 +30,7 @@ public final class MeshBuffer {
     private static final int ABSENT = -1;
     private static final int CHANNEL_MASK = (1 << CHANNEL_BITS) - 1;
     private static final int PLACEMENT_SHIFT = Integer.SIZE;
-    private static final long COLOUR_BITS = 0xFFFF_FFFFL;
+    private static final long COLOR_BITS = 0xFFFF_FFFFL;
     private static final int ORDER_SHIFT = Integer.SIZE;
     private static final long INDEX_MASK = 0xFFFF_FFFFL;
 
@@ -38,8 +38,8 @@ public final class MeshBuffer {
     private final IntArrayList[] occlusions = new IntArrayList[QuadGroups.COUNT];
     private final BooleanArrayList[] solids = new BooleanArrayList[QuadGroups.COUNT];
     private final IntArrayList translucentOrders = new IntArrayList();
-    private final LongArrayList colours = new LongArrayList();
-    private final Long2IntMap colourIndices = new Long2IntOpenHashMap();
+    private final LongArrayList colors = new LongArrayList();
+    private final Long2IntMap colorIndices = new Long2IntOpenHashMap();
     private final Int2IntLinkedOpenHashMap requested = new Int2IntLinkedOpenHashMap();
 
     private int truncated;
@@ -54,42 +54,42 @@ public final class MeshBuffer {
             solids[group] = new BooleanArrayList();
         }
 
-        colourIndices.defaultReturnValue(ABSENT);
-        addColour(entry(WHITE, QuadPlacement.NONE));
+        colorIndices.defaultReturnValue(ABSENT);
+        addColor(entry(WHITE, QuadPlacement.NONE));
     }
 
-    public static int colourOf(long entry) {
-        return (int) (entry & COLOUR_BITS);
+    public static int colorOf(long entry) {
+        return (int) (entry & COLOR_BITS);
     }
 
     public static int placementOf(long entry) {
         return (int) (entry >>> PLACEMENT_SHIFT);
     }
 
-    public int placementAt(int colourIndex) {
-        return placementOf(colours.getLong(colourIndex));
+    public int placementAt(int colorIndex) {
+        return placementOf(colors.getLong(colorIndex));
     }
 
-    public int colourIndex(int colour, int placement) {
-        long entry = entry(colour, placement);
-        int index = colourIndices.get(entry);
+    public int colorIndex(int color, int placement) {
+        long entry = entry(color, placement);
+        int index = colorIndices.get(entry);
         if (index != ABSENT) {
             return index;
         }
 
-        requested.putIfAbsent(placement, colour);
-        if (colours.size() < MAX_COLOURS) {
-            return addColour(entry);
+        requested.putIfAbsent(placement, color);
+        if (colors.size() < MAX_COLORS) {
+            return addColor(entry);
         }
 
         substituted++;
-        int kept = nearest(colour, placement);
+        int kept = nearest(color, placement);
         if (kept != ABSENT) {
             return kept;
         }
 
         lost++;
-        return nearest(colour, QuadPlacement.NONE);
+        return nearest(color, QuadPlacement.NONE);
     }
 
     public boolean lostPlacements() {
@@ -165,7 +165,7 @@ public final class MeshBuffer {
         }
 
         return new CellMesh(key, occupancy, packed, OcclusionWord.pack(words, total), starts, counts, solidCounts,
-                colours.toLongArray());
+                colors.toLongArray());
     }
 
     public void reset() {
@@ -177,8 +177,8 @@ public final class MeshBuffer {
         clear();
         for (Int2IntMap.Entry placement : requested.int2IntEntrySet()) {
             long entry = entry(placement.getIntValue(), placement.getIntKey());
-            if (colours.size() < MAX_COLOURS && colourIndices.get(entry) == ABSENT) {
-                addColour(entry);
+            if (colors.size() < MAX_COLORS && colorIndices.get(entry) == ABSENT) {
+                addColor(entry);
             }
         }
     }
@@ -230,9 +230,9 @@ public final class MeshBuffer {
 
         translucentOrders.clear();
 
-        colours.clear();
-        colourIndices.clear();
-        addColour(entry(WHITE, QuadPlacement.NONE));
+        colors.clear();
+        colorIndices.clear();
+        addColor(entry(WHITE, QuadPlacement.NONE));
 
         truncated = 0;
         unaddressable = 0;
@@ -240,24 +240,24 @@ public final class MeshBuffer {
         lost = 0;
     }
 
-    private static long entry(int colour, int placement) {
-        return (long) placement << PLACEMENT_SHIFT | (colour & COLOUR_BITS);
+    private static long entry(int color, int placement) {
+        return (long) placement << PLACEMENT_SHIFT | (color & COLOR_BITS);
     }
 
-    private int addColour(long entry) {
-        int index = colours.size();
-        colours.add(entry);
-        colourIndices.put(entry, index);
+    private int addColor(long entry) {
+        int index = colors.size();
+        colors.add(entry);
+        colorIndices.put(entry, index);
         return index;
     }
 
-    private int nearest(int colour, int placement) {
+    private int nearest(int color, int placement) {
         int best = ABSENT;
         int bestDistance = Integer.MAX_VALUE;
-        for (int index = 0; index < colours.size(); index++) {
-            long candidate = colours.getLong(index);
+        for (int index = 0; index < colors.size(); index++) {
+            long candidate = colors.getLong(index);
             if (placementOf(candidate) == placement) {
-                int distance = distance(colour, colourOf(candidate));
+                int distance = distance(color, colorOf(candidate));
                 if (distance < bestDistance) {
                     best = index;
                     bestDistance = distance;
@@ -292,16 +292,16 @@ public final class MeshBuffer {
 
         if (substituted > 0) {
             Eminus.LOGGER.warn(
-                    "The mesh of the cell at level {} ({}, {}, {}) drew {} voxels in the nearest of its {} colours.",
-                    CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key), substituted, MAX_COLOURS);
+                    "The mesh of the cell at level {} ({}, {}, {}) drew {} voxels in the nearest of its {} colors.",
+                    CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key), substituted, MAX_COLORS);
         }
 
         if (lost > 0) {
             Eminus.LOGGER.warn(
                     "The mesh of the cell at level {} ({}, {}, {}) drew {} voxels unplaced: its {} placements"
-                            + " outnumber its {} colours.",
+                            + " outnumber its {} colors.",
                     CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key), lost, requested.size(),
-                    MAX_COLOURS);
+                    MAX_COLORS);
         }
     }
 }

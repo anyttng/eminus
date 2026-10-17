@@ -64,7 +64,7 @@ flat out uvec2 iris_TexId;
 const vec4 EMINUS_CULLED_POSITION = vec4(2.0, 2.0, 2.0, 1.0);
 const vec3 EMINUS_BLADE_NORMAL = vec3(0.0, 1.0, 0.0);
 const float EMINUS_LIGHT_LEVELS = 16.0;
-const float EMINUS_LIGHT_CENTRE = 0.5;
+const float EMINUS_LIGHT_CENTER = 0.5;
 const int EMINUS_LAST_AXIS_FACE = 5;
 const int EMINUS_FIRST_SIDE_FACE = 2;
 const int EMINUS_FIRST_TOP_CORNER = 2;
@@ -84,13 +84,13 @@ const int EMINUS_ANIMATED_LEVEL = 0;
 #ifdef DH_PROGRAM
 bool eminus_culled;
 
-vec4 eminus_faceColour(ivec2 atlasCell, vec3 tint) {
-    vec4 colour = texelFetch(EminusAtlas, atlasCell, EminusAtlasMeanLevel);
-    colour.rgb *= mix(vec3(1.0), tint, texelFetch(EminusTintMask, atlasCell, EminusAtlasMeanLevel).r);
+vec4 eminus_faceColor(ivec2 atlasCell, vec3 tint) {
+    vec4 color = texelFetch(EminusAtlas, atlasCell, EminusAtlasMeanLevel);
+    color.rgb *= mix(vec3(1.0), tint, texelFetch(EminusTintMask, atlasCell, EminusAtlasMeanLevel).r);
 #ifdef FULL_COVERAGE
-    colour.a = 1.0;
+    color.a = 1.0;
 #endif
-    return colour;
+    return color;
 }
 
 void eminus_cull() {
@@ -103,7 +103,7 @@ void eminus_cull() {
 void eminus_vertex() {
     EminusQuadVertex vertex = eminus_quad_vertex(gl_VertexID);
     vec3 position = vertex.position;
-    vec2 lmcoord = (vec2(vertex.blockLight, vertex.skyLight) + EMINUS_LIGHT_CENTRE) / EMINUS_LIGHT_LEVELS;
+    vec2 lmcoord = (vec2(vertex.blockLight, vertex.skyLight) + EMINUS_LIGHT_CENTER) / EMINUS_LIGHT_LEVELS;
     int blockId = int(texelFetch(EminusModelRecords,vertex.modelId * MODEL_TEXELS + PACK_ID_TEXEL).x);
 #ifdef PACK_VERTEX
     bool animated = EMINUS_ANIMATED && vertex.level == EMINUS_ANIMATED_LEVEL;
@@ -157,7 +157,7 @@ void eminus_vertex() {
     eminus_multiTexCoord1 = vec4(vec2(vertex.blockLight, vertex.skyLight) * EMINUS_LIGHT_LEVELS, 0.0, 1.0);
     eminus_packInputs(blockId);
 #else
-    _vert_color = eminus_faceColour(vertex.atlasCell, vertex.tint);
+    _vert_color = eminus_faceColor(vertex.atlasCell, vertex.tint);
 #endif
 #else
     iris_vBlockPos = vertex.voxelPoint;

@@ -17,17 +17,17 @@ vec4 eminus_surface(ivec2 atlasCell, vec2 faceUV, vec3 tint) {
     vec2 gradShort = shortAxis * cell;
 
     vec2 point = faceUV - 0.5 * longAxis + 0.5 * stride;
-    vec4 colour = vec4(0.0);
+    vec4 color = vec4(0.0);
     float mask = 0.0;
     for (int index = 0; index < samples; index++) {
         vec2 within = clamp(fract(point), margin, 1.0 - margin);
         vec2 uv = (vec2(atlasCell) + within) * cell;
-        colour += textureGrad(EminusAtlas, uv, gradLong, gradShort);
+        color += textureGrad(EminusAtlas, uv, gradLong, gradShort);
         mask += textureGrad(EminusTintMask, uv, gradLong, gradShort).r;
         point += stride;
     }
 
-    colour /= float(samples);
-    colour.rgb *= mix(vec3(1.0), tint, mask / float(samples));
-    return colour;
+    color /= float(samples);
+    color.rgb *= mix(vec3(1.0), tint, mask / float(samples));
+    return color;
 }

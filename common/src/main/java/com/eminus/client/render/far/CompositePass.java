@@ -35,7 +35,7 @@ public final class CompositePass implements AutoCloseable {
 
     private static final Std140.Member REPROJECT = BLOCK.add(Std140.Type.MAT4, "Reproject");
     private static final Std140.Member FAR_INVERSE = BLOCK.add(Std140.Type.MAT4, "FarInverse");
-    private static final Std140.Member FOG_COLOUR = BLOCK.add(Std140.Type.VEC4, "FogColour");
+    private static final Std140.Member FOG_COLOR = BLOCK.add(Std140.Type.VEC4, "FogColor");
     private static final Std140.Member GAME_FOG_START = BLOCK.add(Std140.Type.FLOAT, "GameFogStart");
     private static final Std140.Member GAME_FOG_END = BLOCK.add(Std140.Type.FLOAT, "GameFogEnd");
     private static final Std140.Member FOG_REACH = BLOCK.add(Std140.Type.FLOAT, "FogReach");
@@ -49,7 +49,7 @@ public final class CompositePass implements AutoCloseable {
     private static final Location PIPELINE = new Location(Eminus.MODID, "far_composite");
     private static final String PASS_LABEL = "eminus-far-composite";
     private static final String UNIFORM_LABEL = "eminus-composite";
-    private static final String FAR_COLOUR = "FarColour";
+    private static final String FAR_COLOR = "FarColor";
     private static final String FAR_DEPTH = "FarDepth";
     private static final Set<BufferUsage> UNIFORM_USAGE = EnumSet.of(BufferUsage.UNIFORM, BufferUsage.COPY_DST);
     private static final long START_OF_BUFFER = 0L;
@@ -69,7 +69,7 @@ public final class CompositePass implements AutoCloseable {
 
     public static CompositePass create(Gpu gpu, DepthConvention depth) {
         gpu.assertRenderThread();
-        return new CompositePass(gpu, gpu.pipeline(pipeline(depth, gpu.mainColour().format())),
+        return new CompositePass(gpu, gpu.pipeline(pipeline(depth, gpu.mainColor().format())),
                 gpu.buffer(UNIFORM_LABEL, UNIFORM_USAGE, SIZE));
     }
 
@@ -77,16 +77,16 @@ public final class CompositePass implements AutoCloseable {
         return pipeline;
     }
 
-    public void draw(FarTarget far, Texture gameColour, Texture gameDepth, Matrix4fc farViewProjection,
-            Matrix4fc gameViewProjection, CompositeFog fog, Vector4fc fogColour) {
+    public void draw(FarTarget far, Texture gameColor, Texture gameDepth, Matrix4fc farViewProjection,
+            Matrix4fc gameViewProjection, CompositeFog fog, Vector4fc fogColor) {
         gpu.assertRenderThread();
-        write(gameViewProjection, farViewProjection, fog, fogColour);
+        write(gameViewProjection, farViewProjection, fog, fogColor);
 
-        try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, gameColour, null)
+        try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, gameColor, null)
                 .withDepth(gameDepth, OptionalDouble.empty()))) {
             pass.pipeline(pipeline);
             pass.bind(BLOCK.name(), uniform);
-            pass.bind(FAR_COLOUR, far.colour(), Sampler.NEAREST);
+            pass.bind(FAR_COLOR, far.color(), Sampler.NEAREST);
             pass.bind(FAR_DEPTH, far.depth(), Sampler.NEAREST);
             pass.draw(VERTICES);
         }
@@ -98,14 +98,14 @@ public final class CompositePass implements AutoCloseable {
     }
 
     private void write(Matrix4fc gameViewProjection, Matrix4fc farViewProjection, CompositeFog fog,
-            Vector4fc fogColour) {
+            Vector4fc fogColor) {
         FarProjection.reproject(gameViewProjection, farViewProjection, farInverse, reproject);
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
             ByteBuffer written = BLOCK.into(stack.malloc(SIZE))
                     .putMat4(REPROJECT, reproject)
                     .putMat4(FAR_INVERSE, farInverse)
-                    .putVec4(FOG_COLOUR, fogColour)
+                    .putVec4(FOG_COLOR, fogColor)
                     .putFloat(GAME_FOG_START, fog.gameFogStart())
                     .putFloat(GAME_FOG_END, fog.gameFogEnd())
                     .putFloat(FOG_REACH, fog.reach())
@@ -119,12 +119,12 @@ public final class CompositePass implements AutoCloseable {
         }
     }
 
-    private static PipelineSpec pipeline(DepthConvention depth, Format colourFormat) {
+    private static PipelineSpec pipeline(DepthConvention depth, Format colorFormat) {
         return depth.define(PipelineSpec.builder(PIPELINE, FULL_SCREEN_SHADER, FULL_SCREEN_SHADER)
                         .withBinding(Binding.uniform(BLOCK.name()))
-                        .withBinding(Binding.sampled(FAR_COLOUR))
+                        .withBinding(Binding.sampled(FAR_COLOR))
                         .withBinding(Binding.sampled(FAR_DEPTH)))
-                .withColourTarget(colourFormat, Blend.TRANSLUCENT_PREMULTIPLIED, true)
+                .withColorTarget(colorFormat, Blend.TRANSLUCENT_PREMULTIPLIED, true)
                 .withDepthTest(depth.compare(), true)
                 .build();
     }

@@ -19,8 +19,8 @@ float box_fog(float distance) {
 }
 
 void main() {
-    vec4 colour = vertexColor;
-    if (colour.a == 0.0) {
+    vec4 color = vertexColor;
+    if (color.a == 0.0) {
         discard;
     }
 
@@ -29,8 +29,8 @@ void main() {
         discard;
     }
 
-    colour.rgb = mix(colour.rgb, BoxFogColour.rgb, box_fog(length(eyePoint)) * BoxFogColour.a);
+    color.rgb = mix(color.rgb, BoxFogColor.rgb, box_fog(length(eyePoint)) * BoxFogColor.a);
 #endif
 
-    fragColor = colour;
+    fragColor = color;
 }

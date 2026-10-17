@@ -17,7 +17,7 @@ import org.jspecify.annotations.Nullable;
 
 public final class ArenaUploader implements AutoCloseable {
     public static final int MAX_QUADS = MeshBuffer.MAX_QUADS;
-    public static final int MAX_SLOTS = MAX_QUADS + OcclusionWord.slots(MAX_QUADS) + MeshBuffer.MAX_COLOURS;
+    public static final int MAX_SLOTS = MAX_QUADS + OcclusionWord.slots(MAX_QUADS) + MeshBuffer.MAX_COLORS;
     public static final int MAX_MESH_BYTES = MAX_SLOTS * ArenaSizing.QUAD_BYTES;
     public static final String MAPPED_STAGING_PROPERTY = "eminus.staging.mappedKiB";
 
@@ -64,7 +64,7 @@ public final class ArenaUploader implements AutoCloseable {
         quads.clear();
         quads.put(mesh.quads(), 0, mesh.quadCount());
         quads.put(mesh.occlusion());
-        quads.put(mesh.colours());
+        quads.put(mesh.colors());
 
         return scratch.clear().limit(mesh.slotCount() * ArenaSizing.QUAD_BYTES);
     }

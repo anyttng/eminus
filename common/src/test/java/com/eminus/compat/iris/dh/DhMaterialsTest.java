@@ -34,7 +34,7 @@ class DhMaterialsTest {
     }
 
     @Test
-    void groundBlocksClassifyByTheirMapColour() {
+    void groundBlocksClassifyByTheirMapColor() {
         assertClass(DhMaterials.GRASS, Blocks.GRASS_BLOCK);
         assertClass(DhMaterials.DIRT, Blocks.DIRT);
         assertClass(DhMaterials.STONE, Blocks.STONE);
@@ -47,12 +47,12 @@ class DhMaterialsTest {
     }
 
     @Test
-    void woodSoundsBeforeAMapColourBorrowedFromAnotherMaterial() {
+    void woodSoundsBeforeAMapColorBorrowedFromAnotherMaterial() {
         assertClass(DhMaterials.WOOD, Blocks.CHERRY_PLANKS);
     }
 
     @Test
-    void aBlockWhoseMapColourSaysNothingFallsBackToItsSound() {
+    void aBlockWhoseMapColorSaysNothingFallsBackToItsSound() {
         assertClass(DhMaterials.WOOD, Blocks.OAK_LOG);
         assertClass(DhMaterials.SAND, Blocks.RED_SAND);
     }

@@ -2,7 +2,7 @@ package com.eminus.mesh;
 
 import com.eminus.cell.FaceMask;
 import com.eminus.model.BakedModel;
-import com.eminus.model.BiomeColours;
+import com.eminus.model.BiomeColors;
 import com.eminus.model.ModelIndex;
 import com.eminus.model.ModelSource;
 
@@ -68,7 +68,7 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     @Override
     public int tintRow(int modelId) {
         BakedModel model = models.model(modelId);
-        return model == null ? BiomeColours.NO_ROW : model.tintRow();
+        return model == null ? BiomeColors.NO_ROW : model.tintRow();
     }
 
     @Override

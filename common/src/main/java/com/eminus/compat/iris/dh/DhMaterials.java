@@ -36,7 +36,7 @@ final class DhMaterials {
     private static final int DARK = 0;
     private static final Set<SoundType> WOOD_SOUNDS = Set.of(SoundType.WOOD, SoundType.NETHER_WOOD,
             SoundType.CHERRY_WOOD, SoundType.BAMBOO_WOOD, SoundType.STEM);
-    private static final Map<MapColor, Integer> BY_MAP_COLOUR = byMapColour();
+    private static final Map<MapColor, Integer> BY_MAP_COLOR = byMapColor();
     private static final Map<SoundType, Integer> BY_SOUND = bySound();
 
     private DhMaterials() {
@@ -63,11 +63,11 @@ final class DhMaterials {
             return WOOD;
         }
 
-        Integer byColour = BY_MAP_COLOUR.get(state.getMapColor(EmptyBlockGetter.INSTANCE, BlockPos.ZERO));
-        return byColour != null ? byColour : BY_SOUND.getOrDefault(sound, UNKNOWN);
+        Integer byColor = BY_MAP_COLOR.get(state.getMapColor(EmptyBlockGetter.INSTANCE, BlockPos.ZERO));
+        return byColor != null ? byColor : BY_SOUND.getOrDefault(sound, UNKNOWN);
     }
 
-    private static Map<MapColor, Integer> byMapColour() {
+    private static Map<MapColor, Integer> byMapColor() {
         IdentityHashMap<MapColor, Integer> classes = new IdentityHashMap<>();
         put(classes, GRASS, MapColor.GRASS, MapColor.PLANT);
         put(classes, DIRT, MapColor.DIRT);

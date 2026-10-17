@@ -254,7 +254,7 @@ class TreeTraversalTest {
     }
 
     @Test
-    void aDrawnNodeIsMarkedTowardsEveryNeighbourDrawnAtAnotherLevel() {
+    void aDrawnNodeIsMarkedTowardsEveryNeighborDrawnAtAnotherLevel() {
         TreeNode split = meshedRoot(rootKey, EAST_OCTANTS);
         long wholeKey = CellKey.pack(DetailLevel.MAX, NEXT_CELL, 0, 0);
         meshedRoot(wholeKey, OccupancyMask.EMPTY);
