@@ -34,13 +34,12 @@ public final class SettingsFile {
     public static final String LOD_ANIMATIONS_KEY = "lod_animations";
 
     private static final String LOD_QUALITY_COMMENT = """
-            LOD quality: ultra, high, medium, low, minimal or custom. One voxel at LOD's
-            nearest edge covers 1 block under ultra and high, 2 under medium, 4 under low
-            and 8 under minimal. high keeps ultra's block resolution and draws fewer
-            details: leaves opaque, no grass or flowers. low and minimal draw textures at
-            half resolution. ultra and high share one store; each coarser step stores
-            less. custom takes the five lod_ keys below it, which the Custom LOD Quality
-            screen sets.""";
+            LOD quality: ultra, high, medium, low or custom. Every preset starts LOD at
+            1 block per voxel and differs by its details alone: ultra draws see-through
+            leaves, grass and flowers; high draws leaves opaque and no grass or flowers;
+            medium is high with textures at half resolution; low is medium with no
+            corner darkening. custom takes the five lod_ keys below it, which the Custom
+            LOD Quality screen sets.""";
 
     private static final String LOD_CUSTOM_COMMENT = """
             Act under custom alone, and stay under a preset so custom comes back as it
@@ -101,6 +100,7 @@ public final class SettingsFile {
     private static final String TEXTURES_HALF = "half";
     private static final int FORMER_STORED_LEVEL_MIN = 0;
     private static final int FORMER_STORED_LEVEL_MAX = 4;
+    private static final String FORMER_MINIMAL_KEY = "minimal";
 
     private static final Gson GSON = new Gson();
     private static final String INDENT = "  ";
@@ -130,7 +130,7 @@ public final class SettingsFile {
                 bool(json, FADE_KEY, defaults.fade()),
                 keyed(json, SHADER_PACK_LOD_KEY, defaults.shaderPackLod(), ShaderPackLod::fromKey),
                 bool(json, LOD_ANIMATIONS_KEY, defaults.lodAnimations()));
-        if (holdsStoredLevelOnly(json)) {
+        if (holdsStoredLevelOnly(json) || holdsFormerMinimal(json)) {
             save(file, loaded);
         }
 
@@ -211,6 +211,10 @@ public final class SettingsFile {
                     FORMER_STORED_LEVEL_MIN, FORMER_STORED_LEVEL_MAX));
         }
 
+        if (holdsFormerMinimal(json)) {
+            return LodChoice.LOW;
+        }
+
         return keyed(json, LOD_QUALITY_KEY, fallback, LodChoice::fromKey);
     }
 
@@ -230,6 +234,12 @@ public final class SettingsFile {
 
     private static boolean holdsStoredLevelOnly(JsonObject json) {
         return !json.has(LOD_QUALITY_KEY) && json.has(LOWEST_STORED_LEVEL_KEY);
+    }
+
+    private static boolean holdsFormerMinimal(JsonObject json) {
+        JsonElement value = json.get(LOD_QUALITY_KEY);
+        return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()
+                && FORMER_MINIMAL_KEY.equals(value.getAsString());
     }
 
     private static boolean holdsCustomLod(JsonObject json) {

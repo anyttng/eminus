@@ -63,7 +63,7 @@ class SettingsTest {
         Settings base = new Settings(true, LodChoice.MEDIUM, Settings.DEFAULT_CUSTOM_LOD, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true);
 
         assertEquals(new Settings(false, LodChoice.MEDIUM, Settings.DEFAULT_CUSTOM_LOD, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true), base.withIngestion(false));
-        assertEquals(new Settings(true, LodChoice.MINIMAL, Settings.DEFAULT_CUSTOM_LOD, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true), base.withLodChoice(LodChoice.MINIMAL));
+        assertEquals(new Settings(true, LodChoice.LOW, Settings.DEFAULT_CUSTOM_LOD, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true), base.withLodChoice(LodChoice.LOW));
         assertEquals(new Settings(true, LodChoice.MEDIUM, CUSTOM_EDIT, 16, 4, DetailDistance.MEDIUM, true, true,
                 ShaderPackLod.DEFAULT, true), base.withCustomLod(CUSTOM_EDIT));
         assertEquals(new Settings(true, LodChoice.MEDIUM, Settings.DEFAULT_CUSTOM_LOD, 40, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true), base.withFarRenderCells(40));

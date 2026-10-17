@@ -3,31 +3,31 @@ package com.eminus.settings;
 import java.util.Optional;
 
 public enum LodChoice {
-    ULTRA("ultra", true, 0, LeafMode.SEE_THROUGH, true, true),
-    HIGH("high", true, 0, LeafMode.OPAQUE, false, true),
-    MEDIUM("medium", true, 1, LeafMode.OPAQUE, false, true),
-    LOW("low", true, 2, LeafMode.OPAQUE, false, false),
-    MINIMAL("minimal", true, 3, LeafMode.OPAQUE, false, false),
-    CUSTOM("custom", false, 0, LeafMode.OPAQUE, false, false);
+    ULTRA("ultra", true, LeafMode.SEE_THROUGH, true, true, CornerOcclusion.FINEST_LEVEL),
+    HIGH("high", true, LeafMode.OPAQUE, false, true, CornerOcclusion.FINEST_LEVEL),
+    MEDIUM("medium", true, LeafMode.OPAQUE, false, false, CornerOcclusion.FINEST_LEVEL),
+    LOW("low", true, LeafMode.OPAQUE, false, false, CornerOcclusion.OFF),
+    CUSTOM("custom", false, LeafMode.OPAQUE, false, false, CornerOcclusion.OFF);
 
-    private static final LodChoice[] PRESETS_FINEST_FIRST = {ULTRA, HIGH, MEDIUM, LOW, MINIMAL};
-    private static final CornerOcclusion PRESET_CORNER_OCCLUSION = CornerOcclusion.FINEST_LEVEL;
+    private static final int PRESET_STORED_LEVEL = LodQuality.MIN_STORED_LEVEL;
+    private static final int FORMER_ULTRA_LEVEL = 0;
+    private static final int FORMER_MEDIUM_LEVEL = 1;
 
     private final String key;
     private final boolean preset;
-    private final int storedLevel;
     private final LeafMode leaves;
     private final boolean drawsBlades;
     private final boolean fullTextures;
+    private final CornerOcclusion cornerOcclusion;
 
-    LodChoice(String key, boolean preset, int storedLevel, LeafMode leaves, boolean drawsBlades,
-            boolean fullTextures) {
+    LodChoice(String key, boolean preset, LeafMode leaves, boolean drawsBlades, boolean fullTextures,
+            CornerOcclusion cornerOcclusion) {
         this.key = key;
         this.preset = preset;
-        this.storedLevel = storedLevel;
         this.leaves = leaves;
         this.drawsBlades = drawsBlades;
         this.fullTextures = fullTextures;
+        this.cornerOcclusion = cornerOcclusion;
     }
 
     public String key() {
@@ -36,8 +36,7 @@ public enum LodChoice {
 
     public Optional<LodQuality> presetQuality() {
         return preset
-                ? Optional.of(new LodQuality(storedLevel, leaves, drawsBlades, fullTextures,
-                        PRESET_CORNER_OCCLUSION))
+                ? Optional.of(new LodQuality(PRESET_STORED_LEVEL, leaves, drawsBlades, fullTextures, cornerOcclusion))
                 : Optional.empty();
     }
 
@@ -56,12 +55,10 @@ public enum LodChoice {
     }
 
     public static LodChoice fromLowestStoredLevel(int level) {
-        for (LodChoice choice : PRESETS_FINEST_FIRST) {
-            if (choice.storedLevel >= level) {
-                return choice;
-            }
-        }
-
-        return MINIMAL;
+        return switch (level) {
+            case FORMER_ULTRA_LEVEL -> ULTRA;
+            case FORMER_MEDIUM_LEVEL -> MEDIUM;
+            default -> LOW;
+        };
     }
 }
