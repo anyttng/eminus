@@ -19,6 +19,10 @@ import com.google.gson.JsonPrimitive;
 public final class SettingsFile {
     public static final String INGESTION_KEY = "ingestion";
     public static final String LOD_QUALITY_KEY = "lod_quality";
+    public static final String LOD_NEAREST_VOXEL_KEY = "lod_nearest_voxel";
+    public static final String LOD_SEE_THROUGH_LEAVES_KEY = "lod_see_through_leaves";
+    public static final String LOD_GRASS_AND_FLOWERS_KEY = "lod_grass_and_flowers";
+    public static final String LOD_TEXTURES_KEY = "lod_textures";
     public static final String LOWEST_STORED_LEVEL_KEY = "lowest_stored_level";
     public static final String FAR_RENDER_CELLS_KEY = "far_render_cells";
     public static final String WORKER_THREADS_KEY = "worker_threads";
@@ -29,11 +33,21 @@ public final class SettingsFile {
     public static final String LOD_ANIMATIONS_KEY = "lod_animations";
 
     private static final String LOD_QUALITY_COMMENT = """
-            LOD quality: ultra, high, medium, low or minimal. One voxel at LOD's nearest
-            edge covers 1 block under ultra and high, 2 under medium, 4 under low and 8
-            under minimal. high keeps ultra's block resolution and draws fewer details:
-            leaves opaque, no grass or flowers, textures at half resolution. ultra and
-            high share one store; each coarser step stores less.""";
+            LOD quality: ultra, high, medium, low, minimal or custom. One voxel at LOD's
+            nearest edge covers 1 block under ultra and high, 2 under medium, 4 under low
+            and 8 under minimal. high keeps ultra's block resolution and draws fewer
+            details: leaves opaque, no grass or flowers. low and minimal draw textures at
+            half resolution. ultra and high share one store; each coarser step stores
+            less. custom takes the four lod_ keys below it, which the Custom LOD Quality
+            screen sets.""";
+
+    private static final String LOD_CUSTOM_COMMENT = """
+            Act under custom alone, and stay under a preset so custom comes back as it
+            was. lod_nearest_voxel: the blocks one voxel covers at LOD's nearest edge,
+            1, 2, 4 or 8. lod_see_through_leaves: whether leaves keep their holes,
+            whatever the game's See-Through Leaves says. lod_grass_and_flowers: whether
+            grass, ferns, flowers and saplings are drawn. lod_textures: full keeps 16 by
+            16 texels per face, half keeps 8 by 8.""";
 
     private static final String FAR_RENDER_CELLS_COMMENT = """
             Radius of LOD, in top-level cells of 512 blocks (32 chunks each):
@@ -79,6 +93,8 @@ public final class SettingsFile {
             block id, so the pack moves nothing it would pick by block, and saves the GPU
             time that costs on every LOD vertex.""";
 
+    private static final String TEXTURES_FULL = "full";
+    private static final String TEXTURES_HALF = "half";
     private static final int FORMER_STORED_LEVEL_MIN = 0;
     private static final int FORMER_STORED_LEVEL_MAX = 4;
 
@@ -99,7 +115,8 @@ public final class SettingsFile {
 
         Settings loaded = new Settings(
                 bool(json, INGESTION_KEY, defaults.ingestion()),
-                lodQuality(json, defaults.lodQuality()),
+                lodChoice(json, defaults.lodChoice()),
+                customLod(json, defaults.customLod()),
                 bounded(json, FAR_RENDER_CELLS_KEY, defaults.farRenderCells(),
                         Settings.MIN_FAR_RENDER_CELLS, Settings.MAX_FAR_RENDER_CELLS),
                 bounded(json, WORKER_THREADS_KEY, defaults.workerThreads(),
@@ -119,7 +136,16 @@ public final class SettingsFile {
     public static void save(Path file, Settings settings) {
         List<String> entries = new ArrayList<>();
         entries.add(entry(INGESTION_KEY, new JsonPrimitive(settings.ingestion()), null));
-        entries.add(entry(LOD_QUALITY_KEY, new JsonPrimitive(settings.lodQuality().key()), LOD_QUALITY_COMMENT));
+        LodQuality custom = settings.customLod();
+        entries.add(entry(LOD_QUALITY_KEY, new JsonPrimitive(settings.lodChoice().key()), LOD_QUALITY_COMMENT));
+        entries.add(entry(LOD_NEAREST_VOXEL_KEY, new JsonPrimitive(LodQuality.voxelBlocks(custom.storedLevel())),
+                LOD_CUSTOM_COMMENT));
+        entries.add(entry(LOD_SEE_THROUGH_LEAVES_KEY, new JsonPrimitive(custom.leaves() == LeafMode.SEE_THROUGH),
+                null));
+        entries.add(entry(LOD_GRASS_AND_FLOWERS_KEY, new JsonPrimitive(custom.drawsBlades()), null));
+        entries.add(entry(LOD_TEXTURES_KEY,
+                new JsonPrimitive(custom.fullTextures() ? TEXTURES_FULL : TEXTURES_HALF), null));
+
         entries.add(entry(FAR_RENDER_CELLS_KEY, new JsonPrimitive(settings.farRenderCells()),
                 FAR_RENDER_CELLS_COMMENT));
         entries.add(entry(WORKER_THREADS_KEY, new JsonPrimitive(settings.workerThreads()),
@@ -172,17 +198,56 @@ public final class SettingsFile {
         return null;
     }
 
-    private static LodQuality lodQuality(JsonObject json, LodQuality fallback) {
+    private static LodChoice lodChoice(JsonObject json, LodChoice fallback) {
         if (holdsStoredLevelOnly(json)) {
-            return LodQuality.fromLowestStoredLevel(bounded(json, LOWEST_STORED_LEVEL_KEY, fallback.storedLevel(),
+            int fallbackLevel = fallback.presetQuality().map(LodQuality::storedLevel)
+                    .orElse(FORMER_STORED_LEVEL_MIN);
+            return LodChoice.fromLowestStoredLevel(bounded(json, LOWEST_STORED_LEVEL_KEY, fallbackLevel,
                     FORMER_STORED_LEVEL_MIN, FORMER_STORED_LEVEL_MAX));
         }
 
-        return keyed(json, LOD_QUALITY_KEY, fallback, LodQuality::fromKey);
+        return keyed(json, LOD_QUALITY_KEY, fallback, LodChoice::fromKey);
+    }
+
+    private static LodQuality customLod(JsonObject json, LodQuality fallback) {
+        if (!holdsCustomLod(json)) {
+            return fallback;
+        }
+
+        return new LodQuality(
+                nearestVoxelLevel(json, fallback.storedLevel()),
+                LeafMode.of(bool(json, LOD_SEE_THROUGH_LEAVES_KEY, fallback.leaves() == LeafMode.SEE_THROUGH)),
+                bool(json, LOD_GRASS_AND_FLOWERS_KEY, fallback.drawsBlades()),
+                keyed(json, LOD_TEXTURES_KEY, fallback.fullTextures(),
+                        key -> named(key, TEXTURES_FULL, TEXTURES_HALF)));
     }
 
     private static boolean holdsStoredLevelOnly(JsonObject json) {
         return !json.has(LOD_QUALITY_KEY) && json.has(LOWEST_STORED_LEVEL_KEY);
+    }
+
+    private static boolean holdsCustomLod(JsonObject json) {
+        return json.has(LOD_NEAREST_VOXEL_KEY) || json.has(LOD_SEE_THROUGH_LEAVES_KEY)
+                || json.has(LOD_GRASS_AND_FLOWERS_KEY) || json.has(LOD_TEXTURES_KEY);
+    }
+
+    private static int nearestVoxelLevel(JsonObject json, int fallbackLevel) {
+        int fallback = LodQuality.voxelBlocks(fallbackLevel);
+        int blocks = bounded(json, LOD_NEAREST_VOXEL_KEY, fallback, LodQuality.voxelBlocks(LodQuality.MIN_STORED_LEVEL),
+                LodQuality.voxelBlocks(LodQuality.MAX_STORED_LEVEL));
+        if (Integer.bitCount(blocks) != 1) {
+            blocks = fellBack(LOD_NEAREST_VOXEL_KEY, json.get(LOD_NEAREST_VOXEL_KEY), fallback);
+        }
+
+        return Integer.numberOfTrailingZeros(blocks);
+    }
+
+    private static Optional<Boolean> named(String key, String whenTrue, String whenFalse) {
+        if (whenTrue.equals(key)) {
+            return Optional.of(true);
+        }
+
+        return whenFalse.equals(key) ? Optional.of(false) : Optional.empty();
     }
 
     private static boolean bool(JsonObject json, String key, boolean fallback) {

@@ -1,7 +1,6 @@
 package com.eminus.client.model;
 
 import com.eminus.cell.StateTable;
-import com.eminus.client.frame.GameFrames;
 import com.eminus.client.model.game.GameModels;
 import com.eminus.mesh.MeshOpacity;
 import com.eminus.model.BiomeColours;
@@ -22,15 +21,11 @@ public record ClientBakery(ModelBakery bakery, BiomeColours colours, boolean cut
     }
 
     public static ClientBakery start(Minecraft client, PackBlocks packBlocks) {
-        return start(client, cutoutLeaves(client), packBlocks);
+        return start(client, SettingsService.get().settings().lodQuality().cutoutLeaves(), packBlocks);
     }
 
     public static ClientBakery start(Minecraft client, boolean cutoutLeaves) {
         return start(client, cutoutLeaves, PackBlocks.NONE);
-    }
-
-    public static boolean cutoutLeaves(Minecraft client) {
-        return SettingsService.get().settings().lodQuality().cutoutLeaves(GameFrames.cutoutLeaves(client));
     }
 
     public static ClientBakery start(Minecraft client, boolean cutoutLeaves, PackBlocks packBlocks) {
