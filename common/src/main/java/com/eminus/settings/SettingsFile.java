@@ -81,7 +81,6 @@ public final class SettingsFile {
 
     private static final int FORMER_STORED_LEVEL_MIN = 0;
     private static final int FORMER_STORED_LEVEL_MAX = 4;
-    private static final String FORMER_ULTRA_KEY = "full";
 
     private static final Gson GSON = new Gson();
     private static final String INDENT = "  ";
@@ -110,7 +109,7 @@ public final class SettingsFile {
                 bool(json, FADE_KEY, defaults.fade()),
                 keyed(json, SHADER_PACK_LOD_KEY, defaults.shaderPackLod(), ShaderPackLod::fromKey),
                 bool(json, LOD_ANIMATIONS_KEY, defaults.lodAnimations()));
-        if (holdsStoredLevelOnly(json) || holdsFormerUltraKey(json)) {
+        if (holdsStoredLevelOnly(json)) {
             save(file, loaded);
         }
 
@@ -179,20 +178,11 @@ public final class SettingsFile {
                     FORMER_STORED_LEVEL_MIN, FORMER_STORED_LEVEL_MAX));
         }
 
-        if (holdsFormerUltraKey(json)) {
-            return LodQuality.ULTRA;
-        }
-
         return keyed(json, LOD_QUALITY_KEY, fallback, LodQuality::fromKey);
     }
 
     private static boolean holdsStoredLevelOnly(JsonObject json) {
         return !json.has(LOD_QUALITY_KEY) && json.has(LOWEST_STORED_LEVEL_KEY);
-    }
-
-    private static boolean holdsFormerUltraKey(JsonObject json) {
-        JsonElement value = json.get(LOD_QUALITY_KEY);
-        return value != null && value.isJsonPrimitive() && FORMER_ULTRA_KEY.equals(value.getAsString());
     }
 
     private static boolean bool(JsonObject json, String key, boolean fallback) {
