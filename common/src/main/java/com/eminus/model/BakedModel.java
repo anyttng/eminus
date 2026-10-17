@@ -8,7 +8,7 @@ import net.minecraft.core.Direction;
 
 @SuppressWarnings("ArrayRecordComponent")
 public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] slopes, float[] bounds, int metadata,
-        int tintRow, int[] variants, int packId, FaceMip[] mips) {
+        int tintRow, int[] variants, int packId, FaceMip[] mips, int solidFaces) {
     public static final int FACE_COUNT = 6;
     public static final int FACE_SIDE = 16;
     public static final int FACE_TEXELS = FACE_SIDE * FACE_SIDE;
@@ -40,16 +40,17 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
 
     private static final long ALL_TINTED = -1L;
     private static final FaceMip[] MEAN_MIPS = FaceMip.uniform(FaceMip.MEAN);
+    private static final int FULL_ALPHA = 0xFF00_0000;
 
     public BakedModel(int[] faces, long[] tintMask, float[] insets, float[] slopes, float[] bounds, int metadata,
             int tintRow, FaceMip[] mips) {
-        this(faces, tintMask, insets, slopes, bounds, metadata, tintRow, NO_VARIANTS, NO_PACK_ID, mips);
+        this(faces, tintMask, insets, slopes, bounds, metadata, tintRow, NO_VARIANTS, NO_PACK_ID, mips,
+                solidFaces(faces, metadata, mips));
     }
 
     public BakedModel(int[] faces, long[] tintMask, float[] insets, float[] bounds, int metadata, int tintRow,
             FaceMip[] mips) {
-        this(faces, tintMask, insets, new float[SLOPES_LENGTH], bounds, metadata, tintRow, NO_VARIANTS, NO_PACK_ID,
-                mips);
+        this(faces, tintMask, insets, new float[SLOPES_LENGTH], bounds, metadata, tintRow, mips);
     }
 
     public BakedModel(int[] faces, long[] tintMask, float[] insets, float[] bounds, int metadata, int tintRow) {
@@ -118,16 +119,18 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
         return bounds[MIN_Y] <= BLOCK_BOTTOM && bounds[MAX_Y] >= BLOCK_TOP;
     }
 
-    public BakedModel withVariants(int[] table) {
-        return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, table, packId, mips);
+    public BakedModel withVariants(int[] table, int solid) {
+        return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, table, packId, mips, solid);
     }
 
     public BakedModel withMetadata(int word) {
-        return new BakedModel(faces, tintMask, insets, slopes, bounds, word, tintRow, variants, packId, mips);
+        return new BakedModel(faces, tintMask, insets, slopes, bounds, word, tintRow, variants, packId, mips,
+                solidFaces);
     }
 
     public BakedModel withPackId(int id) {
-        return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, variants, id, mips);
+        return new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, variants, id, mips,
+                solidFaces);
     }
 
     public BakedModel oneSided() {
@@ -139,7 +142,7 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
                 (metadata & (ModelMetadata.TINTED | ModelMetadata.MOVED)) | ModelMetadata.FLUID
                         | ModelMetadata.ONE_SIDED | ModelMetadata.INWARD);
         return new BakedModel(faces, tintMask, fluid.insets, new float[SLOPES_LENGTH], fluid.bounds, word, tintRow,
-                NO_VARIANTS, packId, mips);
+                NO_VARIANTS, packId, mips, solidFaces);
     }
 
     public boolean sameGeometry(BakedModel other) {
@@ -152,6 +155,35 @@ public record BakedModel(int[] faces, long[] tintMask, float[] insets, float[] s
 
     public int variantCount() {
         return variants.length / VARIANT_WORDS;
+    }
+
+    private static int solidFaces(int[] faces, int metadata, FaceMip[] mips) {
+        int present = ModelMetadata.present(metadata);
+        if (ModelMetadata.has(metadata, ModelMetadata.OPAQUE)) {
+            return present;
+        }
+
+        int solid = FaceMask.NONE;
+        for (int face = 0; face < FACE_COUNT; face++) {
+            if ((present & 1 << face) != 0 && opaqueAtEveryLevel(faces, face, mips[face])) {
+                solid |= 1 << face;
+            }
+        }
+
+        return solid;
+    }
+
+    private static boolean opaqueAtEveryLevel(int[] faces, int face, FaceMip mip) {
+        int[] texels = Arrays.copyOfRange(faces, face * FACE_TEXELS, (face + 1) * FACE_TEXELS);
+        for (int[] level : FaceMips.colourLevels(texels, FACE_SIDE, mip, false)) {
+            for (int texel : level) {
+                if ((texel & FULL_ALPHA) != FULL_ALPHA) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     public boolean tinted(int face, int texel) {

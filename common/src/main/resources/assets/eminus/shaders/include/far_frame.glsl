@@ -19,6 +19,7 @@ layout(std140) uniform EminusFrame {
     float EminusShadeEast;
     ivec3 EminusCameraBlockPos;
     vec3 EminusCameraOffset;
+    int EminusSmoothLighting;
 };
 
 #endif

@@ -1,5 +1,6 @@
 package com.eminus.mesh;
 
+import com.eminus.cell.FaceMask;
 import com.eminus.model.BakedModel;
 import com.eminus.model.BiomeColours;
 import com.eminus.model.ModelIndex;
@@ -54,6 +55,12 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     }
 
     @Override
+    public int solidFaces(int modelId) {
+        BakedModel model = models.model(modelId);
+        return model == null ? FaceMask.NONE : model.solidFaces();
+    }
+
+    @Override
     public boolean skipsFace(int stateId, int facingStateId, Direction face) {
         return index.state(stateId).skipRendering(index.state(facingStateId), face);
     }
@@ -94,5 +101,10 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     @Override
     public boolean solid(int stateId) {
         return index.state(stateId).isSolid();
+    }
+
+    @Override
+    public int shade(int stateId) {
+        return StateShade.of(index.state(stateId));
     }
 }

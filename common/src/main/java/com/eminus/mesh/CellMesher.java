@@ -32,7 +32,7 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
         level = CellKey.level(key);
         coarse = level > DetailLevel.MIN;
         FacePasses passes = new FacePasses(scratch, opacity, models, level, whenBaked, this);
-        BladePass blades = new BladePass(scratch, models, whenBaked);
+        BladePass blades = new BladePass(scratch, models, level, whenBaked);
 
         if (!passes.run() || !blades.run()) {
             scratch.reset();
@@ -57,15 +57,16 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
     }
 
     @Override
-    public void emit(int u, int v, int width, int height, long data) {
+    public void emit(int u, int v, int width, int height, long data, int occlusion) {
         int group = border ? QuadGroups.border(face) : QuadGroups.of(face, models.metadata(Quad.modelId(data)));
         long quad = placed(data, u, v, width, height);
         MeshBuffer buffer = scratch.buffer();
         if (group == QuadGroups.TRANSLUCENT) {
             buffer.addTranslucent(quad,
-                    TranslucentOrder.of(quad, level, buffer.placementAt(Quad.colourIndex(data)), models));
+                    TranslucentOrder.of(quad, level, buffer.placementAt(Quad.colourIndex(data)), models), occlusion);
         } else {
-            buffer.add(group, quad);
+            buffer.add(group, quad, occlusion,
+                    (models.solidFaces(Quad.modelId(data)) & 1 << face.get3DDataValue()) != 0);
         }
     }
 

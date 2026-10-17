@@ -5,9 +5,7 @@ import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
 
-import com.eminus.Eminus;
 import com.eminus.cell.Cell;
-import com.eminus.cell.CellKey;
 import com.eminus.store.CellStore;
 import com.eminus.work.WorkerPool;
 
@@ -149,12 +147,21 @@ public final class CellCache implements CellAccess {
 
         try {
             loaded = store.read(key);
-        } catch (RuntimeException failure) {
-            Eminus.LOGGER.error("Could not read the cell at level {} ({}, {}, {}); it opens blank.",
-                    CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key), failure);
-            loaded = null;
+        } catch (Throwable failure) {
+            forget(handle);
+            handle.fail(failure);
+            throw failure;
         }
 
         handle.publish(loaded == null ? Cell.blank(key) : loaded);
+    }
+
+    private void forget(CellHandle handle) {
+        lock.lock();
+        try {
+            handles.remove(handle.key(), handle);
+        } finally {
+            lock.unlock();
+        }
     }
 }

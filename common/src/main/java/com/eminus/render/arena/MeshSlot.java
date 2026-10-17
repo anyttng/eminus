@@ -4,9 +4,11 @@ import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.OcclusionWord;
 
 @SuppressWarnings("ArrayRecordComponent")
-public record MeshSlot(long key, int block, int quads, int colours, int[] groupStart, int[] groupCount) {
+public record MeshSlot(long key, int block, int quads, int colours, int[] groupStart, int[] groupCount,
+        int[] groupSolid) {
     public static final int MIN_X = 0;
     public static final int MIN_Y = 1;
     public static final int MIN_Z = 2;
@@ -17,11 +19,11 @@ public record MeshSlot(long key, int block, int quads, int colours, int[] groupS
 
     public static MeshSlot of(CellMesh mesh, int block) {
         return new MeshSlot(mesh.key(), block, mesh.quadCount(), mesh.colours().length, mesh.groupStart(),
-                mesh.groupCount());
+                mesh.groupCount(), mesh.groupSolid());
     }
 
     public int slots() {
-        return quads + colours;
+        return quads + OcclusionWord.slots(quads) + colours;
     }
 
     public int baseQuad() {
@@ -34,6 +36,10 @@ public record MeshSlot(long key, int block, int quads, int colours, int[] groupS
 
     public int groupCount(int group) {
         return groupCount[group];
+    }
+
+    public int groupSolid(int group) {
+        return groupSolid[group];
     }
 
     public void bounds(CellFrame frame, float[] target) {

@@ -12,5 +12,6 @@ public record GameFrame(
         GameFog fog,
         int renderDistance,
         long sectionFadeMillis,
-        FaceShade shade) {
+        FaceShade shade,
+        boolean smoothLighting) {
 }

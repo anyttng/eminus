@@ -6,6 +6,7 @@ import com.eminus.Eminus;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 
+import it.unimi.dsi.fastutil.booleans.BooleanArrayList;
 import it.unimi.dsi.fastutil.ints.Int2IntLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -34,6 +35,8 @@ public final class MeshBuffer {
     private static final long INDEX_MASK = 0xFFFF_FFFFL;
 
     private final LongArrayList[] groups = new LongArrayList[QuadGroups.COUNT];
+    private final IntArrayList[] occlusions = new IntArrayList[QuadGroups.COUNT];
+    private final BooleanArrayList[] solids = new BooleanArrayList[QuadGroups.COUNT];
     private final IntArrayList translucentOrders = new IntArrayList();
     private final LongArrayList colours = new LongArrayList();
     private final Long2IntMap colourIndices = new Long2IntOpenHashMap();
@@ -47,6 +50,8 @@ public final class MeshBuffer {
     public MeshBuffer() {
         for (int group = 0; group < QuadGroups.COUNT; group++) {
             groups[group] = new LongArrayList();
+            occlusions[group] = new IntArrayList();
+            solids[group] = new BooleanArrayList();
         }
 
         colourIndices.defaultReturnValue(ABSENT);
@@ -91,9 +96,13 @@ public final class MeshBuffer {
         return lost > 0;
     }
 
-    public void add(int group, long quad) {
+    public void add(int group, long quad, int occlusion) {
+        add(group, quad, occlusion, false);
+    }
+
+    public void add(int group, long quad, int occlusion, boolean solid) {
         if (group == QuadGroups.TRANSLUCENT) {
-            addTranslucent(quad, TranslucentOrder.unplaced(quad));
+            addTranslucent(quad, TranslucentOrder.unplaced(quad), occlusion);
             return;
         }
 
@@ -104,9 +113,11 @@ public final class MeshBuffer {
         }
 
         quads.add(quad);
+        occlusions[group].add(occlusion);
+        solids[group].add(solid);
     }
 
-    public void addTranslucent(long quad, int order) {
+    public void addTranslucent(long quad, int order, int occlusion) {
         LongArrayList quads = groups[QuadGroups.TRANSLUCENT];
         if (quads.size() == MAX_QUADS_PER_GROUP) {
             truncated++;
@@ -114,6 +125,7 @@ public final class MeshBuffer {
         }
 
         quads.add(quad);
+        occlusions[QuadGroups.TRANSLUCENT].add(occlusion);
         translucentOrders.add(order);
     }
 
@@ -134,8 +146,10 @@ public final class MeshBuffer {
         }
 
         long[] packed = new long[total];
+        int[] words = new int[total];
         int[] starts = new int[QuadGroups.COUNT];
         int[] counts = new int[QuadGroups.COUNT];
+        int[] solidCounts = new int[QuadGroups.COUNT];
         int at = 0;
 
         for (int group = 0; group < QuadGroups.COUNT; group++) {
@@ -143,14 +157,15 @@ public final class MeshBuffer {
             starts[group] = at;
             counts[group] = quads.size();
             if (group == QuadGroups.TRANSLUCENT) {
-                orderTranslucent(quads, packed, at);
+                orderTranslucent(quads, occlusions[group], packed, words, at);
             } else {
-                quads.getElements(0, packed, at, quads.size());
+                solidCounts[group] = solidFirst(group, packed, words, at);
             }
             at += quads.size();
         }
 
-        return new CellMesh(key, occupancy, packed, starts, counts, colours.toLongArray());
+        return new CellMesh(key, occupancy, packed, OcclusionWord.pack(words, total), starts, counts, solidCounts,
+                colours.toLongArray());
     }
 
     public void reset() {
@@ -168,7 +183,31 @@ public final class MeshBuffer {
         }
     }
 
-    private void orderTranslucent(LongArrayList quads, long[] packed, int at) {
+    private int solidFirst(int group, long[] packed, int[] words, int at) {
+        LongArrayList quads = groups[group];
+        IntArrayList occlusion = occlusions[group];
+        BooleanArrayList solid = solids[group];
+        int next = at;
+
+        for (int index = 0; index < quads.size(); index++) {
+            if (solid.getBoolean(index)) {
+                packed[next] = quads.getLong(index);
+                words[next++] = occlusion.getInt(index);
+            }
+        }
+
+        int solidCount = next - at;
+        for (int index = 0; index < quads.size(); index++) {
+            if (!solid.getBoolean(index)) {
+                packed[next] = quads.getLong(index);
+                words[next++] = occlusion.getInt(index);
+            }
+        }
+
+        return solidCount;
+    }
+
+    private void orderTranslucent(LongArrayList quads, IntArrayList occlusion, long[] packed, int[] words, int at) {
         long[] keys = new long[quads.size()];
         for (int index = 0; index < keys.length; index++) {
             keys[index] = (long) translucentOrders.getInt(index) << ORDER_SHIFT | index;
@@ -176,13 +215,17 @@ public final class MeshBuffer {
 
         Arrays.sort(keys);
         for (int index = 0; index < keys.length; index++) {
-            packed[at + index] = quads.getLong((int) (keys[index] & INDEX_MASK));
+            int from = (int) (keys[index] & INDEX_MASK);
+            packed[at + index] = quads.getLong(from);
+            words[at + index] = occlusion.getInt(from);
         }
     }
 
     private void clear() {
-        for (LongArrayList quads : groups) {
-            quads.clear();
+        for (int group = 0; group < QuadGroups.COUNT; group++) {
+            groups[group].clear();
+            occlusions[group].clear();
+            solids[group].clear();
         }
 
         translucentOrders.clear();

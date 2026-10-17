@@ -19,6 +19,10 @@ struct EminusQuadVertex {
     int emission;
     int modelId;
     bool culled;
+    uint occlusion;
+    bool mainDiagonal;
+    vec2 occlusionPoint;
+    vec2 occlusionSize;
 };
 
 const int EMINUS_CORNERS_PER_QUAD = 4;
@@ -187,6 +191,11 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
     uint light = eminus_field(quad, QUAD_LIGHT_SHIFT, QUAD_LIGHT_BITS);
     int modelId = int(eminus_field(quad, QUAD_MODEL_SHIFT, QUAD_MODEL_BITS));
     int colourIndex = int(eminus_field(quad, QUAD_COLOUR_SHIFT, QUAD_COLOUR_BITS));
+    int quadInMesh = quadIndex - int(mesh.z);
+    int occlusionSlots = (int(mesh.w) + OCCLUSION_PER_SLOT - 1) / OCCLUSION_PER_SLOT;
+    uvec2 occlusionSlot = texelFetch(EminusQuads, int(mesh.z + mesh.w) + quadInMesh / OCCLUSION_PER_SLOT).xy;
+    vertex.occlusion = eminus_field(occlusionSlot, quadInMesh % OCCLUSION_PER_SLOT * OCCLUSION_BITS, OCCLUSION_BITS);
+    vertex.mainDiagonal = face >= FIRST_BLADE_FACE || face == 1 || face == 2 || face == 5;
 
     vec4 first = texelFetch(EminusModelRecords,modelId * MODEL_TEXELS);
     vec4 second = texelFetch(EminusModelRecords,modelId * MODEL_TEXELS + 1);
@@ -204,7 +213,7 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
     uint placement = 0u;
     vertex.tint = vec3(1.0);
     if (colourIndex != 0) {
-        uvec2 entry = texelFetch(EminusQuads,int(mesh.z + mesh.w) + colourIndex).rg;
+        uvec2 entry = texelFetch(EminusQuads,int(mesh.z + mesh.w) + occlusionSlots + colourIndex).rg;
         vertex.tint = vec3(eminus_field(entry.r, TINT_RED_SHIFT, TINT_CHANNEL_BITS),
                            eminus_field(entry.r, TINT_GREEN_SHIFT, TINT_CHANNEL_BITS),
                            eminus_field(entry.r, TINT_BLUE_SHIFT, TINT_CHANNEL_BITS))
@@ -242,6 +251,8 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
         local.y += up;
         local.z += mix(boundsMin.z, boundsMax.z, unit.x);
         extent = vec2(face == FIRST_BLADE_FACE ? unit.x : 1.0 - unit.x, unit.y * float(height));
+        vertex.occlusionPoint = vec2(across, up) * blocks;
+        vertex.occlusionSize = vec2(1.0, float(height)) * blocks;
     } else {
         int normalAxis = eminus_normal_axis(face);
         int widthAxis = face < 4 ? 0 : 2;
@@ -251,6 +262,8 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
                           + mix(eminus_axis(boundsMin, widthAxis), eminus_axis(boundsMax, widthAxis), unit.x),
                       unit.y * float(height - 1)
                           + mix(eminus_axis(boundsMin, heightAxis), eminus_axis(boundsMax, heightAxis), unit.y));
+        vertex.occlusionPoint = extent * blocks;
+        vertex.occlusionSize = vec2(width, height) * blocks;
         vec2 slope = eminus_slope(fifth, sixth, seventh, face);
         float inset = eminus_inset(first, second, face) + dot(slope, extent);
         float placedHeight = vertical ? unit.y * float(height - 1) + mix(drawnBottom, drawnTop, unit.y) : extent.y;

@@ -15,16 +15,17 @@ final class GameQuads {
     private static final Direction[] FACES = Direction.values();
 
     static void gather(List<?> parts, List<ModelQuad> into) {
+        boolean smooth = parts.isEmpty() || ((BlockStateModelPart) parts.getFirst()).useAmbientOcclusion();
         for (Object part : parts) {
             BlockStateModelPart modelPart = (BlockStateModelPart) part;
-            add(modelPart.getQuads(null), into);
+            add(modelPart.getQuads(null), smooth, into);
             for (Direction face : FACES) {
-                add(modelPart.getQuads(face), into);
+                add(modelPart.getQuads(face), smooth, into);
             }
         }
     }
 
-    static ModelQuad of(BakedQuad quad) {
+    static ModelQuad of(BakedQuad quad, boolean smooth) {
         Vector3fc[] corners = new Vector3fc[ModelQuad.CORNERS];
         float[] uvs = new float[ModelQuad.CORNERS * 2];
 
@@ -37,12 +38,12 @@ final class GameQuads {
 
         BakedQuad.MaterialInfo material = quad.materialInfo();
         return new ModelQuad(corners, uvs, new GameSprite(material.sprite()), material.tintIndex(),
-                material.layer().translucent(), material.lightEmission(), quad.direction());
+                material.layer().translucent(), material.lightEmission(), quad.direction(), smooth);
     }
 
-    private static void add(List<BakedQuad> quads, List<ModelQuad> into) {
+    private static void add(List<BakedQuad> quads, boolean smooth, List<ModelQuad> into) {
         for (BakedQuad quad : quads) {
-            into.add(of(quad));
+            into.add(of(quad, smooth));
         }
     }
 

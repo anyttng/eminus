@@ -173,6 +173,24 @@ class CellMesherTest {
     }
 
     @Test
+    void everyGroupOrdersItsSolidQuadsFirstAndCountsThem() {
+        defineBlocks();
+        models.solidFaces(STONE_MODEL, FaceMask.ALL);
+        Cell cell = blank();
+        cell.set(8, 8, 8, block(GLASS));
+        cell.set(20, 20, 20, block(STONE));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        for (int group = 0; group < QuadGroups.DIRECTIONAL_COUNT; group++) {
+            assertEquals(2, mesh.groupCount(group));
+            assertEquals(1, mesh.groupSolid(group));
+            assertEquals(STONE_MODEL, Quad.modelId(mesh.quad(mesh.groupStart(group))));
+            assertEquals(GLASS_MODEL, Quad.modelId(mesh.quad(mesh.groupStart(group) + 1)));
+        }
+    }
+
+    @Test
     void aFullFloorShowsFourQuadsOnTopAndKeepsItsCoveredEdgesInBorderGroups() {
         defineBlocks();
         CellMesh mesh = mesh(floor(), ground(), 0);
@@ -1276,7 +1294,8 @@ class CellMesherTest {
         long key = CellKey.pack(0, 0, 0, 0);
         MeshScratch scratch = new MeshScratch();
         scratch.voxels().load(centre);
-        around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
+        around.forEach((face, cell) -> scratch.voxels()
+                .loadRegion(face.getStepX(), face.getStepY(), face.getStepZ(), cell));
         scratch.voxels().loadCoverage(coverage, key);
         scratch.voxels().loadBelow(around.get(Direction.DOWN));
         scratch.begin(FRAME, key, tints, NO_BLEND);
@@ -1297,7 +1316,8 @@ class CellMesherTest {
     private CellMesh mesh(Cell centre, Map<Direction, Cell> around, int level) {
         MeshScratch scratch = new MeshScratch();
         scratch.voxels().load(centre);
-        around.forEach((face, cell) -> scratch.voxels().loadNeighbour(face, cell));
+        around.forEach((face, cell) -> scratch.voxels()
+                .loadRegion(face.getStepX(), face.getStepY(), face.getStepZ(), cell));
         long key = CellKey.pack(level, 0, 0, 0);
         scratch.begin(FRAME, key, tints, NO_BLEND);
 

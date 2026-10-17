@@ -65,7 +65,7 @@ public final class ModelBaker implements StateBaker {
             return new BakedState(surface, null, FluidBaker.submerged(surface));
         }
 
-        BakedModel block = emissive(rasterize(shape), state);
+        BakedModel block = blockModel(shape, state);
         BakedModel surface = fluid.isEmpty() ? null : fluidModel(fluid, state);
         BakedModel submerged = surface == null ? null : FluidBaker.submerged(surface);
         if (!drew) {
@@ -86,7 +86,7 @@ public final class ModelBaker implements StateBaker {
         BlockState shape = baseOf(state);
         quads.clear();
         blockModels.quads(picked, quads);
-        return quads.isEmpty() ? BakedModel.empty() : emissive(rasterize(shape), state);
+        return quads.isEmpty() ? BakedModel.empty() : blockModel(shape, state);
     }
 
     private List<WeightedModel> variants(@Nullable BlockModel model, BlockState shape, BlockState state) {
@@ -105,7 +105,7 @@ public final class ModelBaker implements StateBaker {
                 return List.of();
             }
 
-            BakedModel variant = emissive(rasterize(shape), state);
+            BakedModel variant = blockModel(shape, state);
             if (!baked.isEmpty() && !baked.getFirst().model().sameGeometry(variant)) {
                 return List.of();
             }
@@ -114,6 +114,12 @@ public final class ModelBaker implements StateBaker {
         }
 
         return baked;
+    }
+
+    private BakedModel blockModel(BlockState shape, BlockState state) {
+        BakedModel model = emissive(rasterize(shape), state);
+        boolean smooth = !quads.isEmpty() && quads.getFirst().smooth() && state.getLightEmission() == 0;
+        return smooth ? model.withMetadata(model.metadata() | ModelMetadata.SMOOTH) : model;
     }
 
     private BakedModel rasterize(BlockState shape) {

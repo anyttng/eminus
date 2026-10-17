@@ -27,6 +27,7 @@ final class FakeModels implements MeshModels {
     private final Map<Integer, Integer> fluidIds = new HashMap<>();
     private final Map<Integer, Integer> submergedIds = new HashMap<>();
     private final Map<Integer, Integer> words = new HashMap<>();
+    private final Map<Integer, Integer> solidFaces = new HashMap<>();
     private final Map<Integer, Integer> tintRows = new HashMap<>();
     private final Map<Integer, BlockState> offsetStates = new HashMap<>();
     private final Map<Integer, PositionalIds> positional = new HashMap<>();
@@ -35,6 +36,7 @@ final class FakeModels implements MeshModels {
     private final Map<Integer, Integer> fluidKinds = new HashMap<>();
     private final Map<Integer, Float> fluidHeights = new HashMap<>();
     private final Set<Integer> solids = new HashSet<>();
+    private final Map<Integer, Integer> shades = new HashMap<>();
     private final Set<Integer> partialHeights = new HashSet<>();
     private final List<Runnable> waiters = new ArrayList<>();
     private final Map<Integer, Integer> oneSidedIds = new HashMap<>();
@@ -56,6 +58,10 @@ final class FakeModels implements MeshModels {
 
     void describe(int modelId, int metadata) {
         words.put(modelId, metadata);
+    }
+
+    void solidFaces(int modelId, int faces) {
+        solidFaces.put(modelId, faces);
     }
 
     void tint(int modelId, int row) {
@@ -84,6 +90,10 @@ final class FakeModels implements MeshModels {
     void skipBetween(int stateId, int facingStateId) {
         skipped.add(List.of(stateId, facingStateId));
         skipped.add(List.of(facingStateId, stateId));
+    }
+
+    void shadeAs(int stateId, int shade) {
+        shades.put(stateId, shade);
     }
 
     void makeSolid(int stateId) {
@@ -199,6 +209,11 @@ final class FakeModels implements MeshModels {
     }
 
     @Override
+    public int solidFaces(int modelId) {
+        return solidFaces.getOrDefault(modelId, FaceMask.NONE);
+    }
+
+    @Override
     public boolean skipsFace(int stateId, int facingStateId, Direction face) {
         return skipped.contains(List.of(stateId, facingStateId));
     }
@@ -238,5 +253,10 @@ final class FakeModels implements MeshModels {
     @Override
     public boolean solid(int stateId) {
         return solids.contains(stateId);
+    }
+
+    @Override
+    public int shade(int stateId) {
+        return shades.getOrDefault(stateId, StateShade.PERMEABLE);
     }
 }

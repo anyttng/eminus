@@ -7,6 +7,7 @@ import com.eminus.cell.VoxelEntry;
 import com.eminus.handoff.NearSections;
 import com.eminus.mesh.FluidCorners;
 import com.eminus.mesh.MeshBuffer;
+import com.eminus.mesh.OcclusionWord;
 import com.eminus.mesh.Quad;
 import com.eminus.mesh.QuadOffset;
 import com.eminus.model.BakedModel;
@@ -29,6 +30,8 @@ import com.eminus.gpu.pipeline.Binding;
 import com.eminus.gpu.pipeline.PipelineSpec;
 import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
+
+import org.jspecify.annotations.Nullable;
 
 final class FarQuads {
     static final float SHADE_BLADE = 1.0F;
@@ -53,14 +56,27 @@ final class FarQuads {
 
     static PipelineSpec.Builder pipeline(Location location, Location shader, float alphaCutout,
             Capabilities capabilities, VariantDraw variantDraw) {
+        return pipeline(location, shader, alphaCutout, capabilities, variantDraw, true);
+    }
+
+    static PipelineSpec.Builder solidPipeline(Location location, Capabilities capabilities, VariantDraw variantDraw) {
+        return pipeline(location, SHADER, OpaquePass.ALPHA_CUTOUT, capabilities, variantDraw, false)
+                .withDefine("SOLID");
+    }
+
+    private static PipelineSpec.Builder pipeline(Location location, Location shader, float alphaCutout,
+            Capabilities capabilities, VariantDraw variantDraw, boolean nearSections) {
         PipelineSpec.Builder builder = PipelineSpec.builder(location, shader, shader)
                 .withBinding(Binding.uniform(FarFrame.BLOCK.name()))
                 .withBinding(Binding.texel(QUADS, GeometryArena.QUAD_FORMAT))
                 .withBinding(Binding.texel(MESH_RECORDS, MeshRecords.TEXEL_FORMAT))
                 .withBinding(Binding.texel(MODEL_RECORDS, ModelRecords.TEXEL_FORMAT))
-                .withBinding(Binding.texel(MODEL_VARIANTS, ModelVariants.TEXEL_FORMAT))
-                .withBinding(Binding.texel(NEAR_SECTIONS, NearSectionTable.TEXEL_FORMAT))
-                .withBinding(Binding.sampled(ATLAS))
+                .withBinding(Binding.texel(MODEL_VARIANTS, ModelVariants.TEXEL_FORMAT));
+        if (nearSections) {
+            builder.withBinding(Binding.texel(NEAR_SECTIONS, NearSectionTable.TEXEL_FORMAT));
+        }
+
+        builder.withBinding(Binding.sampled(ATLAS))
                 .withBinding(Binding.sampled(TINT_MASK))
                 .withBinding(Binding.sampled(LIGHTMAP))
                 .withDefine("QUADS_PER_BLOCK", ArenaAllocator.QUADS_PER_BLOCK)
@@ -89,6 +105,7 @@ final class FarQuads {
         cellKeyLayout(builder);
         quadLayout(builder);
         placementLayout(builder);
+        occlusionLayout(builder);
         if (variantDraw == VariantDraw.NEXT_LONG_MODULO) {
             builder.withDefine(NEXT_LONG_MODULO);
         }
@@ -146,14 +163,30 @@ final class FarQuads {
                 .withDefine("CORNER_SOUTH_EAST_SHIFT", FluidCorners.SOUTH_EAST_SHIFT);
     }
 
+    private static void occlusionLayout(PipelineSpec.Builder builder) {
+        builder.withDefine("OCCLUSION_BITS", OcclusionWord.BITS)
+                .withDefine("OCCLUSION_PER_SLOT", OcclusionWord.PER_SLOT)
+                .withDefine("OCCLUSION_FRONT", OcclusionWord.FRONT)
+                .withDefine("OCCLUSION_LOW_U", OcclusionWord.LOW_U)
+                .withDefine("OCCLUSION_HIGH_U", OcclusionWord.HIGH_U)
+                .withDefine("OCCLUSION_LOW_V", OcclusionWord.LOW_V)
+                .withDefine("OCCLUSION_HIGH_V", OcclusionWord.HIGH_V)
+                .withDefine("OCCLUSION_LOW_U_LOW_V", OcclusionWord.LOW_U_LOW_V)
+                .withDefine("OCCLUSION_HIGH_U_LOW_V", OcclusionWord.HIGH_U_LOW_V)
+                .withDefine("OCCLUSION_LOW_U_HIGH_V", OcclusionWord.LOW_U_HIGH_V)
+                .withDefine("OCCLUSION_HIGH_U_HIGH_V", OcclusionWord.HIGH_U_HIGH_V);
+    }
+
     static void bind(Pass pass, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer frame,
-            TexelView nearSections) {
+            @Nullable TexelView nearSections) {
         pass.bind(FarFrame.BLOCK.name(), frame);
         pass.bind(QUADS, arena.quads());
         pass.bind(MESH_RECORDS, arena.records().texels());
         pass.bind(MODEL_RECORDS, models.records().texels());
         pass.bind(MODEL_VARIANTS, models.variants().texels());
-        pass.bind(NEAR_SECTIONS, nearSections);
+        if (nearSections != null) {
+            pass.bind(NEAR_SECTIONS, nearSections);
+        }
         pass.bind(ATLAS, models.atlas().colour(), Sampler.NEAREST_MIPPED);
         pass.bind(TINT_MASK, models.atlas().tintMask(), Sampler.NEAREST_MIPPED);
         pass.bind(LIGHTMAP, lightmap, Sampler.LINEAR);
