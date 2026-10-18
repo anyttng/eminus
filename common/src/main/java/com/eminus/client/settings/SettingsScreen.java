@@ -56,7 +56,7 @@ public final class SettingsScreen extends DraftOptionsScreen {
     private @Nullable Button customLodButton;
 
     public SettingsScreen(Screen lastScreen) {
-        super(lastScreen, Component.translatable(TITLE_KEY), SettingsDraft.of(SettingsService.get()),
+        super(lastScreen, Component.translatable(TITLE_KEY), SettingsDraft.of(SettingsService.get()), HOLDS_DRAFT,
                 DraftOptionsScreen::open);
 
         Settings settings = this.draft.settings();
@@ -102,8 +102,7 @@ public final class SettingsScreen extends DraftOptionsScreen {
     @Override
     protected void addOptions() {
         this.customLodButton = Button.builder(Component.translatable(CUSTOM_LOD_KEY),
-                        button -> this.minecraft.gui.setScreen(
-                                new CustomLodScreen(this, this.draft, DraftOptionsScreen::open)))
+                        button -> this.minecraft.gui.setScreen(CustomLodScreen.sharingDraft(this)))
                 .tooltip(Tooltip.create(SettingsText.hint(CUSTOM_LOD_KEY)))
                 .build();
         this.addHeader(GENERAL_CATEGORY_KEY);
