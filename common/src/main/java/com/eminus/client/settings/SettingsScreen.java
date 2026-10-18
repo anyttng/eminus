@@ -9,10 +9,10 @@ import static com.eminus.client.settings.SettingsText.DETAIL_DISTANCE_KEY;
 import static com.eminus.client.settings.SettingsText.FADE_KEY;
 import static com.eminus.client.settings.SettingsText.FAR_RENDER_CELLS_KEY;
 import static com.eminus.client.settings.SettingsText.FOG_KEY;
+import static com.eminus.client.settings.SettingsText.GENERAL_CATEGORY_KEY;
 import static com.eminus.client.settings.SettingsText.INGESTION_KEY;
 import static com.eminus.client.settings.SettingsText.LOD_ANIMATIONS_KEY;
 import static com.eminus.client.settings.SettingsText.LOD_QUALITY_KEY;
-import static com.eminus.client.settings.SettingsText.QUALITY_CATEGORY_KEY;
 import static com.eminus.client.settings.SettingsText.SHADER_PACKS_CATEGORY_KEY;
 import static com.eminus.client.settings.SettingsText.SHADER_PACK_LOD_KEY;
 import static com.eminus.client.settings.SettingsText.TITLE_KEY;
@@ -101,15 +101,15 @@ public final class SettingsScreen extends DraftOptionsScreen {
                                 new CustomLodScreen(this, this.draft, DraftOptionsScreen::open)))
                 .tooltip(Tooltip.create(SettingsText.hint(CUSTOM_LOD_KEY)))
                 .build();
-        this.addHeader(QUALITY_CATEGORY_KEY);
+        this.addHeader(GENERAL_CATEGORY_KEY);
         this.addSmallSlider(this.lodChoicePosition.createButton(this.options), this.customLodButton);
         this.list.addBig(this.farRenderCells);
         this.list.addBig(this.detailDistancePosition);
+        this.list.addBig(this.ingestion);
         this.addHeader(APPEARANCE_CATEGORY_KEY);
         this.list.addBig(this.fog);
         this.list.addBig(this.fade);
         this.addHeader(BUILDING_CATEGORY_KEY);
-        this.list.addBig(this.ingestion);
         this.list.addBig(this.workerThreads);
         if (IrisShaderPack.installed()) {
             this.addHeader(SHADER_PACKS_CATEGORY_KEY);

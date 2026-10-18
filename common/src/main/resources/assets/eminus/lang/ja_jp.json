@@ -1,7 +1,7 @@
 {
   "gui.eminus.settings.title": "Eminus の設定",
   "gui.eminus.settings.value_hint": "%s：%s",
-  "gui.eminus.settings.category.quality": "品質",
+  "gui.eminus.settings.category.general": "一般",
   "gui.eminus.settings.category.appearance": "霧",
   "gui.eminus.settings.category.building": "パフォーマンス",
   "gui.eminus.settings.category.shader_packs": "シェーダー",
@@ -9,7 +9,7 @@
   "gui.eminus.settings.category.vegetation": "葉と植物",
   "gui.eminus.settings.apply_changes": "変更を適用",
   "gui.eminus.settings.category.lighting": "ライティング",
-  "gui.eminus.settings.ingestion": "LOD を更新",
+  "gui.eminus.settings.ingestion": "LOD 取り込み",
   "gui.eminus.settings.ingestion.hint.on": "見えているチャンクを LOD に追加します。",
   "gui.eminus.settings.ingestion.hint.off": "新しいものは追加されず、LOD は既にある分だけを表示します。",
   "gui.eminus.settings.lod_quality": "LOD の品質",

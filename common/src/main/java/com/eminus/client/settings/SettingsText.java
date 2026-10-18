@@ -30,7 +30,7 @@ public final class SettingsText {
     public static final String FADE_KEY = "gui.eminus.settings.fade";
     public static final String SHADER_PACK_LOD_KEY = "gui.eminus.settings.shader_pack_lod";
     public static final String LOD_ANIMATIONS_KEY = "gui.eminus.settings.lod_animations";
-    public static final String QUALITY_CATEGORY_KEY = "gui.eminus.settings.category.quality";
+    public static final String GENERAL_CATEGORY_KEY = "gui.eminus.settings.category.general";
     public static final String APPEARANCE_CATEGORY_KEY = "gui.eminus.settings.category.appearance";
     public static final String BUILDING_CATEGORY_KEY = "gui.eminus.settings.category.building";
     public static final String SHADER_PACKS_CATEGORY_KEY = "gui.eminus.settings.category.shader_packs";

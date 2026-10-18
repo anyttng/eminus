@@ -53,8 +53,8 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
     public void registerConfigLate(ConfigBuilder builder) {
         Settings defaults = Settings.defaults();
 
-        OptionGroupBuilder quality = builder.createOptionGroup()
-                .setName(Component.translatable(SettingsText.QUALITY_CATEGORY_KEY))
+        OptionGroupBuilder general = builder.createOptionGroup()
+                .setName(Component.translatable(SettingsText.GENERAL_CATEGORY_KEY))
                 .addOption(builder.createIntegerOption(id(LOD_QUALITY_ID))
                         .setName(Component.translatable(SettingsText.LOD_QUALITY_KEY))
                         .setTooltip(position -> SettingsText.lodChoiceHint())
@@ -92,7 +92,14 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setDefaultValue(SliderPositions.detailDistancePosition(defaults.detailDistance()))
                         .setBinding(position -> edit(settings -> settings.withDetailDistance(
                                         SliderPositions.detailDistance(position))),
-                                () -> SliderPositions.detailDistancePosition(current().detailDistance())));
+                                () -> SliderPositions.detailDistancePosition(current().detailDistance())))
+                .addOption(builder.createBooleanOption(id(INGESTION_ID))
+                        .setName(Component.translatable(SettingsText.INGESTION_KEY))
+                        .setTooltip(value -> SettingsText.toggleHint(SettingsText.INGESTION_KEY))
+                        .setStorageHandler(this::save)
+                        .setDefaultValue(defaults.ingestion())
+                        .setBinding(value -> edit(settings -> settings.withIngestion(value)),
+                                () -> current().ingestion()));
         OptionGroupBuilder appearance = builder.createOptionGroup()
                 .setName(Component.translatable(SettingsText.APPEARANCE_CATEGORY_KEY))
                 .addOption(builder.createBooleanOption(id(FOG_ID))
@@ -111,13 +118,6 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                                 () -> current().fade()));
         OptionGroupBuilder building = builder.createOptionGroup()
                 .setName(Component.translatable(SettingsText.BUILDING_CATEGORY_KEY))
-                .addOption(builder.createBooleanOption(id(INGESTION_ID))
-                        .setName(Component.translatable(SettingsText.INGESTION_KEY))
-                        .setTooltip(value -> SettingsText.toggleHint(SettingsText.INGESTION_KEY))
-                        .setStorageHandler(this::save)
-                        .setDefaultValue(defaults.ingestion())
-                        .setBinding(value -> edit(settings -> settings.withIngestion(value)),
-                                () -> current().ingestion()))
                 .addOption(builder.createIntegerOption(id(WORKER_THREADS_ID))
                         .setName(Component.translatable(SettingsText.WORKER_THREADS_KEY))
                         .setTooltip(SettingsText.hint(SettingsText.WORKER_THREADS_KEY))
@@ -129,7 +129,7 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                                 () -> current().workerThreads()));
         OptionPageBuilder page = builder.createOptionPage()
                 .setName(Component.translatable(SettingsText.TITLE_KEY))
-                .addOptionGroup(quality)
+                .addOptionGroup(general)
                 .addOptionGroup(appearance)
                 .addOptionGroup(building);
         if (IrisShaderPack.installed()) {

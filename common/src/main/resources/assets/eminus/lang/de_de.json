@@ -1,7 +1,7 @@
 {
   "gui.eminus.settings.title": "Eminus-Einstellungen",
   "gui.eminus.settings.value_hint": "%s: %s",
-  "gui.eminus.settings.category.quality": "Qualität",
+  "gui.eminus.settings.category.general": "Allgemein",
   "gui.eminus.settings.category.appearance": "Nebel",
   "gui.eminus.settings.category.building": "Leistung",
   "gui.eminus.settings.category.shader_packs": "Shader",
@@ -9,7 +9,7 @@
   "gui.eminus.settings.category.vegetation": "Laub und Pflanzen",
   "gui.eminus.settings.apply_changes": "Änderungen übernehmen",
   "gui.eminus.settings.category.lighting": "Beleuchtung",
-  "gui.eminus.settings.ingestion": "LOD aktualisieren",
+  "gui.eminus.settings.ingestion": "LOD-Erfassung",
   "gui.eminus.settings.ingestion.hint.on": "die Chunks, die du siehst, kommen ins LOD.",
   "gui.eminus.settings.ingestion.hint.off": "nichts Neues kommt hinzu; das LOD zeigt, was es schon hat.",
   "gui.eminus.settings.lod_quality": "LOD-Qualität",
