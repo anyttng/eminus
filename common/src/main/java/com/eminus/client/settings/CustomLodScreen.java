@@ -21,6 +21,7 @@ import com.eminus.settings.LodChoice;
 import com.eminus.settings.LodQuality;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsDraft;
+import com.eminus.settings.SettingsService;
 import com.mojang.serialization.Codec;
 
 import net.minecraft.client.OptionInstance;
@@ -37,8 +38,8 @@ public final class CustomLodScreen extends DraftOptionsScreen {
     private final OptionInstance<Boolean> textures;
     private final OptionInstance<CornerOcclusion> cornerOcclusion;
 
-    public CustomLodScreen(Screen lastScreen, SettingsDraft draft, Consumer<Screen> back) {
-        super(lastScreen, Component.translatable(CUSTOM_LOD_TITLE_KEY), draft, back);
+    private CustomLodScreen(Screen lastScreen, SettingsDraft draft, boolean holdsDraft, Consumer<Screen> back) {
+        super(lastScreen, Component.translatable(CUSTOM_LOD_TITLE_KEY), draft, holdsDraft, back);
         draft.edit(settings -> settings.withLodChoice(LodChoice.CUSTOM));
 
         LodQuality quality = draft.settings().customLod();
@@ -65,6 +66,14 @@ public final class CustomLodScreen extends DraftOptionsScreen {
                                         .orElse(Settings.DEFAULT_CUSTOM_LOD.cornerOcclusion()),
                                 CornerOcclusion::key)),
                 quality.cornerOcclusion(), value -> apply(lod -> lod.withCornerOcclusion(value)));
+    }
+
+    public static CustomLodScreen withOwnDraft(Screen lastScreen, Consumer<Screen> back) {
+        return new CustomLodScreen(lastScreen, SettingsDraft.of(SettingsService.get()), HOLDS_DRAFT, back);
+    }
+
+    static CustomLodScreen sharingDraft(SettingsScreen parent) {
+        return new CustomLodScreen(parent, parent.draft, SHARES_DRAFT, DraftOptionsScreen::open);
     }
 
     @Override

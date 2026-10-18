@@ -20,15 +20,20 @@ import org.jspecify.annotations.Nullable;
 abstract class DraftOptionsScreen extends OptionsSubScreen {
     private static final Component APPLY_CHANGES = Component.translatable(SettingsText.APPLY_CHANGES_KEY);
     private static final int FOOTER_SPACING = 8;
+    static final boolean HOLDS_DRAFT = true;
+    static final boolean SHARES_DRAFT = false;
 
     protected final SettingsDraft draft;
+    private final boolean holdsDraft;
     private final Consumer<Screen> back;
     private @Nullable Button applyChanges;
     private @Nullable HeaderedOptionsList headeredList;
 
-    DraftOptionsScreen(Screen lastScreen, Component title, SettingsDraft draft, Consumer<Screen> back) {
+    DraftOptionsScreen(Screen lastScreen, Component title, SettingsDraft draft, boolean holdsDraft,
+            Consumer<Screen> back) {
         super(lastScreen, Minecraft.getInstance().options, title);
         this.draft = draft;
+        this.holdsDraft = holdsDraft;
         this.back = back;
     }
 
@@ -53,8 +58,12 @@ abstract class DraftOptionsScreen extends OptionsSubScreen {
     @Override
     protected void addFooter() {
         LinearLayout footer = this.layout.addToFooter(LinearLayout.horizontal().spacing(FOOTER_SPACING));
-        this.applyChanges = footer.addChild(Button.builder(APPLY_CHANGES, button -> this.write()).build());
-        footer.addChild(Button.builder(CommonComponents.GUI_DONE, button -> this.onClose()).build());
+        if (this.holdsDraft) {
+            this.applyChanges = footer.addChild(Button.builder(APPLY_CHANGES, button -> this.write()).build());
+            footer.addChild(Button.builder(CommonComponents.GUI_CANCEL, button -> this.onClose()).build());
+        } else {
+            footer.addChild(Button.builder(CommonComponents.GUI_DONE, button -> this.onClose()).build());
+        }
         this.draftChanged();
     }
 
@@ -69,6 +78,12 @@ abstract class DraftOptionsScreen extends OptionsSubScreen {
         }
     }
 
+    // A screen returned to is not built again, so its buttons read the draft here.
+    @Override
+    public void added() {
+        this.draftChanged();
+    }
+
     // Vanilla's OptionsSubScreen rewrites options.txt here, and this screen owns no vanilla option.
     @Override
     public void removed() {
@@ -76,16 +91,22 @@ abstract class DraftOptionsScreen extends OptionsSubScreen {
 
     @Override
     public void onClose() {
-        this.write();
+        if (!this.holdsDraft) {
+            this.applyUnsavedChanges();
+        }
+
         this.back.accept(this.lastScreen);
     }
 
     private void write() {
+        this.applyUnsavedChanges();
+        this.draft.write();
+        this.draftChanged();
+    }
+
+    private void applyUnsavedChanges() {
         if (this.list != null) {
             this.list.applyUnsavedChanges();
         }
-
-        this.draft.write();
-        this.draftChanged();
     }
 }
