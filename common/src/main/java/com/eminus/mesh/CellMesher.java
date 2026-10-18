@@ -28,11 +28,12 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
         this.models = models;
     }
 
-    public @Nullable CellMesh mesh(long key, int occupancy, StateOpacity opacity, Runnable whenBaked) {
+    public @Nullable CellMesh mesh(long key, int occupancy, StateOpacity opacity, boolean occluded,
+            Runnable whenBaked) {
         level = CellKey.level(key);
         coarse = level > DetailLevel.MIN;
-        FacePasses passes = new FacePasses(scratch, opacity, models, level, whenBaked, this);
-        BladePass blades = new BladePass(scratch, models, level, whenBaked);
+        FacePasses passes = new FacePasses(scratch, opacity, models, level, occluded, whenBaked, this);
+        BladePass blades = new BladePass(scratch, models, level, occluded, whenBaked);
 
         if (!passes.run() || !blades.run()) {
             scratch.reset();
@@ -63,7 +64,7 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
         MeshBuffer buffer = scratch.buffer();
         if (group == QuadGroups.TRANSLUCENT) {
             buffer.addTranslucent(quad,
-                    TranslucentOrder.of(quad, level, buffer.placementAt(Quad.colourIndex(data)), models), occlusion);
+                    TranslucentOrder.of(quad, level, buffer.placementAt(Quad.colorIndex(data)), models), occlusion);
         } else {
             buffer.add(group, quad, occlusion,
                     (models.solidFaces(Quad.modelId(data)) & 1 << face.get3DDataValue()) != 0);
@@ -77,7 +78,7 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
 
     @Override
     public boolean stacks(long data) {
-        int placement = scratch.buffer().placementAt(Quad.colourIndex(data));
+        int placement = scratch.buffer().placementAt(Quad.colorIndex(data));
         return !coarse || face.getAxis() == Direction.Axis.Y
                 || (QuadPlacement.gaps(level, placement) == VoxelEntry.NO_GAPS
                         && models.fillsHeight(Quad.modelId(data)));

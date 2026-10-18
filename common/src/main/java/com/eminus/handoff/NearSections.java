@@ -36,12 +36,12 @@ public final class NearSections {
                 && Math.abs(sectionY - cameraSectionY) <= viewDistance;
     }
 
-    public void reset(int centreSectionX, int centreSectionZ, int radius, int minSectionY, int sectionCount) {
+    public void reset(int centerSectionX, int centerSectionZ, int radius, int minSectionY, int sectionCount) {
         side = 2 * radius + 1;
         height = sectionCount;
-        originX = centreSectionX - radius;
+        originX = centerSectionX - radius;
         originY = minSectionY;
-        originZ = centreSectionZ - radius;
+        originZ = centerSectionZ - radius;
         texels = Math.ceilDiv(side * side * height, BITS_PER_TEXEL);
         queried = 0;
         built = 0;

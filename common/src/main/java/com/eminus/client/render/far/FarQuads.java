@@ -34,7 +34,6 @@ import com.eminus.gpu.texture.Texture;
 import org.jspecify.annotations.Nullable;
 
 final class FarQuads {
-    static final float SHADE_BLADE = 1.0F;
     static final int MAX_SAMPLES = 8;
 
     private static final int MAX_GROUP_INDICES = MeshBuffer.MAX_QUADS_PER_GROUP * DrawCommands.INDICES_PER_QUAD;
@@ -95,13 +94,14 @@ final class FarQuads {
                 .withDefine("CORNER_STEPS", FluidCorners.STEPS)
                 .withDefine("MAX_VARIANT_REJECTIONS", BakedModel.MAX_VARIANT_REJECTIONS)
                 .withDefine("ALPHA_CUTOUT", alphaCutout)
-                .withDefine("SHADE_BLADE", SHADE_BLADE)
+                .withDefine("SHADE_BITS", BakedModel.SHADE_BITS)
                 .withDefine("MAX_SAMPLES", MAX_SAMPLES)
                 .withDefine("NEAR_SECTION_BLOCKS", NearSections.SECTION_BLOCKS)
                 .withDefine("NEAR_TEXEL_BITS", NearSections.BITS_PER_TEXEL)
                 .withDefine("NEAR_TEXEL_SHIFT", NearSections.TEXEL_SHIFT)
                 .withDefine("MODEL_TEXELS", ModelRecords.TEXELS)
-                .withDefine("PACK_ID_TEXEL", ModelRecords.PACK_ID_TEXEL);
+                .withDefine("PACK_ID_TEXEL", ModelRecords.PACK_ID_TEXEL)
+                .withDefine("SHADES_TEXEL", ModelRecords.SHADES_TEXEL);
         cellKeyLayout(builder);
         quadLayout(builder);
         placementLayout(builder);
@@ -137,8 +137,8 @@ final class FarQuads {
                 .withDefine("QUAD_LIGHT_BITS", Quad.LIGHT_BITS)
                 .withDefine("QUAD_MODEL_SHIFT", Quad.MODEL_SHIFT)
                 .withDefine("QUAD_MODEL_BITS", Quad.MODEL_BITS)
-                .withDefine("QUAD_COLOUR_SHIFT", Quad.COLOUR_SHIFT)
-                .withDefine("QUAD_COLOUR_BITS", Quad.COLOUR_BITS);
+                .withDefine("QUAD_COLOR_SHIFT", Quad.COLOR_SHIFT)
+                .withDefine("QUAD_COLOR_BITS", Quad.COLOR_BITS);
     }
 
     private static void placementLayout(PipelineSpec.Builder builder) {
@@ -164,7 +164,8 @@ final class FarQuads {
     }
 
     private static void occlusionLayout(PipelineSpec.Builder builder) {
-        builder.withDefine("OCCLUSION_BITS", OcclusionWord.BITS)
+        builder.withDefine("MESH_UNOCCLUDED_SHIFT", MeshRecords.UNOCCLUDED_SHIFT)
+                .withDefine("OCCLUSION_BITS", OcclusionWord.BITS)
                 .withDefine("OCCLUSION_PER_SLOT", OcclusionWord.PER_SLOT)
                 .withDefine("OCCLUSION_FRONT", OcclusionWord.FRONT)
                 .withDefine("OCCLUSION_LOW_U", OcclusionWord.LOW_U)
@@ -187,7 +188,7 @@ final class FarQuads {
         if (nearSections != null) {
             pass.bind(NEAR_SECTIONS, nearSections);
         }
-        pass.bind(ATLAS, models.atlas().colour(), Sampler.NEAREST_MIPPED);
+        pass.bind(ATLAS, models.atlas().color(), Sampler.NEAREST_MIPPED);
         pass.bind(TINT_MASK, models.atlas().tintMask(), Sampler.NEAREST_MIPPED);
         pass.bind(LIGHTMAP, lightmap, Sampler.LINEAR);
         pass.quadIndices(MAX_GROUP_INDICES);

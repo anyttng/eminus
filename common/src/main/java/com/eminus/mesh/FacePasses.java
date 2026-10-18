@@ -77,8 +77,8 @@ public final class FacePasses {
     private boolean shaped;
     private int shape;
 
-    public FacePasses(MeshScratch scratch, StateOpacity opacity, MeshModels models, int level, Runnable whenBaked,
-            Sink sink) {
+    public FacePasses(MeshScratch scratch, StateOpacity opacity, MeshModels models, int level, boolean occluded,
+            Runnable whenBaked, Sink sink) {
         this.scratch = scratch;
         this.opacity = opacity;
         this.models = models;
@@ -86,7 +86,7 @@ public final class FacePasses {
         this.whenBaked = whenBaked;
         this.sink = sink;
         corners = level == FluidCorners.LEVEL ? new FluidCorners(scratch.voxels(), models) : null;
-        occlusion = new FaceOcclusion(scratch.voxels(), models, level);
+        occlusion = new FaceOcclusion(scratch.voxels(), models, level, occluded);
         voxelBlocks = DetailLevel.blocksPerVoxel(level);
     }
 
@@ -449,13 +449,13 @@ public final class FacePasses {
     }
 
     private long data(long facing, int quadMetadata, int modelId) {
-        int colourIndex = QuadTint.of(scratch, models, owner, modelId, x, y, z);
-        return Quad.data(QuadLight.of(facing, quadMetadata), modelId, colourIndex);
+        int colorIndex = QuadTint.of(scratch, models, owner, modelId, x, y, z);
+        return Quad.data(QuadLight.of(facing, quadMetadata), modelId, colorIndex);
     }
 
     private long fluidData(long facing, int quadMetadata, int modelId, int surface) {
-        int colourIndex = QuadTint.ofFluid(scratch, models, owner, modelId, surface, x, y, z);
-        return Quad.data(QuadLight.of(facing, quadMetadata), modelId, colourIndex);
+        int colorIndex = QuadTint.ofFluid(scratch, models, owner, modelId, surface, x, y, z);
+        return Quad.data(QuadLight.of(facing, quadMetadata), modelId, colorIndex);
     }
 
     private static boolean covered(long owner, long facing, Direction face) {

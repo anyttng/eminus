@@ -41,7 +41,7 @@ class ArenaAllocatorTest {
     }
 
     @Test
-    void freeingBothNeighboursOfARangeLeavesOneRun() {
+    void freeingBothNeighborsOfARangeLeavesOneRun() {
         int[] blocks = new int[ARENA_BLOCKS];
         for (int index = 0; index < ARENA_BLOCKS; index++) {
             blocks[index] = allocator.allocate(ONE_BLOCK);

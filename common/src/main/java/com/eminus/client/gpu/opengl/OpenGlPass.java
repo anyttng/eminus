@@ -21,7 +21,7 @@ import org.lwjgl.opengl.GL33C;
 import org.lwjgl.system.MemoryStack;
 
 final class OpenGlPass implements Pass {
-    private static final int COLOUR_INDEX = 0;
+    private static final int COLOR_INDEX = 0;
     private static final int WRITE_ALL = 0b1111;
     private static final int WRITE_NONE = 0;
     private static final int FIRST_VERTEX = 0;
@@ -32,40 +32,40 @@ final class OpenGlPass implements Pass {
     private static final int ONE_TARGET = 1;
 
     private final OpenGlGpu gpu;
-    private final int colourTargets;
+    private final int colorTargets;
     private @Nullable OpenGlPipeline pipeline;
 
-    private OpenGlPass(OpenGlGpu gpu, int colourTargets) {
+    private OpenGlPass(OpenGlGpu gpu, int colorTargets) {
         this.gpu = gpu;
-        this.colourTargets = colourTargets;
+        this.colorTargets = colorTargets;
     }
 
-    static OpenGlPass openForeign(OpenGlGpu gpu, int framebuffer, int width, int height, int colourTargets) {
+    static OpenGlPass openForeign(OpenGlGpu gpu, int framebuffer, int width, int height, int colorTargets) {
         GameHandles.bindFramebuffer(framebuffer);
         GameHandles.viewport(0, 0, width, height);
         GameHandles.scissor(0, 0, width, height);
-        return new OpenGlPass(gpu, colourTargets);
+        return new OpenGlPass(gpu, colorTargets);
     }
 
     static OpenGlPass open(OpenGlGpu gpu, PassSpec spec) {
-        OpenGlTexture colour = (OpenGlTexture) spec.colour();
+        OpenGlTexture color = (OpenGlTexture) spec.color();
         OpenGlTexture depth = (OpenGlTexture) spec.depth();
-        int framebuffer = gpu.framebuffer(colour, depth);
+        int framebuffer = gpu.framebuffer(color, depth);
         GameHandles.bindFramebuffer(framebuffer);
-        GameHandles.viewport(0, 0, colour.width(), colour.height());
-        GameHandles.scissor(0, 0, colour.width(), colour.height());
+        GameHandles.viewport(0, 0, color.width(), color.height());
+        GameHandles.scissor(0, 0, color.width(), color.height());
         GL20C.glDrawBuffers(GL30C.GL_COLOR_ATTACHMENT0);
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            if (spec.clearColour() != null) {
-                GameHandles.colourMask(COLOUR_INDEX, WRITE_ALL);
-                GL30C.glClearBufferfv(GL11C.GL_COLOR, COLOUR_INDEX,
-                        spec.clearColour().get(stack.mallocFloat(VECTOR_COMPONENTS)));
+            if (spec.clearColor() != null) {
+                GameHandles.colorMask(COLOR_INDEX, WRITE_ALL);
+                GL30C.glClearBufferfv(GL11C.GL_COLOR, COLOR_INDEX,
+                        spec.clearColor().get(stack.mallocFloat(VECTOR_COMPONENTS)));
             }
 
             if (depth != null && spec.clearDepth().isPresent()) {
                 GameHandles.depthMask(true);
-                GL30C.glClearBufferfv(GL11C.GL_DEPTH, COLOUR_INDEX,
+                GL30C.glClearBufferfv(GL11C.GL_DEPTH, COLOR_INDEX,
                         stack.floats((float) spec.clearDepth().getAsDouble()));
             }
         }
@@ -88,13 +88,13 @@ final class OpenGlPass implements Pass {
             GameHandles.depthTest(OpenGlTypes.depthFunction(depth.compare()), depth.writes());
         }
 
-        PipelineSpec.ColourTarget colour = spec.colour();
-        for (int index = COLOUR_INDEX; index < colourTargets; index++) {
-            GameHandles.colourMask(index, colour.writes() ? WRITE_ALL : WRITE_NONE);
-            if (colour.blend() == null) {
+        PipelineSpec.ColorTarget color = spec.color();
+        for (int index = COLOR_INDEX; index < colorTargets; index++) {
+            GameHandles.colorMask(index, color.writes() ? WRITE_ALL : WRITE_NONE);
+            if (color.blend() == null) {
                 GameHandles.noBlend(index);
             } else {
-                OpenGlTypes.BlendFactors factors = OpenGlTypes.blend(colour.blend());
+                OpenGlTypes.BlendFactors factors = OpenGlTypes.blend(color.blend());
                 GameHandles.blend(index, factors.sourceRgb(), factors.destinationRgb(), factors.sourceAlpha(),
                         factors.destinationAlpha());
             }

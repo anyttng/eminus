@@ -13,7 +13,7 @@ uniform sampler2D Lightmap;
 
 layout(location = 0) out vec2 faceUV;
 layout(location = 1) out vec4 vertexColor;
-layout(location = 2) flat out vec3 tintColour;
+layout(location = 2) flat out vec3 tintColor;
 layout(location = 3) flat out ivec2 atlasCell;
 layout(location = 5) flat out ivec4 variantInfo;
 layout(location = 6) flat out ivec3 cellOrigin;
@@ -42,19 +42,20 @@ void main() {
     variantInfo = ivec4(vertex.variantStart, vertex.variantCount, vertex.faceSlot, vertex.level);
     cellOrigin = vertex.cellOrigin;
     voxelPoint = vertex.voxelPoint;
-    tintColour = vertex.tint;
+    tintColor = vertex.tint;
     occlusionPoint = vertex.occlusionPoint;
     occlusionSize = vertex.occlusionSize;
     occlusionWord = uvec2(vertex.occlusion, vertex.mainDiagonal ? 1u : 0u);
 
-    vec4 colour = far_lightmap(Lightmap, ivec2(vertex.blockLight * LIGHT_STEP, vertex.skyLight * LIGHT_STEP));
-    float faceShade = vertex.face == 0 ? EminusShadeDown
-        : vertex.face == 1 ? EminusShadeUp
-        : vertex.face == 2 ? EminusShadeNorth
-        : vertex.face == 3 ? EminusShadeSouth
-        : vertex.face == 4 ? EminusShadeWest
-        : vertex.face == 5 ? EminusShadeEast
-        : SHADE_BLADE;
-    colour.rgb *= faceShade;
-    vertexColor = colour;
+    vec4 color = far_lightmap(Lightmap, ivec2(vertex.blockLight * LIGHT_STEP, vertex.skyLight * LIGHT_STEP));
+    uint shades = uint(texelFetch(EminusModelRecords, vertex.modelId * MODEL_TEXELS + SHADES_TEXEL).y);
+    uint shade = eminus_field(shades, vertex.faceSlot * SHADE_BITS, SHADE_BITS);
+    float faceShade = shade == 0u ? EminusShadeDown
+        : shade == 1u ? EminusShadeUp
+        : shade == 2u ? EminusShadeNorth
+        : shade == 3u ? EminusShadeSouth
+        : shade == 4u ? EminusShadeWest
+        : EminusShadeEast;
+    color.rgb *= faceShade;
+    vertexColor = color;
 }

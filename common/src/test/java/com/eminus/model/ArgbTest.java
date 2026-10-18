@@ -21,11 +21,11 @@ class ArgbTest {
     private static final String DARKENED_BLEND = "darkenedAlphaBlend";
 
     @Test
-    void theLinearMeanMatchesTheGamesForEveryGreyAndRandomQuadruples() {
+    void theLinearMeanMatchesTheGamesForEveryGrayAndRandomQuadruples() {
         for (int value = 0; value < CHANNEL_VALUES; value++) {
-            int grey = ARGB.color(value, value, value, value);
+            int gray = ARGB.color(value, value, value, value);
             int black = ARGB.color(CHANNEL_VALUES - 1 - value, 0, 0, 0);
-            assertEquals(ARGB.meanLinear(grey, black, grey, black), Argb.meanLinear(grey, black, grey, black),
+            assertEquals(ARGB.meanLinear(gray, black, gray, black), Argb.meanLinear(gray, black, gray, black),
                     "value " + value);
         }
 
@@ -47,13 +47,13 @@ class ArgbTest {
         Random random = new Random(SEED);
 
         for (int sample = 0; sample < SAMPLES; sample++) {
-            int[] colours = new int[CORNERS];
+            int[] colors = new int[CORNERS];
             for (int corner = 0; corner < CORNERS; corner++) {
-                colours[corner] = random.nextBoolean() ? random.nextInt() & RGB_MASK : random.nextInt();
+                colors[corner] = random.nextBoolean() ? random.nextInt() & RGB_MASK : random.nextInt();
             }
 
-            assertEquals(game.invoke(null, colours[0], colours[1], colours[2], colours[3]),
-                    Argb.darkenedAlphaBlend(colours[0], colours[1], colours[2], colours[3]));
+            assertEquals(game.invoke(null, colors[0], colors[1], colors[2], colors[3]),
+                    Argb.darkenedAlphaBlend(colors[0], colors[1], colors[2], colors[3]));
         }
     }
 

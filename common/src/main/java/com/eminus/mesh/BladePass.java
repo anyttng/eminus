@@ -13,11 +13,11 @@ public final class BladePass {
     private final Runnable whenBaked;
     private final FaceOcclusion occlusion;
 
-    public BladePass(MeshScratch scratch, MeshModels models, int level, Runnable whenBaked) {
+    public BladePass(MeshScratch scratch, MeshModels models, int level, boolean occluded, Runnable whenBaked) {
         this.scratch = scratch;
         this.models = models;
         this.whenBaked = whenBaked;
-        occlusion = new FaceOcclusion(scratch.voxels(), models, level);
+        occlusion = new FaceOcclusion(scratch.voxels(), models, level, occluded);
     }
 
     public boolean run() {
@@ -53,8 +53,8 @@ public final class BladePass {
             return;
         }
 
-        int colourIndex = QuadTint.of(scratch, models, entry, modelId, x, y, z);
-        long data = Quad.data(QuadLight.of(entry, metadata), modelId, colourIndex);
+        int colorIndex = QuadTint.of(scratch, models, entry, modelId, x, y, z);
+        long data = Quad.data(QuadLight.of(entry, metadata), modelId, colorIndex);
         int group = QuadGroups.ofBlade(metadata);
         int word = occlusion.blade(x, y, z, metadata);
 

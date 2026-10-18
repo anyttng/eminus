@@ -4,23 +4,38 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.UnaryOperator;
 
+import org.jspecify.annotations.Nullable;
+
 import com.eminus.Eminus;
+import com.eminus.client.settings.CustomLodScreen;
 import com.eminus.client.settings.SettingsText;
 import com.eminus.client.settings.SliderPositions;
 import com.eminus.compat.iris.IrisShaderPack;
+import com.eminus.compat.sodium.settings.mixin.VideoSettingsScreenAccessor;
+import com.eminus.settings.LodChoice;
 import com.eminus.settings.Settings;
+import com.eminus.settings.SettingsDraft;
 import com.eminus.settings.SettingsService;
 import com.eminus.settings.ShaderPackLod;
 
 import net.caffeinemc.mods.sodium.api.config.ConfigEntryPoint;
 import net.caffeinemc.mods.sodium.api.config.structure.ConfigBuilder;
 import net.caffeinemc.mods.sodium.api.config.structure.OptionGroupBuilder;
+import net.caffeinemc.mods.sodium.api.config.structure.OptionPageBuilder;
+import net.caffeinemc.mods.sodium.client.config.ConfigManager;
+import net.caffeinemc.mods.sodium.client.config.structure.ModOptions;
+import net.caffeinemc.mods.sodium.client.config.structure.OptionPage;
+import net.caffeinemc.mods.sodium.client.config.structure.Page;
+import net.caffeinemc.mods.sodium.client.gui.VideoSettingsScreen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 public final class SodiumSettingsPage implements ConfigEntryPoint {
     private static final String INGESTION_ID = "ingestion";
     private static final String LOD_QUALITY_ID = "lod_quality";
+    private static final String CUSTOM_LOD_ID = "custom_lod";
     private static final String FAR_RENDER_CELLS_ID = "far_render_cells";
     private static final String WORKER_THREADS_ID = "worker_threads";
     private static final String DETAIL_DISTANCE_ID = "detail_distance";
@@ -30,6 +45,7 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
     private static final String LOD_ANIMATIONS_ID = "lod_animations";
 
     private static final int STEP = 1;
+    private static final int CUSTOM_POSITION = SliderPositions.lodChoicePosition(LodChoice.CUSTOM);
 
     private final List<UnaryOperator<Settings>> edits = new ArrayList<>();
 
@@ -37,24 +53,26 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
     public void registerConfigLate(ConfigBuilder builder) {
         Settings defaults = Settings.defaults();
 
-        OptionGroupBuilder group = builder.createOptionGroup()
-                .addOption(builder.createBooleanOption(id(INGESTION_ID))
-                        .setName(Component.translatable(SettingsText.INGESTION_KEY))
-                        .setTooltip(SettingsText.hint(SettingsText.INGESTION_KEY))
-                        .setStorageHandler(this::save)
-                        .setDefaultValue(defaults.ingestion())
-                        .setBinding(value -> edit(settings -> settings.withIngestion(value)),
-                                () -> current().ingestion()))
+        OptionGroupBuilder quality = builder.createOptionGroup()
+                .setName(Component.translatable(SettingsText.QUALITY_CATEGORY_KEY))
                 .addOption(builder.createIntegerOption(id(LOD_QUALITY_ID))
                         .setName(Component.translatable(SettingsText.LOD_QUALITY_KEY))
-                        .setTooltip(SettingsText.hint(SettingsText.LOD_QUALITY_KEY))
+                        .setTooltip(position -> SettingsText.lodChoiceHint())
                         .setStorageHandler(this::save)
-                        .setRange(SliderPositions.FIRST, SliderPositions.LAST_LOD_QUALITY, STEP)
-                        .setValueFormatter(position -> SettingsText.lodQuality(SliderPositions.lodQuality(position)))
-                        .setDefaultValue(SliderPositions.lodQualityPosition(defaults.lodQuality()))
-                        .setBinding(position -> edit(settings -> settings.withLodQuality(
-                                        SliderPositions.lodQuality(position))),
-                                () -> SliderPositions.lodQualityPosition(current().lodQuality())))
+                        .setRange(SliderPositions.FIRST, SliderPositions.LAST_LOD_CHOICE, STEP)
+                        .setValueFormatter(position -> SettingsText.lodChoice(SliderPositions.lodChoice(position)))
+                        .setDefaultValue(SliderPositions.lodChoicePosition(defaults.lodChoice()))
+                        .setBinding(position -> edit(settings -> settings.withLodChoice(
+                                        SliderPositions.lodChoice(position))),
+                                () -> SliderPositions.lodChoicePosition(current().lodChoice())))
+                .addOption(builder.createExternalButtonOption(id(CUSTOM_LOD_ID))
+                        .setName(Component.translatable(SettingsText.CUSTOM_LOD_KEY))
+                        .setTooltip(SettingsText.hint(SettingsText.CUSTOM_LOD_KEY))
+                        .setEnabledProvider(state -> state.readIntOption(id(LOD_QUALITY_ID)) == CUSTOM_POSITION,
+                                id(LOD_QUALITY_ID))
+                        .setScreenConsumer(screen -> Minecraft.getInstance().gui.setScreen(
+                                new CustomLodScreen(screen, SettingsDraft.of(SettingsService.get()),
+                                        SodiumSettingsPage::returnTo))))
                 .addOption(builder.createIntegerOption(id(FAR_RENDER_CELLS_ID))
                         .setName(Component.translatable(SettingsText.FAR_RENDER_CELLS_KEY))
                         .setTooltip(SettingsText.hint(SettingsText.FAR_RENDER_CELLS_KEY))
@@ -64,15 +82,6 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setDefaultValue(defaults.farRenderCells())
                         .setBinding(value -> edit(settings -> settings.withFarRenderCells(value)),
                                 () -> current().farRenderCells()))
-                .addOption(builder.createIntegerOption(id(WORKER_THREADS_ID))
-                        .setName(Component.translatable(SettingsText.WORKER_THREADS_KEY))
-                        .setTooltip(SettingsText.hint(SettingsText.WORKER_THREADS_KEY))
-                        .setStorageHandler(this::save)
-                        .setRange(Settings.MIN_WORKER_THREADS, Settings.MAX_WORKER_THREADS, STEP)
-                        .setValueFormatter(SodiumSettingsPage::number)
-                        .setDefaultValue(defaults.workerThreads())
-                        .setBinding(value -> edit(settings -> settings.withWorkerThreads(value)),
-                                () -> current().workerThreads()))
                 .addOption(builder.createIntegerOption(id(DETAIL_DISTANCE_ID))
                         .setName(Component.translatable(SettingsText.DETAIL_DISTANCE_KEY))
                         .setTooltip(position -> SettingsText.detailDistanceHint())
@@ -83,43 +92,67 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setDefaultValue(SliderPositions.detailDistancePosition(defaults.detailDistance()))
                         .setBinding(position -> edit(settings -> settings.withDetailDistance(
                                         SliderPositions.detailDistance(position))),
-                                () -> SliderPositions.detailDistancePosition(current().detailDistance())))
+                                () -> SliderPositions.detailDistancePosition(current().detailDistance())));
+        OptionGroupBuilder appearance = builder.createOptionGroup()
+                .setName(Component.translatable(SettingsText.APPEARANCE_CATEGORY_KEY))
                 .addOption(builder.createBooleanOption(id(FOG_ID))
                         .setName(Component.translatable(SettingsText.FOG_KEY))
-                        .setTooltip(SettingsText.hint(SettingsText.FOG_KEY))
+                        .setTooltip(value -> SettingsText.toggleHint(SettingsText.FOG_KEY))
                         .setStorageHandler(this::save)
                         .setDefaultValue(defaults.fog())
                         .setBinding(value -> edit(settings -> settings.withFog(value)),
                                 () -> current().fog()))
                 .addOption(builder.createBooleanOption(id(FADE_ID))
                         .setName(Component.translatable(SettingsText.FADE_KEY))
-                        .setTooltip(SettingsText.hint(SettingsText.FADE_KEY))
+                        .setTooltip(value -> SettingsText.toggleHint(SettingsText.FADE_KEY))
                         .setStorageHandler(this::save)
                         .setDefaultValue(defaults.fade())
                         .setBinding(value -> edit(settings -> settings.withFade(value)),
                                 () -> current().fade()));
+        OptionGroupBuilder building = builder.createOptionGroup()
+                .setName(Component.translatable(SettingsText.BUILDING_CATEGORY_KEY))
+                .addOption(builder.createBooleanOption(id(INGESTION_ID))
+                        .setName(Component.translatable(SettingsText.INGESTION_KEY))
+                        .setTooltip(value -> SettingsText.toggleHint(SettingsText.INGESTION_KEY))
+                        .setStorageHandler(this::save)
+                        .setDefaultValue(defaults.ingestion())
+                        .setBinding(value -> edit(settings -> settings.withIngestion(value)),
+                                () -> current().ingestion()))
+                .addOption(builder.createIntegerOption(id(WORKER_THREADS_ID))
+                        .setName(Component.translatable(SettingsText.WORKER_THREADS_KEY))
+                        .setTooltip(SettingsText.hint(SettingsText.WORKER_THREADS_KEY))
+                        .setStorageHandler(this::save)
+                        .setRange(Settings.MIN_WORKER_THREADS, Settings.MAX_WORKER_THREADS, STEP)
+                        .setValueFormatter(SodiumSettingsPage::number)
+                        .setDefaultValue(defaults.workerThreads())
+                        .setBinding(value -> edit(settings -> settings.withWorkerThreads(value)),
+                                () -> current().workerThreads()));
+        OptionPageBuilder page = builder.createOptionPage()
+                .setName(Component.translatable(SettingsText.TITLE_KEY))
+                .addOptionGroup(quality)
+                .addOptionGroup(appearance)
+                .addOptionGroup(building);
         if (IrisShaderPack.installed()) {
-            group.addOption(builder.createEnumOption(id(SHADER_PACK_LOD_ID), ShaderPackLod.class)
-                    .setName(Component.translatable(SettingsText.SHADER_PACK_LOD_KEY))
-                    .setTooltip(SettingsText.hint(SettingsText.SHADER_PACK_LOD_KEY))
-                    .setStorageHandler(this::save)
-                    .setElementNameProvider(SettingsText::shaderPackLod)
-                    .setDefaultValue(defaults.shaderPackLod())
-                    .setBinding(value -> edit(settings -> settings.withShaderPackLod(value)),
-                            () -> current().shaderPackLod()));
-            group.addOption(builder.createBooleanOption(id(LOD_ANIMATIONS_ID))
-                    .setName(Component.translatable(SettingsText.LOD_ANIMATIONS_KEY))
-                    .setTooltip(SettingsText.hint(SettingsText.LOD_ANIMATIONS_KEY))
-                    .setStorageHandler(this::save)
-                    .setDefaultValue(defaults.lodAnimations())
-                    .setBinding(value -> edit(settings -> settings.withLodAnimations(value)),
-                            () -> current().lodAnimations()));
+            page.addOptionGroup(builder.createOptionGroup()
+                    .setName(Component.translatable(SettingsText.SHADER_PACKS_CATEGORY_KEY))
+                    .addOption(builder.createEnumOption(id(SHADER_PACK_LOD_ID), ShaderPackLod.class)
+                            .setName(Component.translatable(SettingsText.SHADER_PACK_LOD_KEY))
+                            .setTooltip(value -> SettingsText.shaderPackLodHint())
+                            .setStorageHandler(this::save)
+                            .setElementNameProvider(SettingsText::shaderPackLod)
+                            .setDefaultValue(defaults.shaderPackLod())
+                            .setBinding(value -> edit(settings -> settings.withShaderPackLod(value)),
+                                    () -> current().shaderPackLod()))
+                    .addOption(builder.createBooleanOption(id(LOD_ANIMATIONS_ID))
+                            .setName(Component.translatable(SettingsText.LOD_ANIMATIONS_KEY))
+                            .setTooltip(value -> SettingsText.toggleHint(SettingsText.LOD_ANIMATIONS_KEY))
+                            .setStorageHandler(this::save)
+                            .setDefaultValue(defaults.lodAnimations())
+                            .setBinding(value -> edit(settings -> settings.withLodAnimations(value)),
+                                    () -> current().lodAnimations())));
         }
 
-        builder.registerOwnModOptions()
-                .addPage(builder.createOptionPage()
-                        .setName(Component.translatable(SettingsText.TITLE_KEY))
-                        .addOptionGroup(group));
+        builder.registerOwnModOptions().addPage(page);
     }
 
     private void edit(UnaryOperator<Settings> edit) {
@@ -134,6 +167,41 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
 
         edits.clear();
         SettingsService.get().update(updated);
+    }
+
+    private static void returnTo(Screen sodium) {
+        Minecraft client = Minecraft.getInstance();
+        try {
+            OptionPage page = ownPage();
+            boolean gated = sodium instanceof VideoSettingsScreenAccessor;
+            Eminus.LOGGER.info("[eminus/sodium-settings] return path={} accessor={} page_found={}",
+                    gated && page != null ? "own_page" : "first_page", gated, page != null);
+            if (sodium instanceof VideoSettingsScreenAccessor accessor && page != null) {
+                client.gui.setScreen(VideoSettingsScreen.createScreen(accessor.eminus$prevScreen(), page));
+                return;
+            }
+
+            ConfigManager.CONFIG.resetAllOptionsFromBindings();
+        } catch (LinkageError changed) {
+            Eminus.LOGGER.warn("Sodium's screen could not be reopened on Eminus's page after Custom LOD Quality;"
+                    + " its options show as they were until it is opened again: {}", changed.toString());
+        }
+
+        client.gui.setScreen(sodium);
+    }
+
+    private static @Nullable OptionPage ownPage() {
+        for (ModOptions mod : ConfigManager.CONFIG.getModOptions()) {
+            if (Eminus.MODID.equals(mod.configId())) {
+                for (Page page : mod.pages()) {
+                    if (page instanceof OptionPage options) {
+                        return options;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     private static Settings current() {

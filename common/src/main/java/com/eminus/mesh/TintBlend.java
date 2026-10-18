@@ -12,7 +12,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
 public final class TintBlend {
     public static final int MAX_RADIUS = 7;
-    public static final int NO_COLOUR = BiomeTints.NO_COLOUR;
+    public static final int NO_COLOR = BiomeTints.NO_COLOR;
 
     private static final int SIDE = DetailLevel.VOXELS_PER_SIDE;
     private static final int MAX_WINDOW = SIDE + 2 * MAX_RADIUS;
@@ -21,7 +21,7 @@ public final class TintBlend {
     private static final int CHANNEL_MASK = 0xFF;
 
     private static final class RowLayers {
-        private final int[][] colours = new int[SIDE][SIDE * SIDE];
+        private final int[][] colors = new int[SIDE][SIDE * SIDE];
         private long built;
     }
 
@@ -55,20 +55,20 @@ public final class TintBlend {
         }
     }
 
-    public int colour(int row, int x, int y, int z) {
+    public int color(int row, int x, int y, int z) {
         int constant = tints.constant(row);
-        if (constant != NO_COLOUR) {
+        if (constant != NO_COLOR) {
             return constant;
         }
 
         RowLayers layers = rows.computeIfAbsent(row, _ -> new RowLayers());
         long bit = 1L << y;
         if ((layers.built & bit) == 0L) {
-            build(row, y, layers.colours[y]);
+            build(row, y, layers.colors[y]);
             layers.built |= bit;
         }
 
-        return layers.colours[y][z * SIDE + x];
+        return layers.colors[y][z * SIDE + x];
     }
 
     private void build(int row, int y, int[] into) {
@@ -76,7 +76,7 @@ public final class TintBlend {
         int stride = window + 1;
         clearBorders(stride, window);
         int lastBiome = VoxelEntry.UNKNOWN_BIOME;
-        int lastColour = NO_COLOUR;
+        int lastColor = NO_COLOR;
         boolean lastPositional = false;
 
         for (int wz = 0; wz < window; wz++) {
@@ -89,22 +89,22 @@ public final class TintBlend {
                 int x = wx - radius;
                 int z = wz - radius;
                 int biome = voxels.biome(x, y, z);
-                int colour = NO_COLOUR;
+                int color = NO_COLOR;
 
                 if (biome != VoxelEntry.UNKNOWN_BIOME) {
                     if (biome != lastBiome) {
                         lastBiome = biome;
                         lastPositional = tints.positional(biome);
-                        lastColour = lastPositional ? NO_COLOUR : sample(row, biome, x, z);
+                        lastColor = lastPositional ? NO_COLOR : sample(row, biome, x, z);
                     }
 
-                    colour = lastPositional ? sample(row, biome, x, z) : lastColour;
+                    color = lastPositional ? sample(row, biome, x, z) : lastColor;
                 }
 
-                if (colour != NO_COLOUR) {
-                    rowRed += (colour >> RED_SHIFT) & CHANNEL_MASK;
-                    rowGreen += (colour >> GREEN_SHIFT) & CHANNEL_MASK;
-                    rowBlue += colour & CHANNEL_MASK;
+                if (color != NO_COLOR) {
+                    rowRed += (color >> RED_SHIFT) & CHANNEL_MASK;
+                    rowGreen += (color >> GREEN_SHIFT) & CHANNEL_MASK;
+                    rowBlue += color & CHANNEL_MASK;
                     rowCount++;
                 }
 
@@ -121,7 +121,7 @@ public final class TintBlend {
             for (int x = 0; x < SIDE; x++) {
                 int samples = sum(count, stride, x, z, span);
                 into[z * SIDE + x] = samples == 0
-                        ? NO_COLOUR
+                        ? NO_COLOR
                         : (sum(red, stride, x, z, span) / samples) << RED_SHIFT
                                 | (sum(green, stride, x, z, span) / samples) << GREEN_SHIFT
                                 | sum(blue, stride, x, z, span) / samples;
@@ -139,7 +139,7 @@ public final class TintBlend {
     }
 
     private int sample(int row, int biome, int x, int z) {
-        return tints.colour(row, biome, originX + (x << level), originZ + (z << level));
+        return tints.color(row, biome, originX + (x << level), originZ + (z << level));
     }
 
     private static int sum(int[] table, int stride, int x, int z, int span) {

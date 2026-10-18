@@ -5,6 +5,9 @@ import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.ToIntFunction;
 
+import static com.eminus.client.settings.SettingsText.APPEARANCE_CATEGORY_KEY;
+import static com.eminus.client.settings.SettingsText.BUILDING_CATEGORY_KEY;
+import static com.eminus.client.settings.SettingsText.CUSTOM_LOD_KEY;
 import static com.eminus.client.settings.SettingsText.DETAIL_DISTANCE_KEY;
 import static com.eminus.client.settings.SettingsText.FADE_KEY;
 import static com.eminus.client.settings.SettingsText.FAR_RENDER_CELLS_KEY;
@@ -12,32 +15,37 @@ import static com.eminus.client.settings.SettingsText.FOG_KEY;
 import static com.eminus.client.settings.SettingsText.INGESTION_KEY;
 import static com.eminus.client.settings.SettingsText.LOD_ANIMATIONS_KEY;
 import static com.eminus.client.settings.SettingsText.LOD_QUALITY_KEY;
+import static com.eminus.client.settings.SettingsText.QUALITY_CATEGORY_KEY;
+import static com.eminus.client.settings.SettingsText.SHADER_PACKS_CATEGORY_KEY;
 import static com.eminus.client.settings.SettingsText.SHADER_PACK_LOD_KEY;
 import static com.eminus.client.settings.SettingsText.TITLE_KEY;
 import static com.eminus.client.settings.SettingsText.WORKER_THREADS_KEY;
+import static com.eminus.client.settings.SettingsText.tooltip;
 
 import com.eminus.compat.iris.IrisShaderPack;
 import com.eminus.settings.DetailDistance;
-import com.eminus.settings.LodQuality;
+import com.eminus.settings.LodChoice;
 import com.eminus.settings.Settings;
+import com.eminus.settings.SettingsDraft;
 import com.eminus.settings.SettingsService;
 import com.eminus.settings.ShaderPackLod;
 import com.mojang.serialization.Codec;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.network.chat.Component;
 
-public class SettingsScreen extends OptionsSubScreen {
+import org.jspecify.annotations.Nullable;
+
+public final class SettingsScreen extends DraftOptionsScreen {
     private static final boolean APPLY_ON_RELEASE = false;
     private static final boolean STEPPED = true;
 
     private final OptionInstance<Boolean> ingestion;
-    private final OptionInstance<LodQuality> lodQuality;
+    private final OptionInstance<LodChoice> lodChoice;
     private final OptionInstance<Integer> farRenderCells;
     private final OptionInstance<Integer> workerThreads;
     private final OptionInstance<DetailDistance> detailDistance;
@@ -45,71 +53,89 @@ public class SettingsScreen extends OptionsSubScreen {
     private final OptionInstance<Boolean> fade;
     private final OptionInstance<ShaderPackLod> shaderPackLod;
     private final OptionInstance<Boolean> lodAnimations;
+    private @Nullable Button customLodButton;
 
     public SettingsScreen(Screen lastScreen) {
-        super(lastScreen, Minecraft.getInstance().options, Component.translatable(TITLE_KEY));
+        super(lastScreen, Component.translatable(TITLE_KEY), SettingsDraft.of(SettingsService.get()),
+                DraftOptionsScreen::open);
 
-        Settings settings = SettingsService.get().settings();
+        Settings settings = this.draft.settings();
 
-        this.ingestion = OptionInstance.createBoolean(INGESTION_KEY, hint(INGESTION_KEY), settings.ingestion(),
-                value -> this.apply());
-        this.lodQuality = new OptionInstance<>(LOD_QUALITY_KEY, hint(LOD_QUALITY_KEY),
-                (caption, value) -> Options.genericValueLabel(caption, SettingsText.lodQuality(value)),
-                coarseToFine(SliderPositions.LAST_LOD_QUALITY, SliderPositions::lodQuality,
-                        SliderPositions::lodQualityPosition),
-                settings.lodQuality(), value -> this.apply());
-        this.farRenderCells = new OptionInstance<>(FAR_RENDER_CELLS_KEY, hint(FAR_RENDER_CELLS_KEY),
+        this.ingestion = OptionInstance.createBoolean(INGESTION_KEY, tooltip(SettingsText.toggleHint(INGESTION_KEY)),
+                settings.ingestion(), value -> this.editFromOptions());
+        this.lodChoice = new OptionInstance<>(LOD_QUALITY_KEY, tooltip(SettingsText.lodChoiceHint()),
+                (caption, value) -> Options.genericValueLabel(caption, SettingsText.lodChoice(value)),
+                coarseToFine(SliderPositions.LAST_LOD_CHOICE, SliderPositions::lodChoice,
+                        SliderPositions::lodChoicePosition),
+                settings.lodChoice(), value -> this.editFromOptions());
+        this.farRenderCells = new OptionInstance<>(FAR_RENDER_CELLS_KEY, tooltip(FAR_RENDER_CELLS_KEY),
                 (caption, value) -> Options.genericValueLabel(caption, SettingsText.farRenderDistance(value)),
                 new OptionInstance.IntRange(Settings.MIN_FAR_RENDER_CELLS, Settings.MAX_FAR_RENDER_CELLS,
                         APPLY_ON_RELEASE),
-                settings.farRenderCells(), value -> this.apply());
-        this.workerThreads = new OptionInstance<>(WORKER_THREADS_KEY, hint(WORKER_THREADS_KEY),
+                settings.farRenderCells(), value -> this.editFromOptions());
+        this.workerThreads = new OptionInstance<>(WORKER_THREADS_KEY, tooltip(WORKER_THREADS_KEY),
                 (caption, value) -> Options.genericValueLabel(caption, value),
                 new OptionInstance.IntRange(Settings.MIN_WORKER_THREADS, Settings.MAX_WORKER_THREADS,
                         APPLY_ON_RELEASE),
-                settings.workerThreads(), value -> this.apply());
+                settings.workerThreads(), value -> this.editFromOptions());
         this.detailDistance = new OptionInstance<>(DETAIL_DISTANCE_KEY,
                 value -> Tooltip.create(SettingsText.detailDistanceHint()),
                 (caption, value) -> Options.genericValueLabel(caption, SettingsText.detailDistance(value)),
                 coarseToFine(SliderPositions.LAST_DETAIL_DISTANCE, SliderPositions::detailDistance,
                         SliderPositions::detailDistancePosition),
-                settings.detailDistance(), value -> this.apply());
-        this.fog = OptionInstance.createBoolean(FOG_KEY, hint(FOG_KEY), settings.fog(), value -> this.apply());
-        this.fade = OptionInstance.createBoolean(FADE_KEY, hint(FADE_KEY), settings.fade(), value -> this.apply());
-        this.shaderPackLod = new OptionInstance<>(SHADER_PACK_LOD_KEY, hint(SHADER_PACK_LOD_KEY),
-                (caption, value) -> Options.genericValueLabel(caption, SettingsText.shaderPackLod(value)),
+                settings.detailDistance(), value -> this.editFromOptions());
+        this.fog = OptionInstance.createBoolean(FOG_KEY, tooltip(SettingsText.toggleHint(FOG_KEY)), settings.fog(),
+                value -> this.editFromOptions());
+        this.fade = OptionInstance.createBoolean(FADE_KEY, tooltip(SettingsText.toggleHint(FADE_KEY)), settings.fade(),
+                value -> this.editFromOptions());
+        this.shaderPackLod = new OptionInstance<>(SHADER_PACK_LOD_KEY, tooltip(SettingsText.shaderPackLodHint()),
+                (caption, value) -> SettingsText.shaderPackLod(value),
                 new OptionInstance.Enum<>(List.of(ShaderPackLod.values()),
                         Codec.STRING.xmap(key -> ShaderPackLod.fromKey(key).orElse(Settings.DEFAULT_SHADER_PACK_LOD),
                                 ShaderPackLod::key)),
-                settings.shaderPackLod(), value -> this.apply());
-        this.lodAnimations = OptionInstance.createBoolean(LOD_ANIMATIONS_KEY, hint(LOD_ANIMATIONS_KEY),
-                settings.lodAnimations(), value -> this.apply());
+                settings.shaderPackLod(), value -> this.editFromOptions());
+        this.lodAnimations = OptionInstance.createBoolean(LOD_ANIMATIONS_KEY,
+                tooltip(SettingsText.toggleHint(LOD_ANIMATIONS_KEY)), settings.lodAnimations(),
+                value -> this.editFromOptions());
     }
 
     @Override
     protected void addOptions() {
-        this.list.addBig(this.ingestion);
-        this.list.addBig(this.lodQuality);
+        this.customLodButton = Button.builder(Component.translatable(CUSTOM_LOD_KEY),
+                        button -> this.minecraft.gui.setScreen(
+                                new CustomLodScreen(this, this.draft, DraftOptionsScreen::open)))
+                .tooltip(Tooltip.create(SettingsText.hint(CUSTOM_LOD_KEY)))
+                .build();
+        this.addHeader(QUALITY_CATEGORY_KEY);
+        this.list.addSmall(this.lodChoice.createButton(this.options), this.lodChoice, this.customLodButton);
         this.list.addBig(this.farRenderCells);
-        this.list.addBig(this.workerThreads);
         this.list.addBig(this.detailDistance);
+        this.addHeader(APPEARANCE_CATEGORY_KEY);
         this.list.addBig(this.fog);
         this.list.addBig(this.fade);
+        this.addHeader(BUILDING_CATEGORY_KEY);
+        this.list.addBig(this.ingestion);
+        this.list.addBig(this.workerThreads);
         if (IrisShaderPack.installed()) {
+            this.addHeader(SHADER_PACKS_CATEGORY_KEY);
             this.list.addBig(this.shaderPackLod);
             this.list.addBig(this.lodAnimations);
         }
     }
 
-    // Vanilla's OptionsSubScreen rewrites options.txt here, and this screen owns no vanilla option.
     @Override
-    public void removed() {
+    protected void draftChanged() {
+        super.draftChanged();
+        if (this.customLodButton != null) {
+            this.customLodButton.active = this.draft.settings().lodChoice() == LodChoice.CUSTOM;
+        }
     }
 
-    private void apply() {
-        SettingsService.get().update(new Settings(
+    private void editFromOptions() {
+        this.edit(settings -> new Settings(
                 this.ingestion.get(),
-                this.lodQuality.get(),
+                this.lodChoice.get(),
+                settings.customLod(),
                 this.farRenderCells.get(),
                 this.workerThreads.get(),
                 this.detailDistance.get(),
@@ -117,10 +143,6 @@ public class SettingsScreen extends OptionsSubScreen {
                 this.fade.get(),
                 this.shaderPackLod.get(),
                 this.lodAnimations.get()));
-    }
-
-    private static <T> OptionInstance.TooltipSupplier<T> hint(String captionKey) {
-        return OptionInstance.cachedConstantTooltip(SettingsText.hint(captionKey));
     }
 
     private static <T> OptionInstance.SliderableValueSet<T> coarseToFine(int lastPosition, IntFunction<T> value,

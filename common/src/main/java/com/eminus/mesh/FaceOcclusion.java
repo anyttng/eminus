@@ -17,6 +17,7 @@ public final class FaceOcclusion {
     private final CellVoxels voxels;
     private final MeshModels models;
     private final boolean finest;
+    private final boolean drawn;
 
     private int baseX;
     private int baseY;
@@ -31,14 +32,15 @@ public final class FaceOcclusion {
     private int vY;
     private int vZ;
 
-    public FaceOcclusion(CellVoxels voxels, MeshModels models, int level) {
+    public FaceOcclusion(CellVoxels voxels, MeshModels models, int level, boolean drawn) {
         this.voxels = voxels;
         this.models = models;
         finest = level == DetailLevel.MIN;
+        this.drawn = drawn;
     }
 
     public int face(Direction face, int x, int y, int z, int stateId, int metadata, float inset) {
-        if (!ModelMetadata.has(metadata, ModelMetadata.SMOOTH)) {
+        if (!drawn || !ModelMetadata.has(metadata, ModelMetadata.SMOOTH)) {
             return OcclusionWord.NONE;
         }
 
@@ -48,7 +50,7 @@ public final class FaceOcclusion {
     }
 
     public int blade(int x, int y, int z, int metadata) {
-        return ModelMetadata.has(metadata, ModelMetadata.SMOOTH)
+        return drawn && ModelMetadata.has(metadata, ModelMetadata.SMOOTH)
                 ? word(BLADE_FACING, x, y, z, false)
                 : OcclusionWord.NONE;
     }

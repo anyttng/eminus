@@ -15,7 +15,7 @@
 Open the settings screen from the mod list (Config on NeoForge, Configure through Mod Menu on Fabric) or from the Eminus page in Sodium's video settings. The same values live in `config/eminus.json`.
 
 - **Ingestion**: turns saving of newly seen chunks on or off.
-- **LOD quality**: Full, High, Medium, Low or Minimal.
+- **LOD quality**: Low, Medium, High, Ultra or Custom. Under Custom the Custom Settings... button beside it sets five values one by one: voxel size, see-through leaves (apart from the game's own option), grass and flowers, texture resolution and corner occlusion. Custom keeps them while a preset is picked.
 - **LOD distance**: how far LOD reaches.
 - **Worker threads**: background threads that build LOD.
 - **Detail distance**: how far out the finer detail of LOD reaches; each step up doubles that distance and costs more video memory.
@@ -27,7 +27,7 @@ Two more appear only with Iris installed:
 - **Shader pack LOD**: how LOD is drawn under a shader pack not made for Eminus. Default draws it over the pack's image in Eminus's own look. Distant Horizons lets a pack that supports Distant Horizons draw it with the pack's light and fog, one flat colour per block, while Distant Horizons itself is not installed.
 - **LOD animations**: lets a shader pack made for Eminus sway grass, leaves and water in LOD; off saves the GPU time this costs.
 
-Every setting applies at once. A LOD quality change between Full and High redraws LOD; any other LOD quality change also reads the chunks around you again.
+The settings are grouped into Quality, Fog, Performance and, with Iris, Shaders. A change takes effect on Apply Changes or Done, all changes together. A LOD quality change redraws LOD. A change of the voxel size, which only Custom sets, also reads the chunks around you again.
 
 ## Compatibility
 

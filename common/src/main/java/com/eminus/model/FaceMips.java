@@ -14,12 +14,12 @@ public final class FaceMips {
     private static final float STRICT_CUTOUT_REFERENCE = 0.3F;
     private static final int SUBSAMPLES = 4;
     private static final float SUBSAMPLE_CELLS = SUBSAMPLES * SUBSAMPLES;
-    private static final float SUBSAMPLE_CENTRE = 0.5F;
+    private static final float SUBSAMPLE_CENTER = 0.5F;
     private static final int SCALE_STEPS = 5;
     private static final float MAX_ALPHA_SCALE = 4.0F;
     private static final float ALPHA_LIFT = 0.025F;
 
-    public static int[][] colourLevels(int[] face, int side, FaceMip mip, boolean opaque) {
+    public static int[][] colorLevels(int[] face, int side, FaceMip mip, boolean opaque) {
         // A face is stored bottom-up; the game's float sums run over the sprite's rows top-down.
         flipRows(face, side);
         MipStrategy strategy = mip.strategy();
@@ -108,9 +108,9 @@ public final class FaceMips {
                 float texelCoverage = 0.0F;
 
                 for (int subsampleY = 0; subsampleY < SUBSAMPLES; subsampleY++) {
-                    float fy = (subsampleY + SUBSAMPLE_CENTRE) / SUBSAMPLES;
+                    float fy = (subsampleY + SUBSAMPLE_CENTER) / SUBSAMPLES;
                     for (int subsampleX = 0; subsampleX < SUBSAMPLES; subsampleX++) {
-                        float fx = (subsampleX + SUBSAMPLE_CENTRE) / SUBSAMPLES;
+                        float fx = (subsampleX + SUBSAMPLE_CENTER) / SUBSAMPLES;
                         float alpha = alpha00 * (1.0F - fx) * (1.0F - fy) + alpha10 * fx * (1.0F - fy)
                                 + alpha01 * (1.0F - fx) * fy + alpha11 * fx * fy;
                         if (alpha > reference) {

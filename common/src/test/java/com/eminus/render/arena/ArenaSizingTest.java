@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.OptionalLong;
 
 import com.eminus.cell.DetailLevel;
+import com.eminus.mesh.MeshOcclusion;
 import com.eminus.mesh.OcclusionWord;
 import com.eminus.settings.DetailDistance;
 import com.eminus.settings.FarDistance;
@@ -20,7 +21,7 @@ class ArenaSizingTest {
     private static final float FOCAL_PIXELS = 978.0F;
     private static final int FAR_CELLS = Settings.DEFAULT_FAR_RENDER_CELLS;
     private static final int SUBDIVISION = Settings.DEFAULT_DETAIL_DISTANCE.pixels();
-    private static final int LOWEST_LEVEL = Settings.DEFAULT_LOD_QUALITY.storedLevel();
+    private static final int LOWEST_LEVEL = Settings.defaults().lodQuality().storedLevel();
     private static final float MEASURED_FOCAL_PIXELS = 977.6F;
     private static final int MEASURED_FAR_CHUNKS = 128;
     private static final int MEASURED_FAR_CELLS = FarDistance.chunksToCells(MEASURED_FAR_CHUNKS);
@@ -32,12 +33,12 @@ class ArenaSizingTest {
     @Test
     void aBudgetBelowTheFloorIsLiftedToIt() {
         assertEquals(ArenaSizing.MIN_BYTES, ArenaSizing.wanted(Settings.MIN_FAR_RENDER_CELLS,
-                DetailDistance.MINIMAL.pixels(), FOCAL_PIXELS, DetailLevel.MAX));
+                DetailDistance.MINIMAL.pixels(), FOCAL_PIXELS, DetailLevel.MAX, MeshOcclusion.EVERY_LEVEL));
     }
 
     @Test
     void theSmallestRenderDistanceStillPaysForTheFinestShell() {
-        long bytes = ArenaSizing.wanted(Settings.MIN_FAR_RENDER_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+        long bytes = ArenaSizing.wanted(Settings.MIN_FAR_RENDER_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL, MeshOcclusion.EVERY_LEVEL);
 
         assertTrue(bytes > ArenaSizing.MIN_BYTES,
                 "The level-0 shell reaches past the shortest far distance, so the floor does not bind: " + bytes);
@@ -45,7 +46,7 @@ class ArenaSizingTest {
 
     @Test
     void theLargestRenderDistanceIsCappedAtTheCeiling() {
-        long wanted = ArenaSizing.wanted(Settings.MAX_FAR_RENDER_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+        long wanted = ArenaSizing.wanted(Settings.MAX_FAR_RENDER_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL, MeshOcclusion.EVERY_LEVEL);
 
         assertTrue(wanted > TEXEL_LIMITED, "The largest render distance asks for more than the ceiling: " + wanted);
         assertEquals(TEXEL_LIMITED, ArenaSizing.fitted(wanted, TEXEL_LIMITED));
@@ -53,7 +54,7 @@ class ArenaSizingTest {
 
     @Test
     void theDefaultSettingsLandBetweenTheBounds() {
-        long bytes = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+        long bytes = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL, MeshOcclusion.EVERY_LEVEL);
 
         assertTrue(bytes > ArenaSizing.MIN_BYTES, "The default asks for more than the minimum: " + bytes);
         assertTrue(bytes < ArenaSizing.UNREAD_TEXEL_BYTES, "The default asks for less than the fallback: " + bytes);
@@ -97,29 +98,48 @@ class ArenaSizingTest {
 
     @Test
     void theDemandAtLowIsPinned() {
-        long quads = 733L * 3 * 7400 + 733L * 2 * 10900 + 733L * 11400 + 201L * 7200 + 50L * 5700;
+        long[] quads = {733L * 3 * 7400, 733L * 2 * 10900, 733L * 11400, 201L * 7200, 50L * 5700};
 
-        assertEquals(withHeadroom(quads), ArenaSizing.wanted(MEASURED_FAR_CELLS, DetailDistance.LOW.pixels(),
-                MEASURED_FOCAL_PIXELS, DetailLevel.MIN));
+        assertEquals(withHeadroom(quads, MeshOcclusion.EVERY_LEVEL), ArenaSizing.wanted(MEASURED_FAR_CELLS,
+                DetailDistance.LOW.pixels(), MEASURED_FOCAL_PIXELS, DetailLevel.MIN, MeshOcclusion.EVERY_LEVEL));
     }
 
     @Test
     void theDemandAtMediumIsPinned() {
-        long quads = 2932L * 3 * 7400 + 2932L * 2 * 10900 + 804L * 11400 + 201L * 7200 + 50L * 5700;
+        long[] quads = {2932L * 3 * 7400, 2932L * 2 * 10900, 804L * 11400, 201L * 7200, 50L * 5700};
 
-        assertEquals(withHeadroom(quads), ArenaSizing.wanted(MEASURED_FAR_CELLS, DetailDistance.MEDIUM.pixels(),
-                MEASURED_FOCAL_PIXELS, DetailLevel.MIN));
+        assertEquals(withHeadroom(quads, MeshOcclusion.EVERY_LEVEL), ArenaSizing.wanted(MEASURED_FAR_CELLS,
+                DetailDistance.MEDIUM.pixels(), MEASURED_FOCAL_PIXELS, DetailLevel.MIN, MeshOcclusion.EVERY_LEVEL));
     }
 
-    private static long withHeadroom(long quads) {
-        long slots = quads + Math.ceilDiv(quads, OcclusionWord.PER_SLOT);
+    @Test
+    void aLevelWithoutCornerOcclusionReservesNoStream() {
+        long[] quads = {733L * 3 * 7400, 733L * 2 * 10900, 733L * 11400, 201L * 7200, 50L * 5700};
+
+        for (MeshOcclusion occlusion : new MeshOcclusion[] {MeshOcclusion.FINEST_LEVEL, MeshOcclusion.NONE}) {
+            assertEquals(withHeadroom(quads, occlusion), ArenaSizing.wanted(MEASURED_FAR_CELLS,
+                    DetailDistance.LOW.pixels(), MEASURED_FOCAL_PIXELS, DetailLevel.MIN, occlusion));
+        }
+
+        long every = withHeadroom(quads, MeshOcclusion.EVERY_LEVEL);
+        long finest = withHeadroom(quads, MeshOcclusion.FINEST_LEVEL);
+        assertTrue(every > finest && finest > withHeadroom(quads, MeshOcclusion.NONE));
+    }
+
+    private static long withHeadroom(long[] quadsPerLevel, MeshOcclusion occlusion) {
+        long slots = 0L;
+        for (int level = DetailLevel.MIN; level < quadsPerLevel.length; level++) {
+            long quads = quadsPerLevel[level];
+            slots += occlusion.at(level) ? quads + Math.ceilDiv(quads, OcclusionWord.PER_SLOT) : quads;
+        }
+
         return Math.ceilDiv(slots * Long.BYTES * WHOLE_PERCENT * WHOLE_PERCENT, HIGH_WATER_PERCENT * FILL_PERCENT);
     }
 
     @Test
     void halvingTheSubdivisionSizeAsksForAboutFourTimesAsMuch() {
-        long coarse = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION * 2, FOCAL_PIXELS, LOWEST_LEVEL);
-        long fine = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+        long coarse = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION * 2, FOCAL_PIXELS, LOWEST_LEVEL, MeshOcclusion.EVERY_LEVEL);
+        long fine = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL, MeshOcclusion.EVERY_LEVEL);
 
         assertTrue(fine > 3 * coarse && fine < 5 * coarse,
                 "A twice finer subdivision asks for " + fine + " against " + coarse);
@@ -127,8 +147,8 @@ class ArenaSizingTest {
 
     @Test
     void aTallerWindowAsksForMore() {
-        long shortWindow = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS / 2, LOWEST_LEVEL);
-        long tallWindow = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+        long shortWindow = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS / 2, LOWEST_LEVEL, MeshOcclusion.EVERY_LEVEL);
+        long tallWindow = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL, MeshOcclusion.EVERY_LEVEL);
 
         assertTrue(tallWindow > shortWindow,
                 "A twice taller window asks for " + tallWindow + " against " + shortWindow);
@@ -136,8 +156,8 @@ class ArenaSizingTest {
 
     @Test
     void aHigherLowestStoredLevelDropsTheFinestLevelFromTheBudget() {
-        long whole = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, DetailLevel.MIN);
-        long withoutTheFinest = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, DetailLevel.MIN + 1);
+        long whole = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, DetailLevel.MIN, MeshOcclusion.EVERY_LEVEL);
+        long withoutTheFinest = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, DetailLevel.MIN + 1, MeshOcclusion.EVERY_LEVEL);
 
         assertTrue(whole > withoutTheFinest,
                 "Storing level 0 asks for " + whole + " against " + withoutTheFinest + " without it");
@@ -145,7 +165,7 @@ class ArenaSizingTest {
 
     @Test
     void aRoomyDeviceGetsWhatWasWantedDownToTheBlock() {
-        long wanted = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL);
+        long wanted = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL, MeshOcclusion.EVERY_LEVEL);
 
         assertEquals(wanted - wanted % ArenaSizing.BLOCK_BYTES, ArenaSizing.fitted(wanted, ROOMY_DEVICE));
     }

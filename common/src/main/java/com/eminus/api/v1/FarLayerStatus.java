@@ -16,7 +16,7 @@ public enum FarLayerStatus {
     /**
      * The client holds a level, but the far renderer was refused: the render backend lacks a feature it needs, or
      * one of its programs did not compile. {@link EminusApi#refusal} says which. A resource reload, a change of
-     * dimension, or a change of the far render distance or the detail distance tries again.
+     * dimension, or a change of the LOD Distance or Detail Distance setting tries again.
      */
     REFUSED
 }

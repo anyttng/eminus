@@ -104,7 +104,7 @@ public final class FarRenderer implements AutoCloseable {
 
     private IndirectCommands indirect;
     private CompositeFog fog;
-    private Vector4fc fogColour;
+    private Vector4fc fogColor;
     private volatile MeshService meshes;
     private RenderList renderList = RenderList.EMPTY;
     private @Nullable TreeBatch uploading;
@@ -145,12 +145,13 @@ public final class FarRenderer implements AutoCloseable {
             PackBlocks packBlocks) {
         gpu.assertRenderThread();
 
-        Texture main = gpu.mainColour();
+        Texture main = gpu.mainColor();
         long ceiling = ArenaBudget.ceiling(gpu.capabilities(), replacedArenaBytes);
         float focal = FarProjection.focalPixels(client.options.fov().get(), main.height());
         @Nullable Sparse sparse = ArenaBudget.sparse(gpu);
         long bytes = ArenaBudget.bytes(ArenaSizing.wanted(settings.farRenderCells(),
-                settings.detailDistance().pixels(), focal, runtime.lowestStoredLevel()), ceiling, sparse);
+                settings.detailDistance().pixels(), focal, runtime.lowestStoredLevel(),
+                MeshWiring.occlusion(settings.lodQuality().cornerOcclusion())), ceiling, sparse);
         BackendSupport support = BackendCheck.run(gpu, bytes);
         GeometryArena arena = GeometryArena.create(gpu, support, bytes, sparse);
         if (arena == null) {
@@ -159,7 +160,7 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         ClientBakery baking = ClientBakery.start(client, packBlocks);
-        NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOUR_FORMAT, support.depth(),
+        NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOR_FORMAT, support.depth(),
                 CompositePass.DEPTH_BIAS);
         OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw());
         TranslucentPass translucent = TranslucentPass.create(gpu, support.depth(), baking.variantDraw());
@@ -225,7 +226,7 @@ public final class FarRenderer implements AutoCloseable {
     public static boolean recreates(Settings built, Settings updated) {
         return built.farRenderCells() != updated.farRenderCells()
                 || built.detailDistance() != updated.detailDistance()
-                || built.lodQuality() != updated.lodQuality();
+                || !built.lodQuality().equals(updated.lodQuality());
     }
 
     public void captureLevelProjection(Matrix4fc levelProjection, Matrix4fc cameraProjection) {
@@ -249,7 +250,7 @@ public final class FarRenderer implements AutoCloseable {
             return;
         }
 
-        Texture main = gpu.mainColour();
+        Texture main = gpu.mainColor();
         Texture mainDepth = gpu.mainDepth();
         if (farFrame && (terrainDrawn || boxes.drawsAny())) {
             drawMask();
@@ -261,7 +262,7 @@ public final class FarRenderer implements AutoCloseable {
                         commands.translucentCount(), frame.buffer(), nearSections.texels());
             }
             boxes.drawFar(target, farViewProjection, game);
-            composite.draw(target, main, mainDepth, farViewProjection, gameViewProjection, fog, fogColour);
+            composite.draw(target, main, mainDepth, farViewProjection, gameViewProjection, fog, fogColor);
         }
         boxes.drawNear(main, mainDepth, gameViewProjection, game, NearPlane.blocks(game.renderDistance()));
     }
@@ -294,7 +295,7 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     private void drawMask() {
-        mask.draw(target.depth(), target.colour(), gpu.mainDepth(), farViewProjection, gameViewProjection);
+        mask.draw(target.depth(), target.color(), gpu.mainDepth(), farViewProjection, gameViewProjection);
     }
 
     // The shadow pass runs before the main pass: a second step would upload a second batch and post a second walk.
@@ -322,7 +323,7 @@ public final class FarRenderer implements AutoCloseable {
 
         models.publish();
 
-        Texture main = gpu.mainColour();
+        Texture main = gpu.mainColor();
         target.resize(main.width(), main.height());
 
         GameFrame game = GameFrames.read(client);
@@ -352,7 +353,7 @@ public final class FarRenderer implements AutoCloseable {
                 level.getMinY(), level.getMinY() + level.getHeight());
         fog = CompositeFog.of(settings.fog(), settings.fade(), gameFog.environmentalStart(),
                 gameFog.environmentalEnd(), nearBlocks, reachBlocks, settings.farRenderCells());
-        fogColour = gameFog.colour();
+        fogColor = gameFog.color();
         if (fog.skip()) {
             return;
         }

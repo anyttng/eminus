@@ -115,7 +115,7 @@ public final class GameGpu implements Gpu {
     }
 
     @Override
-    public Texture mainColour() {
+    public Texture mainColor() {
         return GameTexture.borrowed(Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTextureView());
     }
 

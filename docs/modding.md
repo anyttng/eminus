@@ -23,7 +23,7 @@ The API version is the mod version; `maven-metadata.xml` under the coordinate li
 
 Use `compileOnly`: the artifact carries the API package alone, and at runtime the classes come from the copy of Eminus the player installed.
 
-Declare Eminus (mod id `eminus`) as an optional dependency of your mod, and check that it is loaded before you touch any `com.eminus` class. A class that names one fails to load when Eminus is absent, so keep those calls in a class you reach only after the check, never in a field initialiser of a class that always loads.
+Declare Eminus (mod id `eminus`) as an optional dependency of your mod, and check that it is loaded before you touch any `com.eminus` class. A class that names one fails to load when Eminus is absent, so keep those calls in a class you reach only after the check, never in a field initializer of a class that always loads.
 
 Eminus is a client mod. A dedicated server loads its jar and runs nothing of it, so every call below belongs in client code.
 
@@ -35,7 +35,7 @@ Eminus is a client mod. A dedicated server loads its jar and runs nothing of it,
 - **`NO_LEVEL`**: the client holds no level: before a world is joined, after it is left, and while the client changes dimension.
 - **`REFUSED`**: the client holds a level, but the far renderer was refused, because the render backend lacks a feature it needs or one of its programs did not compile.
 
-Under `REFUSED`, `EminusApi.refusal()` gives the reason as a sentence fit for a log line; under the other two it is `null`. A refusal is not final: a resource reload, a change of dimension, or a change of the far render distance or the detail distance starts the renderer again.
+Under `REFUSED`, `EminusApi.refusal()` gives the reason as a sentence fit for a log line; under the other two it is `null`. A refusal is not final: a resource reload, a change of dimension, or a change of the LOD Distance or Detail Distance setting starts the renderer again.
 
 ```java
 if (EminusApi.status() == FarLayerStatus.REFUSED) {
@@ -45,20 +45,20 @@ if (EminusApi.status() == FarLayerStatus.REFUSED) {
 
 ## How far it reaches
 
-`EminusApi.farDistanceBlocks()` is the far render distance the player set, in blocks of horizontal distance from the camera. The far layer starts where the game's own render distance ends and draws out to it. A mod that culls its own distant content, places a far plane or sizes fog reads this instead of the game's render distance.
+`EminusApi.farDistanceBlocks()` is the LOD Distance the player set, in blocks of horizontal distance from the camera. The far layer starts where the game's own render distance ends and draws out to it. A mod that culls its own distant content, places a far plane or sizes fog reads this instead of the game's render distance.
 
 It returns the setting whether or not a far renderer runs, and may be called on any thread once mod loading has finished.
 
 ## Whether it has settled
 
-`EminusApi.farLayer()` reads the far layer's state on the render thread. It returns `null` unless `status()` returns `RUNNING`. Otherwise it returns a `CompletableFuture<FarLayerState>`, because the node tree lives on a thread of its own: the future completes once that thread has taken the request, and completes exceptionally when the renderer stops first.
+`EminusApi.farLayer()` reads the far layer's state on the render thread. It returns `null` unless `status()` returns `RUNNING`. Otherwise it returns a `CompletableFuture<FarLayerState>`, because Eminus keeps that state on a thread of its own. The future completes once that thread has taken the request, and completes exceptionally when the renderer stops first.
 
-`FarLayerState` carries two things:
+`FarLayerState` carries:
 
 - **`dimension()`**: the dimension the renderer draws, as its identifier, such as `minecraft:overworld`.
-- **`settled()`**: whether the far layer has nothing left to do for the camera it last saw: no mesh build is queued or running, the last walk over the view asked for nothing more, and no chunk section waits to be merged. Block changes still waiting to be merged do not count: they revise terrain already drawn, and a live world never runs out of them.
+- **`settled()`**: whether the far layer has nothing left to do for the camera it last saw. Nothing is queued or being built, nothing more is asked for, and no chunk section waits to be stored. Block changes still waiting do not count, since they revise terrain already drawn and a live world never runs out of them.
 
-`settled()` is what a mod waits on before it captures the view, such as a screenshot or a timelapse frame. The future completes on Eminus's tree thread, so hand anything that touches the game back to the client:
+A mod waits for `settled()` before it captures the view, such as a screenshot or a timelapse frame. The future completes on a thread of Eminus's own, so hand anything that touches the game back to the client:
 
 ```java
 CompletableFuture<FarLayerState> reading = EminusApi.farLayer();
@@ -75,13 +75,13 @@ A reading answers for the camera the far layer last saw, so a mod that waits for
 
 ## Drawing boxes
 
-The game stops drawing at its render distance, and so does whatever your mod draws there. A waypoint, a claim border or a marker over a structure can go to Eminus instead: `EminusApi.registerBoxes(dimension, boxes)` takes a list of `FarBox` in world coordinates and draws them at every distance from the camera out to `farDistanceBlocks()`, fogged like the terrain around them, faded with the far layer at its far end, and hidden behind any terrain nearer than they are. One call covers the near field too, so your mod draws nothing of its own for them.
+The game stops drawing at its render distance, and so does whatever your mod draws there. A waypoint, a claim border or a marker over a structure can go to Eminus instead. `EminusApi.registerBoxes(dimension, boxes)` takes a list of `FarBox` in world coordinates and draws them at every distance from the camera out to `farDistanceBlocks()`. They are fogged like the terrain around them, fade with the far layer at its far end, and hide behind any terrain nearer than they are. One call covers the near field too, so your mod draws nothing of its own for them.
 
 A `FarBox` carries:
 
 - **the bounds**: `minX`, `minY`, `minZ`, `maxX`, `maxY`, `maxZ`, as `double`s in blocks, each minimum no greater than its maximum and every value within the range of an `int`; otherwise the constructor throws `IllegalArgumentException`;
-- **`argb`**: the colour as `0xAARRGGBB`; an alpha below `0xFF` blends the box over what lies behind it, and boxes blend in the order their groups were registered;
-- **`emissive`**: `true` keeps the colour in the dark; `false` lights the box as daylight lights the open terrain, so it dims at night.
+- **`argb`**: the color as `0xAARRGGBB`; an alpha below `0xFF` blends the box over what lies behind it, and boxes blend in the order their groups were registered;
+- **`emissive`**: `true` keeps the color in the dark; `false` lights the box as daylight lights the open terrain, so it dims at night.
 
 `registerBoxes` returns a `FarBoxGroup`. `dimension()` names the group's dimension, `update(boxes)` replaces its boxes, and `remove()` takes it away; the last two apply from the next frame. A `null` dimension, list or box throws `NullPointerException`. Every call may come from any thread, and none needs a far renderer running: a group registered before the renderer starts, or while it is refused, is drawn once it runs.
 

@@ -321,7 +321,7 @@ final class PackLayer {
                 draw.previousProjection(), draw.farBlocks(), path.distantHorizons());
         opaqueAttached = attach(opaqueFramebuffer, opaqueAttached, depth);
         opaque.draw(draw, opaqueFramebuffer, false);
-        foreign.copyDepth(target.colour(), target.depth(), target.opaqueDepth());
+        foreign.copyDepth(target.color(), target.depth(), target.opaqueDepth());
         drawn = draw;
     }
 

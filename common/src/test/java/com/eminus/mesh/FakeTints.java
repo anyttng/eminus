@@ -6,20 +6,20 @@ import java.util.Map;
 import java.util.Set;
 
 final class FakeTints implements BiomeTints {
-    private final Map<Long, Integer> colours = new HashMap<>();
+    private final Map<Long, Integer> colors = new HashMap<>();
     private final Set<Integer> positional = new HashSet<>();
     private final Map<Integer, Integer> constants = new HashMap<>();
 
-    void define(int row, int biomeId, int colour) {
-        colours.put(key(row, biomeId), colour);
+    void define(int row, int biomeId, int color) {
+        colors.put(key(row, biomeId), color);
     }
 
     void vary(int biomeId) {
         positional.add(biomeId);
     }
 
-    void fix(int row, int colour) {
-        constants.put(row, colour);
+    void fix(int row, int color) {
+        constants.put(row, color);
     }
 
     @Override
@@ -29,17 +29,17 @@ final class FakeTints implements BiomeTints {
 
     @Override
     public int constant(int row) {
-        return constants.getOrDefault(row, NO_COLOUR);
+        return constants.getOrDefault(row, NO_COLOR);
     }
 
     @Override
-    public int colour(int row, int biomeId, int blockX, int blockZ) {
-        Integer colour = colours.get(key(row, biomeId));
-        if (colour == null) {
-            return NO_COLOUR;
+    public int color(int row, int biomeId, int blockX, int blockZ) {
+        Integer color = colors.get(key(row, biomeId));
+        if (color == null) {
+            return NO_COLOR;
         }
 
-        return positional.contains(biomeId) ? colour ^ (blockX & 1) : colour;
+        return positional.contains(biomeId) ? color ^ (blockX & 1) : color;
     }
 
     private static long key(int row, int biomeId) {

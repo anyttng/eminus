@@ -4,7 +4,7 @@
 layout(std140) uniform Boxes {
     mat4 BoxProjView;
     mat4 BoxView;
-    vec4 BoxFogColour;
+    vec4 BoxFogColor;
     ivec3 BoxCameraBlockPos;
     vec3 BoxCameraOffset;
     float BoxShadeDown;

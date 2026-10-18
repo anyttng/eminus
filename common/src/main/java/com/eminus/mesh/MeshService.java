@@ -16,7 +16,7 @@ import org.jspecify.annotations.Nullable;
 
 public final class MeshService {
     private static final int STEPS_PER_AXIS = 3;
-    private static final int[][] NEIGHBOURS = neighbours();
+    private static final int[][] NEIGHBORS = neighbors();
     private static final int LAST = DetailLevel.VOXELS_PER_SIDE - 1;
 
     private final WorkService<MeshScratch> work;
@@ -27,13 +27,14 @@ public final class MeshService {
     private final BiomeTints tints;
     private final int blendRadius;
     private final MeshOpacity opacity;
+    private final MeshOcclusion occlusion;
     private final MeshListener listener;
     private final int urgentWeight;
     private final MeshQueue queue = new MeshQueue();
 
     public MeshService(WorkService<MeshScratch> work, CellAccess cells, ColumnCoverage coverage, CellFrame frame,
-            MeshModels models, BiomeTints tints, int blendRadius, MeshOpacity opacity, MeshListener listener,
-            int urgentWeight) {
+            MeshModels models, BiomeTints tints, int blendRadius, MeshOpacity opacity, MeshOcclusion occlusion,
+            MeshListener listener, int urgentWeight) {
         this.work = work;
         this.urgentWeight = urgentWeight;
         this.cells = cells;
@@ -43,6 +44,7 @@ public final class MeshService {
         this.tints = tints;
         this.blendRadius = blendRadius;
         this.opacity = opacity;
+        this.occlusion = occlusion;
         this.listener = listener;
     }
 
@@ -91,7 +93,7 @@ public final class MeshService {
     }
 
     void build(MeshTask task, MeshScratch scratch) {
-        CellHandle[] handles = new CellHandle[1 + NEIGHBOURS.length];
+        CellHandle[] handles = new CellHandle[1 + NEIGHBORS.length];
         CellHandle held = task.held();
         int radius = TintBlend.columns(blendRadius, task.level());
         boolean corners = task.level() == FluidCorners.LEVEL;
@@ -111,8 +113,8 @@ public final class MeshService {
             scratch.voxels().loadCoverage(coverage, task.key());
 
             CellVoxels voxels = scratch.voxels();
-            for (int at = 0; at < NEIGHBOURS.length; at++) {
-                int[] step = NEIGHBOURS[at];
+            for (int at = 0; at < NEIGHBORS.length; at++) {
+                int[] step = NEIGHBORS[at];
                 int stepX = step[0];
                 int stepY = step[1];
                 int stepZ = step[2];
@@ -139,8 +141,8 @@ public final class MeshService {
             scratch.begin(frame, task.key(), tints, blendRadius);
 
             AtomicBoolean retried = new AtomicBoolean();
-            CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy,
-                    opacity.at(CellKey.level(task.key())), () -> {
+            CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy, opacity.at(task.level()),
+                    occlusion.at(task.level()), () -> {
                 if (retried.compareAndSet(false, true)) {
                     submit(task.retry());
                 }
@@ -162,7 +164,7 @@ public final class MeshService {
         }
     }
 
-    private static int[][] neighbours() {
+    private static int[][] neighbors() {
         int[][] steps = new int[STEPS_PER_AXIS * STEPS_PER_AXIS * STEPS_PER_AXIS - 1][];
         int at = 0;
         for (int stepY = -1; stepY <= 1; stepY++) {

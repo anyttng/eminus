@@ -28,7 +28,7 @@ class SettingsFileTest {
     @Test
     void anEditedValueLoadsBack() {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings edited = new Settings(false, LodQuality.LOW, 24, 3, DetailDistance.HIGH, false, true,
+        Settings edited = new Settings(false, LodChoice.LOW, new LodQuality(1, LeafMode.SEE_THROUGH, false, false, CornerOcclusion.EVERY_LEVEL), 24, 3, DetailDistance.HIGH, false, true,
                 ShaderPackLod.DISTANT_HORIZONS, false);
 
         SettingsFile.save(file, edited);
@@ -39,13 +39,13 @@ class SettingsFileTest {
     @Test
     void theSavedFileCarriesTheSettingCommentsAndStillReadsBack() throws IOException {
         Path file = configDir.resolve(SettingsService.FILE_NAME);
-        Settings written = new Settings(true, LodQuality.HIGH, 24, 3, DetailDistance.LOW, false, false, ShaderPackLod.DEFAULT,
+        Settings written = new Settings(true, LodChoice.HIGH, new LodQuality(1, LeafMode.SEE_THROUGH, false, false, CornerOcclusion.EVERY_LEVEL), 24, 3, DetailDistance.LOW, false, false, ShaderPackLod.DEFAULT,
                 true);
 
         SettingsFile.save(file, written);
         String content = Files.readString(file, StandardCharsets.UTF_8);
 
-        assertTrue(content.contains("// LOD quality: full, high, medium, low or minimal."), content);
+        assertTrue(content.contains("// LOD quality: ultra, high, medium, low or custom."), content);
         assertTrue(content.contains("// Radius of LOD, in top-level cells"), content);
         assertTrue(content.contains("// Background worker threads."), content);
         assertTrue(content.contains("// How far out the finer detail levels reach"), content);
@@ -70,7 +70,7 @@ class SettingsFileTest {
                 """);
 
         assertFalse(loaded.ingestion());
-        assertEquals(Settings.DEFAULT_LOD_QUALITY, loaded.lodQuality());
+        assertEquals(Settings.DEFAULT_LOD_CHOICE, loaded.lodChoice());
         assertEquals(Settings.DEFAULT_FAR_RENDER_CELLS, loaded.farRenderCells());
         assertEquals(Settings.DEFAULT_DETAIL_DISTANCE, loaded.detailDistance());
         assertEquals(Settings.DEFAULT_FOG, loaded.fog());
@@ -86,7 +86,7 @@ class SettingsFileTest {
                 }
                 """);
 
-        assertEquals(Settings.DEFAULT_LOD_QUALITY, loaded.lodQuality());
+        assertEquals(Settings.DEFAULT_LOD_CHOICE, loaded.lodChoice());
         assertEquals(Settings.defaults().workerThreads(), loaded.workerThreads());
     }
 
@@ -111,7 +111,8 @@ class SettingsFileTest {
 
         assertEquals(DetailDistance.ULTRA, loaded.detailDistance());
         assertEquals(defaults.ingestion(), loaded.ingestion());
-        assertEquals(defaults.lodQuality(), loaded.lodQuality());
+        assertEquals(defaults.lodChoice(), loaded.lodChoice());
+        assertEquals(defaults.customLod(), loaded.customLod());
         assertEquals(defaults.farRenderCells(), loaded.farRenderCells());
         assertEquals(defaults.workerThreads(), loaded.workerThreads());
         assertEquals(defaults.fog(), loaded.fog());
@@ -136,11 +137,10 @@ class SettingsFileTest {
 
     @Test
     void aFormerStoredLevelOpensOnItsPreset() throws IOException {
-        LodQuality[] expected = {LodQuality.FULL, LodQuality.MEDIUM, LodQuality.LOW, LodQuality.MINIMAL,
-                LodQuality.MINIMAL};
+        LodChoice[] expected = {LodChoice.ULTRA, LodChoice.MEDIUM, LodChoice.LOW, LodChoice.LOW, LodChoice.LOW};
 
         for (int level = 0; level < expected.length; level++) {
-            assertEquals(expected[level], loadJson("{\"lowest_stored_level\": " + level + "}").lodQuality());
+            assertEquals(expected[level], loadJson("{\"lowest_stored_level\": " + level + "}").lodChoice());
         }
     }
 
@@ -156,10 +156,109 @@ class SettingsFileTest {
     }
 
     @Test
+    void theFormerMinimalOpensAsLowAndIsRewritten() throws IOException {
+        Settings loaded = loadJson("{\"lod_quality\": \"minimal\"}");
+        String content = Files.readString(configDir.resolve(SettingsService.FILE_NAME), StandardCharsets.UTF_8);
+
+        assertEquals(LodChoice.LOW, loaded.lodChoice());
+        assertTrue(content.contains("\"lod_quality\": \"low\""), content);
+        assertFalse(content.contains("minimal\""), content);
+    }
+
+    @Test
     void aPresetKeyWinsOverAFormerStoredLevel() throws IOException {
         Settings loaded = loadJson("{\"lod_quality\": \"high\", \"lowest_stored_level\": 3}");
 
-        assertEquals(LodQuality.HIGH, loaded.lodQuality());
+        assertEquals(LodChoice.HIGH, loaded.lodChoice());
+    }
+
+    @Test
+    void aCustomSetLoadsBackWithItsFiveDetails() throws IOException {
+        Path file = configDir.resolve(SettingsService.FILE_NAME);
+        Settings written = Settings.defaults().withLodChoice(LodChoice.CUSTOM)
+                .withCustomLod(new LodQuality(2, LeafMode.SEE_THROUGH, true, false, CornerOcclusion.FINEST_LEVEL));
+
+        SettingsFile.save(file, written);
+        String content = Files.readString(file, StandardCharsets.UTF_8);
+
+        assertTrue(content.contains("\"lod_quality\": \"custom\""), content);
+        assertTrue(content.contains("\"lod_nearest_voxel\": 4"), content);
+        assertTrue(content.contains("\"lod_see_through_leaves\": true"), content);
+        assertTrue(content.contains("\"lod_grass_and_flowers\": true"), content);
+        assertTrue(content.contains("\"lod_textures\": \"half\""), content);
+        assertTrue(content.contains("\"lod_corner_occlusion\": \"finest_level\""), content);
+        assertEquals(written, SettingsFile.load(file));
+    }
+
+    @Test
+    void everyCornerOcclusionValueLoadsBack() {
+        Path file = configDir.resolve(SettingsService.FILE_NAME);
+        for (CornerOcclusion occlusion : CornerOcclusion.values()) {
+            Settings written = Settings.defaults().withLodChoice(LodChoice.CUSTOM)
+                    .withCustomLod(Settings.DEFAULT_CUSTOM_LOD.withCornerOcclusion(occlusion));
+
+            SettingsFile.save(file, written);
+
+            assertEquals(occlusion, SettingsFile.load(file).lodQuality().cornerOcclusion(), occlusion.key());
+        }
+    }
+
+    @Test
+    void aMalformedCornerOcclusionFallsBackToTheDefaultCustomValue() throws IOException {
+        Settings loaded = loadJson("{\"lod_quality\": \"custom\", \"lod_corner_occlusion\": \"sometimes\"}");
+
+        assertEquals(Settings.DEFAULT_CUSTOM_LOD.cornerOcclusion(), loaded.customLod().cornerOcclusion());
+    }
+
+    @Test
+    void aPresetKeepsTheCustomSet() throws IOException {
+        Path file = configDir.resolve(SettingsService.FILE_NAME);
+        Settings written = Settings.defaults().withLodChoice(LodChoice.MEDIUM)
+                .withCustomLod(new LodQuality(3, LeafMode.SEE_THROUGH, false, true, CornerOcclusion.EVERY_LEVEL));
+
+        SettingsFile.save(file, written);
+        String content = Files.readString(file, StandardCharsets.UTF_8);
+
+        assertTrue(content.contains("\"lod_quality\": \"medium\""), content);
+        assertTrue(content.contains("\"lod_nearest_voxel\": 8"), content);
+        assertEquals(written, SettingsFile.load(file));
+    }
+
+    @Test
+    void aCustomSetEqualToAPresetStaysCustom() throws IOException {
+        Settings loaded = loadJson("""
+                {
+                  "lod_quality": "custom",
+                  "lod_nearest_voxel": 1,
+                  "lod_see_through_leaves": false,
+                  "lod_grass_and_flowers": false,
+                  "lod_textures": "full"
+                }
+                """);
+
+        assertEquals(LodChoice.CUSTOM, loaded.lodChoice());
+        assertEquals(LodChoice.HIGH.presetQuality().orElseThrow(), loaded.lodQuality());
+    }
+
+    @Test
+    void aMissingOrMalformedDetailFallsBackToTheDefaultCustomValue() throws IOException {
+        LodQuality fallback = Settings.DEFAULT_CUSTOM_LOD;
+        Settings loaded = loadJson("""
+                {
+                  "lod_quality": "custom",
+                  "lod_nearest_voxel": 3,
+                  "lod_see_through_leaves": false,
+                  "lod_textures": "sideways"
+                }
+                """);
+
+        assertEquals(new LodQuality(fallback.storedLevel(), LeafMode.OPAQUE, fallback.drawsBlades(), fallback.fullTextures(), fallback.cornerOcclusion()),
+                loaded.customLod());
+    }
+
+    @Test
+    void aFileWithoutTheCustomKeysTakesTheDefaultCustomSet() throws IOException {
+        assertEquals(Settings.DEFAULT_CUSTOM_LOD, loadJson("{\"lod_quality\": \"low\"}").customLod());
     }
 
     @Test

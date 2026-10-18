@@ -27,13 +27,13 @@ final class GamePass implements Pass {
     }
 
     static GamePass open(PassSpec spec) {
-        GameTexture colour = (GameTexture) spec.colour();
+        GameTexture color = (GameTexture) spec.color();
         RenderPassDescriptor.Builder descriptor = RenderPassDescriptor.builder(spec::label)
-                .withColorAttachment(colour.view(), Optional.ofNullable(spec.clearColour()));
+                .withColorAttachment(color.view(), Optional.ofNullable(spec.clearColor()));
         if (spec.depth() != null) {
             descriptor.withDepthAttachment(((GameTexture) spec.depth()).view(), spec.clearDepth());
         }
-        descriptor.withRenderArea(new RenderPass.RenderArea(0, 0, colour.width(), colour.height()));
+        descriptor.withRenderArea(new RenderPass.RenderArea(0, 0, color.width(), color.height()));
 
         return new GamePass(RenderSystem.getDevice().createCommandEncoder().createRenderPass(descriptor.build()));
     }

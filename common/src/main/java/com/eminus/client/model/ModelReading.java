@@ -13,10 +13,10 @@ import com.eminus.client.gpu.Gpus;
 import com.eminus.client.model.game.ModelSheet;
 import com.eminus.gpu.Gpu;
 import com.eminus.model.BakedModel;
-import com.eminus.model.BiomeColours;
+import com.eminus.model.BiomeColors;
 import com.eminus.model.ModelBakery;
 import com.eminus.model.ModelMetadata;
-import com.eminus.settings.LodQuality;
+import com.eminus.settings.LodChoice;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Direction;
@@ -75,14 +75,14 @@ public final class ModelReading {
         Minecraft client = Minecraft.getInstance();
         ClientBakery baking = ClientBakery.start(client);
         ModelBakery bakery = baking.bakery();
-        BiomeColours colours = baking.colours();
+        BiomeColors colors = baking.colors();
 
         try {
             bake(bakery, states, models);
             long[] summary = new long[SUMMARY_WIDTH];
             summary[MODELS] = bakery.modelCount();
-            summary[BIOMES] = colours.biomeCount();
-            summary[TINT_ROWS] = colours.rowCount();
+            summary[BIOMES] = colors.biomeCount();
+            summary[TINT_ROWS] = colors.rowCount();
             upload(bakery, summary);
             sheet(bakery, client.gameDirectory.toPath().resolve(FILE_NAME));
 
@@ -127,7 +127,8 @@ public final class ModelReading {
 
     private static void upload(ModelBakery bakery, long[] summary) {
         try (Gpu gpu = Gpus.create()) {
-            try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery, LodQuality.FULL.atlasFirstMip())) {
+            try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery,
+                    LodChoice.ULTRA.presetQuality().orElseThrow().atlasFirstMip())) {
                 summary[CELLS_FROM] = publisher.atlas().cellsPerSide();
                 publisher.publish();
                 summary[UPLOADED] = publisher.published();
@@ -139,7 +140,8 @@ public final class ModelReading {
                 summary[BYTES] = publisher.atlas().bytes();
             }
 
-            try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery, LodQuality.LOW.atlasFirstMip())) {
+            try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery,
+                    LodChoice.LOW.presetQuality().orElseThrow().atlasFirstMip())) {
                 publisher.publish();
                 summary[LOW_SIDE] = publisher.atlas().side();
                 summary[LOW_CELL_SIDE] = publisher.atlas().cellSide();
@@ -170,7 +172,7 @@ public final class ModelReading {
                     ModelMetadata.present(model.metadata()),
                     ModelMetadata.occluding(model.metadata()),
                     ModelMetadata.occludable(model.metadata()),
-                    model.tintRow() != BiomeColours.NO_ROW ? 1 : 0,
+                    model.tintRow() != BiomeColors.NO_ROW ? 1 : 0,
                     Float.floatToIntBits(model.insets()[Direction.UP.get3DDataValue()])});
         }
 
