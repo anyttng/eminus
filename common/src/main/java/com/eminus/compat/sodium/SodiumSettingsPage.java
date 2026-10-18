@@ -14,7 +14,6 @@ import com.eminus.compat.iris.IrisShaderPack;
 import com.eminus.compat.sodium.settings.mixin.VideoSettingsScreenAccessor;
 import com.eminus.settings.LodChoice;
 import com.eminus.settings.Settings;
-import com.eminus.settings.SettingsDraft;
 import com.eminus.settings.SettingsService;
 import com.eminus.settings.ShaderPackLod;
 
@@ -71,8 +70,7 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setEnabledProvider(state -> state.readIntOption(id(LOD_QUALITY_ID)) == CUSTOM_POSITION,
                                 id(LOD_QUALITY_ID))
                         .setScreenConsumer(screen -> Minecraft.getInstance().setScreen(
-                                new CustomLodScreen(screen, SettingsDraft.of(SettingsService.get()),
-                                        SodiumSettingsPage::returnTo))))
+                                CustomLodScreen.withOwnDraft(screen, SodiumSettingsPage::returnTo))))
                 .addOption(builder.createIntegerOption(id(FAR_RENDER_CELLS_ID))
                         .setName(Component.translatable(SettingsText.FAR_RENDER_CELLS_KEY))
                         .setTooltip(SettingsText.hint(SettingsText.FAR_RENDER_CELLS_KEY))
