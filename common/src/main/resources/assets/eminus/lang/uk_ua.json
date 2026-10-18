@@ -1,7 +1,7 @@
 {
   "gui.eminus.settings.title": "Налаштування Eminus",
   "gui.eminus.settings.value_hint": "%s: %s",
-  "gui.eminus.settings.category.quality": "Якість",
+  "gui.eminus.settings.category.general": "Загальне",
   "gui.eminus.settings.category.appearance": "Туман",
   "gui.eminus.settings.category.building": "Продуктивність",
   "gui.eminus.settings.category.shader_packs": "Шейдери",
@@ -9,7 +9,7 @@
   "gui.eminus.settings.category.vegetation": "Листя й рослини",
   "gui.eminus.settings.apply_changes": "Застосувати",
   "gui.eminus.settings.category.lighting": "Освітлення",
-  "gui.eminus.settings.ingestion": "Оновлювати LOD",
+  "gui.eminus.settings.ingestion": "Поповнення LOD",
   "gui.eminus.settings.ingestion.hint.on": "чанки, які ви бачите, додаються до LOD.",
   "gui.eminus.settings.ingestion.hint.off": "нічого нового не додається, LOD показує те, що вже має.",
   "gui.eminus.settings.lod_quality": "Якість LOD",
