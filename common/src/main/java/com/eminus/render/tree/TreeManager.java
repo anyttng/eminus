@@ -183,13 +183,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
                 return;
             }
 
-            apply(message);
-
-            while ((message = messages.poll()) != null) {
+            do {
                 apply(message);
-            }
-
-            publish();
+                publish();
+            } while ((message = messages.poll()) != null);
         }
     }
 
