@@ -3,6 +3,7 @@ package com.eminus.client.gpu.game;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -40,6 +41,8 @@ public final class GameGpu implements Gpu {
     private static final int LAYERS = 1;
     private static final int BASE_LAYER = 0;
     private static final boolean LIGHTMAP_HALF_TEXEL = true;
+    private static final String MAIN_COLOR = "the main target always has a color texture";
+    private static final String MAIN_DEPTH = "the main target always has a depth texture";
 
     private final GpuDevice device;
     private final Capabilities capabilities;
@@ -123,12 +126,14 @@ public final class GameGpu implements Gpu {
 
     @Override
     public Texture mainColor() {
-        return GameTexture.borrowed(Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTextureView());
+        return GameTexture.borrowed(Objects.requireNonNull(
+                Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTextureView(), MAIN_COLOR));
     }
 
     @Override
     public Texture mainDepth() {
-        return GameTexture.borrowed(Minecraft.getInstance().gameRenderer.mainRenderTarget().getDepthTextureView());
+        return GameTexture.borrowed(Objects.requireNonNull(
+                Minecraft.getInstance().gameRenderer.mainRenderTarget().getDepthTextureView(), MAIN_DEPTH));
     }
 
     @Override

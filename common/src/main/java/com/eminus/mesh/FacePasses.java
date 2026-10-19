@@ -25,6 +25,7 @@ public final class FacePasses {
     private static final class Side {
         private final int edge;
 
+        @SuppressWarnings("NullAway.Init")
         private Direction towards;
         private long facing;
         private int x;
@@ -59,6 +60,7 @@ public final class FacePasses {
     private final Side low = new Side(FIRST_PLANE);
     private final Side high = new Side(LAST_PLANE);
 
+    @SuppressWarnings("NullAway.Init")
     private Direction.Axis axis;
     private int plane;
     private int u;
@@ -72,7 +74,9 @@ public final class FacePasses {
     private int drawn;
     private int metadata;
     private boolean liquid;
+    @SuppressWarnings("NullAway.Init")
     private FacePlane negativeFaces;
+    @SuppressWarnings("NullAway.Init")
     private FacePlane positiveFaces;
     private boolean shaped;
     private int shape;

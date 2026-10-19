@@ -5,6 +5,7 @@ import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import com.eminus.cell.CellFrame;
@@ -27,6 +28,8 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 
+import org.jspecify.annotations.Nullable;
+
 public final class NearSectionTable implements AutoCloseable {
     public static final Format TEXEL_FORMAT = Format.R32_UINT;
 
@@ -45,7 +48,7 @@ public final class NearSectionTable implements AutoCloseable {
     private TexelView view;
     private ByteBuffer scratch;
     private IntBuffer texels;
-    private LevelRenderer levelRenderer;
+    private @Nullable LevelRenderer levelRenderer;
     private long sectionFadeMillis;
     private int cameraSectionX;
     private int cameraSectionY;
@@ -107,14 +110,15 @@ public final class NearSectionTable implements AutoCloseable {
     private boolean owned(int sectionX, int sectionY, int sectionZ) {
         pos.set(sectionX * NearSections.SECTION_BLOCKS, sectionY * NearSections.SECTION_BLOCKS,
                 sectionZ * NearSections.SECTION_BLOCKS);
+        LevelRenderer renderer = Objects.requireNonNull(levelRenderer, "sections are queried inside fill");
         if (sodium) {
-            return GameFrames.sectionDrawn(levelRenderer, pos, sectionFadeMillis)
+            return GameFrames.sectionDrawn(renderer, pos, sectionFadeMillis)
                     && SodiumDrawnSections.drawn(sectionX, sectionY, sectionZ);
         }
 
         // The graph never lists an all-air section, yet the game still answers for its blocks.
         return drawn.contains(SectionPos.asLong(sectionX, sectionY, sectionZ))
-                || (GameFrames.sectionEmpty(levelRenderer, pos) && NearSections.inVanillaViewDistance(cameraSectionX,
+                || (GameFrames.sectionEmpty(renderer, pos) && NearSections.inVanillaViewDistance(cameraSectionX,
                         cameraSectionY, cameraSectionZ, viewDistance, sectionX, sectionY, sectionZ));
     }
 

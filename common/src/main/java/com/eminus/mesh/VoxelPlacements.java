@@ -4,11 +4,14 @@ import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.VoxelEntry;
 
+import com.uber.nullaway.annotations.Initializer;
+
 public final class VoxelPlacements {
     private CellFrame frame;
     private long key;
     private int level;
 
+    @Initializer
     public void begin(CellFrame frame, long key) {
         this.frame = frame;
         this.key = key;

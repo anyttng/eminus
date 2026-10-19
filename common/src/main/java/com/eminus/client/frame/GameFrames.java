@@ -1,5 +1,7 @@
 package com.eminus.client.frame;
 
+import java.util.Objects;
+
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 import net.minecraft.client.Camera;
@@ -31,7 +33,8 @@ public final class GameFrames {
         GameRenderState state = client.gameRenderer.gameRenderState();
         Camera camera = client.gameRenderer.mainCamera();
         Vec3 eye = camera.position();
-        CardinalLighting shade = client.level.cardinalLighting();
+        CardinalLighting shade = Objects.requireNonNull(client.level, "a frame is read with a level")
+                .cardinalLighting();
 
         return new GameFrame(eye.x, eye.y, eye.z, camera.getViewRotationMatrix(new Matrix4f()), camera.getFov(),
                 camera.getFluidInCamera() == FogType.NONE, fog(state), state.optionsRenderState.renderDistance,

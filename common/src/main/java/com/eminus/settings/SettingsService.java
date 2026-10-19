@@ -5,10 +5,12 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
+
 public final class SettingsService {
     public static final String FILE_NAME = "eminus.json";
 
-    private static SettingsService service;
+    private static @Nullable SettingsService service;
 
     private final Path file;
     private final List<Consumer<Settings>> listeners = new CopyOnWriteArrayList<>();

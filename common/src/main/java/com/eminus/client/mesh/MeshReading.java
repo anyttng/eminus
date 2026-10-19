@@ -46,7 +46,7 @@ public final class MeshReading {
         ClientBakery baking = ClientBakery.start(client);
 
         return CellMeshing.mesh(runtime, instance, baking, new long[] {key}, TIMEOUT_SECONDS)
-                .thenApply(meshes -> write(meshes.get(key), MeshWiring.models(runtime, baking), file))
+                .thenApply(meshes -> write(CellMeshing.meshOf(meshes, key), MeshWiring.models(runtime, baking), file))
                 .whenComplete((row, failure) -> baking.stop());
     }
 

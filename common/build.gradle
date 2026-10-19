@@ -55,6 +55,7 @@ dependencies {
     compileOnly("maven.modrinth:vitrail-shaders:${vitrail_version}") {
         transitive = false
     }
+    compileOnly "com.uber.nullaway:nullaway-annotations:${nullaway_version}"
 }
 
 // The cell store's fixed stack. This module compiles and tests against them; the loader modules bundle them.
