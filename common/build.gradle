@@ -3,6 +3,7 @@ plugins {
     id 'maven-publish'
     id 'net.neoforged.moddev'
     id 'idea'
+    id 'jacoco'
 }
 
 version = eminus_version
@@ -114,6 +115,27 @@ test {
     // ApiSurfaceTest lists the api sources and CompatGatesTest the compat configs, read from the sources rather than
     // the classpath, so both are given the repo root.
     systemProperty 'eminus.repoRoot', rootDir.absolutePath
+    jacoco {
+        enabled = project.hasProperty('coverage')
+        includes = ['com.eminus.*']
+    }
+    if (project.hasProperty('coverage')) {
+        finalizedBy 'jacocoTestReport'
+    }
+}
+
+jacoco {
+    toolVersion = jacoco_version
+}
+
+tasks.named('jacocoTestReport', JacocoReport) {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    classDirectories.setFrom(sourceSets.main.output.classesDirs.collect {
+        fileTree(it) { exclude '**/mixin/**' }
+    })
 }
 
 // The artifact another mod and the harness compile against: com/eminus/api alone, so their compile classpath cannot
