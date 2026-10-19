@@ -349,10 +349,12 @@ public final class FarRenderer implements AutoCloseable {
         GameFog gameFog = game.fog();
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
         ClientLevel level = client.level;
-        float reachBlocks = NearReach.blocks(renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, game.eyeY(),
-                level.getMinY(), level.getMinY() + level.getHeight());
+        int keptChunks = renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS;
+        float reachBlocks = NearReach.blocks(keptChunks, game.eyeY(), level.getMinY(),
+                level.getMinY() + level.getHeight());
         fog = CompositeFog.of(settings.fog(), settings.fade(), gameFog.environmentalStart(),
-                gameFog.environmentalEnd(), nearBlocks, reachBlocks, settings.farRenderCells());
+                gameFog.environmentalEnd(), nearBlocks, reachBlocks, NearReach.horizontalBlocks(keptChunks),
+                settings.farRenderCells());
         fogColor = gameFog.color();
         if (fog.skip()) {
             return;
