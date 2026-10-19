@@ -17,6 +17,7 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
     private final MeshScratch scratch;
     private final MeshModels models;
 
+    @SuppressWarnings("NullAway.Init")
     private Direction face;
     private int plane;
     private boolean border;

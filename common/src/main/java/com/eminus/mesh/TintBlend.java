@@ -7,6 +7,8 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.VoxelEntry;
 
+import com.uber.nullaway.annotations.Initializer;
+
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
@@ -42,6 +44,7 @@ public final class TintBlend {
         return (blendRadius + DetailLevel.blocksPerVoxel(level) - 1) >> level;
     }
 
+    @Initializer
     public void begin(CellVoxels voxels, BiomeTints tints, long key, int blendRadius) {
         this.voxels = voxels;
         this.tints = tints;

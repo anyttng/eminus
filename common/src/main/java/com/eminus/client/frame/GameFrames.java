@@ -1,5 +1,7 @@
 package com.eminus.client.frame;
 
+import java.util.Objects;
+
 import com.eminus.handoff.NearFieldOverride;
 import com.eminus.mixin.LevelRendererAccessor;
 import com.eminus.mixin.ViewAreaAccessor;
@@ -34,7 +36,8 @@ public final class GameFrames {
         GameRenderState state = client.gameRenderer.getGameRenderState();
         Camera camera = client.gameRenderer.getMainCamera();
         Vec3 eye = camera.position();
-        CardinalLighting shade = client.level.cardinalLighting();
+        CardinalLighting shade = Objects.requireNonNull(client.level, "a frame is read with a level")
+                .cardinalLighting();
 
         return new GameFrame(eye.x, eye.y, eye.z, camera.getViewRotationMatrix(new Matrix4f()), camera.getFov(),
                 camera.getFluidInCamera() == FogType.NONE, fog(state), state.optionsRenderState.renderDistance,

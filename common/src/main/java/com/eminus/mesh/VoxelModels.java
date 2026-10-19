@@ -4,11 +4,14 @@ import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 
+import com.uber.nullaway.annotations.Initializer;
+
 public final class VoxelModels {
     private CellFrame frame;
     private long key;
     private boolean coarse;
 
+    @Initializer
     public void begin(CellFrame frame, long key) {
         this.frame = frame;
         this.key = key;

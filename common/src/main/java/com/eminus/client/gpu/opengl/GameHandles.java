@@ -2,6 +2,7 @@ package com.eminus.client.gpu.opengl;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.util.Objects;
 import java.util.Optional;
 
 import com.eminus.gpu.Location;
@@ -28,6 +29,8 @@ final class GameHandles {
     static final int GAME_TRACKED_TEXTURE_UNITS = 12;
 
     private static final boolean LIGHTMAP_HALF_TEXEL = true;
+    private static final String MAIN_COLOR = "the main target always has a color texture";
+    private static final String MAIN_DEPTH = "the main target always has a depth texture";
 
     private GameHandles() {
     }
@@ -36,11 +39,11 @@ final class GameHandles {
     }
 
     static Handle mainColor() {
-        return handle(target().getColorTextureView());
+        return handle(Objects.requireNonNull(target().getColorTextureView(), MAIN_COLOR));
     }
 
     static Handle mainDepth() {
-        return handle(target().getDepthTextureView());
+        return handle(Objects.requireNonNull(target().getDepthTextureView(), MAIN_DEPTH));
     }
 
     static Handle lightmap() {

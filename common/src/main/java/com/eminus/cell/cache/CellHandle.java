@@ -10,6 +10,8 @@ import com.eminus.cell.CellKey;
 import com.eminus.store.CellStore;
 import com.eminus.store.StoreException;
 
+import org.jspecify.annotations.Nullable;
+
 public final class CellHandle {
     public static final long DIRTY_CAP_MILLIS = 30_000L;
     public static final long RETRY_MILLIS = 5_000L;
@@ -20,8 +22,8 @@ public final class CellHandle {
     private final LongSupplier clock;
     private final ReentrantLock cellLock = new ReentrantLock();
 
-    private Cell cell;
-    private Throwable loadFailure;
+    private @Nullable Cell cell;
+    private @Nullable Throwable loadFailure;
     private int references;
     private boolean dirty;
     private long dirtySince;
@@ -40,11 +42,11 @@ public final class CellHandle {
 
     // The handle monitor is taken before this lock, never the other way round.
     public <T> T withCell(Function<Cell, T> action) {
-        awaitLoaded();
+        Cell loaded = awaitLoaded();
         cellLock.lock();
 
         try {
-            return action.apply(cell);
+            return action.apply(loaded);
         } finally {
             cellLock.unlock();
         }
@@ -98,7 +100,7 @@ public final class CellHandle {
         notifyAll();
     }
 
-    synchronized void awaitLoaded() {
+    synchronized Cell awaitLoaded() {
         while (cell == null) {
             if (loadFailure != null) {
                 throw new StoreException("Cell " + key + " could not be read.", loadFailure);
@@ -111,6 +113,8 @@ public final class CellHandle {
                 throw new IllegalStateException("Interrupted while waiting for cell " + key + " to load.");
             }
         }
+
+        return cell;
     }
 
     synchronized boolean claimQueue() {

@@ -4,6 +4,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.jspecify.annotations.Nullable;
+
 public final class Dictionary<T> {
     @FunctionalInterface
     public interface Persistence<T> {
@@ -46,7 +48,7 @@ public final class Dictionary<T> {
     }
 
     @SuppressWarnings("unchecked")
-    public T value(int id) {
+    public @Nullable T value(int id) {
         Object[] snapshot = values;
         return id >= 0 && id < snapshot.length ? (T) snapshot[id] : null;
     }
