@@ -1,6 +1,6 @@
 # Eminus
 
-A NeoForge and Fabric client mod that draws terrain far beyond the game's render distance. Eminus keeps a coarse, persistent copy of every chunk the client has seen and renders that copy as a far layer behind the game's own terrain.
+A NeoForge and Fabric client mod that draws terrain far beyond the game's render distance. Eminus keeps a low-detail (LOD) copy of every chunk the client has seen and draws it behind the game's own terrain.
 
 *Eminus* is Latin for "from afar".
 
@@ -12,11 +12,11 @@ A NeoForge and Fabric client mod that draws terrain far beyond the game's render
 
 ## Status
 
-In development. Runs on both of the game's backends, OpenGL and Vulkan. Sodium is supported on both loaders. Under an Iris or Vitrail shader pack, the far layer is drawn over the pack's finished frame; an Iris pack that ships the [shader-pack contract](docs/shader-pack-contract.md) shades it itself. Nothing is uploaded to Modrinth or CurseForge yet.
+In development. Runs on both of the game's backends, OpenGL and Vulkan. Sodium is supported on both loaders. Under an Iris or Vitrail shader pack, LOD is drawn over the pack's finished frame; an Iris pack that ships the [shader-pack contract](docs/shader-pack-contract.md) shades it itself. Nothing is uploaded to Modrinth or CurseForge yet.
 
 ## For mod developers
 
-`com.eminus.api.v1` is the client-side surface for other mods. It answers whether a far renderer runs and why it was refused, how far the far layer reaches, and whether it has settled for the camera. It also draws boxes another mod hands it, such as waypoints or claim borders, at every distance out to the far layer's edge.
+`com.eminus.api.v1` is the client-side surface for other mods. It answers whether LOD runs and why it was refused, how far it reaches, and whether it has settled for the camera. It also draws boxes another mod hands it, such as waypoints or claim borders, at every distance out to LOD's edge.
 
 ```groovy
 repositories {
