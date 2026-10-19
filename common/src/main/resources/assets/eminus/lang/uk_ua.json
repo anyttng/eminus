@@ -1,6 +1,14 @@
 {
   "gui.eminus.settings.title": "Налаштування Eminus",
   "gui.eminus.settings.value_hint": "%s: %s",
+  "gui.eminus.settings.restart.rebuild": "Зміна перебудовує LOD.",
+  "gui.eminus.settings.restart.reread": "Зміна знову зчитує чанки навколо вас.",
+  "gui.eminus.settings.restart.lod_quality": "Зміна перебудовує LOD, а якщо разом з нею змінюється розмір вокселя, знову зчитує чанки навколо вас.",
+  "gui.eminus.settings.restart.reload_pack": "Зміна перезавантажує шейдер-пак і перебудовує LOD.",
+  "gui.eminus.settings.impact": "Вплив на продуктивність: %s",
+  "gui.eminus.settings.impact.low": "Низький",
+  "gui.eminus.settings.impact.medium": "Середній",
+  "gui.eminus.settings.impact.high": "Високий",
   "gui.eminus.settings.category.general": "Загальне",
   "gui.eminus.settings.category.appearance": "Туман",
   "gui.eminus.settings.category.building": "Продуктивність",
@@ -28,7 +36,7 @@
   "gui.eminus.settings.custom_lod.hint": "Задати по одному п'ять значень, які використовує «Власний». Доступно, коли якість LOD «Власний».",
   "gui.eminus.settings.custom_lod.title": "Власна якість LOD",
   "gui.eminus.settings.custom_lod.nearest_voxel": "Розмір вокселя",
-  "gui.eminus.settings.custom_lod.nearest_voxel.hint": "Скільки блоків покриває один воксель на ближньому краю LOD. Кожен крок угору зберігає LOD грубіше. Зміна знову зчитує чанки навколо вас.",
+  "gui.eminus.settings.custom_lod.nearest_voxel.hint": "Скільки блоків покриває один воксель на ближньому краю LOD. Кожен крок угору зберігає LOD грубіше.",
   "gui.eminus.settings.custom_lod.nearest_voxel.1": "1 блок",
   "gui.eminus.settings.custom_lod.nearest_voxel.2": "2 блоки",
   "gui.eminus.settings.custom_lod.nearest_voxel.4": "4 блоки",
@@ -75,11 +83,10 @@
   "gui.eminus.settings.shader_pack_lod.hint.intro": "Як LOD малюється під шейдер-паком без підтримки Eminus.",
   "gui.eminus.settings.shader_pack_lod.hint.default": "LOD малюється поверх зображення пака у власному вигляді Eminus.",
   "gui.eminus.settings.shader_pack_lod.hint.distant_horizons": "пак із підтримкою Distant Horizons малює його сам, з освітленням і туманом пака, але одним пласким кольором на блок.",
-  "gui.eminus.settings.shader_pack_lod.hint.note": "Пак, зроблений для Eminus, завжди малює LOD сам. Зміна перезавантажує шейдер-пак.",
+  "gui.eminus.settings.shader_pack_lod.hint.note": "Пак, зроблений для Eminus, завжди малює LOD сам.",
   "gui.eminus.settings.shader_pack_lod.default": "Стандартно",
   "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
   "gui.eminus.settings.lod_animations": "Анімації LOD",
   "gui.eminus.settings.lod_animations.hint.on": "шейдер-пак, зроблений для Eminus, може гойдати траву, листя й воду в LOD, як поблизу.",
-  "gui.eminus.settings.lod_animations.hint.off": "у LOD ніщо не рухається, і це заощаджує час GPU.",
-  "gui.eminus.settings.lod_animations.hint.note": "Зміна перезавантажує шейдер-пак."
+  "gui.eminus.settings.lod_animations.hint.off": "у LOD ніщо не рухається, і це заощаджує час GPU."
 }

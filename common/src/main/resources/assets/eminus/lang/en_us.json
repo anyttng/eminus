@@ -1,6 +1,14 @@
 {
   "gui.eminus.settings.title": "Eminus Settings",
   "gui.eminus.settings.value_hint": "%s: %s",
+  "gui.eminus.settings.restart.rebuild": "Changing this rebuilds LOD.",
+  "gui.eminus.settings.restart.reread": "Changing this reads the chunks around you again.",
+  "gui.eminus.settings.restart.lod_quality": "Changing this rebuilds LOD, and reads the chunks around you again when the voxel size changes with it.",
+  "gui.eminus.settings.restart.reload_pack": "Changing this reloads the shader pack and rebuilds LOD.",
+  "gui.eminus.settings.impact": "Performance Impact: %s",
+  "gui.eminus.settings.impact.low": "Low",
+  "gui.eminus.settings.impact.medium": "Medium",
+  "gui.eminus.settings.impact.high": "High",
   "gui.eminus.settings.category.general": "General",
   "gui.eminus.settings.category.appearance": "Fog",
   "gui.eminus.settings.category.building": "Performance",
@@ -28,7 +36,7 @@
   "gui.eminus.settings.custom_lod.hint": "Set the five values Custom uses, one by one. Available when LOD quality is Custom.",
   "gui.eminus.settings.custom_lod.title": "Custom LOD Quality",
   "gui.eminus.settings.custom_lod.nearest_voxel": "Voxel Size",
-  "gui.eminus.settings.custom_lod.nearest_voxel.hint": "How many blocks one voxel covers at LOD's nearest edge. Each step up stores LOD coarser. Changing this reads the chunks around you again.",
+  "gui.eminus.settings.custom_lod.nearest_voxel.hint": "How many blocks one voxel covers at LOD's nearest edge. Each step up stores LOD coarser.",
   "gui.eminus.settings.custom_lod.nearest_voxel.1": "1 block",
   "gui.eminus.settings.custom_lod.nearest_voxel.2": "2 blocks",
   "gui.eminus.settings.custom_lod.nearest_voxel.4": "4 blocks",
@@ -75,11 +83,10 @@
   "gui.eminus.settings.shader_pack_lod.hint.intro": "How LOD is drawn under a shader pack without Eminus support.",
   "gui.eminus.settings.shader_pack_lod.hint.default": "drawn over the pack's image in Eminus's own look.",
   "gui.eminus.settings.shader_pack_lod.hint.distant_horizons": "a pack that supports Distant Horizons draws it, with the pack's light and fog but one flat color per block.",
-  "gui.eminus.settings.shader_pack_lod.hint.note": "A pack made for Eminus always draws LOD itself. Changing this reloads the shader pack.",
+  "gui.eminus.settings.shader_pack_lod.hint.note": "A pack made for Eminus always draws LOD itself.",
   "gui.eminus.settings.shader_pack_lod.default": "Default",
   "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
   "gui.eminus.settings.lod_animations": "LOD Animations",
   "gui.eminus.settings.lod_animations.hint.on": "a shader pack made for Eminus may sway grass, leaves and water in LOD, as it does nearby.",
-  "gui.eminus.settings.lod_animations.hint.off": "nothing in LOD moves, which saves the GPU time it costs.",
-  "gui.eminus.settings.lod_animations.hint.note": "Changing this reloads the shader pack."
+  "gui.eminus.settings.lod_animations.hint.off": "nothing in LOD moves, which saves the GPU time it costs."
 }
