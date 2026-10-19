@@ -82,6 +82,7 @@ class CellMesherTest {
     private static final int SNOW_MODEL = 43;
     private static final int MOVED_LEAVES = 44;
     private static final int MOVED_LEAVES_MODEL = 45;
+    private static final int CUTOUT_LEAVES_TWIN_MODEL = 46;
     private static final int GROUND_LEVEL = 2;
     private static final int SEA_FLUID = 2;
     private static final int SEABED_Y = 10;
@@ -1004,6 +1005,23 @@ class CellMesherTest {
         for (Direction face : Direction.values()) {
             assertFalse(has(pinned, face, 1, 1, 1, STONE_MODEL), face.getName());
             assertTrue(has(seeThrough, face, 1, 1, 1, STONE_MODEL), face.getName());
+        }
+    }
+
+    @Test
+    void aCoarseLevelDrawsLeavesFromTheirOpaqueTwinAndLevelZeroFromTheirOwnModel() {
+        defineBlocks();
+        models.opaqueTwin(CUTOUT_LEAVES_MODEL, CUTOUT_LEAVES_TWIN_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, ModelMetadata.OPAQUE));
+
+        CellMesh fine = mesh(cube(CUTOUT_LEAVES), airAround(), 0);
+        CellMesh coarse = mesh(cube(CUTOUT_LEAVES), airAround(), COARSE_LEVEL);
+
+        assertEquals(CUBE_FACES, fine.quadCount());
+        assertEquals(CUBE_FACES, coarse.quadCount());
+        for (int index = 0; index < CUBE_FACES; index++) {
+            assertEquals(CUTOUT_LEAVES_MODEL, Quad.modelId(fine.quad(index)));
+            assertEquals(CUTOUT_LEAVES_TWIN_MODEL, Quad.modelId(coarse.quad(index)));
         }
     }
 

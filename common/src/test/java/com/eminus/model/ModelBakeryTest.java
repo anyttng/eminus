@@ -27,6 +27,7 @@ import net.minecraft.world.level.levelgen.SingleThreadedRandomSource;
 
 import it.unimi.dsi.fastutil.ints.IntSet;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -423,6 +424,54 @@ class ModelBakeryTest {
         }
     }
 
+    @Test
+    @SuppressWarnings("ReferenceEquality")
+    void anOpaqueTwinAnswersForItsStatesModelAndEveryOtherModelAnswersItself() throws InterruptedException {
+        BlockState leaves = Blocks.OAK_LEAVES.defaultBlockState();
+        ModelBakery bakery = ModelBakery.start(new StateBaker() {
+            @Override
+            public BakedState bake(BlockState state) {
+                return new BakedState(BakedModel.solid(state == leaves ? GREEN : WHITE), null);
+            }
+
+            @Override
+            public @Nullable BakedState bakeOpaqueTwin(BlockState state) {
+                return state == leaves ? new BakedState(BakedModel.solid(BLUE), null) : null;
+            }
+        });
+
+        try {
+            awaitBake(bakery, leaves);
+            awaitBake(bakery, stone);
+
+            int leavesId = bakery.modelId(leaves);
+            assertNotEquals(leavesId, bakery.opaqueModelId(leavesId));
+            assertEquals(BakedModel.solid(GREEN), bakery.model(leavesId));
+            assertEquals(BakedModel.solid(BLUE), bakery.model(bakery.opaqueModelId(leavesId)));
+            assertEquals(bakery.modelId(stone), bakery.opaqueModelId(bakery.modelId(stone)));
+            assertEquals(ModelBakery.MISSING, bakery.opaqueModelId(ModelBakery.MISSING));
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void thePartsOfAPositionalStateTakeTheirOwnOpaqueTwin() throws InterruptedException {
+        ModelBakery bakery = ModelBakery.start(new PartBaker(true));
+
+        try {
+            awaitBake(bakery, stone);
+
+            for (int[] at : POSITIONS) {
+                int partsId = awaitPositional(bakery, stone, at);
+                assertNotEquals(partsId, bakery.opaqueModelId(partsId), "stone at y " + at[1]);
+                assertEquals(BakedModel.solid(BLUE), bakery.model(bakery.opaqueModelId(partsId)));
+            }
+        } finally {
+            bakery.stop();
+        }
+    }
+
     private static int awaitPositional(ModelBakery bakery, BlockState state, int[] at) throws InterruptedException {
         CountDownLatch served = new CountDownLatch(1);
         int modelId = bakery.positionalModelId(state, at[0], at[1], at[2], served::countDown);
@@ -436,8 +485,14 @@ class ModelBakeryTest {
 
     private static final class PartBaker implements StateBaker {
         private final List<Object> parts = new ArrayList<>();
+        private final boolean twinned;
 
         private PartBaker() {
+            this(false);
+        }
+
+        private PartBaker(boolean twinned) {
+            this.twinned = twinned;
             for (int part = 0; part < PART_COLORS.length; part++) {
                 parts.add(new Object());
             }
@@ -456,6 +511,11 @@ class ModelBakeryTest {
         @Override
         public BakedModel bakeParts(BlockState state, List<Object> picked) {
             return BakedModel.solid(PART_COLORS[parts.indexOf(picked.getFirst())]);
+        }
+
+        @Override
+        public @Nullable BakedModel bakeOpaqueTwinParts(BlockState state, List<Object> picked) {
+            return twinned ? BakedModel.solid(BLUE) : null;
         }
     }
 

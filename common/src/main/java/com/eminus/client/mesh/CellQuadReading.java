@@ -10,6 +10,8 @@ import com.eminus.client.model.ClientBakery;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.client.session.ClientSession;
 import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.Quad;
+import com.eminus.model.ModelBakery;
 import com.eminus.model.PackBlocks;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
@@ -30,6 +32,7 @@ public final class CellQuadReading {
     public static final int PACK_QUADS = 6;
     public static final int PACK_MERGED_QUADS = 7;
     public static final int RENDERED_CUTOUT = 8;
+    public static final int SEE_THROUGH_TWINNED_QUADS = 9;
 
     private static final int TIMEOUT_SECONDS = 120;
 
@@ -62,7 +65,7 @@ public final class CellQuadReading {
 
         return CompletableFuture.allOf(opaque, seeThrough, packed, packMerged)
                 .thenApply(meshed -> rows(keys, opaque.join(), seeThrough.join(), packed.join(), packMerged.join(),
-                        renderedCutout))
+                        renderedCutout, seeThroughBaking.bakery()))
                 .whenComplete((rows, failure) -> {
                     opaqueBaking.stop();
                     seeThroughBaking.stop();
@@ -87,15 +90,29 @@ public final class CellQuadReading {
     }
 
     private static List<int[]> rows(long[] keys, Map<Long, CellMesh> opaque, Map<Long, CellMesh> seeThrough,
-            Map<Long, CellMesh> packed, Map<Long, CellMesh> packMerged, boolean renderedCutout) {
+            Map<Long, CellMesh> packed, Map<Long, CellMesh> packMerged, boolean renderedCutout,
+            ModelBakery seeThroughBakery) {
         List<int[]> rows = new ArrayList<>(keys.length);
         for (long key : keys) {
             rows.add(new int[] {CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key),
                     opaque.get(key).quadCount(), seeThrough.get(key).quadCount(), packed.get(key).quadCount(),
-                    packMerged.get(key).quadCount(), renderedCutout ? 1 : 0});
+                    packMerged.get(key).quadCount(), renderedCutout ? 1 : 0,
+                    twinnedQuads(seeThrough.get(key), seeThroughBakery)});
         }
 
         return rows;
+    }
+
+    private static int twinnedQuads(CellMesh mesh, ModelBakery bakery) {
+        int twinned = 0;
+        for (int index = 0; index < mesh.quadCount(); index++) {
+            int modelId = Quad.modelId(mesh.quad(index));
+            if (bakery.opaqueModelId(modelId) != modelId) {
+                twinned++;
+            }
+        }
+
+        return twinned;
     }
 
     private CellQuadReading() {
