@@ -1,6 +1,14 @@
 {
   "gui.eminus.settings.title": "Eminus 设置",
   "gui.eminus.settings.value_hint": "%s：%s",
+  "gui.eminus.settings.restart.rebuild": "更改后会重建 LOD。",
+  "gui.eminus.settings.restart.reread": "更改后会重新读取你周围的区块。",
+  "gui.eminus.settings.restart.lod_quality": "更改后会重建 LOD；如果体素大小也随之改变，还会重新读取你周围的区块。",
+  "gui.eminus.settings.restart.reload_pack": "更改后会重新加载光影包并重建 LOD。",
+  "gui.eminus.settings.impact": "性能影响：%s",
+  "gui.eminus.settings.impact.low": "低",
+  "gui.eminus.settings.impact.medium": "中",
+  "gui.eminus.settings.impact.high": "高",
   "gui.eminus.settings.category.general": "常规",
   "gui.eminus.settings.category.appearance": "雾",
   "gui.eminus.settings.category.building": "性能",
@@ -27,7 +35,7 @@
   "gui.eminus.settings.custom_lod.hint": "逐项设定“自定义”使用的五个值。LOD 质量为“自定义”时可用。",
   "gui.eminus.settings.custom_lod.title": "自定义 LOD 质量",
   "gui.eminus.settings.custom_lod.nearest_voxel": "体素大小",
-  "gui.eminus.settings.custom_lod.nearest_voxel.hint": "在 LOD 近端，一个体素覆盖多少个方块。每升高一档，LOD 的存储就更粗糙。更改后会重新读取你周围的区块。",
+  "gui.eminus.settings.custom_lod.nearest_voxel.hint": "在 LOD 近端，一个体素覆盖多少个方块。每升高一档，LOD 的存储就更粗糙。",
   "gui.eminus.settings.custom_lod.nearest_voxel.1": "1 个方块",
   "gui.eminus.settings.custom_lod.nearest_voxel.2": "2 个方块",
   "gui.eminus.settings.custom_lod.nearest_voxel.4": "4 个方块",
@@ -74,11 +82,10 @@
   "gui.eminus.settings.shader_pack_lod.hint.intro": "在不支持 Eminus 的光影包下如何绘制 LOD。",
   "gui.eminus.settings.shader_pack_lod.hint.default": "以 Eminus 自己的外观绘制在光影包画面之上。",
   "gui.eminus.settings.shader_pack_lod.hint.distant_horizons": "让支持 Distant Horizons 的光影包自行绘制，带有光影包的光照和雾，但每个方块只有一种纯色。",
-  "gui.eminus.settings.shader_pack_lod.hint.note": "为 Eminus 制作的光影包总是自行绘制 LOD。更改后会重新加载光影包。",
+  "gui.eminus.settings.shader_pack_lod.hint.note": "为 Eminus 制作的光影包总是自行绘制 LOD。",
   "gui.eminus.settings.shader_pack_lod.default": "默认",
   "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
   "gui.eminus.settings.lod_animations": "LOD 动画",
   "gui.eminus.settings.lod_animations.hint.on": "为 Eminus 制作的光影包可以像近处一样让 LOD 中的草、树叶和水摆动。",
-  "gui.eminus.settings.lod_animations.hint.off": "LOD 中不再摆动，可节省其消耗的 GPU 时间。",
-  "gui.eminus.settings.lod_animations.hint.note": "更改会重新加载光影包。"
+  "gui.eminus.settings.lod_animations.hint.off": "LOD 中不再摆动，可节省其消耗的 GPU 时间。"
 }
