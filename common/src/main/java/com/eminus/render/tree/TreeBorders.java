@@ -19,13 +19,17 @@ final class TreeBorders {
     private final LongSet outOfViewDrawnKeys;
     private final LongSet descendedKeys;
     private final LongSet outOfViewDescendedKeys;
+    private final LongSet waitingKeys;
+    private final LongSet outOfViewWaitingKeys;
 
     TreeBorders(LongSet drawnKeys, LongSet outOfViewDrawnKeys, LongSet descendedKeys,
-            LongSet outOfViewDescendedKeys) {
+            LongSet outOfViewDescendedKeys, LongSet waitingKeys, LongSet outOfViewWaitingKeys) {
         this.drawnKeys = drawnKeys;
         this.outOfViewDrawnKeys = outOfViewDrawnKeys;
         this.descendedKeys = descendedKeys;
         this.outOfViewDescendedKeys = outOfViewDescendedKeys;
+        this.waitingKeys = waitingKeys;
+        this.outOfViewWaitingKeys = outOfViewWaitingKeys;
     }
 
     Long2IntMap of(List<MeshSummary> meshes) {
@@ -44,7 +48,7 @@ final class TreeBorders {
         int faces = RenderList.NO_BORDER_FACES;
         for (Direction face : FACES) {
             long neighbor = CellKey.neighbor(key, face);
-            if (!drawn(neighbor) && (descended(neighbor) || ancestorDrawn(neighbor))) {
+            if (!drawn(neighbor) && (descended(neighbor) || placedAtOrAbove(neighbor))) {
                 faces |= 1 << face.get3DDataValue();
             }
         }
@@ -52,11 +56,15 @@ final class TreeBorders {
         return faces;
     }
 
-    private boolean ancestorDrawn(long key) {
+    private boolean placedAtOrAbove(long key) {
+        if (waiting(key)) {
+            return true;
+        }
+
         long ancestor = key;
         for (int level = CellKey.level(key) + 1; level <= DetailLevel.MAX; level++) {
             ancestor = CellKey.parent(ancestor);
-            if (drawn(ancestor)) {
+            if (drawn(ancestor) || waiting(ancestor)) {
                 return true;
             }
         }
@@ -66,6 +74,10 @@ final class TreeBorders {
 
     private boolean drawn(long key) {
         return drawnKeys.contains(key) || outOfViewDrawnKeys.contains(key);
+    }
+
+    private boolean waiting(long key) {
+        return waitingKeys.contains(key) || outOfViewWaitingKeys.contains(key);
     }
 
     private boolean descended(long key) {
