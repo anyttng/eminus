@@ -1,6 +1,14 @@
 {
   "gui.eminus.settings.title": "Eminus 설정",
   "gui.eminus.settings.value_hint": "%s: %s",
+  "gui.eminus.settings.restart.rebuild": "바꾸면 LOD를 다시 만듭니다.",
+  "gui.eminus.settings.restart.reread": "바꾸면 주변 청크를 다시 읽습니다.",
+  "gui.eminus.settings.restart.lod_quality": "바꾸면 LOD를 다시 만들고, 복셀 크기도 함께 바뀌면 주변 청크를 다시 읽습니다.",
+  "gui.eminus.settings.restart.reload_pack": "변경하면 셰이더 팩을 다시 불러오고 LOD를 다시 만듭니다.",
+  "gui.eminus.settings.impact": "성능 영향: %s",
+  "gui.eminus.settings.impact.low": "낮음",
+  "gui.eminus.settings.impact.medium": "보통",
+  "gui.eminus.settings.impact.high": "높음",
   "gui.eminus.settings.category.general": "일반",
   "gui.eminus.settings.category.appearance": "안개",
   "gui.eminus.settings.category.building": "성능",
@@ -28,7 +36,7 @@
   "gui.eminus.settings.custom_lod.hint": "사용자 지정이 쓰는 다섯 가지 값을 하나씩 설정합니다. LOD 품질이 사용자 지정일 때 사용할 수 있습니다.",
   "gui.eminus.settings.custom_lod.title": "사용자 지정 LOD 품질",
   "gui.eminus.settings.custom_lod.nearest_voxel": "복셀 크기",
-  "gui.eminus.settings.custom_lod.nearest_voxel.hint": "LOD의 가까운 가장자리에서 복셀 하나가 덮는 블록 수. 한 단계 올릴 때마다 LOD를 더 거칠게 저장합니다. 바꾸면 주변 청크를 다시 읽습니다.",
+  "gui.eminus.settings.custom_lod.nearest_voxel.hint": "LOD의 가까운 가장자리에서 복셀 하나가 덮는 블록 수. 한 단계 올릴 때마다 LOD를 더 거칠게 저장합니다.",
   "gui.eminus.settings.custom_lod.nearest_voxel.1": "1블록",
   "gui.eminus.settings.custom_lod.nearest_voxel.2": "2블록",
   "gui.eminus.settings.custom_lod.nearest_voxel.4": "4블록",
@@ -75,11 +83,10 @@
   "gui.eminus.settings.shader_pack_lod.hint.intro": "Eminus를 지원하지 않는 셰이더 팩에서 LOD를 그리는 방식입니다.",
   "gui.eminus.settings.shader_pack_lod.hint.default": "팩의 화면 위에 Eminus 고유의 모습으로 그립니다.",
   "gui.eminus.settings.shader_pack_lod.hint.distant_horizons": "Distant Horizons를 지원하는 팩이 직접 그려 팩의 빛과 안개가 적용되지만 블록마다 단색이 됩니다.",
-  "gui.eminus.settings.shader_pack_lod.hint.note": "Eminus용으로 만든 팩은 항상 LOD를 직접 그립니다. 변경하면 셰이더 팩을 다시 불러옵니다.",
+  "gui.eminus.settings.shader_pack_lod.hint.note": "Eminus용으로 만든 팩은 항상 LOD를 직접 그립니다.",
   "gui.eminus.settings.shader_pack_lod.default": "기본값",
   "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
   "gui.eminus.settings.lod_animations": "LOD 애니메이션",
   "gui.eminus.settings.lod_animations.hint.on": "Eminus용으로 만든 셰이더 팩이 가까운 곳처럼 LOD의 풀, 잎, 물을 흔들 수 있습니다.",
-  "gui.eminus.settings.lod_animations.hint.off": "LOD에서는 아무것도 흔들리지 않아 GPU 시간을 아낍니다.",
-  "gui.eminus.settings.lod_animations.hint.note": "변경하면 셰이더 팩을 다시 불러옵니다."
+  "gui.eminus.settings.lod_animations.hint.off": "LOD에서는 아무것도 흔들리지 않아 GPU 시간을 아낍니다."
 }
