@@ -20,6 +20,10 @@ public record CameraFrame(
         inViewPixelsPerBlock = Math.max(inViewPixelsPerBlock, pixelsPerBlock);
     }
 
+    boolean zoomed() {
+        return inViewPixelsPerBlock > pixelsPerBlock;
+    }
+
     CameraFrame underPressure() {
         return new CameraFrame(eyeX, eyeY, eyeZ, viewProjection, pixelsPerBlock, inViewPixelsPerBlock, farCells,
                 subdivisionPixels, true, frame, rotation, turnMargin);
