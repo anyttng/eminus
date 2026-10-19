@@ -33,6 +33,11 @@ public record BakeryModels(ModelIndex index, ModelSource models) implements Mesh
     }
 
     @Override
+    public int opaqueModelId(int modelId) {
+        return index.opaqueModelId(modelId);
+    }
+
+    @Override
     public int oneSidedModelId(int modelId) {
         return index.oneSidedModelId(modelId);
     }
