@@ -183,6 +183,11 @@ class GameTintsTest {
         }
 
         @Override
+        public boolean forceOpaqueWithOpaqueLeaves(BlockState state) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public VariantDraw variantDraw() {
             throw new UnsupportedOperationException();
         }

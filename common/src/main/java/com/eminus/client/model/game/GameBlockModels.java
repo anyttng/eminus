@@ -14,6 +14,8 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public record GameBlockModels(BlockModelShaper shaper, boolean cutoutLeaves, LoaderModels loader)
         implements BlockModels {
+    private static final boolean OPAQUE_LEAVES = false;
+
     @Override
     public BlockModel model(BlockState state) {
         return new GameBlockModel(state, shaper.getBlockModel(state), loader);
@@ -31,11 +33,20 @@ public record GameBlockModels(BlockModelShaper shaper, boolean cutoutLeaves, Loa
 
     @Override
     public boolean forceOpaque(BlockState state) {
-        return !cutoutLeaves && state.getBlock() instanceof LeavesBlock;
+        return forceOpaque(cutoutLeaves, state);
+    }
+
+    @Override
+    public boolean forceOpaqueWithOpaqueLeaves(BlockState state) {
+        return forceOpaque(OPAQUE_LEAVES, state);
     }
 
     @Override
     public VariantDraw variantDraw() {
         return GameBlockModel.VARIANT_DRAW;
+    }
+
+    private static boolean forceOpaque(boolean cutoutLeaves, BlockState state) {
+        return !cutoutLeaves && state.getBlock() instanceof LeavesBlock;
     }
 }

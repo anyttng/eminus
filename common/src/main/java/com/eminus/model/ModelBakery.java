@@ -50,6 +50,7 @@ public final class ModelBakery implements ModelSource {
     private final Set<BlockState> positionalStates = ConcurrentHashMap.newKeySet();
     private final Map<Request, Integer> idByParts = new ConcurrentHashMap<>();
     private final IdTable submergedIds = new IdTable(0, MISSING);
+    private final IdTable opaqueIds = new IdTable(0, MISSING);
     private final Map<Integer, Integer> oneSidedIds = new ConcurrentHashMap<>();
     private final Map<Long, Integer> inwardIds = new ConcurrentHashMap<>();
     private final BlockingQueue<Request> requests = new LinkedBlockingQueue<>();
@@ -91,6 +92,11 @@ public final class ModelBakery implements ModelSource {
 
     public int submergedModelId(int modelId) {
         int twin = submergedIds.get(modelId);
+        return twin == MISSING ? modelId : twin;
+    }
+
+    public int opaqueModelId(int modelId) {
+        int twin = opaqueIds.get(modelId);
         return twin == MISSING ? modelId : twin;
     }
 
@@ -183,8 +189,7 @@ public final class ModelBakery implements ModelSource {
             if (request.parts() == null) {
                 publish(request.state(), bake(request.state()));
             } else {
-                idByParts.put(request,
-                        models.register(stamped(bakeParts(request), packBlocks.ids().applyAsInt(request.state()))));
+                publishParts(request);
             }
 
             answer(request);
@@ -210,13 +215,48 @@ public final class ModelBakery implements ModelSource {
         }
     }
 
+    private @Nullable BakedState bakeOpaqueTwin(BlockState state) {
+        try {
+            return baker.bakeOpaqueTwin(state);
+        } catch (Throwable failure) {
+            Eminus.LOGGER.error("Baking the opaque twin of {} threw; coarser levels draw its own model.", state,
+                    failure);
+            return null;
+        }
+    }
+
+    private @Nullable BakedModel bakeOpaqueTwinParts(Request request) {
+        try {
+            return baker.bakeOpaqueTwinParts(request.state(), request.parts());
+        } catch (Throwable failure) {
+            Eminus.LOGGER.error("Baking the opaque twin of a variant of {} threw; coarser levels draw its own model.",
+                    request.state(), failure);
+            return null;
+        }
+    }
+
+    private void publishParts(Request request) {
+        int packId = packBlocks.ids().applyAsInt(request.state());
+        int partsId = models.register(stamped(bakeParts(request), packId));
+        BakedModel twin = bakeOpaqueTwinParts(request);
+        if (twin != null) {
+            opaqueIds.put(partsId, models.register(stamped(twin, packId)));
+        }
+
+        idByParts.put(request, partsId);
+    }
+
     private void publish(BlockState state, BakedState baked) {
         int statePackId = packBlocks.ids().applyAsInt(state);
         int fluidPackId = packBlocks.ids().applyAsInt(state.getFluidState().createLegacyBlock());
         BakedModel fluid = baked.fluid();
         int fluidId = fluid == null ? NO_FLUID : models.register(stamped(fluid, fluidPackId));
-        int blockId = baked.variants().isEmpty() ? models.register(stamped(baked.block(), statePackId))
-                : registerVariants(baked, statePackId);
+        int blockId = registerBlock(baked, statePackId);
+        BakedState twin = bakeOpaqueTwin(state);
+        if (twin != null) {
+            opaqueIds.put(blockId, registerBlock(twin, statePackId));
+        }
+
         if (baked.submerged() != null) {
             submergedIds.put(fluid == null ? blockId : fluidId,
                     models.register(stamped(baked.submerged(), fluid == null ? statePackId : fluidPackId)));
@@ -228,6 +268,11 @@ public final class ModelBakery implements ModelSource {
 
         fluidIdByState.put(state, fluidId);
         idByState.put(state, blockId);
+    }
+
+    private int registerBlock(BakedState baked, int packId) {
+        return baked.variants().isEmpty() ? models.register(stamped(baked.block(), packId))
+                : registerVariants(baked, packId);
     }
 
     private int registerVariants(BakedState baked, int packId) {

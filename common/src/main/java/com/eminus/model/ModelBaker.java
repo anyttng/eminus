@@ -46,6 +46,35 @@ public final class ModelBaker implements StateBaker {
 
     @Override
     public BakedState bake(BlockState state) {
+        return bake(state, false);
+    }
+
+    @Override
+    public @Nullable BakedState bakeOpaqueTwin(BlockState state) {
+        return twinned(state) ? bake(state, true) : null;
+    }
+
+    @Override
+    public void pick(BlockState state, RandomSource random, List<Object> parts) {
+        blockModels.pick(baseOf(state), random, parts);
+    }
+
+    @Override
+    public BakedModel bakeParts(BlockState state, List<Object> picked) {
+        return bakeParts(state, picked, false);
+    }
+
+    @Override
+    public @Nullable BakedModel bakeOpaqueTwinParts(BlockState state, List<Object> picked) {
+        return twinned(state) ? bakeParts(state, picked, true) : null;
+    }
+
+    private boolean twinned(BlockState state) {
+        BlockState shape = baseOf(state);
+        return blockModels.forceOpaqueWithOpaqueLeaves(shape) && !blockModels.forceOpaque(shape);
+    }
+
+    private BakedState bake(BlockState state, boolean opaque) {
         if (!swept) {
             TintSweep.sweep(Block.BLOCK_STATE_REGISTRY, blockTints, fluids::tintSource, ModelBaker::baseOf, colors);
             swept = true;
@@ -65,31 +94,26 @@ public final class ModelBaker implements StateBaker {
             return new BakedState(surface, null, FluidBaker.submerged(surface));
         }
 
-        BakedModel block = blockModel(shape, state);
+        BakedModel block = blockModel(shape, state, opaque);
         BakedModel surface = fluid.isEmpty() ? null : fluidModel(fluid, state);
         BakedModel submerged = surface == null ? null : FluidBaker.submerged(surface);
         if (!drew) {
             return new BakedState(block, surface, submerged);
         }
 
-        List<WeightedModel> variants = variants(model, shape, state);
+        List<WeightedModel> variants = variants(model, shape, state, opaque);
         return new BakedState(block, surface, submerged, variants, variants.isEmpty());
     }
 
-    @Override
-    public void pick(BlockState state, RandomSource random, List<Object> parts) {
-        blockModels.pick(baseOf(state), random, parts);
-    }
-
-    @Override
-    public BakedModel bakeParts(BlockState state, List<Object> picked) {
+    private BakedModel bakeParts(BlockState state, List<Object> picked, boolean opaque) {
         BlockState shape = baseOf(state);
         quads.clear();
         blockModels.quads(picked, quads);
-        return quads.isEmpty() ? BakedModel.empty() : blockModel(shape, state);
+        return quads.isEmpty() ? BakedModel.empty() : blockModel(shape, state, opaque);
     }
 
-    private List<WeightedModel> variants(@Nullable BlockModel model, BlockState shape, BlockState state) {
+    private List<WeightedModel> variants(@Nullable BlockModel model, BlockState shape, BlockState state,
+            boolean opaque) {
         if (model == null || SeedOverrides.overridden(state.getBlock())) {
             return List.of();
         }
@@ -105,7 +129,7 @@ public final class ModelBaker implements StateBaker {
                 return List.of();
             }
 
-            BakedModel variant = blockModel(shape, state);
+            BakedModel variant = blockModel(shape, state, opaque);
             if (!baked.isEmpty() && !baked.getFirst().model().sameGeometry(variant)) {
                 return List.of();
             }
@@ -116,19 +140,20 @@ public final class ModelBaker implements StateBaker {
         return baked;
     }
 
-    private BakedModel blockModel(BlockState shape, BlockState state) {
-        BakedModel model = emissive(rasterize(shape), state);
+    private BakedModel blockModel(BlockState shape, BlockState state, boolean opaque) {
+        BakedModel model = emissive(rasterize(shape, opaque), state);
         boolean smooth = !quads.isEmpty() && quads.getFirst().smooth() && state.getLightEmission() == 0;
         return smooth ? model.withMetadata(model.metadata() | ModelMetadata.SMOOTH) : model;
     }
 
-    private BakedModel rasterize(BlockState shape) {
+    private BakedModel rasterize(BlockState shape, boolean opaque) {
         if (!drawsBlades && FaceRasterizer.bladed(quads)) {
             return BakedModel.empty();
         }
 
         return rasterizer.rasterize(quads, (quad, u, v) -> sprites.argb(quad.sprite(), u, v),
-                layer -> colors.resolve(blockTints.source(shape, layer), shape), blockModels.forceOpaque(shape));
+                layer -> colors.resolve(blockTints.source(shape, layer), shape),
+                opaque || blockModels.forceOpaque(shape));
     }
 
     private BakedModel fluidModel(FluidState fluid, BlockState state) {

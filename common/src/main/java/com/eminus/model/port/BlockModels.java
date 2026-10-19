@@ -14,5 +14,7 @@ public interface BlockModels {
 
     boolean forceOpaque(BlockState state);
 
+    boolean forceOpaqueWithOpaqueLeaves(BlockState state);
+
     VariantDraw variantDraw();
 }

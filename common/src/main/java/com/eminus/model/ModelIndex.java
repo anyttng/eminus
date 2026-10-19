@@ -44,6 +44,10 @@ public final class ModelIndex {
         return bakery.submergedModelId(modelId);
     }
 
+    public int opaqueModelId(int modelId) {
+        return bakery.opaqueModelId(modelId);
+    }
+
     public int oneSidedModelId(int modelId) {
         return bakery.oneSidedModelId(modelId);
     }
