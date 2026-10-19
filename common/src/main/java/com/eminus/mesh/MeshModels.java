@@ -18,6 +18,8 @@ public interface MeshModels {
 
     int submergedModelId(int modelId);
 
+    int opaqueModelId(int modelId);
+
     int oneSidedModelId(int modelId);
 
     int inwardModelId(int seabedModelId, int fluidModelId);
