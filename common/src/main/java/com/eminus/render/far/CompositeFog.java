@@ -8,7 +8,7 @@ public record CompositeFog(float gameFogStart, float gameFogEnd, float reach, fl
     public static final float FADE_BAND_BLOCKS = FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
 
     public static CompositeFog of(boolean fog, boolean fade, float environmentalStart, float environmentalEnd,
-            float nearBlocks, float reachBlocks, int farCells) {
+            float nearBlocks, float reachBlocks, float horizontalReachBlocks, int farCells) {
         float farBlocks = (float) farCells * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
 
         return new CompositeFog(
@@ -17,9 +17,13 @@ public record CompositeFog(float gameFogStart, float gameFogEnd, float reach, fl
                 fog ? reachBlocks : NONE,
                 fog ? stretchedStart(environmentalStart, environmentalEnd, reachBlocks, farBlocks) : NONE,
                 fog ? stretchedEnd(environmentalEnd, reachBlocks, farBlocks) : NONE,
-                fade ? farBlocks - FADE_BAND_BLOCKS : NONE,
+                fade ? bandStart(horizontalReachBlocks, farBlocks) : NONE,
                 fade ? farBlocks : NONE,
                 skipped(environmentalEnd, nearBlocks));
+    }
+
+    private static float bandStart(float horizontalReachBlocks, float farBlocks) {
+        return Math.min(Math.max(farBlocks - FADE_BAND_BLOCKS, horizontalReachBlocks), farBlocks);
     }
 
     public static boolean skipped(float environmentalEnd, float nearBlocks) {
