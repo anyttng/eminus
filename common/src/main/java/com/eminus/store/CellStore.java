@@ -4,8 +4,10 @@ import com.eminus.cell.Cell;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.Dictionary;
 
+import org.jspecify.annotations.Nullable;
+
 public interface CellStore extends AutoCloseable {
-    Cell read(long key);
+    @Nullable Cell read(long key);
 
     void write(Cell cell);
 

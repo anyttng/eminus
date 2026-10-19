@@ -2,6 +2,7 @@ package com.eminus.client.session;
 
 import java.nio.file.Path;
 import java.util.BitSet;
+import java.util.Objects;
 import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
@@ -45,8 +46,11 @@ import org.jspecify.annotations.Nullable;
 
 public final class ClientSession {
     public static final Identifier RELOAD_ID = Identifier.fromNamespaceAndPath(Eminus.MODID, "far_renderer");
-
     public static final int CLIENT_EXTRA_CHUNKS = 3;
+
+    private static final String IN_SESSION = "reached only inside a session";
+    private static final String WITH_LEVEL = "a renderer starts only with a runtime and a level";
+    private static final String TESTED = "hasSingleplayerServer tests it";
 
     private static boolean heldChunksPending;
     private static boolean overShaderPack;
@@ -55,12 +59,12 @@ public final class ClientSession {
     private static int renderedBiomeBlend;
     private static @Nullable ToIntFunction<BlockState> renderedPackIds;
     private static PackBlocks renderedPackBlocks = PackBlocks.NONE;
-    private static EminusInstance instance;
-    private static DimensionRuntime runtime;
-    private static FarRenderer renderer;
+    private static @Nullable EminusInstance instance;
+    private static @Nullable DimensionRuntime runtime;
+    private static @Nullable FarRenderer renderer;
     private static @Nullable String refusal;
-    private static Settings rendered;
-    private static ClientLevel level;
+    private static @Nullable Settings rendered;
+    private static @Nullable ClientLevel level;
     private static String world = "";
 
     public static void login() {
@@ -117,7 +121,7 @@ public final class ClientSession {
             instance.resizeWorkers(updated.workerThreads());
         }
 
-        if (runtime != null && FarRenderer.recreates(rendered, updated)) {
+        if (runtime != null && rendered != null && FarRenderer.recreates(rendered, updated)) {
             restartRenderer();
         }
     }
@@ -250,9 +254,14 @@ public final class ClientSession {
             submitHeldChunks();
         }
 
-        IngestService ingest = ingestFor(level);
+        ClientLevel ticking = level;
+        if (ticking == null) {
+            return;
+        }
+
+        IngestService ingest = ingestFor(ticking);
         if (ingest != null) {
-            ingest.pollDebounce(level, System.currentTimeMillis());
+            ingest.pollDebounce(ticking, System.currentTimeMillis());
         }
     }
 
@@ -286,7 +295,7 @@ public final class ClientSession {
     }
 
     @SuppressWarnings("ReferenceEquality")
-    private static IngestService ingestFor(Level source) {
+    private static @Nullable IngestService ingestFor(Level source) {
         if (runtime == null || source != level) {
             return null;
         }
@@ -294,7 +303,7 @@ public final class ClientSession {
         return SettingsService.get().settings().ingestion() ? runtime.ingest() : null;
     }
 
-    private static void swapLevel(ClientLevel current) {
+    private static void swapLevel(@Nullable ClientLevel current) {
         level = current;
         if (current == null) {
             stopRenderer();
@@ -307,21 +316,26 @@ public final class ClientSession {
         long replacedArenaBytes = replacedArenaBytes();
         stopRenderer();
         releaseRuntime();
-        runtime = instance.acquire(identityOf(current), current.getMinY());
+        runtime = Objects.requireNonNull(instance, IN_SESSION).acquire(identityOf(current), current.getMinY());
         startRenderer(next, replacedArenaBytes);
         heldChunksPending = true;
     }
 
     private static void releaseRuntime() {
         if (runtime != null) {
-            instance.release(runtime);
+            Objects.requireNonNull(instance, IN_SESSION).release(runtime);
             runtime = null;
         }
     }
 
     private static void submitHeldChunks() {
         Minecraft minecraft = Minecraft.getInstance();
-        IngestService ingest = ingestFor(level);
+        ClientLevel shown = level;
+        if (shown == null) {
+            return;
+        }
+
+        IngestService ingest = ingestFor(shown);
         if (ingest == null || minecraft.player == null) {
             return;
         }
@@ -334,7 +348,7 @@ public final class ClientSession {
             for (int dz = -radius; dz <= radius; dz++) {
                 int chunkX = center.x() + dx;
                 int chunkZ = center.z() + dz;
-                LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
+                LevelChunk chunk = shown.getChunkSource().getChunkNow(chunkX, chunkZ);
                 if (chunk != null) {
                     ingest.submitChunk(chunk, IngestTrigger.HELD);
                 }
@@ -365,8 +379,9 @@ public final class ClientSession {
         renderedPackIds = IrisShaderPack.packIds(renderedPackIds);
         renderedPackBlocks = renderedPackIds == null ? PackBlocks.NONE
                 : new PackBlocks(renderedPackIds, IrisShaderPack.movedIds());
-        FarStart start = FarRenderer.start(minecraft, gpu, instance, runtime, level.getHeight(), rendered,
-                replacedArenaBytes, renderedPackBlocks);
+        FarStart start = FarRenderer.start(minecraft, gpu, Objects.requireNonNull(instance, IN_SESSION),
+                Objects.requireNonNull(runtime, WITH_LEVEL), Objects.requireNonNull(level, WITH_LEVEL).getHeight(),
+                rendered, replacedArenaBytes, renderedPackBlocks);
         renderer = start.renderer();
         refusal = start.refusal();
     }
@@ -387,7 +402,8 @@ public final class ClientSession {
 
     private static Path storeBase(Minecraft minecraft) {
         if (minecraft.hasSingleplayerServer()) {
-            return StoreFolders.singleplayerBase(minecraft.getSingleplayerServer().getWorldPath(LevelResource.ROOT));
+            return StoreFolders.singleplayerBase(Objects.requireNonNull(minecraft.getSingleplayerServer(), TESTED)
+                    .getWorldPath(LevelResource.ROOT));
         }
 
         return StoreFolders.multiplayerBase(minecraft.gameDirectory.toPath(), serverAddress(minecraft));
@@ -395,7 +411,7 @@ public final class ClientSession {
 
     private static String worldName(Minecraft minecraft) {
         if (minecraft.hasSingleplayerServer()) {
-            return minecraft.getSingleplayerServer().getWorldData().getLevelName();
+            return Objects.requireNonNull(minecraft.getSingleplayerServer(), TESTED).getWorldData().getLevelName();
         }
 
         return serverAddress(minecraft);

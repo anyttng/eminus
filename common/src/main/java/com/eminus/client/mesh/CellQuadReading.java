@@ -95,9 +95,9 @@ public final class CellQuadReading {
         List<int[]> rows = new ArrayList<>(keys.length);
         for (long key : keys) {
             rows.add(new int[] {CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key),
-                    opaque.get(key).quadCount(), seeThrough.get(key).quadCount(), packed.get(key).quadCount(),
-                    packMerged.get(key).quadCount(), renderedCutout ? 1 : 0,
-                    twinnedQuads(seeThrough.get(key), seeThroughBakery)});
+                    CellMeshing.meshOf(opaque, key).quadCount(), CellMeshing.meshOf(seeThrough, key).quadCount(),
+                    CellMeshing.meshOf(packed, key).quadCount(), CellMeshing.meshOf(packMerged, key).quadCount(),
+                    renderedCutout ? 1 : 0, twinnedQuads(CellMeshing.meshOf(seeThrough, key), seeThroughBakery)});
         }
 
         return rows;

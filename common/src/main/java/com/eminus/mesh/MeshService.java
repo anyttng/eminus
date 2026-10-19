@@ -238,6 +238,10 @@ public final class MeshService {
     }
 
     private void releaseCarried(@Nullable CellHandle held, int references) {
+        if (held == null) {
+            return;
+        }
+
         for (int extra = 1; extra < references; extra++) {
             cells.release(held);
         }

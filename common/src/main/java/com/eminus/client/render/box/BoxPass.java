@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.OptionalDouble;
 import java.util.Set;
 
@@ -175,7 +176,7 @@ public final class BoxPass implements AutoCloseable {
         try (Pass pass = gpu.pass(spec)) {
             pass.pipeline(pipeline);
             pass.bind(BLOCK.name(), uniform);
-            pass.bind(RECORDS, texels);
+            pass.bind(RECORDS, Objects.requireNonNull(texels, "boxes are drawn only once records hold them"));
             pass.bind(LIGHTMAP, gpu.lightmap(), Sampler.LINEAR);
             pass.draw(count * BoxRecords.VERTICES);
         }

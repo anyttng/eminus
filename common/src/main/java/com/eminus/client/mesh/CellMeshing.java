@@ -1,6 +1,7 @@
 package com.eminus.client.mesh;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -18,6 +19,10 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.client.Minecraft;
 
 public final class CellMeshing {
+    public static CellMesh meshOf(Map<Long, CellMesh> meshes, long key) {
+        return Objects.requireNonNull(meshes.get(key), "the map completes once every key is meshed");
+    }
+
     public static CompletableFuture<Map<Long, CellMesh>> mesh(DimensionRuntime runtime, EminusInstance instance,
             ClientBakery baking, long[] keys, int timeoutSeconds) {
         Map<Long, CellMesh> meshes = new ConcurrentHashMap<>();

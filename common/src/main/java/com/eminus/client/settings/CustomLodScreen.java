@@ -85,13 +85,13 @@ public final class CustomLodScreen extends DraftOptionsScreen {
     @Override
     protected void addOptions() {
         this.addHeader(RESOLUTION_CATEGORY_KEY);
-        this.list.addBig(this.nearestVoxel);
-        this.list.addBig(this.textures);
+        this.optionsList().addBig(this.nearestVoxel);
+        this.optionsList().addBig(this.textures);
         this.addHeader(VEGETATION_CATEGORY_KEY);
-        this.list.addBig(this.leaves);
-        this.list.addBig(this.grassAndFlowers);
+        this.optionsList().addBig(this.leaves);
+        this.optionsList().addBig(this.grassAndFlowers);
         this.addHeader(LIGHTING_CATEGORY_KEY);
-        this.list.addBig(this.cornerOcclusion);
+        this.optionsList().addBig(this.cornerOcclusion);
     }
 
     private void apply(UnaryOperator<LodQuality> edit) {
