@@ -63,12 +63,14 @@ public final class SettingsScreen extends DraftOptionsScreen {
 
         this.ingestion = OptionInstance.createBoolean(INGESTION_KEY, tooltip(SettingsText.toggleHint(INGESTION_KEY)),
                 settings.ingestion(), value -> this.editFromOptions());
-        this.lodChoice = new OptionInstance<>(LOD_QUALITY_KEY, tooltip(SettingsText.lodChoiceHint()),
+        this.lodChoice = new OptionInstance<>(LOD_QUALITY_KEY,
+                tooltip(SettingsText.withCost(SettingsText.lodChoiceHint(), OptionCost.LOD_QUALITY)),
                 (caption, value) -> Options.genericValueLabel(caption, SettingsText.lodChoice(value)),
                 coarseToFine(SliderPositions.LAST_LOD_CHOICE, SliderPositions::lodChoice,
                         SliderPositions::lodChoicePosition),
                 settings.lodChoice(), value -> this.editFromOptions());
-        this.farRenderCells = new OptionInstance<>(FAR_RENDER_CELLS_KEY, tooltip(FAR_RENDER_CELLS_KEY),
+        this.farRenderCells = new OptionInstance<>(FAR_RENDER_CELLS_KEY,
+                tooltip(SettingsText.withCost(SettingsText.hint(FAR_RENDER_CELLS_KEY), OptionCost.LOD_DISTANCE)),
                 (caption, value) -> Options.genericValueLabel(caption, SettingsText.farRenderDistance(value)),
                 new OptionInstance.IntRange(Settings.MIN_FAR_RENDER_CELLS, Settings.MAX_FAR_RENDER_CELLS,
                         APPLY_ON_RELEASE),
@@ -88,14 +90,16 @@ public final class SettingsScreen extends DraftOptionsScreen {
                 value -> this.editFromOptions());
         this.fade = OptionInstance.createBoolean(FADE_KEY, tooltip(SettingsText.toggleHint(FADE_KEY)), settings.fade(),
                 value -> this.editFromOptions());
-        this.shaderPackLod = new OptionInstance<>(SHADER_PACK_LOD_KEY, tooltip(SettingsText.shaderPackLodHint()),
+        this.shaderPackLod = new OptionInstance<>(SHADER_PACK_LOD_KEY,
+                tooltip(SettingsText.withCost(SettingsText.shaderPackLodHint(), OptionCost.SHADER_PACK_LOD)),
                 (caption, value) -> SettingsText.shaderPackLod(value),
                 new OptionInstance.Enum<>(List.of(ShaderPackLod.values()),
                         Codec.STRING.xmap(key -> ShaderPackLod.fromKey(key).orElse(Settings.DEFAULT_SHADER_PACK_LOD),
                                 ShaderPackLod::key)),
                 settings.shaderPackLod(), value -> this.editFromOptions());
         this.lodAnimations = OptionInstance.createBoolean(LOD_ANIMATIONS_KEY,
-                tooltip(SettingsText.toggleHint(LOD_ANIMATIONS_KEY)), settings.lodAnimations(),
+                tooltip(SettingsText.withCost(SettingsText.toggleHint(LOD_ANIMATIONS_KEY), OptionCost.LOD_ANIMATIONS)),
+                settings.lodAnimations(),
                 value -> this.editFromOptions());
     }
 

@@ -1,6 +1,14 @@
 {
   "gui.eminus.settings.title": "Ustawienia Eminusa",
   "gui.eminus.settings.value_hint": "%s: %s",
+  "gui.eminus.settings.restart.rebuild": "Zmiana przebudowuje LOD.",
+  "gui.eminus.settings.restart.reread": "Zmiana ponownie wczytuje chunki wokół ciebie.",
+  "gui.eminus.settings.restart.lod_quality": "Zmiana przebudowuje LOD, a gdy zmienia się przy tym rozmiar woksela, ponownie wczytuje chunki wokół ciebie.",
+  "gui.eminus.settings.restart.reload_pack": "Zmiana przeładowuje paczkę shaderów i przebudowuje LOD.",
+  "gui.eminus.settings.impact": "Wpływ na wydajność: %s",
+  "gui.eminus.settings.impact.low": "Niski",
+  "gui.eminus.settings.impact.medium": "Średni",
+  "gui.eminus.settings.impact.high": "Wysoki",
   "gui.eminus.settings.category.general": "Ogólne",
   "gui.eminus.settings.category.appearance": "Mgła",
   "gui.eminus.settings.category.building": "Wydajność",
@@ -27,7 +35,7 @@
   "gui.eminus.settings.custom_lod.hint": "Ustaw po kolei pięć wartości, których używa Własny. Dostępne, gdy jakość LOD to Własny.",
   "gui.eminus.settings.custom_lod.title": "Własna jakość LOD",
   "gui.eminus.settings.custom_lod.nearest_voxel": "Rozmiar woksela",
-  "gui.eminus.settings.custom_lod.nearest_voxel.hint": "Ile bloków obejmuje jeden woksel na bliskiej krawędzi LOD. Każdy krok w górę zapisuje LOD grubiej. Zmiana ponownie wczytuje chunki wokół ciebie.",
+  "gui.eminus.settings.custom_lod.nearest_voxel.hint": "Ile bloków obejmuje jeden woksel na bliskiej krawędzi LOD. Każdy krok w górę zapisuje LOD grubiej.",
   "gui.eminus.settings.custom_lod.nearest_voxel.1": "1 blok",
   "gui.eminus.settings.custom_lod.nearest_voxel.2": "2 bloki",
   "gui.eminus.settings.custom_lod.nearest_voxel.4": "4 bloki",
@@ -74,11 +82,10 @@
   "gui.eminus.settings.shader_pack_lod.hint.intro": "Jak rysowany jest LOD pod paczką shaderów bez obsługi Eminus.",
   "gui.eminus.settings.shader_pack_lod.hint.default": "rysowany na obrazie paczki we własnym wyglądzie Eminus.",
   "gui.eminus.settings.shader_pack_lod.hint.distant_horizons": "paczka obsługująca Distant Horizons rysuje go sama, z jej światłem i mgłą, ale jednym płaskim kolorem na blok.",
-  "gui.eminus.settings.shader_pack_lod.hint.note": "Paczka stworzona dla Eminus zawsze rysuje LOD sama. Zmiana przeładowuje paczkę shaderów.",
+  "gui.eminus.settings.shader_pack_lod.hint.note": "Paczka stworzona dla Eminus zawsze rysuje LOD sama.",
   "gui.eminus.settings.shader_pack_lod.default": "Domyślnie",
   "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
   "gui.eminus.settings.lod_animations": "Animacje LOD",
   "gui.eminus.settings.lod_animations.hint.on": "shadery zrobione dla Eminus mogą kołysać trawę, liście i wodę w LOD tak jak w pobliżu.",
-  "gui.eminus.settings.lod_animations.hint.off": "w LOD nic się nie rusza, co oszczędza czas GPU.",
-  "gui.eminus.settings.lod_animations.hint.note": "Zmiana przeładowuje shadery."
+  "gui.eminus.settings.lod_animations.hint.off": "w LOD nic się nie rusza, co oszczędza czas GPU."
 }
