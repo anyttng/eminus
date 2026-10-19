@@ -1,48 +1,39 @@
-**See terrain far beyond your render distance.** Eminus keeps a low-detail (LOD) copy of the world you have explored and draws it past the edge of the game's own terrain.
+**See terrain far beyond your render distance.** Eminus keeps a low-detail (LOD) copy of the chunks you have seen and draws it past the edge of the game's own terrain.
 
-## What it does
+The same spot with the game's render distance alone, then with LOD at the default 512 chunks:
 
-- Every chunk you see is saved to disk as a low-detail copy, per world and per dimension, so it is still there the next time you join.
-- That copy is drawn behind the game's own terrain, from 32 up to 2048 chunks away, 512 by default.
-- LOD never draws over near terrain.
-- Block changes in the chunks around you reach LOD too.
-- LOD shows water and plants, carries sky and block light, and blends grass, leaf and water colours across biomes the way your Biome Blend is set.
-- Runs on both of the game's graphics APIs, OpenGL and Vulkan.
-- Client-only: works on any server, with nothing installed there.
+![Render distance alone](https://raw.githubusercontent.com/anyttng/eminus/main/docs/images/before.png)
 
-## Settings
+![With LOD](https://raw.githubusercontent.com/anyttng/eminus/main/docs/images/after.png)
 
-Open the settings screen from the mod list (Config on NeoForge, Configure through Mod Menu on Fabric) or from the Eminus page in Sodium's video settings. The same values live in `config/eminus.json`.
+## What you get
 
-- **Ingestion**: turns saving of newly seen chunks on or off.
-- **LOD quality**: Low, Medium, High, Ultra or Custom. Under Custom the Custom Settings... button beside it sets five values one by one: voxel size, see-through leaves (apart from the game's own option), grass and flowers, texture resolution and corner occlusion. Custom keeps them while a preset is picked.
-- **LOD distance**: how far LOD reaches.
-- **Worker threads**: background threads that build LOD.
-- **Detail distance**: how far out the finer detail of LOD reaches; each step up doubles that distance and costs more video memory.
-- **Fog**: fog over LOD, carried on from the game's own.
-- **Fade**: fades LOD out over its last 512 blocks instead of ending it in a hard line.
-
-Two more appear only with Iris installed:
-
-- **Shader pack LOD**: how LOD is drawn under a shader pack not made for Eminus. Default draws it over the pack's image in Eminus's own look. Distant Horizons lets a pack that supports Distant Horizons draw it with the pack's light and fog, one flat colour per block, while Distant Horizons itself is not installed.
-- **LOD animations**: lets a shader pack made for Eminus sway grass, leaves and water in LOD; off saves the GPU time this costs.
-
-The settings are grouped into Quality, Fog, Performance and, with Iris, Shaders. A change takes effect on Apply Changes or Done, all changes together. A LOD quality change redraws LOD. A change of the voxel size, which only Custom sets, also reads the chunks around you again.
+- Terrain out to 2048 chunks, 512 by default, with water, plants, light and biome colors.
+- Works on any server. Nothing is installed on the server side.
 
 ## Compatibility
 
-Runs on **NeoForge** and **Fabric**. Mod Menu is optional on Fabric.
+NeoForge and Fabric. OpenGL, and Vulkan where the game offers it.
 
-**Sodium** is supported on both loaders.
+Sodium on both loaders. Mod Menu is optional on Fabric.
 
-**Shader packs**:
+Under an Iris or Vitrail shader pack LOD shows in Eminus's own look. An Iris pack can draw LOD itself, with its own light, fog and shadows; no pack does this yet.
 
-- **Iris** and **Vitrail**: LOD shows under any pack, in Eminus's own look.
-- An Iris pack can draw LOD itself, with its own light, fog and shadows. No pack does this yet.
+## Settings
+
+Config on NeoForge, Configure through Mod Menu on Fabric, or the Eminus page in Sodium's video settings. The main ones:
+
+- **LOD Quality**: Low, Medium, High, Ultra or Custom.
+- **LOD Distance**: 32 to 2048 chunks, 512 by default.
+- **Detail Distance**: how far the finer detail of LOD reaches. Each step up doubles it and costs more video memory.
+- **Fog**: fog over LOD, carried on from the game's own.
+- **Fade**: LOD fades out over its last 512 blocks instead of ending in a hard line.
+
+Every setting has a hint on the screen. The same values live in `config/eminus.json`.
 
 ## Before you download
 
-- LOD appears only where you have already been: there is no import of existing worlds and no pregeneration.
+LOD appears only where you have already been. There is no import of existing worlds and no pregeneration.
 
 ## Bug reports
 
