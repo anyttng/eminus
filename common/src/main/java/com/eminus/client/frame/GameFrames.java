@@ -1,5 +1,7 @@
 package com.eminus.client.frame;
 
+import java.util.Objects;
+
 import com.eminus.mixin.LevelRendererAccessor;
 import com.eminus.mixin.ViewAreaAccessor;
 
@@ -35,7 +37,7 @@ public final class GameFrames {
     public static GameFrame read(Minecraft client) {
         Camera camera = client.gameRenderer.getMainCamera();
         Vec3 eye = camera.getPosition();
-        ClientLevel level = client.level;
+        ClientLevel level = Objects.requireNonNull(client.level, "a frame is read with a level");
 
         return new GameFrame(eye.x, eye.y, eye.z,
                 new Matrix4f().rotation(camera.rotation().conjugate(new Quaternionf())), fov,

@@ -106,18 +106,18 @@ public final class SettingsScreen extends DraftOptionsScreen {
                 .build();
         this.addHeader(GENERAL_CATEGORY_KEY);
         this.addSmallSlider(this.lodChoicePosition.createButton(this.options), this.customLodButton);
-        this.list.addBig(this.farRenderCells);
-        this.list.addBig(this.detailDistancePosition);
-        this.list.addBig(this.ingestion);
+        this.optionsList().addBig(this.farRenderCells);
+        this.optionsList().addBig(this.detailDistancePosition);
+        this.optionsList().addBig(this.ingestion);
         this.addHeader(APPEARANCE_CATEGORY_KEY);
-        this.list.addBig(this.fog);
-        this.list.addBig(this.fade);
+        this.optionsList().addBig(this.fog);
+        this.optionsList().addBig(this.fade);
         this.addHeader(BUILDING_CATEGORY_KEY);
-        this.list.addBig(this.workerThreads);
+        this.optionsList().addBig(this.workerThreads);
         if (IrisShaderPack.installed()) {
             this.addHeader(SHADER_PACKS_CATEGORY_KEY);
-            this.list.addBig(this.shaderPackLod);
-            this.list.addBig(this.lodAnimations);
+            this.optionsList().addBig(this.shaderPackLod);
+            this.optionsList().addBig(this.lodAnimations);
         }
     }
 

@@ -4,6 +4,7 @@ import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -71,6 +72,7 @@ public final class PackProgram {
     private static final boolean TRANSPOSE = false;
     private static final Pattern CORE_VERSION = Pattern.compile("#version\\s+(\\d+)\\s+compatibility");
     private static final String CORE_PROFILE = "#version $1 core";
+    private static final String PATCHED = "patchDHTerrain returns every stage it was handed";
 
     private final Foreign foreign;
     private final Pipeline pipeline;
@@ -150,8 +152,9 @@ public final class PackProgram {
                     ShaderPrinter.printProgram(name).addSources(patched).print();
                     String vertex = splicedVertex == null ? ours.vertex()
                             : hook ? CORE_VERSION.matcher(splicedVertex).replaceFirst(CORE_PROFILE)
-                                    : patched.get(PatchShaderType.VERTEX);
-                    return new ShaderSources(vertex, patched.get(PatchShaderType.FRAGMENT));
+                                    : Objects.requireNonNull(patched.get(PatchShaderType.VERTEX), PATCHED);
+                    return new ShaderSources(vertex,
+                            Objects.requireNonNull(patched.get(PatchShaderType.FRAGMENT), PATCHED));
                 });
         if (!pipeline.compiles()) {
             foreign.release(pipeline);

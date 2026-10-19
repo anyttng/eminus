@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -112,7 +113,7 @@ public final class ModelBakery implements ModelSource {
 
     @Override
     public BakedModel model(int modelId) {
-        return models.value(modelId);
+        return Objects.requireNonNull(models.value(modelId), "model ids come from register");
     }
 
     @Override
@@ -186,10 +187,11 @@ public final class ModelBakery implements ModelSource {
                 return;
             }
 
-            if (request.parts() == null) {
+            List<Object> parts = request.parts();
+            if (parts == null) {
                 publish(request.state(), bake(request.state()));
             } else {
-                publishParts(request);
+                publishParts(request, parts);
             }
 
             answer(request);
@@ -205,12 +207,11 @@ public final class ModelBakery implements ModelSource {
         }
     }
 
-    private BakedModel bakeParts(Request request) {
+    private BakedModel bakeParts(BlockState state, List<Object> parts) {
         try {
-            return baker.bakeParts(request.state(), request.parts());
+            return baker.bakeParts(state, parts);
         } catch (Throwable failure) {
-            Eminus.LOGGER.error("Baking a variant of {} threw; the placeholder model stands in.", request.state(),
-                    failure);
+            Eminus.LOGGER.error("Baking a variant of {} threw; the placeholder model stands in.", state, failure);
             return placeholder;
         }
     }
@@ -225,20 +226,20 @@ public final class ModelBakery implements ModelSource {
         }
     }
 
-    private @Nullable BakedModel bakeOpaqueTwinParts(Request request) {
+    private @Nullable BakedModel bakeOpaqueTwinParts(BlockState state, List<Object> parts) {
         try {
-            return baker.bakeOpaqueTwinParts(request.state(), request.parts());
+            return baker.bakeOpaqueTwinParts(state, parts);
         } catch (Throwable failure) {
             Eminus.LOGGER.error("Baking the opaque twin of a variant of {} threw; coarser levels draw its own model.",
-                    request.state(), failure);
+                    state, failure);
             return null;
         }
     }
 
-    private void publishParts(Request request) {
+    private void publishParts(Request request, List<Object> parts) {
         int packId = packBlocks.ids().applyAsInt(request.state());
-        int partsId = models.register(stamped(bakeParts(request), packId));
-        BakedModel twin = bakeOpaqueTwinParts(request);
+        int partsId = models.register(stamped(bakeParts(request.state(), parts), packId));
+        BakedModel twin = bakeOpaqueTwinParts(request.state(), parts);
         if (twin != null) {
             opaqueIds.put(partsId, models.register(stamped(twin, packId)));
         }

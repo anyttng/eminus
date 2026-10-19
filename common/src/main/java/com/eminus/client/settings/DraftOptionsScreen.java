@@ -1,5 +1,6 @@
 package com.eminus.client.settings;
 
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
@@ -47,6 +48,10 @@ abstract class DraftOptionsScreen extends OptionsSubScreen {
         this.headeredList = this.layout.addToContents(new HeaderedOptionsList(this.minecraft, this.width, this));
         this.list = this.headeredList;
         this.addOptions();
+    }
+
+    protected HeaderedOptionsList optionsList() {
+        return Objects.requireNonNull(this.headeredList, "addContents builds it before addOptions");
     }
 
     protected void addHeader(String key) {

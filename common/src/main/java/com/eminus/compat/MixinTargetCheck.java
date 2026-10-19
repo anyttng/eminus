@@ -23,6 +23,8 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 
+import org.jspecify.annotations.Nullable;
+
 public final class MixinTargetCheck {
     public enum Reason {
         MISSING_MIXIN,
@@ -43,7 +45,7 @@ public final class MixinTargetCheck {
     public record Refusal(String mixin, String member, Reason reason) {
     }
 
-    private record Loaded(boolean present, ClassNode model) {
+    private record Loaded(boolean present, @Nullable ClassNode model) {
     }
 
     private record Selection(String owner, List<MethodNode> bodies, List<String> selfTargets) {
@@ -391,7 +393,7 @@ public final class MixinTargetCheck {
         return !methods(owner, names::contains, descriptor).isEmpty();
     }
 
-    private static boolean hasField(ClassNode owner, List<String> names, String descriptor) {
+    private static boolean hasField(ClassNode owner, List<String> names, @Nullable String descriptor) {
         for (FieldNode field : owner.fields) {
             if (names.contains(field.name) && (descriptor == null || field.desc.equals(descriptor))) {
                 return true;

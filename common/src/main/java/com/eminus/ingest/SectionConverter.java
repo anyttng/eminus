@@ -27,7 +27,7 @@ public final class SectionConverter {
     private static final int ROW_BYTES = DataLayer.SIZE / SectionPyramid.SECTION_SIDE;
 
     public static void convert(LevelChunkSection section, BiomeWindow window, DataLayer skyLight,
-            DataLayer blockLight, StateTable states, Dictionary<String> biomes, SectionPyramid into) {
+            @Nullable DataLayer blockLight, StateTable states, Dictionary<String> biomes, SectionPyramid into) {
         into.reset();
 
         long[] level = into.level(DetailLevel.MIN);

@@ -19,6 +19,7 @@ import com.eminus.cell.OccupancyMask;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
+import org.jspecify.annotations.Nullable;
 import org.sqlite.SQLiteConfig;
 import org.sqlite.SQLiteDataSource;
 
@@ -141,7 +142,7 @@ public final class SqliteCellStore implements CellStore {
     }
 
     @Override
-    public synchronized Cell read(long key) {
+    public synchronized @Nullable Cell read(long key) {
         byte[] record = selectRecord(key);
         if (record == null) {
             return null;
@@ -257,7 +258,7 @@ public final class SqliteCellStore implements CellStore {
         }
     }
 
-    private byte[] selectRecord(long key) {
+    private byte @Nullable [] selectRecord(long key) {
         try {
             selectCell.setLong(1, key);
             try (ResultSet rows = selectCell.executeQuery()) {
@@ -315,7 +316,7 @@ public final class SqliteCellStore implements CellStore {
         return played == null ? 0L : played;
     }
 
-    private static Long readMeta(Connection connection, String name) throws SQLException {
+    private static @Nullable Long readMeta(Connection connection, String name) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(SELECT_META)) {
             statement.setString(1, name);
             try (ResultSet rows = statement.executeQuery()) {
@@ -483,7 +484,7 @@ public final class SqliteCellStore implements CellStore {
         }
     }
 
-    private static void closeQuietly(Connection connection) {
+    private static void closeQuietly(@Nullable Connection connection) {
         if (connection == null) {
             return;
         }

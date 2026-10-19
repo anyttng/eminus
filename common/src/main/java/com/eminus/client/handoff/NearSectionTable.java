@@ -5,6 +5,7 @@ import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import com.eminus.cell.CellFrame;
@@ -27,6 +28,8 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 
+import org.jspecify.annotations.Nullable;
+
 public final class NearSectionTable implements AutoCloseable {
     public static final Format TEXEL_FORMAT = Format.R32_UINT;
 
@@ -45,7 +48,7 @@ public final class NearSectionTable implements AutoCloseable {
     private TexelView view;
     private ByteBuffer scratch;
     private IntBuffer texels;
-    private LevelRenderer levelRenderer;
+    private @Nullable LevelRenderer levelRenderer;
 
     private NearSectionTable(Gpu gpu) {
         this.gpu = gpu;
@@ -96,13 +99,14 @@ public final class NearSectionTable implements AutoCloseable {
     private boolean owned(int sectionX, int sectionY, int sectionZ) {
         pos.set(sectionX * NearSections.SECTION_BLOCKS, sectionY * NearSections.SECTION_BLOCKS,
                 sectionZ * NearSections.SECTION_BLOCKS);
+        LevelRenderer renderer = Objects.requireNonNull(levelRenderer, "sections are queried inside fill");
         if (sodium) {
-            return GameFrames.sectionCompiled(levelRenderer, pos)
+            return GameFrames.sectionCompiled(renderer, pos)
                     && SodiumDrawnSections.drawn(sectionX, sectionY, sectionZ);
         }
 
         return drawn.contains(SectionPos.asLong(sectionX, sectionY, sectionZ))
-                && GameFrames.gridSectionDrawable(levelRenderer, pos);
+                && GameFrames.gridSectionDrawable(renderer, pos);
     }
 
     private void upload() {

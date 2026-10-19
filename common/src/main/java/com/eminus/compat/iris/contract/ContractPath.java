@@ -1,6 +1,7 @@
 package com.eminus.compat.iris.contract;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
@@ -38,6 +39,7 @@ public final class ContractPath implements PackPath {
     private static final String SHADOW_TRANSLUCENT_PROGRAM = "eminus_shadow_translucent";
     private static final String PACK_PROGRAM_SUFFIX = "_eminus";
     private static final String FILE_ROOT = "/";
+    private static final String CHOSEN = "shadowSource picks only a source that is there";
 
     private final PackFile opaque;
     private final @Nullable PackFile translucent;
@@ -111,8 +113,8 @@ public final class ContractPath implements PackPath {
             case OPAQUE -> source(OPAQUE_PROGRAM, opaque, vertex, stage);
             case TRANSLUCENT -> source(TRANSLUCENT_PROGRAM, translucent == null ? opaque : translucent, vertex, stage);
             case SHADOW -> switch (ContractSources.shadowSource(shadow != null, packShadow != null)) {
-                case FILE -> shadowSource(SHADOW_PROGRAM, shadow);
-                case PACK_PROGRAM -> packShadowSource(packShadow);
+                case FILE -> shadowSource(SHADOW_PROGRAM, Objects.requireNonNull(shadow, CHOSEN));
+                case PACK_PROGRAM -> packShadowSource(Objects.requireNonNull(packShadow, CHOSEN));
                 case NONE -> null;
             };
             case SHADOW_TRANSLUCENT -> shadowTranslucent == null ? null

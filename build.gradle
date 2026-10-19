@@ -14,6 +14,7 @@ subprojects {
 
         dependencies {
             errorprone "com.google.errorprone:error_prone_core:${errorprone_version}"
+            errorprone "com.uber.nullaway:nullaway:${nullaway_version}"
         }
 
         tasks.withType(JavaCompile).configureEach {
@@ -22,6 +23,12 @@ subprojects {
             options.errorprone.excludedPaths = '.*/mixin/.*'
             // Format strings are constants by the workspace's own rule.
             options.errorprone.disable('InlineFormatString')
+            if (name == 'compileJava') {
+                options.errorprone.error('NullAway')
+                options.errorprone.option('NullAway:AnnotatedPackages', 'com.eminus')
+            } else {
+                options.errorprone.disable('NullAway')
+            }
         }
     }
 }

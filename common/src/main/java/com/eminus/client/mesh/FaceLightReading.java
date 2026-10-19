@@ -63,7 +63,7 @@ public final class FaceLightReading {
     private static List<int[]> rows(CellFrame frame, long[] keys, Map<Long, CellMesh> meshes, Box box) {
         List<int[]> rows = new ArrayList<>(keys.length);
         for (long key : keys) {
-            rows.add(row(frame, key, meshes.get(key), box));
+            rows.add(row(frame, key, CellMeshing.meshOf(meshes, key), box));
         }
 
         return rows;

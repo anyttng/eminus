@@ -4,6 +4,8 @@ import com.eminus.cell.Cell;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.Dictionary;
 
+import org.jspecify.annotations.Nullable;
+
 public final class EmptyCellStore implements CellStore {
     public static final EmptyCellStore INSTANCE = new EmptyCellStore();
 
@@ -11,7 +13,7 @@ public final class EmptyCellStore implements CellStore {
     }
 
     @Override
-    public Cell read(long key) {
+    public @Nullable Cell read(long key) {
         return null;
     }
 

@@ -2,6 +2,8 @@ package com.eminus.cell;
 
 import java.util.Arrays;
 
+import org.jspecify.annotations.Nullable;
+
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 
@@ -20,7 +22,7 @@ public final class Cell {
     private long[] palette;
     private int paletteSize;
     private int occupancy = OccupancyMask.EMPTY;
-    private Long2IntMap paletteLookup;
+    private @Nullable Long2IntMap paletteLookup;
 
     public static Cell blank(long key) {
         long[] palette = new long[INITIAL_PALETTE_CAPACITY];

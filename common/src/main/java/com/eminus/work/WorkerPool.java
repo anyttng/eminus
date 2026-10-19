@@ -8,6 +8,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
+import org.jspecify.annotations.Nullable;
+
 public final class WorkerPool {
     public static final String THREAD_NAME_PREFIX = "eminus-worker-";
     public static final int THREAD_PRIORITY = Thread.NORM_PRIORITY - 1;
@@ -168,7 +170,7 @@ public final class WorkerPool {
         }
     }
 
-    private Claim awaitClaim(Worker worker) {
+    private @Nullable Claim awaitClaim(Worker worker) {
         lock.lock();
         try {
             while (running && !worker.retired) {
@@ -188,7 +190,7 @@ public final class WorkerPool {
         return null;
     }
 
-    private Claim nextClaim() {
+    private @Nullable Claim nextClaim() {
         int index = selector.pick(services);
         if (index == ServiceSelector.NONE) {
             return null;

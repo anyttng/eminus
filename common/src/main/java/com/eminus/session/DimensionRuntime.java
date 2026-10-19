@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
 import com.eminus.Eminus;
@@ -25,6 +24,8 @@ import com.eminus.store.SaveService;
 import com.eminus.store.SqliteCellStore;
 import com.eminus.work.WorkService;
 
+import com.uber.nullaway.annotations.Initializer;
+
 public final class DimensionRuntime {
     private static final String DROP_GRACE_PROPERTY = "eminus.store.dropGraceHours";
     private static final int DROP_GRACE_HOURS = 2;
@@ -34,8 +35,7 @@ public final class DimensionRuntime {
     private final CellFrame frame;
     private final int lowestStoredLevel;
 
-    private final AtomicReference<CellChangeListener> changes = new AtomicReference<>();
-
+    private volatile CellChangeListener changes;
     private CellStore store;
     private int ingestLevel;
     private SaveService saves;
@@ -102,11 +102,11 @@ public final class DimensionRuntime {
 
     // A listener that takes the handle replaces the one that releases it, so a cell reaches exactly one owner.
     public void listenTo(CellChangeListener listener) {
-        changes.set(listener);
+        changes = listener;
     }
 
     public void stopListening() {
-        changes.set((handle, faceMask, edgeMask) -> cells.release(handle));
+        changes = (handle, faceMask, edgeMask) -> cells.release(handle);
     }
 
     void createFolder() {
@@ -117,6 +117,7 @@ public final class DimensionRuntime {
         }
     }
 
+    @Initializer
     void openStore(LongSupplier clock) {
         long dropGraceMillis = TimeUnit.HOURS.toMillis(Integer.getInteger(DROP_GRACE_PROPERTY, DROP_GRACE_HOURS));
         try {
@@ -131,6 +132,7 @@ public final class DimensionRuntime {
         }
     }
 
+    @Initializer
     void openCells(WorkService<Void> saveService, WorkService<SectionPyramid> ingestService, LongSupplier clock) {
         Dictionary<String> stateIds = openDictionary(StateTable.DICTIONARY_NAME);
         Dictionary<String> biomeIds = openDictionary(SectionConverter.DICTIONARY_NAME);
@@ -140,7 +142,7 @@ public final class DimensionRuntime {
         states = new StateTable(stateIds);
         biomes = biomeIds;
         coverage = openCoverage();
-        changes.set((handle, faceMask, edgeMask) -> cells.release(handle));
+        stopListening();
         Changes forwarded = new Changes();
         merger = new CellMerger(cells, frame, ingestLevel, forwarded);
         ingest = new IngestService(ingestService, states, biomes, merger, coverage, forwarded);
@@ -191,16 +193,15 @@ public final class DimensionRuntime {
     }
 
     void close() {
-        closed = true;
-        ingest.stop();
-        if (store == null) {
+        if (closed) {
             return;
         }
 
+        closed = true;
+        ingest.stop();
         saves.flush();
         cells.flush();
         closeStore();
-        store = null;
     }
 
     private void closeStore() {
@@ -218,12 +219,12 @@ public final class DimensionRuntime {
     private final class Changes implements CellChangeListener {
         @Override
         public void changed(CellHandle handle, int faceMask, int edgeMask) {
-            changes.get().changed(handle, faceMask, edgeMask);
+            changes.changed(handle, faceMask, edgeMask);
         }
 
         @Override
         public void covered(int chunkX, int chunkZ) {
-            changes.get().covered(chunkX, chunkZ);
+            changes.covered(chunkX, chunkZ);
         }
     }
 

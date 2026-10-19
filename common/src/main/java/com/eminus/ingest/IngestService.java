@@ -302,6 +302,7 @@ public final class IngestService {
         }
     }
 
+    @SuppressWarnings("NullAway")
     private static BiomeWindow biomeWindow(LevelChunk chunk, int sectionY) {
         Level level = chunk.getLevel();
         ChunkPos pos = chunk.getPos();
