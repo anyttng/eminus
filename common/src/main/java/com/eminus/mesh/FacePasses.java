@@ -316,7 +316,9 @@ public final class FacePasses {
             return;
         }
 
-        quads.set(u, v, data(side.facing, metadata, sidedBlock ? sided(drawn, side) : drawn), occluded(side));
+        boolean cubic = FaceCubic.of(models, stateId, metadata, models.inset(drawn, side.towards.get3DDataValue()));
+        long lit = cubic ? side.facing : owner;
+        quads.set(u, v, data(lit, metadata, sidedBlock ? sided(drawn, side) : drawn), occluded(side));
     }
 
     private void placeBorder(Side side, FacePlane quads) {
