@@ -9,6 +9,13 @@ public final class QuadLight {
         return VoxelEntry.light(VoxelEntry.skyLight(entry), Math.max(VoxelEntry.blockLight(entry), emission));
     }
 
+    public static int ofFluid(long entry, long other, int metadata) {
+        int emission = ModelMetadata.emission(metadata);
+        int blockLight = Math.max(VoxelEntry.blockLight(entry), VoxelEntry.blockLight(other));
+        return VoxelEntry.light(Math.max(VoxelEntry.skyLight(entry), VoxelEntry.skyLight(other)),
+                Math.max(blockLight, emission));
+    }
+
     private QuadLight() {
     }
 }

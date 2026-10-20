@@ -22,32 +22,6 @@ public final class FacePasses {
     private static final int LAST_PLANE = SIDE - 1;
     private static final int NO_METADATA = 0;
 
-    private static final class Side {
-        private final int edge;
-
-        @SuppressWarnings("NullAway.Init")
-        private Direction towards;
-        private long facing;
-        private int x;
-        private int y;
-        private int z;
-        private int model;
-        private int drawn;
-        private boolean face;
-        private boolean border;
-
-        private Side(int edge) {
-            this.edge = edge;
-        }
-
-        private void at(CellVoxels voxels, int atX, int atY, int atZ) {
-            x = atX;
-            y = atY;
-            z = atZ;
-            facing = voxels.entry(atX, atY, atZ);
-        }
-    }
-
     private final MeshScratch scratch;
     private final StateOpacity opacity;
     private final MeshModels models;
@@ -57,8 +31,8 @@ public final class FacePasses {
     private final @Nullable FluidCorners corners;
     private final FaceOcclusion occlusion;
     private final int voxelBlocks;
-    private final Side low = new Side(FIRST_PLANE);
-    private final Side high = new Side(LAST_PLANE);
+    private final FaceSide low = new FaceSide(FIRST_PLANE);
+    private final FaceSide high = new FaceSide(LAST_PLANE);
 
     @SuppressWarnings("NullAway.Init")
     private Direction.Axis axis;
@@ -280,7 +254,7 @@ public final class FacePasses {
         return !liquid || placeInward();
     }
 
-    private void decide(Side side) {
+    private void decide(FaceSide side) {
         boolean covered = covered(owner, side.facing, side.towards);
         boolean kept = !(covered && facingHoldsSameTranslucent(side))
                 && !(covered && skippedByGame(side))
@@ -291,7 +265,7 @@ public final class FacePasses {
         side.border = kept && !side.face && plane == side.edge && bordered(metadata, side.towards);
     }
 
-    private void opaqueBorder(Side side) {
+    private void opaqueBorder(FaceSide side) {
         side.border = !side.face && plane == side.edge && bordered(metadata, side.towards)
                 && !(liquid && sharesFluid(side.facing));
     }
@@ -303,14 +277,14 @@ public final class FacePasses {
         placeBorder(high, scratch.positiveBorderPlane());
     }
 
-    private void placeFace(Side side, FacePlane quads, boolean sidedBlock) {
+    private void placeFace(FaceSide side, FacePlane quads, boolean sidedBlock) {
         if (!side.face) {
             return;
         }
 
         if (liquid) {
             if (shown(side, occludingFaces(side.facing, side.drawn))) {
-                quads.set(u, v, fluidData(side.facing, metadata, sided(drawn, side), shape()), OcclusionWord.NONE);
+                quads.set(u, v, fluidData(fluidLight(side), sided(drawn, side), shape()), OcclusionWord.NONE);
             }
 
             return;
@@ -321,7 +295,7 @@ public final class FacePasses {
         quads.set(u, v, data(lit, metadata, sidedBlock ? sided(drawn, side) : drawn), occluded(side));
     }
 
-    private void placeBorder(Side side, FacePlane quads) {
+    private void placeBorder(FaceSide side, FacePlane quads) {
         if (!side.border) {
             return;
         }
@@ -329,7 +303,8 @@ public final class FacePasses {
         long lit = borderLit(side);
         if (liquid) {
             if (shown(side, FaceMask.NONE)) {
-                quads.set(u, v, fluidData(lit, metadata, sided(drawn, side), shape()), OcclusionWord.NONE);
+                quads.set(u, v, fluidData(QuadLight.of(lit, metadata), sided(drawn, side), shape()),
+                        OcclusionWord.NONE);
             }
 
             return;
@@ -338,12 +313,12 @@ public final class FacePasses {
         quads.set(u, v, data(lit, metadata, drawn), occluded(side));
     }
 
-    private int occluded(Side side) {
+    private int occluded(FaceSide side) {
         return occlusion.face(side.towards, x, y, z, stateId, metadata,
                 models.inset(drawn, side.towards.get3DDataValue()));
     }
 
-    private boolean shown(Side side, int facingOccluding) {
+    private boolean shown(FaceSide side, int facingOccluding) {
         return side.towards != Direction.UP || !(FluidCorners.full(shape()) && (facingOccluding & FaceMask.DOWN) != 0);
     }
 
@@ -370,7 +345,7 @@ public final class FacePasses {
         }
 
         int inward = models.inwardModelId(seabed, drawn);
-        long quad = fluidData(drawnModels.seabedLight(), models.metadata(inward), inward, shape());
+        long quad = fluidData(QuadLight.of(drawnModels.seabedLight(), models.metadata(inward)), inward, shape());
         if (lowCut) {
             scratch.positiveInwardPlane().set(u, v, quad, OcclusionWord.NONE);
         }
@@ -382,7 +357,7 @@ public final class FacePasses {
         return true;
     }
 
-    private long borderLit(Side side) {
+    private long borderLit(FaceSide side) {
         CellVoxels voxels = scratch.voxels();
         for (int up = side.y + 1; up < SIDE; up++) {
             long entry = voxels.entry(side.x, up, side.z);
@@ -413,13 +388,13 @@ public final class FacePasses {
         return shape;
     }
 
-    private int sided(int modelId, Side side) {
+    private int sided(int modelId, FaceSide side) {
         return ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT) && cut(side)
                 ? models.oneSidedModelId(modelId)
                 : modelId;
     }
 
-    private boolean cut(Side side) {
+    private boolean cut(FaceSide side) {
         return axis != Direction.Axis.Y && !scratch.voxels().covered(side.x, side.z);
     }
 
@@ -435,7 +410,7 @@ public final class FacePasses {
         return modelId == MeshModels.AIR ? NO_METADATA : models.metadata(modelId);
     }
 
-    private boolean facingHoldsSameTranslucent(Side side) {
+    private boolean facingHoldsSameTranslucent(FaceSide side) {
         if (!ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT)) {
             return false;
         }
@@ -445,7 +420,7 @@ public final class FacePasses {
                 || fluid == models.submergedModelId(drawnModels.facingFluid(side.facing, side.x, side.y, side.z));
     }
 
-    private boolean skippedByGame(Side side) {
+    private boolean skippedByGame(FaceSide side) {
         return !liquid && ModelMetadata.has(metadata, ModelMetadata.TRANSLUCENT) && !VoxelEntry.isAir(side.facing)
                 && models.skipsFace(stateId, VoxelEntry.state(side.facing), side.towards);
     }
@@ -459,9 +434,18 @@ public final class FacePasses {
         return Quad.data(QuadLight.of(facing, quadMetadata), modelId, colorIndex);
     }
 
-    private long fluidData(long facing, int quadMetadata, int modelId, int surface) {
+    private long fluidData(int light, int modelId, int surface) {
         int colorIndex = QuadTint.ofFluid(scratch, models, owner, modelId, surface, x, y, z);
-        return Quad.data(QuadLight.of(facing, quadMetadata), modelId, colorIndex);
+        return Quad.data(light, modelId, colorIndex);
+    }
+
+    private int fluidLight(FaceSide side) {
+        if (cut(side)) {
+            return QuadLight.of(side.facing, metadata);
+        }
+
+        long other = side.towards == Direction.DOWN ? side.facing : scratch.voxels().entry(x, y + 1, z);
+        return QuadLight.ofFluid(owner, other, metadata);
     }
 
     private static boolean covered(long owner, long facing, Direction face) {
