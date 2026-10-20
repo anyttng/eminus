@@ -6,25 +6,33 @@ import java.util.PriorityQueue;
 import org.jspecify.annotations.Nullable;
 
 public final class MeshQueue {
-    private static final Comparator<Waiting> ORDER = (first, second) -> {
-        int byPriority = Float.compare(second.task().priority(), first.task().priority());
-        if (byPriority != 0) {
-            return byPriority;
-        }
+    static final double DELAY_NANOS_PER_PIXEL = 1.0e10;
 
-        int byRetry = Boolean.compare(first.task().retried(), second.task().retried());
-        return byRetry != 0 ? byRetry : Long.compare(first.arrival(), second.arrival());
-    };
+    private static final double LONGEST_DELAY_NANOS = 1.0e15;
+    private static final int RETRY_DELAYS = 2;
+    private static final Comparator<Waiting> ORDER = Comparator.comparing((Waiting waiting) -> !waiting.inView())
+            .thenComparingLong(Waiting::deadline)
+            .thenComparingLong(Waiting::arrival);
 
     private final PriorityQueue<Waiting> waiting = new PriorityQueue<>(ORDER);
 
     private long arrivals;
 
-    private record Waiting(MeshTask task, long arrival) {
+    private record Waiting(MeshTask task, boolean inView, long deadline, long arrival) {
+    }
+
+    static long deadline(MeshTask task) {
+        float priority = task.priority();
+        double delay = priority > 0.0F ? DELAY_NANOS_PER_PIXEL / priority : DELAY_NANOS_PER_PIXEL * -priority;
+        if (task.retried()) {
+            delay *= RETRY_DELAYS;
+        }
+
+        return task.queued() + (long) Math.min(delay, LONGEST_DELAY_NANOS);
     }
 
     public synchronized void add(MeshTask task) {
-        waiting.add(new Waiting(task, arrivals++));
+        waiting.add(new Waiting(task, task.priority() > 0.0F, deadline(task), arrivals++));
     }
 
     public synchronized @Nullable MeshTask poll() {
