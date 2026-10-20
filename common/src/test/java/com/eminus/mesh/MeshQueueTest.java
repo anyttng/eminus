@@ -67,6 +67,32 @@ class MeshQueueTest {
     }
 
     @Test
+    void anOlderSmallerTaskRunsBeforeANewerLargerOnceItsDelayHasPassed() {
+        MeshQueue queue = new MeshQueue();
+        MeshTask older = queuedAt(CellKey.pack(0, 1, 0, 0), 100.0F, 0L);
+        MeshTask newer = queuedAt(CellKey.pack(2, 1, 0, 0), 1000.0F, 200_000_000L);
+
+        queue.add(newer);
+        queue.add(older);
+
+        assertEquals(older, queue.poll());
+        assertEquals(newer, queue.poll());
+    }
+
+    @Test
+    void anOutOfViewTaskRunsAfterEveryInViewTaskHoweverLongItWaits() {
+        MeshQueue queue = new MeshQueue();
+        MeshTask outOfView = queuedAt(CellKey.pack(1, 1, 0, 0), -0.01F, 0L);
+        MeshTask horizon = queuedAt(CellKey.pack(4, 1, 0, 0), 0.001F, 1_000_000_000L);
+
+        queue.add(outOfView);
+        queue.add(horizon);
+
+        assertEquals(horizon, queue.poll());
+        assertEquals(outOfView, queue.poll());
+    }
+
+    @Test
     void anEmptyQueueAnswersWithNothingAndKeepsItsSizeStraight() {
         MeshQueue queue = new MeshQueue();
         assertNull(queue.poll());
@@ -81,5 +107,9 @@ class MeshQueueTest {
 
     private static MeshTask task(long key, float priority) {
         return MeshTask.carrying(key, null, 0, MeshTask.NO_REQUEST, priority);
+    }
+
+    private static MeshTask queuedAt(long key, float priority, long queued) {
+        return new MeshTask(key, false, null, 0, MeshTask.NO_REQUEST, priority, queued);
     }
 }
