@@ -151,21 +151,26 @@ final class TreeTraversal {
 
     private void keepUncovered(List<MeshSummary> from, LongOpenHashSet keys, LongOpenHashSet waitingKeys,
             boolean inView, List<MeshSummary> into) {
+        PendingColumns ownView = inView ? pending : pendingOutOfView;
         for (MeshSummary mesh : from) {
-            if (pending.under(extent.frame(), mesh.key())) {
+            long key = mesh.key();
+            boolean shown = front.wasShown(key);
+            boolean underInView = pending.under(extent.frame(), key);
+            boolean under = underInView || pendingOutOfView.under(extent.frame(), key);
+            if (under && !shown) {
                 hiddenUnder++;
-            } else if (pendingOutOfView.under(extent.frame(), mesh.key())) {
-                hiddenUnder++;
-                hiddenUnderOutOfView += inView ? 1 : 0;
-            } else if (front.holds(mesh.key(), inView)) {
+                hiddenUnderOutOfView += inView && !underInView ? 1 : 0;
+            } else if (shown || !ownView.over(extent.frame(), key)) {
+                if (!front.holds(key, inView)) {
+                    into.add(mesh);
+                    continue;
+                }
+
                 hiddenBehind++;
-            } else {
-                into.add(mesh);
-                continue;
             }
 
-            keys.remove(mesh.key());
-            waitingKeys.add(mesh.key());
+            keys.remove(key);
+            waitingKeys.add(key);
         }
     }
 
@@ -194,6 +199,7 @@ final class TreeTraversal {
     int waitingInView() {
         return front.waitingNear();
     }
+
 
     FrontState front(long now) {
         return front.state(extent.frame(), hiddenBehind, hiddenUnder, hiddenUnderOutOfView, now);
