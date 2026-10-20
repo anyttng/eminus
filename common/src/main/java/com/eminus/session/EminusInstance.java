@@ -3,8 +3,10 @@ package com.eminus.session;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.LongSupplier;
 
 import com.eminus.Eminus;
@@ -33,6 +35,7 @@ public final class EminusInstance {
     private final WorkService<Void> save;
     private final WorkService<MeshScratch> build;
     private final Map<WorldIdentity, DimensionRuntime> runtimes = new HashMap<>();
+    private final Set<WorldIdentity> closing = new HashSet<>();
     private final WorldCleaner cleaner = new WorldCleaner(this);
 
     private boolean running = true;
@@ -81,6 +84,16 @@ public final class EminusInstance {
     }
 
     public synchronized DimensionRuntime acquire(WorldIdentity identity, int minBlockY) {
+        while (running && closing.contains(identity)) {
+            try {
+                wait();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(
+                        "Interrupted while waiting for " + identity.dimension() + " to close.");
+            }
+        }
+
         if (!running) {
             throw new IllegalStateException("The session is already stopped.");
         }
@@ -125,17 +138,38 @@ public final class EminusInstance {
         }
     }
 
-    synchronized void closeIdleRuntimes() {
+    void closeIdleRuntimes() {
+        List<DimensionRuntime> idle = takeIdleRuntimes();
+
+        try {
+            for (DimensionRuntime runtime : idle) {
+                runtime.close();
+                Eminus.LOGGER.info("Dimension runtime closed after idle: {}", runtime.identity().dimension());
+                finishClosing(List.of(runtime));
+            }
+        } finally {
+            finishClosing(idle);
+        }
+    }
+
+    private synchronized List<DimensionRuntime> takeIdleRuntimes() {
         long now = clock.getAsLong();
+        List<DimensionRuntime> idle = new ArrayList<>();
         runtimes.values().removeIf(runtime -> {
             if (runtime.references() > 0 || now - runtime.idleSince() < WorldCleaner.IDLE_CLOSE_MILLIS) {
                 return false;
             }
 
-            runtime.close();
-            Eminus.LOGGER.info("Dimension runtime closed after idle: {}", runtime.identity().dimension());
+            idle.add(runtime);
+            closing.add(runtime.identity());
             return true;
         });
+        return idle;
+    }
+
+    private synchronized void finishClosing(List<DimensionRuntime> closed) {
+        closed.forEach(runtime -> closing.remove(runtime.identity()));
+        notifyAll();
     }
 
     synchronized int runtimeCount() {
