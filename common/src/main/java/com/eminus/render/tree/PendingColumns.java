@@ -9,21 +9,26 @@ import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 final class PendingColumns {
     private static final int COLUMN_BLOCKS = DetailLevel.blocksPerCell(DetailLevel.MIN);
     private static final int NONE = Integer.MIN_VALUE;
+    private static final int NO_TOP = Integer.MAX_VALUE;
     private static final long LOW_MASK = 0xFFFF_FFFFL;
 
     private final Long2IntOpenHashMap highestBottom = new Long2IntOpenHashMap();
+    private final Long2IntOpenHashMap lowestTop = new Long2IntOpenHashMap();
 
     PendingColumns() {
         highestBottom.defaultReturnValue(NONE);
+        lowestTop.defaultReturnValue(NO_TOP);
     }
 
     void clear() {
         highestBottom.clear();
+        lowestTop.clear();
     }
 
     void waiting(CellFrame frame, long key) {
         int bottom = frame.originYOf(key);
         int side = DetailLevel.blocksPerCell(CellKey.level(key));
+        int top = bottom + side;
         int firstX = Math.floorDiv(CellFrame.originXOf(key), COLUMN_BLOCKS);
         int firstZ = Math.floorDiv(CellFrame.originZOf(key), COLUMN_BLOCKS);
         int columns = side / COLUMN_BLOCKS;
@@ -34,8 +39,34 @@ final class PendingColumns {
                 if (bottom > highestBottom.get(column)) {
                     highestBottom.put(column, bottom);
                 }
+
+                if (top < lowestTop.get(column)) {
+                    lowestTop.put(column, top);
+                }
             }
         }
+    }
+
+    boolean over(CellFrame frame, long key) {
+        if (lowestTop.isEmpty()) {
+            return false;
+        }
+
+        int bottom = frame.originYOf(key);
+        int side = DetailLevel.blocksPerCell(CellKey.level(key));
+        int firstX = Math.floorDiv(CellFrame.originXOf(key), COLUMN_BLOCKS);
+        int firstZ = Math.floorDiv(CellFrame.originZOf(key), COLUMN_BLOCKS);
+        int columns = side / COLUMN_BLOCKS;
+
+        for (int x = firstX; x < firstX + columns; x++) {
+            for (int z = firstZ; z < firstZ + columns; z++) {
+                if (lowestTop.get(column(x, z)) <= bottom) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     boolean under(CellFrame frame, long key) {

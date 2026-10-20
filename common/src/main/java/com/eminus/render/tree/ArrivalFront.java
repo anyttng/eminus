@@ -74,6 +74,10 @@ final class ArrivalFront {
         return nearest != NO_FRONT && horizontalDistance(key) > nearest && !shownNear(key);
     }
 
+    boolean wasShown(long key) {
+        return shown.contains(key);
+    }
+
     void shown(long key) {
         nextShown.add(key);
         long ancestor = key;
