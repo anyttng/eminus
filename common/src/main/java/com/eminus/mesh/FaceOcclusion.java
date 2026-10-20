@@ -9,7 +9,6 @@ import net.minecraft.core.Direction;
 public final class FaceOcclusion {
     public static final Direction BLADE_FACING = Direction.NORTH;
 
-    private static final float FLUSH = 1.0E-4F;
     private static final int LOW = -1;
     private static final int HIGH = 1;
     private static final Direction[] FIRST_CORNER = firstCorners();
@@ -44,9 +43,7 @@ public final class FaceOcclusion {
             return OcclusionWord.NONE;
         }
 
-        boolean cubic = !ModelMetadata.has(metadata, ModelMetadata.SLOPED)
-                && (inset < FLUSH || StateShade.has(models.shade(stateId), StateShade.FULL_COLLISION));
-        return word(face, x, y, z, cubic);
+        return word(face, x, y, z, FaceCubic.of(models, stateId, metadata, inset));
     }
 
     public int blade(int x, int y, int z, int metadata) {

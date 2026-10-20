@@ -39,6 +39,7 @@ final class FakeModels implements MeshModels {
     private final Set<Integer> solids = new HashSet<>();
     private final Map<Integer, Integer> shades = new HashMap<>();
     private final Set<Integer> partialHeights = new HashSet<>();
+    private final Map<List<Integer>, Float> insets = new HashMap<>();
     private final List<Runnable> waiters = new ArrayList<>();
     private final Map<Integer, Integer> oneSidedIds = new HashMap<>();
     private final Map<List<Integer>, Integer> inwardIds = new HashMap<>();
@@ -108,6 +109,10 @@ final class FakeModels implements MeshModels {
 
     void partialHeight(int modelId) {
         partialHeights.add(modelId);
+    }
+
+    void inset(int modelId, Direction face, float inset) {
+        insets.put(List.of(modelId, face.get3DDataValue()), inset);
     }
 
     void unbake(int stateId) {
@@ -216,7 +221,7 @@ final class FakeModels implements MeshModels {
 
     @Override
     public float inset(int modelId, int face) {
-        return FLUSH;
+        return insets.getOrDefault(List.of(modelId, face), FLUSH);
     }
 
     @Override
