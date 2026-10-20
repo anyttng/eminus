@@ -12,10 +12,10 @@ import static com.eminus.client.settings.SettingsText.DETAIL_DISTANCE_KEY;
 import static com.eminus.client.settings.SettingsText.FADE_KEY;
 import static com.eminus.client.settings.SettingsText.FAR_RENDER_CELLS_KEY;
 import static com.eminus.client.settings.SettingsText.FOG_KEY;
+import static com.eminus.client.settings.SettingsText.GENERAL_CATEGORY_KEY;
 import static com.eminus.client.settings.SettingsText.INGESTION_KEY;
 import static com.eminus.client.settings.SettingsText.LOD_ANIMATIONS_KEY;
 import static com.eminus.client.settings.SettingsText.LOD_QUALITY_KEY;
-import static com.eminus.client.settings.SettingsText.QUALITY_CATEGORY_KEY;
 import static com.eminus.client.settings.SettingsText.SHADER_PACKS_CATEGORY_KEY;
 import static com.eminus.client.settings.SettingsText.SHADER_PACK_LOD_KEY;
 import static com.eminus.client.settings.SettingsText.TITLE_KEY;
@@ -56,19 +56,21 @@ public final class SettingsScreen extends DraftOptionsScreen {
     private @Nullable Button customLodButton;
 
     public SettingsScreen(Screen lastScreen) {
-        super(lastScreen, Component.translatable(TITLE_KEY), SettingsDraft.of(SettingsService.get()),
+        super(lastScreen, Component.translatable(TITLE_KEY), SettingsDraft.of(SettingsService.get()), HOLDS_DRAFT,
                 DraftOptionsScreen::open);
 
         Settings settings = this.draft.settings();
 
         this.ingestion = OptionInstance.createBoolean(INGESTION_KEY, tooltip(SettingsText.toggleHint(INGESTION_KEY)),
                 settings.ingestion(), value -> this.editFromOptions());
-        this.lodChoice = new OptionInstance<>(LOD_QUALITY_KEY, tooltip(SettingsText.lodChoiceHint()),
+        this.lodChoice = new OptionInstance<>(LOD_QUALITY_KEY,
+                tooltip(SettingsText.withCost(SettingsText.lodChoiceHint(), OptionCost.LOD_QUALITY)),
                 (caption, value) -> Options.genericValueLabel(caption, SettingsText.lodChoice(value)),
                 coarseToFine(SliderPositions.LAST_LOD_CHOICE, SliderPositions::lodChoice,
                         SliderPositions::lodChoicePosition),
                 settings.lodChoice(), value -> this.editFromOptions());
-        this.farRenderCells = new OptionInstance<>(FAR_RENDER_CELLS_KEY, tooltip(FAR_RENDER_CELLS_KEY),
+        this.farRenderCells = new OptionInstance<>(FAR_RENDER_CELLS_KEY,
+                tooltip(SettingsText.withCost(SettingsText.hint(FAR_RENDER_CELLS_KEY), OptionCost.LOD_DISTANCE)),
                 (caption, value) -> Options.genericValueLabel(caption, SettingsText.farRenderDistance(value)),
                 new OptionInstance.IntRange(Settings.MIN_FAR_RENDER_CELLS, Settings.MAX_FAR_RENDER_CELLS,
                         APPLY_ON_RELEASE),
@@ -88,38 +90,39 @@ public final class SettingsScreen extends DraftOptionsScreen {
                 value -> this.editFromOptions());
         this.fade = OptionInstance.createBoolean(FADE_KEY, tooltip(SettingsText.toggleHint(FADE_KEY)), settings.fade(),
                 value -> this.editFromOptions());
-        this.shaderPackLod = new OptionInstance<>(SHADER_PACK_LOD_KEY, tooltip(SettingsText.shaderPackLodHint()),
+        this.shaderPackLod = new OptionInstance<>(SHADER_PACK_LOD_KEY,
+                tooltip(SettingsText.withCost(SettingsText.shaderPackLodHint(), OptionCost.SHADER_PACK_LOD)),
                 (caption, value) -> SettingsText.shaderPackLod(value),
                 new OptionInstance.Enum<>(List.of(ShaderPackLod.values()),
                         Codec.STRING.xmap(key -> ShaderPackLod.fromKey(key).orElse(Settings.DEFAULT_SHADER_PACK_LOD),
                                 ShaderPackLod::key)),
                 settings.shaderPackLod(), value -> this.editFromOptions());
         this.lodAnimations = OptionInstance.createBoolean(LOD_ANIMATIONS_KEY,
-                tooltip(SettingsText.toggleHint(LOD_ANIMATIONS_KEY)), settings.lodAnimations(),
+                tooltip(SettingsText.withCost(SettingsText.toggleHint(LOD_ANIMATIONS_KEY), OptionCost.LOD_ANIMATIONS)),
+                settings.lodAnimations(),
                 value -> this.editFromOptions());
     }
 
     @Override
     protected void addOptions() {
         this.customLodButton = Button.builder(Component.translatable(CUSTOM_LOD_KEY),
-                        button -> this.minecraft.gui.setScreen(
-                                new CustomLodScreen(this, this.draft, DraftOptionsScreen::open)))
+                        button -> this.minecraft.gui.setScreen(CustomLodScreen.sharingDraft(this)))
                 .tooltip(Tooltip.create(SettingsText.hint(CUSTOM_LOD_KEY)))
                 .build();
-        this.addHeader(QUALITY_CATEGORY_KEY);
-        this.list.addSmall(this.lodChoice.createButton(this.options), this.lodChoice, this.customLodButton);
-        this.list.addBig(this.farRenderCells);
-        this.list.addBig(this.detailDistance);
+        this.addHeader(GENERAL_CATEGORY_KEY);
+        this.optionsList().addSmall(this.lodChoice.createButton(this.options), this.lodChoice, this.customLodButton);
+        this.optionsList().addBig(this.farRenderCells);
+        this.optionsList().addBig(this.detailDistance);
+        this.optionsList().addBig(this.ingestion);
         this.addHeader(APPEARANCE_CATEGORY_KEY);
-        this.list.addBig(this.fog);
-        this.list.addBig(this.fade);
+        this.optionsList().addBig(this.fog);
+        this.optionsList().addBig(this.fade);
         this.addHeader(BUILDING_CATEGORY_KEY);
-        this.list.addBig(this.ingestion);
-        this.list.addBig(this.workerThreads);
+        this.optionsList().addBig(this.workerThreads);
         if (IrisShaderPack.installed()) {
             this.addHeader(SHADER_PACKS_CATEGORY_KEY);
-            this.list.addBig(this.shaderPackLod);
-            this.list.addBig(this.lodAnimations);
+            this.optionsList().addBig(this.shaderPackLod);
+            this.optionsList().addBig(this.lodAnimations);
         }
     }
 

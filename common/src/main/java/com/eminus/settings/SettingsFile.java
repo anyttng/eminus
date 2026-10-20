@@ -16,6 +16,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 
+import org.jspecify.annotations.Nullable;
+
 public final class SettingsFile {
     public static final String INGESTION_KEY = "ingestion";
     public static final String LOD_QUALITY_KEY = "lod_quality";
@@ -175,7 +177,7 @@ public final class SettingsFile {
         }
     }
 
-    private static String entry(String key, JsonPrimitive value, String comment) {
+    private static String entry(String key, JsonPrimitive value, @Nullable String comment) {
         StringBuilder line = new StringBuilder();
         if (comment != null) {
             comment.lines().forEach(text -> line.append(INDENT).append("// ").append(text).append('\n'));
@@ -188,7 +190,7 @@ public final class SettingsFile {
                 .toString();
     }
 
-    private static JsonObject read(Path file) {
+    private static @Nullable JsonObject read(Path file) {
         try {
             JsonElement parsed = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8));
             if (parsed.isJsonObject()) {

@@ -3,6 +3,7 @@ package com.eminus.client.render.far;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import com.eminus.Eminus;
@@ -103,8 +104,11 @@ public final class FarRenderer implements AutoCloseable {
     private final FarShadow shadow;
 
     private IndirectCommands indirect;
+    @SuppressWarnings("NullAway.Init")
     private CompositeFog fog;
+    @SuppressWarnings("NullAway.Init")
     private Vector4fc fogColor;
+    @SuppressWarnings("NullAway.Init")
     private volatile MeshService meshes;
     private RenderList renderList = RenderList.EMPTY;
     private @Nullable TreeBatch uploading;
@@ -187,7 +191,8 @@ public final class FarRenderer implements AutoCloseable {
         FarRenderer renderer = new FarRenderer(gpu, support.depth(), runtime, baking,
                 ModelPublisher.start(gpu, baking.bakery(),
                         Integer.getInteger(ATLAS_FIRST_MIP_PROPERTY, settings.lodQuality().atlasFirstMip())), arena,
-                FarTarget.create(gpu, support.depthFormat(), main.width(), main.height()), FarFrame.create(gpu),
+                FarTarget.create(gpu, Objects.requireNonNull(support.depthFormat(), "an accepted backend names one"),
+                        main.width(), main.height()), FarFrame.create(gpu),
                 mask, NearSectionTable.create(gpu), opaque, translucent, composite, boxes,
                 IndirectCommands.create(gpu, START_COMMANDS),
                 Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL),
@@ -348,11 +353,13 @@ public final class FarRenderer implements AutoCloseable {
 
         GameFog gameFog = game.fog();
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
-        ClientLevel level = client.level;
-        float reachBlocks = NearReach.blocks(renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS, game.eyeY(),
-                level.getMinY(), level.getMinY() + level.getHeight());
+        ClientLevel level = Objects.requireNonNull(client.level, "a far frame steps with a level");
+        int keptChunks = renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS;
+        float reachBlocks = NearReach.blocks(keptChunks, game.eyeY(), level.getMinY(),
+                level.getMinY() + level.getHeight());
         fog = CompositeFog.of(settings.fog(), settings.fade(), gameFog.environmentalStart(),
-                gameFog.environmentalEnd(), nearBlocks, reachBlocks, settings.farRenderCells());
+                gameFog.environmentalEnd(), nearBlocks, reachBlocks, NearReach.horizontalBlocks(keptChunks),
+                settings.farRenderCells());
         fogColor = gameFog.color();
         if (fog.skip()) {
             return;
@@ -375,7 +382,7 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         indirect.write(commands);
-        fillNearSections(client, game);
+        fillNearSections(client, level, game);
 
         frame.write(farViewProjection, game.viewRotation(), runtime.frame().minBlockY(),
                 models.atlas(), nearSections.sections(), game.shade(), game.smoothLighting(),
@@ -471,8 +478,7 @@ public final class FarRenderer implements AutoCloseable {
         Eminus.LOGGER.info("Far renderer stopped for {}", runtime.identity().dimension());
     }
 
-    private void fillNearSections(Minecraft client, GameFrame game) {
-        ClientLevel level = client.level;
+    private void fillNearSections(Minecraft client, ClientLevel level, GameFrame game) {
         int renderDistance = game.renderDistance();
         nearSections.fill(client.levelRenderer, game.sectionFadeMillis(), order.meshes(), runtime.frame(),
                 NearSections.section(Mth.floor(game.eyeX())), NearSections.section(Mth.floor(game.eyeY())),

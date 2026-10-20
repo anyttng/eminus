@@ -18,6 +18,8 @@ import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
+import org.jspecify.annotations.Nullable;
+
 public final class StateTable implements StateOpacity {
     public static final String DICTIONARY_NAME = "state";
     public static final int FULL_OPACITY = 15;
@@ -124,7 +126,7 @@ public final class StateTable implements StateOpacity {
         dampenings.put(id, state.getLightDampening());
     }
 
-    private static BlockState decode(String value) {
+    private static BlockState decode(@Nullable String value) {
         if (value == null) {
             return PLACEHOLDER;
         }

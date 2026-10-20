@@ -60,6 +60,7 @@ public final class BiomeWindow implements BiomeResolver {
     }
 
     @Override
+    @SuppressWarnings("NullAway")
     public @Nullable Holder<Biome> getNoiseBiome(int quartX, int quartY, int quartZ) {
         return quarts[index(quartX - originX, quartY - originY, quartZ - originZ)];
     }

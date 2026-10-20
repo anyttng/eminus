@@ -25,6 +25,7 @@ public final class FacePasses {
     private static final class Side {
         private final int edge;
 
+        @SuppressWarnings("NullAway.Init")
         private Direction towards;
         private long facing;
         private int x;
@@ -59,6 +60,7 @@ public final class FacePasses {
     private final Side low = new Side(FIRST_PLANE);
     private final Side high = new Side(LAST_PLANE);
 
+    @SuppressWarnings("NullAway.Init")
     private Direction.Axis axis;
     private int plane;
     private int u;
@@ -72,7 +74,9 @@ public final class FacePasses {
     private int drawn;
     private int metadata;
     private boolean liquid;
+    @SuppressWarnings("NullAway.Init")
     private FacePlane negativeFaces;
+    @SuppressWarnings("NullAway.Init")
     private FacePlane positiveFaces;
     private boolean shaped;
     private int shape;
@@ -312,7 +316,9 @@ public final class FacePasses {
             return;
         }
 
-        quads.set(u, v, data(side.facing, metadata, sidedBlock ? sided(drawn, side) : drawn), occluded(side));
+        boolean cubic = FaceCubic.of(models, stateId, metadata, models.inset(drawn, side.towards.get3DDataValue()));
+        long lit = cubic ? side.facing : owner;
+        quads.set(u, v, data(lit, metadata, sidedBlock ? sided(drawn, side) : drawn), occluded(side));
     }
 
     private void placeBorder(Side side, FacePlane quads) {

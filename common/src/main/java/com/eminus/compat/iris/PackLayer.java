@@ -127,7 +127,7 @@ final class PackLayer {
 
         PackLayer layer = of(pipeline);
         layer.shadowDrawn = null;
-        if (!layer.ready(renderer) || layer.shadow == null
+        if (!layer.ready(renderer) || layer.shadow == null || layer.shadowFramebuffer == null
                 || Boolean.getBoolean(IrisShaderPack.SHADOW_OFF_PROPERTY)) {
             return;
         }
@@ -155,7 +155,7 @@ final class PackLayer {
         FarShadow drawn = layer.shadowDrawn;
         layer.shadowDrawn = null;
         if (drawn == null || drawn.translucentCount() == 0 || layer.shadowTranslucent == null
-                || layer.builtFor != renderer || Boolean.getBoolean(IrisShaderPack.SHADOW_TRANSLUCENT_OFF_PROPERTY)) {
+                || layer.shadowFramebuffer == null || layer.builtFor != renderer || Boolean.getBoolean(IrisShaderPack.SHADOW_TRANSLUCENT_OFF_PROPERTY)) {
             return;
         }
 
@@ -216,12 +216,12 @@ final class PackLayer {
         }
 
         if (builtFor != renderer) {
-            build(renderer);
+            build(renderer, path);
         }
         return opaque != null && translucent != null;
     }
 
-    private void build(FarRenderer renderer) {
+    private void build(FarRenderer renderer, PackPath chosen) {
         builtFor = renderer;
         opaque = null;
         translucent = null;
@@ -233,7 +233,7 @@ final class PackLayer {
         Optional<Foreign> foreign = draw.gpu().foreign();
         if (foreign.isEmpty()) {
             Eminus.LOGGER.warn("Shader pack file {} is not used: the far layer runs on the game's GPU path",
-                    path.file());
+                    chosen.file());
             return;
         }
 
@@ -296,6 +296,10 @@ final class PackLayer {
     }
 
     private @Nullable PackProgram program(FarDraw draw, Foreign foreign, PackProgram.Kind kind, boolean depthOnly) {
+        if (path == null || programSet == null || properties == null) {
+            return null;
+        }
+
         PackPath.Source source = path.source(kind);
         return source == null ? null
                 : PackProgram.build(draw, foreign, pipeline, programSet, properties, source, kind, depthOnly);
@@ -303,7 +307,7 @@ final class PackLayer {
 
     private void drawOpaque(FarRenderer renderer) {
         drawn = null;
-        if (!ready(renderer)) {
+        if (path == null || !ready(renderer) || opaque == null || opaqueFramebuffer == null) {
             IrisFarState.clear();
             return;
         }
@@ -328,7 +332,7 @@ final class PackLayer {
     private void drawTranslucent() {
         FarDraw draw = drawn;
         drawn = null;
-        if (draw == null || translucent == null || translucentDepth == null) {
+        if (draw == null || translucent == null || translucentDepth == null || translucentFramebuffer == null) {
             return;
         }
 

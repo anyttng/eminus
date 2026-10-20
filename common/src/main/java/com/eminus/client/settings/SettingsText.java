@@ -30,7 +30,7 @@ public final class SettingsText {
     public static final String FADE_KEY = "gui.eminus.settings.fade";
     public static final String SHADER_PACK_LOD_KEY = "gui.eminus.settings.shader_pack_lod";
     public static final String LOD_ANIMATIONS_KEY = "gui.eminus.settings.lod_animations";
-    public static final String QUALITY_CATEGORY_KEY = "gui.eminus.settings.category.quality";
+    public static final String GENERAL_CATEGORY_KEY = "gui.eminus.settings.category.general";
     public static final String APPEARANCE_CATEGORY_KEY = "gui.eminus.settings.category.appearance";
     public static final String BUILDING_CATEGORY_KEY = "gui.eminus.settings.category.building";
     public static final String SHADER_PACKS_CATEGORY_KEY = "gui.eminus.settings.category.shader_packs";
@@ -52,6 +52,8 @@ public final class SettingsText {
     private static final String TEXTURES_FULL_SUFFIX = ".full";
     private static final String TEXTURES_HALF_SUFFIX = ".half";
     private static final String VALUE_HINT_KEY = "gui.eminus.settings.value_hint";
+    private static final String RESTART_KEY = "gui.eminus.settings.restart.";
+    private static final String IMPACT_KEY = "gui.eminus.settings.impact";
     private static final String INTRO = "intro";
     private static final String NOTE = "note";
     private static final String ON = "on";
@@ -138,15 +140,31 @@ public final class SettingsText {
         return hint;
     }
 
+    public static Component withCost(Component hint, OptionCost cost) {
+        MutableComponent text = withRestart(hint, cost);
+        SettingImpact impact = cost.impact();
+        if (impact == null) {
+            return text;
+        }
+
+        return text.append(PARAGRAPH).append(Component.translatable(IMPACT_KEY,
+                Component.translatable(IMPACT_KEY + "." + impact.key()).withStyle(impact.style())));
+    }
+
+    public static MutableComponent withRestart(Component hint, OptionCost cost) {
+        return Component.empty().append(hint).append(PARAGRAPH)
+                .append(Component.translatable(RESTART_KEY + cost.restart().key()).withStyle(NOTE_STYLE));
+    }
+
     public static Component detailDistanceHint() {
         Component hint = hint(DETAIL_DISTANCE_KEY);
         FarRenderer renderer = ClientSession.renderer();
-        if (renderer == null || !renderer.detailLimited()) {
-            return hint;
+        if (renderer != null && renderer.detailLimited()) {
+            hint = Component.empty().append(hint).append(PARAGRAPH)
+                    .append(Component.translatable(DETAIL_DISTANCE_KEY + LIMITED_SUFFIX));
         }
 
-        return Component.empty().append(hint).append(PARAGRAPH)
-                .append(Component.translatable(DETAIL_DISTANCE_KEY + LIMITED_SUFFIX));
+        return withRestart(hint, OptionCost.DETAIL_DISTANCE);
     }
 
     public static Component lodChoice(LodChoice choice) {

@@ -40,9 +40,10 @@ public final class TintSweep {
             }
         }
 
-        List<BiomeColors.Colors> ranked = users.keySet().stream()
-                .sorted(Comparator.comparingInt((BiomeColors.Colors set) -> users.get(set).size()).reversed()
-                        .thenComparing(Comparator.naturalOrder()))
+        List<BiomeColors.Colors> ranked = users.entrySet().stream()
+                .sorted(Comparator.comparingInt((Map.Entry<BiomeColors.Colors, Set<Block>> user) ->
+                        user.getValue().size()).reversed().thenComparing(Map.Entry.comparingByKey()))
+                .map(Map.Entry::getKey)
                 .toList();
         colors.assign(ranked);
     }

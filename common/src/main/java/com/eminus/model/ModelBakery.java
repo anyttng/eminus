@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +49,7 @@ public final class ModelBakery implements ModelSource {
     private final Set<BlockState> positionalStates = ConcurrentHashMap.newKeySet();
     private final Map<Request, Integer> idByParts = new ConcurrentHashMap<>();
     private final IdTable submergedIds = new IdTable(0, MISSING);
+    private final IdTable opaqueIds = new IdTable(0, MISSING);
     private final Map<Integer, Integer> oneSidedIds = new ConcurrentHashMap<>();
     private final Map<Long, Integer> inwardIds = new ConcurrentHashMap<>();
     private final BlockingQueue<Request> requests = new LinkedBlockingQueue<>();
@@ -95,6 +97,11 @@ public final class ModelBakery implements ModelSource {
         return twin == MISSING ? modelId : twin;
     }
 
+    public int opaqueModelId(int modelId) {
+        int twin = opaqueIds.get(modelId);
+        return twin == MISSING ? modelId : twin;
+    }
+
     public int oneSidedModelId(int modelId) {
         return oneSidedIds.computeIfAbsent(modelId, id -> models.register(model(id).oneSided()));
     }
@@ -107,7 +114,7 @@ public final class ModelBakery implements ModelSource {
 
     @Override
     public BakedModel model(int modelId) {
-        return models.value(modelId);
+        return Objects.requireNonNull(models.value(modelId), "model ids come from register");
     }
 
     @Override
@@ -181,11 +188,11 @@ public final class ModelBakery implements ModelSource {
                 return;
             }
 
-            if (request.parts() == null) {
+            List<Object> parts = request.parts();
+            if (parts == null) {
                 publish(request.state(), bake(request.state()));
             } else {
-                idByParts.put(request,
-                        models.register(stamped(bakeParts(request), packBlocks.ids().applyAsInt(request.state()))));
+                publishParts(request, parts);
             }
 
             answer(request);
@@ -201,14 +208,44 @@ public final class ModelBakery implements ModelSource {
         }
     }
 
-    private BakedModel bakeParts(Request request) {
+    private BakedModel bakeParts(BlockState state, List<Object> parts) {
         try {
-            return baker.bakeParts(request.state(), request.parts());
+            return baker.bakeParts(state, parts);
         } catch (Throwable failure) {
-            Eminus.LOGGER.error("Baking a variant of {} threw; the placeholder model stands in.", request.state(),
-                    failure);
+            Eminus.LOGGER.error("Baking a variant of {} threw; the placeholder model stands in.", state, failure);
             return placeholder;
         }
+    }
+
+    private @Nullable BakedState bakeOpaqueTwin(BlockState state) {
+        try {
+            return baker.bakeOpaqueTwin(state);
+        } catch (Throwable failure) {
+            Eminus.LOGGER.error("Baking the opaque twin of {} threw; coarser levels draw its own model.", state,
+                    failure);
+            return null;
+        }
+    }
+
+    private @Nullable BakedModel bakeOpaqueTwinParts(BlockState state, List<Object> parts) {
+        try {
+            return baker.bakeOpaqueTwinParts(state, parts);
+        } catch (Throwable failure) {
+            Eminus.LOGGER.error("Baking the opaque twin of a variant of {} threw; coarser levels draw its own model.",
+                    state, failure);
+            return null;
+        }
+    }
+
+    private void publishParts(Request request, List<Object> parts) {
+        int packId = packBlocks.ids().applyAsInt(request.state());
+        int partsId = models.register(stamped(bakeParts(request.state(), parts), packId));
+        BakedModel twin = bakeOpaqueTwinParts(request.state(), parts);
+        if (twin != null) {
+            opaqueIds.put(partsId, models.register(stamped(twin, packId)));
+        }
+
+        idByParts.put(request, partsId);
     }
 
     private void publish(BlockState state, BakedState baked) {
@@ -216,8 +253,12 @@ public final class ModelBakery implements ModelSource {
         int fluidPackId = packBlocks.ids().applyAsInt(state.getFluidState().createLegacyBlock());
         BakedModel fluid = baked.fluid();
         int fluidId = fluid == null ? NO_FLUID : models.register(stamped(fluid, fluidPackId));
-        int blockId = baked.variants().isEmpty() ? models.register(stamped(baked.block(), statePackId))
-                : registerVariants(baked, statePackId);
+        int blockId = registerBlock(baked, statePackId);
+        BakedState twin = bakeOpaqueTwin(state);
+        if (twin != null) {
+            opaqueIds.put(blockId, registerBlock(twin, statePackId));
+        }
+
         if (baked.submerged() != null) {
             submergedIds.put(fluid == null ? blockId : fluidId,
                     models.register(stamped(baked.submerged(), fluid == null ? statePackId : fluidPackId)));
@@ -229,6 +270,11 @@ public final class ModelBakery implements ModelSource {
 
         fluidIdByState.put(state, fluidId);
         idByState.put(state, blockId);
+    }
+
+    private int registerBlock(BakedState baked, int packId) {
+        return baked.variants().isEmpty() ? models.register(stamped(baked.block(), packId))
+                : registerVariants(baked, packId);
     }
 
     private int registerVariants(BakedState baked, int packId) {

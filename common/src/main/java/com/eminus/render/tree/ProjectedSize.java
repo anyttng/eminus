@@ -7,6 +7,7 @@ final class ProjectedSize {
     static final float CONTAINS_CAMERA = Float.MAX_VALUE;
 
     private static final double INSIDE_DISTANCE = 1.0;
+    private static final double OFF_AXIS_FLOOR_RADIANS = 1.0e-4;
 
     static float of(CellBox box, float pixelsPerBlock) {
         double distance = box.distance();
@@ -19,6 +20,10 @@ final class ProjectedSize {
 
     static float outOfView(float size) {
         return -1.0F / size;
+    }
+
+    static float offAxis(float size, float radians) {
+        return size == CONTAINS_CAMERA ? CONTAINS_CAMERA : (float) (1.0 / (radians + OFF_AXIS_FLOOR_RADIANS));
     }
 
     private ProjectedSize() {

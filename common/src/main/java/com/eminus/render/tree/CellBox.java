@@ -5,8 +5,11 @@ import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 
 import org.joml.FrustumIntersection;
+import org.joml.Vector3fc;
 
 final class CellBox {
+    private static final double HALF = 0.5;
+
     private int level;
     private double minX;
     private double minY;
@@ -39,6 +42,19 @@ final class CellBox {
 
     double horizontalDistance() {
         return Math.sqrt(axisDistanceSquared(minX, maxX) + axisDistanceSquared(minZ, maxZ));
+    }
+
+    double angleFrom(Vector3fc axis) {
+        double x = (minX + maxX) * HALF;
+        double y = (minY + maxY) * HALF;
+        double z = (minZ + maxZ) * HALF;
+        double length = Math.sqrt(x * x + y * y + z * z);
+        if (length == 0.0) {
+            return 0.0;
+        }
+
+        double cosine = (x * axis.x() + y * axis.y() + z * axis.z()) / length;
+        return Math.acos(Math.clamp(cosine, -1.0, 1.0));
     }
 
     boolean meets(FrustumIntersection frustum) {

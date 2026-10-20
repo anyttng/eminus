@@ -14,6 +14,8 @@ import com.eminus.gpu.texture.Texture;
 import com.eminus.model.port.VariantDraw;
 import com.eminus.render.backend.DepthConvention;
 
+import com.uber.nullaway.annotations.Initializer;
+
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
@@ -63,6 +65,7 @@ public final class FarDraw {
         this.target = target;
     }
 
+    @Initializer
     void frame(Buffer commands, int opaqueCount, int translucentCount, Texture lightmap, Matrix4fc projection,
             Matrix4fc view, int farBlocks) {
         previousProjection.set(this.projection);

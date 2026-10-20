@@ -21,6 +21,7 @@ import com.eminus.settings.LodChoice;
 import com.eminus.settings.LodQuality;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsDraft;
+import com.eminus.settings.SettingsService;
 import com.mojang.serialization.Codec;
 
 import net.minecraft.client.OptionInstance;
@@ -37,28 +38,34 @@ public final class CustomLodScreen extends DraftOptionsScreen {
     private final OptionInstance<Boolean> textures;
     private final OptionInstance<CornerOcclusion> cornerOcclusion;
 
-    public CustomLodScreen(Screen lastScreen, SettingsDraft draft, Consumer<Screen> back) {
-        super(lastScreen, Component.translatable(CUSTOM_LOD_TITLE_KEY), draft, back);
+    private CustomLodScreen(Screen lastScreen, SettingsDraft draft, boolean holdsDraft, Consumer<Screen> back) {
+        super(lastScreen, Component.translatable(CUSTOM_LOD_TITLE_KEY), draft, holdsDraft, back);
         draft.edit(settings -> settings.withLodChoice(LodChoice.CUSTOM));
 
         LodQuality quality = draft.settings().customLod();
 
-        this.nearestVoxel = new OptionInstance<>(NEAREST_VOXEL_KEY, tooltip(NEAREST_VOXEL_KEY),
+        this.nearestVoxel = new OptionInstance<>(NEAREST_VOXEL_KEY,
+                tooltip(SettingsText.withCost(SettingsText.hint(NEAREST_VOXEL_KEY), OptionCost.VOXEL_SIZE)),
                 (caption, level) -> Options.genericValueLabel(caption, SettingsText.nearestVoxel(level)),
                 new OptionInstance.IntRange(LodQuality.MIN_STORED_LEVEL, LodQuality.MAX_STORED_LEVEL,
                         APPLY_ON_RELEASE),
                 quality.storedLevel(), level -> apply(lod -> lod.withStoredLevel(level)));
-        this.leaves = OptionInstance.createBoolean(LEAVES_KEY, tooltip(SettingsText.toggleHint(LEAVES_KEY)),
+        this.leaves = OptionInstance.createBoolean(LEAVES_KEY,
+                tooltip(SettingsText.withCost(SettingsText.toggleHint(LEAVES_KEY), OptionCost.LEAVES)),
                 quality.leaves() == LeafMode.SEE_THROUGH,
                 seeThrough -> apply(lod -> lod.withLeaves(LeafMode.of(seeThrough))));
         this.grassAndFlowers = OptionInstance.createBoolean(GRASS_AND_FLOWERS_KEY,
-                tooltip(SettingsText.toggleHint(GRASS_AND_FLOWERS_KEY)), quality.drawsBlades(),
+                tooltip(SettingsText.withCost(SettingsText.toggleHint(GRASS_AND_FLOWERS_KEY),
+                        OptionCost.GRASS_AND_FLOWERS)),
+                quality.drawsBlades(),
                 drawn -> apply(lod -> lod.withDrawsBlades(drawn)));
-        this.textures = new OptionInstance<>(TEXTURES_KEY, tooltip(SettingsText.texturesHint()),
+        this.textures = new OptionInstance<>(TEXTURES_KEY,
+                tooltip(SettingsText.withCost(SettingsText.texturesHint(), OptionCost.TEXTURES)),
                 (caption, full) -> SettingsText.textures(full),
                 OptionInstance.BOOLEAN_VALUES, quality.fullTextures(),
                 full -> apply(lod -> lod.withFullTextures(full)));
-        this.cornerOcclusion = new OptionInstance<>(CORNER_OCCLUSION_KEY, tooltip(SettingsText.cornerOcclusionHint()),
+        this.cornerOcclusion = new OptionInstance<>(CORNER_OCCLUSION_KEY,
+                tooltip(SettingsText.withCost(SettingsText.cornerOcclusionHint(), OptionCost.CORNER_OCCLUSION)),
                 (caption, value) -> SettingsText.cornerOcclusion(value),
                 new OptionInstance.Enum<>(List.of(CornerOcclusion.values()),
                         Codec.STRING.xmap(key -> CornerOcclusion.fromKey(key)
@@ -67,16 +74,24 @@ public final class CustomLodScreen extends DraftOptionsScreen {
                 quality.cornerOcclusion(), value -> apply(lod -> lod.withCornerOcclusion(value)));
     }
 
+    public static CustomLodScreen withOwnDraft(Screen lastScreen, Consumer<Screen> back) {
+        return new CustomLodScreen(lastScreen, SettingsDraft.of(SettingsService.get()), HOLDS_DRAFT, back);
+    }
+
+    static CustomLodScreen sharingDraft(SettingsScreen parent) {
+        return new CustomLodScreen(parent, parent.draft, SHARES_DRAFT, DraftOptionsScreen::open);
+    }
+
     @Override
     protected void addOptions() {
         this.addHeader(RESOLUTION_CATEGORY_KEY);
-        this.list.addBig(this.nearestVoxel);
-        this.list.addBig(this.textures);
+        this.optionsList().addBig(this.nearestVoxel);
+        this.optionsList().addBig(this.textures);
         this.addHeader(VEGETATION_CATEGORY_KEY);
-        this.list.addBig(this.leaves);
-        this.list.addBig(this.grassAndFlowers);
+        this.optionsList().addBig(this.leaves);
+        this.optionsList().addBig(this.grassAndFlowers);
         this.addHeader(LIGHTING_CATEGORY_KEY);
-        this.list.addBig(this.cornerOcclusion);
+        this.optionsList().addBig(this.cornerOcclusion);
     }
 
     private void apply(UnaryOperator<LodQuality> edit) {

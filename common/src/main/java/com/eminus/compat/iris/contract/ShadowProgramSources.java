@@ -92,7 +92,7 @@ final class ShadowProgramSources {
 
             Token sample = index >= 2 && tokens.get(index - 1).is(OPEN) ? tokens.get(index - 2) : null;
             String lookup = sample == null ? null : ALBEDO_SAMPLES.get(sample.text());
-            if (lookup == null || index + 1 >= tokens.size() || !tokens.get(index + 1).is(COMMA)) {
+            if (sample == null || lookup == null || index + 1 >= tokens.size() || !tokens.get(index + 1).is(COMMA)) {
                 throw new IllegalArgumentException("The shadow program uses " + tokens.get(index).text()
                         + " other than as the first argument of a texture lookup");
             }

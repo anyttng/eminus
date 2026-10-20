@@ -26,6 +26,7 @@ final class FakeModels implements MeshModels {
     private final Map<Integer, Integer> ids = new HashMap<>();
     private final Map<Integer, Integer> fluidIds = new HashMap<>();
     private final Map<Integer, Integer> submergedIds = new HashMap<>();
+    private final Map<Integer, Integer> opaqueIds = new HashMap<>();
     private final Map<Integer, Integer> words = new HashMap<>();
     private final Map<Integer, Integer> solidFaces = new HashMap<>();
     private final Map<Integer, Integer> tintRows = new HashMap<>();
@@ -38,6 +39,7 @@ final class FakeModels implements MeshModels {
     private final Set<Integer> solids = new HashSet<>();
     private final Map<Integer, Integer> shades = new HashMap<>();
     private final Set<Integer> partialHeights = new HashSet<>();
+    private final Map<List<Integer>, Float> insets = new HashMap<>();
     private final List<Runnable> waiters = new ArrayList<>();
     private final Map<Integer, Integer> oneSidedIds = new HashMap<>();
     private final Map<List<Integer>, Integer> inwardIds = new HashMap<>();
@@ -82,6 +84,11 @@ final class FakeModels implements MeshModels {
         words.put(submergedModelId, words.get(surfaceModelId));
     }
 
+    void opaqueTwin(int modelId, int twinModelId, int metadata) {
+        opaqueIds.put(modelId, twinModelId);
+        words.put(twinModelId, metadata);
+    }
+
     void holds(int stateId, int fluid, float height) {
         fluidKinds.put(stateId, fluid);
         fluidHeights.put(stateId, height);
@@ -102,6 +109,10 @@ final class FakeModels implements MeshModels {
 
     void partialHeight(int modelId) {
         partialHeights.add(modelId);
+    }
+
+    void inset(int modelId, Direction face, float inset) {
+        insets.put(List.of(modelId, face.get3DDataValue()), inset);
     }
 
     void unbake(int stateId) {
@@ -179,6 +190,11 @@ final class FakeModels implements MeshModels {
     }
 
     @Override
+    public int opaqueModelId(int modelId) {
+        return opaqueIds.getOrDefault(modelId, modelId);
+    }
+
+    @Override
     public int oneSidedModelId(int modelId) {
         return oneSidedIds.computeIfAbsent(modelId,
                 id -> derive(words.getOrDefault(id, 0) | ModelMetadata.ONE_SIDED, id));
@@ -205,7 +221,7 @@ final class FakeModels implements MeshModels {
 
     @Override
     public float inset(int modelId, int face) {
-        return FLUSH;
+        return insets.getOrDefault(List.of(modelId, face), FLUSH);
     }
 
     @Override
