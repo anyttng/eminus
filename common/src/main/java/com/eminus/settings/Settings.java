@@ -1,5 +1,7 @@
 package com.eminus.settings;
 
+import java.util.function.UnaryOperator;
+
 public record Settings(
         boolean ingestion,
         LodChoice lodChoice,
@@ -65,6 +67,10 @@ public record Settings(
     public Settings withCustomLod(LodQuality value) {
         return new Settings(ingestion, lodChoice, value, farRenderCells, workerThreads, detailDistance, fog, fade,
                 shaderPackLod, lodAnimations);
+    }
+
+    public Settings withEditedLod(UnaryOperator<LodQuality> edit) {
+        return withLodChoice(LodChoice.CUSTOM).withCustomLod(edit.apply(lodQuality()));
     }
 
     public Settings withFarRenderCells(int value) {

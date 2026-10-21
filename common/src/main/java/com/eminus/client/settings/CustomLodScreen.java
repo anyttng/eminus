@@ -17,7 +17,6 @@ import static com.eminus.client.settings.SettingsText.tooltip;
 
 import com.eminus.settings.CornerOcclusion;
 import com.eminus.settings.LeafMode;
-import com.eminus.settings.LodChoice;
 import com.eminus.settings.LodQuality;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsDraft;
@@ -40,9 +39,8 @@ public final class CustomLodScreen extends DraftOptionsScreen {
 
     private CustomLodScreen(Screen lastScreen, SettingsDraft draft, boolean holdsDraft, Consumer<Screen> back) {
         super(lastScreen, Component.translatable(CUSTOM_LOD_TITLE_KEY), draft, holdsDraft, back);
-        draft.edit(settings -> settings.withLodChoice(LodChoice.CUSTOM));
 
-        LodQuality quality = draft.settings().customLod();
+        LodQuality quality = draft.settings().lodQuality();
 
         this.nearestVoxel = new OptionInstance<>(NEAREST_VOXEL_KEY,
                 tooltip(SettingsText.withCost(SettingsText.hint(NEAREST_VOXEL_KEY), OptionCost.VOXEL_SIZE)),
@@ -95,6 +93,6 @@ public final class CustomLodScreen extends DraftOptionsScreen {
     }
 
     private void apply(UnaryOperator<LodQuality> edit) {
-        this.edit(settings -> settings.withLodChoice(LodChoice.CUSTOM).withCustomLod(edit.apply(settings.customLod())));
+        this.edit(settings -> settings.withEditedLod(edit));
     }
 }
