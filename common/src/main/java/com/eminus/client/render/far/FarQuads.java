@@ -47,8 +47,6 @@ final class FarQuads {
     private static final String NEAR_SECTIONS = "EminusNearSections";
     private static final String ATLAS = "EminusAtlas";
     private static final String TINT_MASK = "EminusTintMask";
-    private static final String ATLAS_NEAREST = "EminusAtlasNearest";
-    private static final String TINT_MASK_NEAREST = "EminusTintMaskNearest";
     private static final String LIGHTMAP = "Lightmap";
     private static final String NEXT_LONG_MODULO = "VARIANT_NEXT_LONG_MODULO";
 
@@ -204,16 +202,6 @@ final class FarQuads {
 
     static void reserveIndices() {
         GameGpu.reserveQuadIndices(MAX_GROUP_INDICES);
-    }
-
-    static PipelineSpec.Builder withNearestAtlas(PipelineSpec.Builder builder) {
-        return builder.withBinding(Binding.sampled(ATLAS_NEAREST))
-                .withBinding(Binding.sampled(TINT_MASK_NEAREST));
-    }
-
-    static void bindNearestAtlas(Pass pass, ModelPublisher models) {
-        pass.bind(ATLAS_NEAREST, models.atlas().color(), Sampler.NEAREST_MIPPED);
-        pass.bind(TINT_MASK_NEAREST, models.atlas().tintMask(), Sampler.NEAREST_MIPPED);
     }
 
     private FarQuads() {

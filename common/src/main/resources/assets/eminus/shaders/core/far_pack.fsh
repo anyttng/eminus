@@ -4,8 +4,6 @@
 
 uniform sampler2D EminusAtlas;
 uniform sampler2D EminusTintMask;
-uniform sampler2D EminusAtlasNearest;
-uniform sampler2D EminusTintMaskNearest;
 uniform usamplerBuffer EminusModelVariants;
 uniform usamplerBuffer EminusNearSections;
 
@@ -140,15 +138,36 @@ vec4 eminus_albedo(sampler2D packTexture, vec2 faceUV, float bias) {
     return eminus_surface(eminus_cell, faceUV, eminus_tint);
 }
 
-vec4 eminus_albedoLod(sampler2D packTexture, vec2 faceUV, float lod) {
+vec4 eminus_texelNearest(sampler2D source, vec2 uv, int level) {
+    ivec2 size = textureSize(source, level);
+    return texelFetch(source, clamp(ivec2(floor(uv * vec2(size))), ivec2(0), size - 1), level);
+}
+
+// GL_NEAREST_MIPMAP_LINEAR by hand: the atlas sampler follows the game's terrain filter.
+vec4 eminus_nearestMipped(sampler2D source, vec2 uv, float lod) {
+    float level = clamp(lod, 0.0, float(EminusAtlasMeanLevel));
+    int low = int(floor(level));
+    vec4 color = eminus_texelNearest(source, uv, low);
+    float blend = level - float(low);
+    if (blend <= 0.0) {
+        return color;
+    }
+    return mix(color, eminus_texelNearest(source, uv, low + 1), blend);
+}
+
+vec4 eminus_albedoNearest(vec2 faceUV, float lod) {
     vec2 uv = eminus_albedoUV(faceUV);
-    return eminus_albedoTinted(textureLod(EminusAtlasNearest, uv, lod), textureLod(EminusTintMaskNearest, uv, lod).r);
+    return eminus_albedoTinted(eminus_nearestMipped(EminusAtlas, uv, lod),
+            eminus_nearestMipped(EminusTintMask, uv, lod).r);
+}
+
+vec4 eminus_albedoLod(sampler2D packTexture, vec2 faceUV, float lod) {
+    return eminus_albedoNearest(faceUV, lod);
 }
 
 vec4 eminus_albedoGrad(sampler2D packTexture, vec2 faceUV, vec2 dx, vec2 dy) {
-    vec2 uv = eminus_albedoUV(faceUV);
-    float cell = 1.0 / float(EminusAtlasCells);
-    return eminus_albedoTinted(textureGrad(EminusAtlasNearest, uv, dx * cell, dy * cell),
-            textureGrad(EminusTintMaskNearest, uv, dx * cell, dy * cell).r);
+    vec2 size = vec2(textureSize(EminusAtlas, 0)) / float(EminusAtlasCells);
+    float footprint = max(length(dx * size), length(dy * size));
+    return eminus_albedoNearest(faceUV, log2(max(footprint, EMINUS_MIN_AXIS_LENGTH)));
 }
 #endif
