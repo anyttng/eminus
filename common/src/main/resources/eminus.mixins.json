@@ -12,6 +12,7 @@
     "GameRendererMixin",
     "GlDeviceAccessor",
     "GpuDeviceAccessor",
+    "MinecraftMixin",
     "SpriteContentsAccessor",
     "StairBlockAccessor",
     "VulkanDeviceAccessor",
