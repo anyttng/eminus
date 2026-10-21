@@ -9,13 +9,14 @@ public enum OptionCost {
     SHADER_PACK_LOD(Restart.RELOAD_PACK, null),
     LOD_ANIMATIONS(Restart.RELOAD_PACK, SettingImpact.MEDIUM),
     VOXEL_SIZE(Restart.REREAD, SettingImpact.HIGH),
-    TEXTURES(Restart.REBUILD, SettingImpact.LOW),
+    TEXTURES(Restart.RETEXTURE, SettingImpact.LOW),
     LEAVES(Restart.REBUILD, SettingImpact.MEDIUM),
     GRASS_AND_FLOWERS(Restart.REBUILD, SettingImpact.LOW),
     CORNER_OCCLUSION(Restart.REBUILD, SettingImpact.MEDIUM);
 
     public enum Restart {
         REBUILD("rebuild"),
+        RETEXTURE("retexture"),
         REREAD("reread"),
         LOD_QUALITY("lod_quality"),
         RELOAD_PACK("reload_pack");

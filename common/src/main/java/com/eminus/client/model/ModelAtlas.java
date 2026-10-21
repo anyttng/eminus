@@ -79,6 +79,10 @@ public final class ModelAtlas implements AutoCloseable {
         return cellsPerSide;
     }
 
+    public int firstMip() {
+        return firstMip;
+    }
+
     public int cellSide() {
         return cellSide;
     }
