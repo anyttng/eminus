@@ -30,6 +30,7 @@ import com.eminus.gpu.Gpu;
 import com.eminus.gpu.Location;
 import com.eminus.gpu.Sparse;
 import com.eminus.gpu.pipeline.Pipeline;
+import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.render.arena.ArenaSizing;
 import com.eminus.render.arena.MeshSlot;
@@ -260,10 +261,12 @@ public final class FarRenderer implements AutoCloseable {
         if (farFrame && (terrainDrawn || boxes.drawsAny())) {
             drawMask();
             Texture lightmap = gpu.lightmap();
-            opaque.draw(target, arena, models, lightmap, indirect.buffer(), terrainDrawn ? commands.solidCount() : 0,
-                    terrainDrawn ? commands.opaqueCount() : 0, frame.buffer(), nearSections.texels());
+            Sampler atlas = FarQuads.atlasSampler(game.terrainFilter());
+            opaque.draw(target, arena, models, lightmap, atlas, indirect.buffer(),
+                    terrainDrawn ? commands.solidCount() : 0, terrainDrawn ? commands.opaqueCount() : 0,
+                    frame.buffer(), nearSections.texels());
             if (terrainDrawn) {
-                translucent.draw(target, arena, models, lightmap, indirect.buffer(), commands.opaqueCount(),
+                translucent.draw(target, arena, models, lightmap, atlas, indirect.buffer(), commands.opaqueCount(),
                         commands.translucentCount(), frame.buffer(), nearSections.texels());
             }
             boxes.drawFar(target, farViewProjection, game);
@@ -387,10 +390,11 @@ public final class FarRenderer implements AutoCloseable {
         fillNearSections(client, level, game);
 
         frame.write(farViewProjection, game.viewRotation(), runtime.frame().minBlockY(),
-                models.atlas(), nearSections.sections(), game.shade(), game.smoothLighting(),
-                CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
+                models.atlas(), nearSections.sections(), game.shade(), game.smoothLighting(), game.rgss(),
+                game.anisotropy(), CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
         draw.frame(indirect.buffer(), commands.opaqueCount(), commands.translucentCount(), gpu.lightmap(),
-                farProjection, game.viewRotation(), FarDistance.cellsToBlocks(settings.farRenderCells()));
+                FarQuads.atlasSampler(game.terrainFilter()), farProjection, game.viewRotation(),
+                FarDistance.cellsToBlocks(settings.farRenderCells()));
         terrainDrawn = true;
     }
 

@@ -68,7 +68,7 @@ public final class FarShadow implements AutoCloseable {
 
         indirect.write(commands);
         frame.write(viewProjection, view, cells.minBlockY(), atlas, near, game.shade(), game.smoothLighting(),
-                CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
+                game.rgss(), game.anisotropy(), CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
         return true;
     }
 

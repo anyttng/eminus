@@ -3,5 +3,6 @@ package com.eminus.gpu.texture;
 public enum Sampler {
     NEAREST,
     LINEAR,
-    NEAREST_MIPPED
+    NEAREST_MIPPED,
+    LINEAR_MIPPED
 }
