@@ -19,13 +19,14 @@ import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
 final class TreeTraversal {
+    static final float PREFETCH_SHARE = 0.8F;
+
     private static final Comparator<Candidate> LARGEST_FIRST =
             (first, second) -> Float.compare(second.size(), first.size());
     private static final Comparator<Candidate> CENTER_FIRST =
             Comparator.comparingDouble(Candidate::angle).thenComparing(LARGEST_FIRST);
     private static final float SCREEN_CENTER = 0.5F;
     private static final int UNSERVED = -1;
-    private static final float PREFETCH_SHARE = 0.8F;
 
     private final NodeTable nodes;
     private final TreeExtent extent;

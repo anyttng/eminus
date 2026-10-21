@@ -28,6 +28,10 @@ class TreeTraversalHorizonTest {
     private static final long WALK = 7L;
     private static final double BETWEEN_THE_ROOTS = 5.0;
     private static final double NOTHING_REFINES = 0.0;
+    private static final double BUILT_AHEAD_DISTANCE = 1_000.0;
+    private static final double BAND_MIDDLE = (1.0 + TreeTraversal.PREFETCH_SHARE) / 2.0;
+    private static final float BUILT_AHEAD_PIXELS_PER_BLOCK =
+            (float) (BAND_MIDDLE * FakeCameras.THRESHOLD_PIXELS * BUILT_AHEAD_DISTANCE / CELL);
 
     private final NodeTable nodes = new NodeTable(NodeTable.CAPACITY);
     private final TreeExtent extent = new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN);
@@ -67,6 +71,25 @@ class TreeTraversalHorizonTest {
 
         assertTrue(traversal.requested().isEmpty());
         assertTrue(traversal.outOfViewRequested().isEmpty());
+    }
+
+    @Test
+    void aSetBuiltAheadAndEvictedUnderPressureIsNotRequestedAgain() {
+        CameraFrame camera = FakeCameras.everything(-BUILT_AHEAD_DISTANCE, INSIDE, INSIDE, FAR_CELLS,
+                BUILT_AHEAD_PIXELS_PER_BLOCK);
+        traversal.walk(nodes.roots(), camera, BUDGET, BUDGET, WALK);
+        List<TreeNode> builtAhead = List.copyOf(traversal.requested());
+        for (TreeNode child : builtAhead) {
+            child.meshed(TestMeshes.summary(child.key(), OccupancyMask.EMPTY));
+        }
+
+        for (TreeNode evicted : new TreeCleaner().pick(nodes.all(), camera.underPressure(), extent.frame(), horizon)) {
+            nodes.remove(evicted, removed -> { });
+        }
+        traversal.walk(nodes.roots(), camera, BUDGET, BUDGET, WALK + 1);
+
+        assertEquals(OccupancyMask.OCTANTS, builtAhead.size());
+        assertTrue(traversal.requested().isEmpty());
     }
 
     private static CameraFrame turnedAway() {
