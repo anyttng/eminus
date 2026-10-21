@@ -42,12 +42,12 @@ public final class OpaquePass {
         this.pipeline = pipeline;
     }
 
-    public static OpaquePass create(Gpu gpu, DepthConvention depth, VariantDraw variantDraw) {
+    public static OpaquePass create(Gpu gpu, DepthConvention depth, VariantDraw variantDraw, float leafCutout) {
         gpu.assertRenderThread();
         Capabilities capabilities = gpu.capabilities();
         return new OpaquePass(gpu,
                 gpu.pipeline(target(FarQuads.solidPipeline(SOLID_PIPELINE, capabilities, variantDraw), depth)),
-                gpu.pipeline(target(FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT, capabilities, variantDraw)
+                gpu.pipeline(target(FarQuads.pipeline(PIPELINE, leafCutout, capabilities, variantDraw)
                         .withDefine("NEAR_SECTIONS"), depth)));
     }
 

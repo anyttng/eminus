@@ -2,6 +2,8 @@ package com.eminus.client.frame;
 
 import java.util.Objects;
 
+import com.eminus.compat.sodium.SodiumCutout;
+import com.eminus.compat.sodium.SodiumMixinPlugin;
 import com.eminus.mixin.LevelRendererAccessor;
 import com.eminus.mixin.ViewAreaAccessor;
 
@@ -32,6 +34,7 @@ public final class GameFrames {
     private static final boolean SHADED = true;
     private static final boolean NO_RGSS = false;
     private static final int NO_ANISOTROPY = 1;
+    private static final float VANILLA_LEAF_CUTOUT = 0.5F;
 
     private static float fov;
     private static boolean renderDistanceFog;
@@ -48,6 +51,10 @@ public final class GameFrames {
                         level.getShade(Direction.NORTH, SHADED), level.getShade(Direction.SOUTH, SHADED),
                         level.getShade(Direction.WEST, SHADED), level.getShade(Direction.EAST, SHADED)),
                 client.options.ambientOcclusion().get(), NO_RGSS, NO_ANISOTROPY, TerrainFilter.NEAREST);
+    }
+
+    public static float leafCutout() {
+        return SodiumMixinPlugin.sodiumPresent() ? SodiumCutout.read(VANILLA_LEAF_CUTOUT) : VANILLA_LEAF_CUTOUT;
     }
 
     public static void captureFov(double levelFov) {

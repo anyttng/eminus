@@ -168,7 +168,7 @@ public final class FarRenderer implements AutoCloseable {
         ClientBakery baking = ClientBakery.start(client, packBlocks);
         NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOR_FORMAT, support.depth(),
                 CompositePass.DEPTH_BIAS);
-        OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw());
+        OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw(), GameFrames.leafCutout());
         TranslucentPass translucent = TranslucentPass.create(gpu, support.depth(), baking.variantDraw());
         CompositePass composite = CompositePass.create(gpu, support.depth());
         BoxPass boxes = BoxPass.create(gpu, support.depth());
