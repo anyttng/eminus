@@ -38,8 +38,6 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-import org.jspecify.annotations.Nullable;
-
 public final class SettingsScreen extends DraftOptionsScreen {
     private static final boolean APPLY_ON_RELEASE = false;
     private static final boolean STEPPED = true;
@@ -53,7 +51,6 @@ public final class SettingsScreen extends DraftOptionsScreen {
     private final OptionInstance<Boolean> fade;
     private final OptionInstance<ShaderPackLod> shaderPackLod;
     private final OptionInstance<Boolean> lodAnimations;
-    private @Nullable Button customLodButton;
 
     public SettingsScreen(Screen lastScreen) {
         super(lastScreen, Component.translatable(TITLE_KEY), SettingsDraft.of(SettingsService.get()), HOLDS_DRAFT,
@@ -105,12 +102,12 @@ public final class SettingsScreen extends DraftOptionsScreen {
 
     @Override
     protected void addOptions() {
-        this.customLodButton = Button.builder(Component.translatable(CUSTOM_LOD_KEY),
+        Button customLodButton = Button.builder(Component.translatable(CUSTOM_LOD_KEY),
                         button -> this.minecraft.gui.setScreen(CustomLodScreen.sharingDraft(this)))
                 .tooltip(Tooltip.create(SettingsText.hint(CUSTOM_LOD_KEY)))
                 .build();
         this.addHeader(GENERAL_CATEGORY_KEY);
-        this.optionsList().addSmall(this.lodChoice.createButton(this.options), this.lodChoice, this.customLodButton);
+        this.optionsList().addSmall(this.lodChoice.createButton(this.options), this.lodChoice, customLodButton);
         this.optionsList().addBig(this.farRenderCells);
         this.optionsList().addBig(this.detailDistance);
         this.optionsList().addBig(this.ingestion);
@@ -129,8 +126,10 @@ public final class SettingsScreen extends DraftOptionsScreen {
     @Override
     protected void draftChanged() {
         super.draftChanged();
-        if (this.customLodButton != null) {
-            this.customLodButton.active = this.draft.settings().lodChoice() == LodChoice.CUSTOM;
+        LodChoice choice = this.draft.settings().lodChoice();
+        if (this.lodChoice.get() != choice) {
+            this.lodChoice.set(choice);
+            this.resetOption(this.lodChoice);
         }
     }
 
