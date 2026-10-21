@@ -10,6 +10,7 @@
     "ClientPacketListenerMixin",
     "GameRendererMixin",
     "LevelRendererMixin",
+    "MinecraftMixin",
     "PipelineCacheAccessor",
     "RenderSystemAccessor",
     "SpriteContentsAccessor",
