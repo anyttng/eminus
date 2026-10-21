@@ -121,6 +121,8 @@ public final class ClientSession {
 
         if (runtime != null && rendered != null && FarRenderer.recreates(rendered, updated)) {
             restartRenderer();
+        } else if (renderer != null) {
+            renderer.retexture(updated.lodQuality());
         }
     }
 

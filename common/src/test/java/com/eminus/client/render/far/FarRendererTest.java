@@ -58,8 +58,25 @@ class FarRendererTest {
     void aChangeOfOneLodDetailRecreatesTheRenderer() {
         assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withDrawsBlades(false))));
         assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withLeaves(LeafMode.OPAQUE))));
-        assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withFullTextures(false))));
         assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withCornerOcclusion(CornerOcclusion.OFF))));
+    }
+
+    @Test
+    void aTextureResolutionChangeKeepsTheRenderer() {
+        assertFalse(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withFullTextures(false))));
+    }
+
+    @Test
+    void aSwitchBetweenHighAndMediumKeepsTheRenderer() {
+        Settings high = BUILT.withLodChoice(LodChoice.HIGH);
+
+        assertFalse(FarRenderer.recreates(high, high.withLodChoice(LodChoice.MEDIUM)));
+        assertFalse(FarRenderer.recreates(high.withLodChoice(LodChoice.MEDIUM), high));
+    }
+
+    @Test
+    void aTextureResolutionChangeBesideAnotherDetailRecreatesTheRenderer() {
+        assertTrue(FarRenderer.recreates(BUILT, BUILT.withLodChoice(LodChoice.CUSTOM).withCustomLod(BUILT.lodQuality().withFullTextures(false).withLeaves(LeafMode.OPAQUE))));
     }
 
     @Test
