@@ -1,5 +1,7 @@
 package com.eminus.ingest;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import com.eminus.cell.Cell;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.DetailLevel;
@@ -11,6 +13,10 @@ import com.eminus.cell.cache.CellHandle;
 
 public final class CellMerger {
     private static final long UNCHANGED = -1L;
+    private static final int OCCUPANCY = 0;
+    private static final int SEQUENCE = 1;
+    private static final int WRITTEN_FIELDS = 2;
+    private static final AtomicLong SEQUENCES = new AtomicLong();
 
     private final CellAccess cells;
     private final CellFrame frame;
@@ -75,7 +81,13 @@ public final class CellMerger {
         int originY = frame.voxelY(blockY, level);
         int originZ = CellFrame.voxelZ(blockZ, level);
 
-        long reach = handle.withCell(cell -> writeLevel(cell, source, side, originX, originY, originZ));
+        long[] written = new long[WRITTEN_FIELDS];
+        long reach = handle.withCell(cell -> {
+            long changed = writeLevel(cell, source, side, originX, originY, originZ);
+            written[OCCUPANCY] = cell.occupancy();
+            written[SEQUENCE] = SEQUENCES.incrementAndGet();
+            return changed;
+        });
 
         if (reach == UNCHANGED) {
             cells.release(handle);
@@ -83,7 +95,8 @@ public final class CellMerger {
         }
 
         handle.markDirty();
-        listener.changed(handle, (int) reach, (int) (reach >>> Integer.SIZE));
+        listener.changed(handle, (int) reach, (int) (reach >>> Integer.SIZE), (int) written[OCCUPANCY],
+                written[SEQUENCE]);
         return true;
     }
 
