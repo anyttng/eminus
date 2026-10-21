@@ -2,8 +2,9 @@
   "gui.eminus.settings.title": "Eminus の設定",
   "gui.eminus.settings.value_hint": "%s：%s",
   "gui.eminus.settings.restart.rebuild": "変更すると LOD を作り直します。",
+  "gui.eminus.settings.restart.retexture": "変更すると LOD のテクスチャだけを読み込み直します。",
   "gui.eminus.settings.restart.reread": "変更すると周囲のチャンクを読み直します。",
-  "gui.eminus.settings.restart.lod_quality": "変更すると LOD を作り直し、ボクセルの大きさも変わる場合は周囲のチャンクを読み直します。",
+  "gui.eminus.settings.restart.lod_quality": "変更すると LOD を作り直し（テクスチャ解像度だけが変わる場合はテクスチャだけを読み込み直し）、ボクセルの大きさも変わる場合は周囲のチャンクを読み直します。",
   "gui.eminus.settings.restart.reload_pack": "変更するとシェーダーパックを再読み込みし、LOD を作り直します。",
   "gui.eminus.settings.impact": "パフォーマンスへの影響：%s",
   "gui.eminus.settings.impact.low": "低",
@@ -32,7 +33,7 @@
   "gui.eminus.settings.lod_quality.low": "低",
   "gui.eminus.settings.lod_quality.custom": "カスタム",
   "gui.eminus.settings.custom_lod": "カスタム設定...",
-  "gui.eminus.settings.custom_lod.hint": "カスタムが使う 5 つの値を個別に設定します。LOD の品質が「カスタム」のときに使えます。",
+  "gui.eminus.settings.custom_lod.hint": "現在の LOD の品質の詳細を開いて細かく調整します。変更すると「カスタム」に切り替わります。",
   "gui.eminus.settings.custom_lod.title": "カスタム LOD 品質",
   "gui.eminus.settings.custom_lod.nearest_voxel": "ボクセルサイズ",
   "gui.eminus.settings.custom_lod.nearest_voxel.hint": "LOD の手前の端で 1 ボクセルが覆うブロック数。1 段階上げるごとに LOD はより粗く保存されます。",
@@ -73,7 +74,7 @@
   "gui.eminus.settings.detail_distance.minimal": "最小",
   "gui.eminus.settings.fog": "霧",
   "gui.eminus.settings.fog.hint.on": "LOD にかかる霧はゲーム自身の霧を引き継ぎ、LOD 距離で最も濃くなります。",
-  "gui.eminus.settings.fog.hint.off": "LOD はくっきりし、読み込まれたチャンクの屋外の霧も消えます。",
+  "gui.eminus.settings.fog.hint.off": "LOD はくっきりし、読み込まれたチャンクの通常の霧も消えます。",
   "gui.eminus.settings.fog.hint.note": "ネザー、ボス、水中、盲目による霧はどちらでも残ります。",
   "gui.eminus.settings.fade": "フェード",
   "gui.eminus.settings.fade.hint.on": "LOD は最後の 512 ブロックでフェードアウトします。",
@@ -87,5 +88,5 @@
   "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
   "gui.eminus.settings.lod_animations": "LOD のアニメーション",
   "gui.eminus.settings.lod_animations.hint.on": "Eminus 対応のシェーダーパックが、近くと同じように LOD の草・葉・水を揺らせます。",
-  "gui.eminus.settings.lod_animations.hint.off": "LOD は何も揺れず、その分の GPU 時間を節約できます。"
+  "gui.eminus.settings.lod_animations.hint.off": "LOD では何も揺れず、その分の GPU 時間を節約できます。"
 }

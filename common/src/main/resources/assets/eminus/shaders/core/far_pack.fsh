@@ -4,6 +4,8 @@
 
 uniform sampler2D EminusAtlas;
 uniform sampler2D EminusTintMask;
+uniform sampler2D EminusAtlasNearest;
+uniform sampler2D EminusTintMaskNearest;
 uniform usamplerBuffer EminusModelVariants;
 uniform usamplerBuffer EminusNearSections;
 
@@ -140,13 +142,13 @@ vec4 eminus_albedo(sampler2D packTexture, vec2 faceUV, float bias) {
 
 vec4 eminus_albedoLod(sampler2D packTexture, vec2 faceUV, float lod) {
     vec2 uv = eminus_albedoUV(faceUV);
-    return eminus_albedoTinted(textureLod(EminusAtlas, uv, lod), textureLod(EminusTintMask, uv, lod).r);
+    return eminus_albedoTinted(textureLod(EminusAtlasNearest, uv, lod), textureLod(EminusTintMaskNearest, uv, lod).r);
 }
 
 vec4 eminus_albedoGrad(sampler2D packTexture, vec2 faceUV, vec2 dx, vec2 dy) {
     vec2 uv = eminus_albedoUV(faceUV);
     float cell = 1.0 / float(EminusAtlasCells);
-    return eminus_albedoTinted(textureGrad(EminusAtlas, uv, dx * cell, dy * cell),
-            textureGrad(EminusTintMask, uv, dx * cell, dy * cell).r);
+    return eminus_albedoTinted(textureGrad(EminusAtlasNearest, uv, dx * cell, dy * cell),
+            textureGrad(EminusTintMaskNearest, uv, dx * cell, dy * cell).r);
 }
 #endif

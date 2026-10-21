@@ -106,7 +106,7 @@ public final class DimensionRuntime {
     }
 
     public void stopListening() {
-        changes = (handle, faceMask, edgeMask) -> cells.release(handle);
+        changes = (handle, faceMask, edgeMask, occupancy, sequence) -> cells.release(handle);
     }
 
     void createFolder() {
@@ -218,8 +218,8 @@ public final class DimensionRuntime {
 
     private final class Changes implements CellChangeListener {
         @Override
-        public void changed(CellHandle handle, int faceMask, int edgeMask) {
-            changes.changed(handle, faceMask, edgeMask);
+        public void changed(CellHandle handle, int faceMask, int edgeMask, int occupancy, long sequence) {
+            changes.changed(handle, faceMask, edgeMask, occupancy, sequence);
         }
 
         @Override

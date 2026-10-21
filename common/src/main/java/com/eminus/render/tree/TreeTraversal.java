@@ -19,13 +19,14 @@ import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
 final class TreeTraversal {
+    static final float PREFETCH_SHARE = 0.8F;
+
     private static final Comparator<Candidate> LARGEST_FIRST =
             (first, second) -> Float.compare(second.size(), first.size());
     private static final Comparator<Candidate> CENTER_FIRST =
             Comparator.comparingDouble(Candidate::angle).thenComparing(LARGEST_FIRST);
     private static final float SCREEN_CENTER = 0.5F;
     private static final int UNSERVED = -1;
-    private static final float PREFETCH_SHARE = 0.8F;
 
     private final NodeTable nodes;
     private final TreeExtent extent;
@@ -49,6 +50,7 @@ final class TreeTraversal {
     private final FloatArrayList requestedPriorities = new FloatArrayList();
     private final List<TreeNode> outOfViewRequested = new ArrayList<>();
     private final FloatArrayList outOfViewSizes = new FloatArrayList();
+    private final List<TreeNode> rebuilds = new ArrayList<>();
     private final PendingColumns pending = new PendingColumns();
     private final PendingColumns pendingOutOfView = new PendingColumns();
     private final ArrivalFront front = new ArrivalFront();
@@ -85,6 +87,7 @@ final class TreeTraversal {
         requestedPriorities.clear();
         outOfViewRequested.clear();
         outOfViewSizes.clear();
+        rebuilds.clear();
         pending.clear();
         pendingOutOfView.clear();
         front.begin(camera.eyeX(), camera.eyeZ(), (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL
@@ -192,6 +195,11 @@ final class TreeTraversal {
         return outOfViewSizes.getFloat(index);
     }
 
+    // Reused by the next walk; consumed before it.
+    List<TreeNode> rebuilds() {
+        return rebuilds;
+    }
+
     boolean starved() {
         return starved;
     }
@@ -229,6 +237,7 @@ final class TreeTraversal {
 
             keepChildren(node, walk);
             if (givesWay(node, camera)) {
+                node.gaveWay(true);
                 node.markDescended();
                 descendedKeys.add(node.key());
                 descend(node);
@@ -242,6 +251,7 @@ final class TreeTraversal {
             keepChildren(node, walk);
         }
 
+        node.gaveWay(false);
         draw(node);
     }
 
@@ -268,15 +278,24 @@ final class TreeTraversal {
         }
 
         if (refines(node, ProjectedSize.of(box, camera.pixelsPerBlock()), camera) && givesWay(node, camera)) {
+            node.gaveWay(true);
             node.markDescended();
             outOfViewDescendedKeys.add(node.key());
             descend(node);
             return;
         }
 
+        node.gaveWay(false);
         MeshSummary mesh = node.mesh();
         if (mesh == null) {
             waiting(node.key(), node);
+            return;
+        }
+
+        if (childrenStandIn(node)) {
+            node.markDescended();
+            outOfViewDescendedKeys.add(node.key());
+            descend(node);
             return;
         }
 
@@ -424,10 +443,29 @@ final class TreeTraversal {
             return;
         }
 
+        if (childrenStandIn(node)) {
+            node.markDescended();
+            descendedKeys.add(node.key());
+            descend(node);
+            return;
+        }
+
         drawnKeys.add(node.key());
         if (!mesh.isEmpty()) {
             drawn.add(mesh);
         }
+    }
+
+    private boolean childrenStandIn(TreeNode node) {
+        if (!node.stale()) {
+            return false;
+        }
+
+        if (!node.building()) {
+            rebuilds.add(node);
+        }
+
+        return node.childrenMeshed();
     }
 
     private void waiting(long key, @Nullable TreeNode node) {

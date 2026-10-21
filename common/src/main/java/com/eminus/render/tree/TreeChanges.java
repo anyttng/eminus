@@ -30,13 +30,16 @@ final class TreeChanges {
         this.dispatch = dispatch;
     }
 
-    void changed(CellHandle handle, int faceMask, int edgeMask, @Nullable CameraFrame camera) {
+    boolean changed(CellHandle handle, int faceMask, int edgeMask, int occupancy, long sequence,
+            @Nullable CameraFrame camera) {
         long key = handle.key();
         TreeNode node = nodes.get(key);
+        boolean walkDue = false;
         if (node == null) {
             builds.release(handle, ONE_REFERENCE);
         } else {
             node.hold(handle);
+            walkDue = node.changeOccupancy(occupancy, sequence) && node.gaveWay();
             requestBuild(node, camera);
         }
 
@@ -51,6 +54,17 @@ final class TreeChanges {
 
         if (CellKey.level(key) == FluidCorners.LEVEL) {
             requestAcrossEdges(key, edgeMask, camera);
+        }
+
+        return walkDue;
+    }
+
+    void defer(TreeNode node) {
+        node.markStale();
+        CellHandle pending = node.pending();
+        if (pending != null) {
+            builds.release(pending, node.pendingReferences());
+            node.clearPending();
         }
     }
 
@@ -107,6 +121,11 @@ final class TreeChanges {
     private void requestBuild(TreeNode node, @Nullable CameraFrame camera) {
         if (node.building()) {
             node.markRebuild();
+            return;
+        }
+
+        if (node.gaveWay()) {
+            defer(node);
             return;
         }
 

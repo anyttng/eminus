@@ -80,6 +80,36 @@ class LodQualityTest {
     }
 
     @Test
+    void anEditUnderAPresetTakesCustomWithThePresetsValuesAndTheEdit() {
+        Settings edited = Settings.defaults().withLodChoice(LodChoice.HIGH).withCustomLod(CUSTOM)
+                .withEditedLod(lod -> lod.withFullTextures(false));
+
+        assertEquals(LodChoice.CUSTOM, edited.lodChoice());
+        assertEquals(preset(LodChoice.HIGH).withFullTextures(false), edited.customLod());
+    }
+
+    @Test
+    void anEditUnderCustomKeepsCustomEvenWhenItMatchesAPreset() {
+        Settings edited = Settings.defaults().withLodChoice(LodChoice.CUSTOM)
+                .withCustomLod(preset(LodChoice.HIGH).withLeaves(LeafMode.SEE_THROUGH))
+                .withEditedLod(lod -> lod.withLeaves(LeafMode.OPAQUE));
+
+        assertEquals(LodChoice.CUSTOM, edited.lodChoice());
+        assertEquals(preset(LodChoice.HIGH), edited.customLod());
+    }
+
+    @Test
+    void aVoxelSizeEditUnderAnyPresetTakesCustom() {
+        for (LodChoice choice : presets()) {
+            Settings edited = Settings.defaults().withLodChoice(choice)
+                    .withEditedLod(lod -> lod.withStoredLevel(LodQuality.MAX_STORED_LEVEL));
+
+            assertEquals(LodChoice.CUSTOM, edited.lodChoice(), choice.key());
+            assertEquals(preset(choice).withStoredLevel(LodQuality.MAX_STORED_LEVEL), edited.customLod(), choice.key());
+        }
+    }
+
+    @Test
     void everyChoiceReadsBackFromItsKey() {
         for (LodChoice choice : LodChoice.values()) {
             assertEquals(Optional.of(choice), LodChoice.fromKey(choice.key()));

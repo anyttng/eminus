@@ -34,6 +34,10 @@ class TreeCleanerTest {
     private static final double NEAR_ROOT_REACH = NEAR_ROOT_DISTANCE / (1.5 * 1.5 * 1.5);
     private static final double REACH_TOLERANCE = 0.001;
     private static final double LOW_HORIZON = 100.0;
+    private static final double BUILT_AHEAD_DISTANCE = FIRST_FAR_CELL * CELL - INSIDE;
+    private static final double BAND_MIDDLE = (1.0 + TreeTraversal.PREFETCH_SHARE) / 2.0;
+    private static final float BUILT_AHEAD_PIXELS_PER_BLOCK =
+            (float) (BAND_MIDDLE * FakeCameras.THRESHOLD_PIXELS * BUILT_AHEAD_DISTANCE / CELL);
 
     private final NodeTable nodes = new NodeTable(NodeTable.CAPACITY);
     private final TreeCleaner cleaner = new TreeCleaner();
@@ -74,6 +78,18 @@ class TreeCleanerTest {
 
         assertEquals(WHOLE_SET, cleaner.unwantedPicked());
         assertEquals(LOW_HORIZON, horizon.horizon());
+    }
+
+    @Test
+    void aSetTheWalkBuildsAheadGoesWithTheFarSetsAndLowersTheHorizon() {
+        List<TreeNode> unwanted = children(root(FARTHER_CELL), WHOLE_SET, OLD);
+        List<TreeNode> builtAhead = children(root(FIRST_FAR_CELL), WHOLE_SET, WALK);
+
+        List<TreeNode> picked = pick(BUILT_AHEAD_PIXELS_PER_BLOCK, MANY_FAR_CELLS);
+
+        assertEquals(concat(unwanted, builtAhead), picked);
+        assertEquals(WHOLE_SET, cleaner.unwantedPicked());
+        assertEquals(TreeHorizon.key(BUILT_AHEAD_DISTANCE, DetailLevel.MAX), horizon.horizon(), REACH_TOLERANCE);
     }
 
     @Test

@@ -76,6 +76,7 @@ class TreeManagerTest {
     private final Map<Long, Float> rootPriorities = new HashMap<>();
     private TreeManager manager =
             TreeManager.start(builds, new TreeExtent(new CellFrame(0), 1, DetailLevel.MIN));
+    private long sequence;
 
     @AfterEach
     void stopEverything() {
@@ -88,15 +89,15 @@ class TreeManagerTest {
         settleRing();
 
         CellHandle handle = open(KEY);
-        manager.changed(handle, FaceMask.NONE, EdgeMask.NONE);
+        change(handle, FaceMask.NONE, EdgeMask.NONE);
 
         FakeBuilds.Call first = builds.take();
         assertEquals(KEY, first.key());
         assertSame(handle, first.handle());
         assertEquals(1, first.references());
 
-        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.NONE);
-        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.NONE);
+        change(open(KEY), FaceMask.NONE, EdgeMask.NONE);
+        change(open(KEY), FaceMask.NONE, EdgeMask.NONE);
         manager.meshed(CellMesh.empty(KEY), first.request());
 
         FakeBuilds.Call rebuilt = builds.take();
@@ -110,9 +111,9 @@ class TreeManagerTest {
     void aMeshOfAnOlderRequestNeverReplacesTheNewerOne() {
         settleRing();
 
-        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.NONE);
+        change(open(KEY), FaceMask.NONE, EdgeMask.NONE);
         FakeBuilds.Call first = builds.take();
-        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.NONE);
+        change(open(KEY), FaceMask.NONE, EdgeMask.NONE);
         manager.meshed(CellMesh.empty(KEY), first.request());
         FakeBuilds.Call rebuilt = builds.take();
 
@@ -201,7 +202,7 @@ class TreeManagerTest {
         settleRing();
 
         CellHandle handle = open(KEY);
-        manager.changed(handle, FaceMask.WEST | FaceMask.UP, EdgeMask.NONE);
+        change(handle, FaceMask.WEST | FaceMask.UP, EdgeMask.NONE);
 
         FakeBuilds.Call own = builds.take();
         assertEquals(KEY, own.key());
@@ -218,8 +219,8 @@ class TreeManagerTest {
     void anEdgeChangeAboveTheSlopingLevelRebuildsNoCellAcrossTheEdge() {
         settleRing();
 
-        manager.changed(open(KEY), FaceMask.NONE, EdgeMask.bit(-1, 0, 0) | EdgeMask.bit(-1, 0, -1));
-        manager.changed(open(WEST), FaceMask.NONE, EdgeMask.NONE);
+        change(open(KEY), FaceMask.NONE, EdgeMask.bit(-1, 0, 0) | EdgeMask.bit(-1, 0, -1));
+        change(open(WEST), FaceMask.NONE, EdgeMask.NONE);
 
         assertEquals(KEY, builds.take().key());
         assertEquals(WEST, builds.take().key());
@@ -231,7 +232,7 @@ class TreeManagerTest {
         settleRing();
 
         CellHandle handle = open(ABOVE);
-        manager.changed(handle, FaceMask.DOWN, EdgeMask.NONE);
+        change(handle, FaceMask.DOWN, EdgeMask.NONE);
 
         FakeBuilds.Release released = builds.takeRelease();
         assertSame(handle, released.handle());
@@ -247,7 +248,7 @@ class TreeManagerTest {
         settleRingReadingBelow(true);
 
         CellHandle handle = open(BELOW);
-        manager.changed(handle, FaceMask.NONE, EdgeMask.NONE);
+        change(handle, FaceMask.NONE, EdgeMask.NONE);
 
         assertSame(handle, builds.takeRelease().handle());
         FakeBuilds.Call above = builds.take();
@@ -261,7 +262,7 @@ class TreeManagerTest {
         settleRingReadingBelow(false);
 
         CellHandle handle = open(BELOW);
-        manager.changed(handle, FaceMask.NONE, EdgeMask.NONE);
+        change(handle, FaceMask.NONE, EdgeMask.NONE);
 
         assertSame(handle, builds.takeRelease().handle());
         syncMessages();
@@ -283,7 +284,7 @@ class TreeManagerTest {
     @Test
     void aChangeOnACellWithoutANodeReleasesItsHandle() {
         CellHandle handle = open(OUTSIDE);
-        manager.changed(handle, FaceMask.NONE, EdgeMask.NONE);
+        change(handle, FaceMask.NONE, EdgeMask.NONE);
 
         FakeBuilds.Release released = builds.takeRelease();
         assertSame(handle, released.handle());
@@ -542,7 +543,7 @@ class TreeManagerTest {
         startRing();
         manager.meshed(CellMesh.empty(KEY), rootRequests.get(KEY));
         manager.meshed(CellMesh.empty(WEST), rootRequests.get(WEST));
-        manager.changed(open(OUTSIDE), FaceMask.NONE, EdgeMask.NONE);
+        change(open(OUTSIDE), FaceMask.NONE, EdgeMask.NONE);
         builds.takeRelease();
     }
 
@@ -566,8 +567,12 @@ class TreeManagerTest {
     }
 
     private void syncMessages() {
-        manager.changed(open(OUTSIDE), FaceMask.NONE, EdgeMask.NONE);
+        change(open(OUTSIDE), FaceMask.NONE, EdgeMask.NONE);
         builds.takeRelease();
+    }
+
+    private void change(CellHandle handle, int faceMask, int edgeMask) {
+        manager.changed(handle, faceMask, edgeMask, OccupancyMask.EMPTY, ++sequence);
     }
 
     private CellHandle open(long key) {

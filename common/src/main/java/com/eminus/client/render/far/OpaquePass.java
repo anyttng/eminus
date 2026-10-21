@@ -15,6 +15,7 @@ import com.eminus.gpu.pass.Pass;
 import com.eminus.gpu.pass.PassSpec;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.model.port.VariantDraw;
 import com.eminus.render.backend.DepthConvention;
@@ -54,20 +55,20 @@ public final class OpaquePass {
         return List.of(solid, pipeline);
     }
 
-    public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer commands,
-            int solidCount, int drawCount, Buffer frame, TexelView nearSections) {
+    public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, Texture lightmap, Sampler atlas,
+            Buffer commands, int solidCount, int drawCount, Buffer frame, TexelView nearSections) {
         gpu.assertRenderThread();
 
         try (Pass pass = gpu.pass(PassSpec.of(PASS_LABEL, target.color(), CLEAR_COLOR)
                 .withDepth(target.depth(), OptionalDouble.empty()))) {
             if (solidCount > 0) {
                 pass.pipeline(solid);
-                FarQuads.bind(pass, arena, models, lightmap, frame, null);
+                FarQuads.bind(pass, arena, models, lightmap, atlas, frame, null);
                 pass.drawIndexedIndirect(commands, FIRST_COMMAND, solidCount);
             }
 
             pass.pipeline(pipeline);
-            FarQuads.bind(pass, arena, models, lightmap, frame, nearSections);
+            FarQuads.bind(pass, arena, models, lightmap, atlas, frame, nearSections);
             if (drawCount > solidCount) {
                 pass.drawIndexedIndirect(commands, solidCount, drawCount - solidCount);
             }
