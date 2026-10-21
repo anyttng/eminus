@@ -8,7 +8,8 @@ import com.eminus.cell.cache.CellHandle;
 import com.eminus.mesh.CellMesh;
 
 public sealed interface TreeMessage {
-    record CellChanged(CellHandle handle, int faceMask, int edgeMask) implements TreeMessage {
+    record CellChanged(CellHandle handle, int faceMask, int edgeMask, int occupancy, long sequence)
+            implements TreeMessage {
     }
 
     record CellMeshed(CellMesh mesh, long request) implements TreeMessage {

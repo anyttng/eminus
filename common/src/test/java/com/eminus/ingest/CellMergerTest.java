@@ -129,6 +129,25 @@ class CellMergerTest {
     }
 
     @Test
+    void theChangeCarriesTheOccupancyItWroteUnderARisingSequence() {
+        buildFrom(VoxelEntry.AIR);
+        set(0, 0, 0, entry(STONE));
+        PyramidDownsampler.build(pyramid, OPACITIES);
+        harness.run(() -> merger.merge(pyramid, 0, 0, 0));
+        Change filled = changes.get(0);
+        changes.clear();
+        set(0, 0, 0, VoxelEntry.AIR);
+        PyramidDownsampler.build(pyramid, OPACITIES);
+
+        harness.run(() -> merger.merge(pyramid, 0, 0, 0));
+
+        Change emptied = changes.get(0);
+        assertEquals(1, filled.occupancy());
+        assertEquals(0, emptied.occupancy());
+        assertTrue(emptied.sequence() > filled.sequence());
+    }
+
+    @Test
     void aKeptBiomeTakesTheStoredOneOnEveryLevel() {
         buildFrom(VoxelEntry.pack(STONE, STORED_BIOME, VoxelEntry.light(VoxelEntry.MAX_LIGHT, 0)));
         harness.run(() -> merger.merge(pyramid, 0, 0, 0));
@@ -211,8 +230,9 @@ class CellMergerTest {
         return answer.get();
     }
 
-    private void record(CellHandle handle, int faceMask, int edgeMask) {
-        changes.add(new Change(faceMask, edgeMask, handle.dirty(), handle.withCell(cell -> cell.isEmpty())));
+    private void record(CellHandle handle, int faceMask, int edgeMask, int occupancy, long sequence) {
+        changes.add(new Change(faceMask, edgeMask, handle.dirty(), handle.withCell(cell -> cell.isEmpty()), occupancy,
+                sequence));
         cells.release(handle);
     }
 
@@ -229,7 +249,7 @@ class CellMergerTest {
         return VoxelEntry.pack(state, 0, VoxelEntry.light(VoxelEntry.MAX_LIGHT, 0));
     }
 
-    private record Change(int faceMask, int edgeMask, boolean dirty, boolean empty) {
+    private record Change(int faceMask, int edgeMask, boolean dirty, boolean empty, int occupancy, long sequence) {
     }
 
     private static final class CountingCells implements CellAccess {

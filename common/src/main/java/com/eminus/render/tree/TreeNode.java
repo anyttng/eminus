@@ -20,6 +20,9 @@ public final class TreeNode {
     private @Nullable CellHandle pending;
     private int pendingReferences;
     private int requestedOctants;
+    private int occupancy = OccupancyMask.EMPTY;
+    private long occupancySequence;
+    private boolean occupancyAhead;
     private int descendedOccupancy;
     private long lastSeen;
     private long request;
@@ -28,6 +31,8 @@ public final class TreeNode {
     private boolean outOfViewBuild;
     private boolean countedBuild;
     private boolean rebuild;
+    private boolean gaveWay;
+    private boolean stale;
 
     TreeNode(long key, @Nullable TreeNode parent, int octant) {
         this.key = key;
@@ -65,7 +70,19 @@ public final class TreeNode {
     }
 
     int occupancy() {
-        return mesh == null ? OccupancyMask.EMPTY : mesh.occupancy();
+        return mesh == null ? OccupancyMask.EMPTY : occupancy;
+    }
+
+    boolean changeOccupancy(int occupied, long sequence) {
+        if (sequence <= occupancySequence) {
+            return false;
+        }
+
+        occupancySequence = sequence;
+        occupancyAhead = building;
+        boolean changed = occupied != occupancy;
+        occupancy = occupied;
+        return changed;
     }
 
     int grandchildren(int octant) {
@@ -93,7 +110,7 @@ public final class TreeNode {
         for (int at = 0; at < OccupancyMask.OCTANTS; at++) {
             TreeNode child = OccupancyMask.isSet(octants, at) ? child(at) : null;
             if (child != null && child.mesh != null
-                    && (child.mesh.occupancy() == OccupancyMask.EMPTY || child.mesh.missingColumns())) {
+                    && (child.occupancy == OccupancyMask.EMPTY || child.mesh.missingColumns())) {
                 return true;
             }
         }
@@ -113,6 +130,10 @@ public final class TreeNode {
         }
     }
 
+    boolean childrenMeshed() {
+        return meshedIn(occupancy());
+    }
+
     private boolean meshedIn(int octants) {
         for (int at = 0; at < OccupancyMask.OCTANTS; at++) {
             if (!OccupancyMask.isSet(octants, at)) {
@@ -120,7 +141,7 @@ public final class TreeNode {
             }
 
             TreeNode child = child(at);
-            if (child == null || child.mesh == null || child.mesh.occupancy() == OccupancyMask.EMPTY
+            if (child == null || child.mesh == null || child.occupancy == OccupancyMask.EMPTY
                     || child.mesh.missingColumns()) {
                 return false;
             }
@@ -206,12 +227,19 @@ public final class TreeNode {
 
     void meshed(MeshSummary built) {
         mesh = built;
+        if (!occupancyAhead) {
+            occupancy = built.occupancy();
+        }
+
+        occupancyAhead = false;
         building = false;
         outOfViewBuild = false;
+        stale = false;
     }
 
     void buildFailed() {
         building = false;
+        stale = false;
     }
 
     void markRebuild() {
@@ -222,5 +250,21 @@ public final class TreeNode {
         boolean due = rebuild;
         rebuild = false;
         return due;
+    }
+
+    boolean gaveWay() {
+        return gaveWay;
+    }
+
+    void gaveWay(boolean gave) {
+        gaveWay = gave;
+    }
+
+    boolean stale() {
+        return stale;
+    }
+
+    void markStale() {
+        stale = true;
     }
 }
