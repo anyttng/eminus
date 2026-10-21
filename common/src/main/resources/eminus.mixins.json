@@ -12,6 +12,7 @@
     "GameRendererMixin",
     "LevelRendererAccessor",
     "LevelRendererMixin",
+    "MinecraftMixin",
     "SpriteContentsAccessor",
     "StairBlockAccessor",
     "ViewAreaAccessor",

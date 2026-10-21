@@ -14,7 +14,6 @@ import net.neoforged.neoforge.event.GameShuttingDownEvent;
 public final class NeoForgeSessionHooks {
     public static void register(IEventBus gameBus) {
         gameBus.addListener(ClientPlayerNetworkEvent.LoggingIn.class, event -> ClientSession.login());
-        gameBus.addListener(ClientPlayerNetworkEvent.LoggingOut.class, event -> ClientSession.disconnect());
         gameBus.addListener(GameShuttingDownEvent.class, event -> ClientSession.disconnect());
         gameBus.addListener(ClientTickEvent.Post.class, event -> ClientSession.tick());
         SettingsService.get().addListener(ClientSession::settingsChanged);
