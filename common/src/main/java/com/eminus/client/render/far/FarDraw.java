@@ -126,17 +126,16 @@ public final class FarDraw {
 
     private PipelineSpec.Builder pack(Location location, float alphaCutout, @Nullable Blend blend,
             boolean writesColor, boolean writesDepth, PackVertex vertex, boolean animated) {
-        return withVertex(FarQuads.withNearestAtlas(
-                        FarQuads.pipeline(location, PACK_SHADER, alphaCutout, gpu.capabilities(), variantDraw))
+        return withVertex(FarQuads.pipeline(location, PACK_SHADER, alphaCutout, gpu.capabilities(), variantDraw)
                 .withColorTarget(FarTarget.COLOR_FORMAT, blend, writesColor)
                 .withDepthTest(depth.compare(), writesDepth), vertex, animated);
     }
 
     // Under a pack Iris clears the shadow depth to 1.0 and draws it forward, whatever the game's own direction.
     public PipelineSpec shadowPipeline(Location location, boolean translucent, PackVertex vertex, boolean animated) {
-        PipelineSpec.Builder builder = withVertex(FarQuads.withNearestAtlas(FarQuads.pipeline(location,
-                        PACK_SHADER, translucent ? TranslucentPass.ALPHA_CUTOUT : OpaquePass.ALPHA_CUTOUT,
-                        gpu.capabilities(), variantDraw))
+        PipelineSpec.Builder builder = withVertex(FarQuads.pipeline(location, PACK_SHADER,
+                        translucent ? TranslucentPass.ALPHA_CUTOUT : OpaquePass.ALPHA_CUTOUT, gpu.capabilities(),
+                        variantDraw)
                 .withColorTarget(FarTarget.COLOR_FORMAT, null, true)
                 .withDepthTest(DepthConvention.of(depth.zeroToOne(), false).compare(), true)
                 .withDefine(translucent ? "TRANSLUCENT_PASS" : "FULL_COVERAGE")
@@ -164,12 +163,10 @@ public final class FarDraw {
 
     public void bind(Pass pass) {
         FarQuads.bind(pass, arena, models, lightmap, atlas, frame.buffer(), nearSections.texels());
-        FarQuads.bindNearestAtlas(pass, models);
     }
 
     public void bindShadow(Pass pass, FarShadow shadow) {
         FarQuads.bind(pass, arena, models, lightmap, atlas, shadow.frameBuffer(), nearSections.texels());
-        FarQuads.bindNearestAtlas(pass, models);
     }
 
     public void drawOpaque(Pass pass) {
