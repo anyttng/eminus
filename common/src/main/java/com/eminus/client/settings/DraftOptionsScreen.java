@@ -9,6 +9,7 @@ import com.eminus.settings.SettingsDraft;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.OptionInstance;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.layouts.LinearLayout;
@@ -61,9 +62,15 @@ abstract class DraftOptionsScreen extends OptionsSubScreen {
         }
     }
 
-    protected void addSmallSlider(AbstractWidget slider, @Nullable AbstractWidget second) {
+    protected void addSmallSlider(AbstractWidget slider, OptionInstance<?> option, @Nullable AbstractWidget second) {
         if (this.headeredList != null) {
-            this.headeredList.addSmallSlider(slider, second);
+            this.headeredList.addSmallSlider(slider, option, second);
+        }
+    }
+
+    protected void resetOption(OptionInstance<?> option) {
+        if (this.headeredList != null) {
+            this.headeredList.resetOption(option);
         }
     }
 

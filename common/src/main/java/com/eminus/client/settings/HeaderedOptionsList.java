@@ -2,6 +2,7 @@ package com.eminus.client.settings;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
@@ -17,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 
 final class HeaderedOptionsList extends OptionsList {
     private final Screen screen;
-    private final List<AbstractWidget> sliders = new ArrayList<>();
+    private final List<SmallSlider> sliders = new ArrayList<>();
 
     HeaderedOptionsList(Minecraft minecraft, int width, OptionsSubScreen screen) {
         super(minecraft, width, screen);
@@ -30,19 +31,48 @@ final class HeaderedOptionsList extends OptionsList {
         this.addEntry(OptionsList.Entry.big(List.of(widget), this.screen));
     }
 
-    void addSmallSlider(AbstractWidget slider, @Nullable AbstractWidget second) {
-        this.sliders.add(slider);
+    void addSmallSlider(AbstractWidget slider, OptionInstance<?> option, @Nullable AbstractWidget second) {
+        this.sliders.add(new SmallSlider(slider, option, second));
         this.addSmall(slider, second);
+    }
+
+    void resetOption(OptionInstance<?> option) {
+        for (int index = 0; index < this.sliders.size(); index++) {
+            SmallSlider row = this.sliders.get(index);
+            if (row.option() == option) {
+                SmallSlider fresh = new SmallSlider(option.createButton(this.minecraft.options), option, row.second());
+                this.sliders.set(index, fresh);
+                this.replaceRow(row.slider(), OptionsList.Entry.small(fresh.slider(), fresh.second(), this.screen));
+                return;
+            }
+        }
+    }
+
+    private void replaceRow(AbstractWidget slider, OptionsList.Entry replacement) {
+        List<OptionsList.Entry> rows = this.children();
+        for (int index = 0; index < rows.size(); index++) {
+            OptionsList.Entry row = rows.get(index);
+            if (row.children().contains(slider)) {
+                rows.set(index, replacement);
+                if (Objects.equals(this.getFocused(), row)) {
+                    this.setFocused(replacement);
+                }
+                return;
+            }
+        }
     }
 
     // 1.21.1's addSmall for widgets keeps no option map, so super.applyUnsavedChanges never reaches these sliders.
     @Override
     public void applyUnsavedChanges() {
         super.applyUnsavedChanges();
-        for (AbstractWidget widget : this.sliders) {
-            if (widget instanceof OptionInstance.OptionInstanceSliderButton<?> slider) {
+        for (SmallSlider row : this.sliders) {
+            if (row.slider() instanceof OptionInstance.OptionInstanceSliderButton<?> slider) {
                 slider.applyUnsavedValue();
             }
         }
+    }
+
+    private record SmallSlider(AbstractWidget slider, OptionInstance<?> option, @Nullable AbstractWidget second) {
     }
 }

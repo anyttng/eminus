@@ -14,7 +14,6 @@ import com.eminus.client.settings.SettingsText;
 import com.eminus.client.settings.SliderPositions;
 import com.eminus.compat.iris.IrisShaderPack;
 import com.eminus.compat.sodium.settings.mixin.VideoSettingsScreenAccessor;
-import com.eminus.settings.LodChoice;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
 import com.eminus.settings.ShaderPackLod;
@@ -47,7 +46,6 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
     private static final String LOD_ANIMATIONS_ID = "lod_animations";
 
     private static final int STEP = 1;
-    private static final int CUSTOM_POSITION = SliderPositions.lodChoicePosition(LodChoice.CUSTOM);
 
     private final List<UnaryOperator<Settings>> edits = new ArrayList<>();
 
@@ -71,8 +69,6 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                 .addOption(builder.createExternalButtonOption(id(CUSTOM_LOD_ID))
                         .setName(Component.translatable(SettingsText.CUSTOM_LOD_KEY))
                         .setTooltip(SettingsText.hint(SettingsText.CUSTOM_LOD_KEY))
-                        .setEnabledProvider(state -> state.readIntOption(id(LOD_QUALITY_ID)) == CUSTOM_POSITION,
-                                id(LOD_QUALITY_ID))
                         .setScreenConsumer(screen -> Minecraft.getInstance().setScreen(
                                 CustomLodScreen.withOwnDraft(screen, SodiumSettingsPage::returnTo))))
                 .addOption(builder.createIntegerOption(id(FAR_RENDER_CELLS_ID))
