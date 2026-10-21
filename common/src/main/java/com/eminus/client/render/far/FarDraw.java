@@ -10,6 +10,7 @@ import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.pass.Pass;
 import com.eminus.gpu.pipeline.Blend;
 import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.model.port.VariantDraw;
 import com.eminus.render.backend.DepthConvention;
@@ -39,6 +40,7 @@ public final class FarDraw {
     private int opaqueCount;
     private int translucentCount;
     private Texture lightmap;
+    private Sampler atlas;
     private int farBlocks;
 
     public enum PackVertex {
@@ -66,8 +68,8 @@ public final class FarDraw {
     }
 
     @Initializer
-    void frame(Buffer commands, int opaqueCount, int translucentCount, Texture lightmap, Matrix4fc projection,
-            Matrix4fc view, int farBlocks) {
+    void frame(Buffer commands, int opaqueCount, int translucentCount, Texture lightmap, Sampler atlas,
+            Matrix4fc projection, Matrix4fc view, int farBlocks) {
         previousProjection.set(this.projection);
         depth.forward(projection, this.projection);
         this.view.set(view);
@@ -75,6 +77,7 @@ public final class FarDraw {
         this.opaqueCount = opaqueCount;
         this.translucentCount = translucentCount;
         this.lightmap = lightmap;
+        this.atlas = atlas;
         this.farBlocks = farBlocks;
     }
 
@@ -123,16 +126,17 @@ public final class FarDraw {
 
     private PipelineSpec.Builder pack(Location location, float alphaCutout, @Nullable Blend blend,
             boolean writesColor, boolean writesDepth, PackVertex vertex, boolean animated) {
-        return withVertex(FarQuads.pipeline(location, PACK_SHADER, alphaCutout, gpu.capabilities(), variantDraw)
+        return withVertex(FarQuads.withNearestAtlas(
+                        FarQuads.pipeline(location, PACK_SHADER, alphaCutout, gpu.capabilities(), variantDraw))
                 .withColorTarget(FarTarget.COLOR_FORMAT, blend, writesColor)
                 .withDepthTest(depth.compare(), writesDepth), vertex, animated);
     }
 
     // Under a pack Iris clears the shadow depth to 1.0 and draws it forward, whatever the game's own direction.
     public PipelineSpec shadowPipeline(Location location, boolean translucent, PackVertex vertex, boolean animated) {
-        PipelineSpec.Builder builder = withVertex(FarQuads.pipeline(location, PACK_SHADER,
-                        translucent ? TranslucentPass.ALPHA_CUTOUT : OpaquePass.ALPHA_CUTOUT, gpu.capabilities(),
-                        variantDraw)
+        PipelineSpec.Builder builder = withVertex(FarQuads.withNearestAtlas(FarQuads.pipeline(location,
+                        PACK_SHADER, translucent ? TranslucentPass.ALPHA_CUTOUT : OpaquePass.ALPHA_CUTOUT,
+                        gpu.capabilities(), variantDraw))
                 .withColorTarget(FarTarget.COLOR_FORMAT, null, true)
                 .withDepthTest(DepthConvention.of(depth.zeroToOne(), false).compare(), true)
                 .withDefine(translucent ? "TRANSLUCENT_PASS" : "FULL_COVERAGE")
@@ -159,11 +163,13 @@ public final class FarDraw {
     }
 
     public void bind(Pass pass) {
-        FarQuads.bind(pass, arena, models, lightmap, frame.buffer(), nearSections.texels());
+        FarQuads.bind(pass, arena, models, lightmap, atlas, frame.buffer(), nearSections.texels());
+        FarQuads.bindNearestAtlas(pass, models);
     }
 
     public void bindShadow(Pass pass, FarShadow shadow) {
-        FarQuads.bind(pass, arena, models, lightmap, shadow.frameBuffer(), nearSections.texels());
+        FarQuads.bind(pass, arena, models, lightmap, atlas, shadow.frameBuffer(), nearSections.texels());
+        FarQuads.bindNearestAtlas(pass, models);
     }
 
     public void drawOpaque(Pass pass) {

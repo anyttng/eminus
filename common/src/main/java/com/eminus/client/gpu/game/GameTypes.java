@@ -126,6 +126,7 @@ final class GameTypes {
             case LINEAR -> RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
             case NEAREST_MIPPED -> RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE,
                     AddressMode.CLAMP_TO_EDGE, FilterMode.NEAREST, FilterMode.NEAREST, true);
+            case LINEAR_MIPPED -> RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR, true);
         };
     }
 }

@@ -13,5 +13,8 @@ public record GameFrame(
         int renderDistance,
         long sectionFadeMillis,
         FaceShade shade,
-        boolean smoothLighting) {
+        boolean smoothLighting,
+        boolean rgss,
+        int anisotropy,
+        TerrainFilter terrainFilter) {
 }
