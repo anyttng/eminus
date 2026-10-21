@@ -27,7 +27,7 @@
   "gui.eminus.settings.lod_quality.hint.high": "树叶不透明，不画草和花。",
   "gui.eminus.settings.lod_quality.hint.medium": "同“高”，但纹理为一半分辨率。",
   "gui.eminus.settings.lod_quality.hint.low": "同“中”，但没有角落阴影。",
-  "gui.eminus.settings.lod_quality.hint.custom": "用滑块旁的“自定义设置...”自行设定体素大小、树叶、草和花、纹理以及角落阴影。在那里更改其他质量的值会切换为“自定义”。",
+  "gui.eminus.settings.lod_quality.hint.custom": "用滑块旁的“自定义设置...”自行设定体素大小、树叶、草和花、纹理以及角落阴影。",
   "gui.eminus.settings.lod_quality.ultra": "极高",
   "gui.eminus.settings.lod_quality.high": "高",
   "gui.eminus.settings.lod_quality.medium": "中",
@@ -62,7 +62,7 @@
   "gui.eminus.settings.custom_lod.corner_occlusion.every_level": "所有级别",
   "gui.eminus.settings.custom_lod.corner_occlusion.finest_level": "仅最精细级别",
   "gui.eminus.settings.far_render_cells": "LOD 距离",
-  "gui.eminus.settings.far_render_cells.hint": "LOD 能延伸多远。开销随该距离的平方增长：每帧要绘制的更多，占用的显存也更多。",
+  "gui.eminus.settings.far_render_cells.hint": "LOD 能延伸多远。开销随该距离的平方增长，每帧要绘制的更多，占用的显存也更多。",
   "gui.eminus.settings.worker_threads": "工作线程",
   "gui.eminus.settings.worker_threads.hint": "在后台构建 LOD 的线程。线程越多，追赶得越快，但会占用游戏自身区块构建的更多时间；越少则相反。",
   "gui.eminus.settings.detail_distance": "细节距离",
@@ -75,7 +75,7 @@
   "gui.eminus.settings.detail_distance.minimal": "最低",
   "gui.eminus.settings.fog": "雾",
   "gui.eminus.settings.fog.hint.on": "LOD 上的雾延续游戏自身的雾，并在 LOD 距离处达到最浓。",
-  "gui.eminus.settings.fog.hint.off": "LOD 保持清晰，已加载区块中的露天雾也会清除。",
+  "gui.eminus.settings.fog.hint.off": "LOD 保持清晰，已加载区块上的普通雾也会清除。",
   "gui.eminus.settings.fog.hint.note": "下界、Boss、水下或失明带来的雾在两种情况下都会保留。",
   "gui.eminus.settings.fade": "淡出",
   "gui.eminus.settings.fade.hint.on": "LOD 在最后 512 个方块内逐渐淡出。",
@@ -89,5 +89,5 @@
   "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
   "gui.eminus.settings.lod_animations": "LOD 动画",
   "gui.eminus.settings.lod_animations.hint.on": "为 Eminus 制作的光影包可以像近处一样让 LOD 中的草、树叶和水摆动。",
-  "gui.eminus.settings.lod_animations.hint.off": "LOD 中不再摆动，可节省其消耗的 GPU 时间。"
+  "gui.eminus.settings.lod_animations.hint.off": "LOD 中没有任何摆动，可节省其消耗的 GPU 时间。"
 }

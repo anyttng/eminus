@@ -27,7 +27,7 @@
   "gui.eminus.settings.lod_quality.hint.high": "葉は不透明、草や花はなし。",
   "gui.eminus.settings.lod_quality.hint.medium": "「高」と同じで、テクスチャは半分の解像度。",
   "gui.eminus.settings.lod_quality.hint.low": "「中」と同じで、角の陰影なし。",
-  "gui.eminus.settings.lod_quality.hint.custom": "スライダー横の「カスタム設定...」で、ボクセルサイズ、葉、草と花、テクスチャ、角の陰影を自分で決めます。そこでほかの品質の値を変えると「カスタム」に切り替わります。",
+  "gui.eminus.settings.lod_quality.hint.custom": "スライダー横の「カスタム設定...」で、ボクセルサイズ、葉、草と花、テクスチャ、角の陰影を自分で決めます。",
   "gui.eminus.settings.lod_quality.ultra": "ウルトラ",
   "gui.eminus.settings.lod_quality.high": "高",
   "gui.eminus.settings.lod_quality.medium": "中",
@@ -75,7 +75,7 @@
   "gui.eminus.settings.detail_distance.minimal": "最小",
   "gui.eminus.settings.fog": "霧",
   "gui.eminus.settings.fog.hint.on": "LOD にかかる霧はゲーム自身の霧を引き継ぎ、LOD 距離で最も濃くなります。",
-  "gui.eminus.settings.fog.hint.off": "LOD はくっきりし、読み込まれたチャンクの屋外の霧も消えます。",
+  "gui.eminus.settings.fog.hint.off": "LOD はくっきりし、読み込まれたチャンクの通常の霧も消えます。",
   "gui.eminus.settings.fog.hint.note": "ネザー、ボス、水中、盲目による霧はどちらでも残ります。",
   "gui.eminus.settings.fade": "フェード",
   "gui.eminus.settings.fade.hint.on": "LOD は最後の 512 ブロックでフェードアウトします。",
@@ -89,5 +89,5 @@
   "gui.eminus.settings.shader_pack_lod.distant_horizons": "Distant Horizons",
   "gui.eminus.settings.lod_animations": "LOD のアニメーション",
   "gui.eminus.settings.lod_animations.hint.on": "Eminus 対応のシェーダーパックが、近くと同じように LOD の草・葉・水を揺らせます。",
-  "gui.eminus.settings.lod_animations.hint.off": "LOD は何も揺れず、その分の GPU 時間を節約できます。"
+  "gui.eminus.settings.lod_animations.hint.off": "LOD では何も揺れず、その分の GPU 時間を節約できます。"
 }
