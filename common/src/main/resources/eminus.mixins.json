@@ -13,6 +13,7 @@
     "LevelRendererAccessor",
     "LevelRendererMixin",
     "LightTextureAccessor",
+    "MinecraftMixin",
     "MipmapGeneratorAccessor",
     "RenderTargetMixin",
     "SpriteContentsAccessor",

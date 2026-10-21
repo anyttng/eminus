@@ -20,8 +20,6 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 public final class FabricSessionHooks {
     public static void register() {
         ClientPlayConnectionEvents.JOIN.register((listener, sender, client) -> ClientSession.login());
-        ClientPlayConnectionEvents.DISCONNECT.register(
-                (listener, client) -> client.execute(ClientSession::disconnect));
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ClientSession.disconnect());
         ClientTickEvents.END_CLIENT_TICK.register(client -> ClientSession.tick());
 
