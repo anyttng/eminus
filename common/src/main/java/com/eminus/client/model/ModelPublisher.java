@@ -16,8 +16,7 @@ public final class ModelPublisher implements AutoCloseable {
 
     private final Gpu gpu;
     private final ModelBakery bakery;
-    private final ModelAtlas atlas;
-
+    private ModelAtlas atlas;
     private ModelRecords records;
     private ModelVariants variants;
     private int recordCapacity = START_RECORDS;
@@ -90,6 +89,16 @@ public final class ModelPublisher implements AutoCloseable {
 
             published++;
         }
+    }
+
+    public void retexture(int atlasFirstMip) {
+        gpu.assertRenderThread();
+        atlas.close();
+        atlas = ModelAtlas.create(gpu, START_CELLS, atlasFirstMip);
+        atlasFull = false;
+        published = 0;
+        variantEntries = 0;
+        publish();
     }
 
     @Override

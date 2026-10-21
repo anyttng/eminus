@@ -56,6 +56,7 @@ import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 import com.eminus.client.session.ClientSession;
 import com.eminus.settings.FarDistance;
+import com.eminus.settings.LodQuality;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
 
@@ -190,8 +191,7 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         FarRenderer renderer = new FarRenderer(gpu, support.depth(), runtime, baking,
-                ModelPublisher.start(gpu, baking.bakery(),
-                        Integer.getInteger(ATLAS_FIRST_MIP_PROPERTY, settings.lodQuality().atlasFirstMip())), arena,
+                ModelPublisher.start(gpu, baking.bakery(), atlasFirstMip(settings.lodQuality())), arena,
                 FarTarget.create(gpu, Objects.requireNonNull(support.depthFormat(), "an accepted backend names one"),
                         main.width(), main.height()), FarFrame.create(gpu),
                 mask, NearSectionTable.create(gpu), opaque, translucent, composite, boxes,
@@ -232,7 +232,23 @@ public final class FarRenderer implements AutoCloseable {
     public static boolean recreates(Settings built, Settings updated) {
         return built.farRenderCells() != updated.farRenderCells()
                 || built.detailDistance() != updated.detailDistance()
-                || !built.lodQuality().equals(updated.lodQuality());
+                || !meshed(built.lodQuality()).equals(meshed(updated.lodQuality()));
+    }
+
+    public void retexture(LodQuality quality) {
+        gpu.assertRenderThread();
+        int firstMip = atlasFirstMip(quality);
+        if (firstMip != models.atlas().firstMip()) {
+            models.retexture(firstMip);
+        }
+    }
+
+    private static LodQuality meshed(LodQuality quality) {
+        return quality.withFullTextures(true);
+    }
+
+    private static int atlasFirstMip(LodQuality quality) {
+        return Integer.getInteger(ATLAS_FIRST_MIP_PROPERTY, quality.atlasFirstMip());
     }
 
     public void captureLevelProjection(Matrix4fc levelProjection, Matrix4fc cameraProjection) {
