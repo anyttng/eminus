@@ -20,7 +20,6 @@ import static com.eminus.client.settings.SettingsText.WORKER_THREADS_KEY;
 import static com.eminus.client.settings.SettingsText.tooltip;
 
 import com.eminus.compat.iris.IrisShaderPack;
-import com.eminus.settings.LodChoice;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsDraft;
 import com.eminus.settings.SettingsService;
@@ -34,8 +33,6 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-import org.jspecify.annotations.Nullable;
-
 public final class SettingsScreen extends DraftOptionsScreen {
     private static final boolean APPLY_ON_RELEASE = false;
 
@@ -48,7 +45,6 @@ public final class SettingsScreen extends DraftOptionsScreen {
     private final OptionInstance<Boolean> fade;
     private final OptionInstance<ShaderPackLod> shaderPackLod;
     private final OptionInstance<Boolean> lodAnimations;
-    private @Nullable Button customLodButton;
 
     public SettingsScreen(Screen lastScreen) {
         super(lastScreen, Component.translatable(TITLE_KEY), SettingsDraft.of(SettingsService.get()), HOLDS_DRAFT,
@@ -100,13 +96,13 @@ public final class SettingsScreen extends DraftOptionsScreen {
 
     @Override
     protected void addOptions() {
-        this.customLodButton = Button.builder(Component.translatable(CUSTOM_LOD_KEY),
+        Button customLodButton = Button.builder(Component.translatable(CUSTOM_LOD_KEY),
                         button -> this.minecraft.setScreen(CustomLodScreen.sharingDraft(this)))
                 .tooltip(Tooltip.create(SettingsText.hint(CUSTOM_LOD_KEY)))
                 .build();
         this.addHeader(GENERAL_CATEGORY_KEY);
         this.optionsList().addSmall(this.lodChoicePosition.createButton(this.options), this.lodChoicePosition,
-                this.customLodButton);
+                customLodButton);
         this.optionsList().addBig(this.farRenderCells);
         this.optionsList().addBig(this.detailDistancePosition);
         this.optionsList().addBig(this.ingestion);
@@ -125,8 +121,10 @@ public final class SettingsScreen extends DraftOptionsScreen {
     @Override
     protected void draftChanged() {
         super.draftChanged();
-        if (this.customLodButton != null) {
-            this.customLodButton.active = this.draft.settings().lodChoice() == LodChoice.CUSTOM;
+        int position = SliderPositions.lodChoicePosition(this.draft.settings().lodChoice());
+        if (this.lodChoicePosition.get() != position) {
+            this.lodChoicePosition.set(position);
+            this.resetOption(this.lodChoicePosition);
         }
     }
 
