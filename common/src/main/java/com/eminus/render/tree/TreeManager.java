@@ -92,8 +92,8 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     }
 
     @Override
-    public void changed(CellHandle handle, int faceMask, int edgeMask) {
-        messages.add(new TreeMessage.CellChanged(handle, faceMask, edgeMask));
+    public void changed(CellHandle handle, int faceMask, int edgeMask, int occupancy, long sequence) {
+        messages.add(new TreeMessage.CellChanged(handle, faceMask, edgeMask, occupancy, sequence));
     }
 
     @Override
@@ -192,8 +192,12 @@ public final class TreeManager implements CellChangeListener, MeshListener {
 
     private void apply(TreeMessage message) {
         switch (message) {
-            case TreeMessage.CellChanged changed ->
-                    changes.changed(changed.handle(), changed.faceMask(), changed.edgeMask(), camera);
+            case TreeMessage.CellChanged changed -> {
+                if (changes.changed(changed.handle(), changed.faceMask(), changed.edgeMask(), changed.occupancy(),
+                        changed.sequence(), camera)) {
+                    treeChanged = true;
+                }
+            }
             case TreeMessage.CellMeshed meshed -> applyMesh(meshed.mesh(), meshed.request());
             case TreeMessage.CellFailed failure -> applyFailure(failure.key(), failure.request());
             case TreeMessage.ColumnCovered covered -> changes.covered(covered.chunkX(), covered.chunkZ(), camera);
@@ -260,7 +264,13 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         batch.add(mesh);
         treeChanged = true;
 
-        if (node.takeRebuild()) {
+        if (!node.takeRebuild()) {
+            return;
+        }
+
+        if (node.gaveWay()) {
+            changes.defer(node);
+        } else {
             dispatch.build(node, dispatch.priority(node, camera), false);
         }
     }
@@ -362,6 +372,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         }
 
         RenderList listed = traversal.list(camera);
+        for (TreeNode node : traversal.rebuilds()) {
+            dispatch.build(node, dispatch.priority(node, camera), false);
+        }
+
         lastFront = traversal.front(System.nanoTime());
         batch.renderList(listed);
         lastDrawn = listed.meshes().size();
