@@ -2,6 +2,7 @@ package com.eminus.client.frame;
 
 import java.util.Objects;
 
+import com.eminus.compat.sodium.SodiumTerrainFilter;
 import com.eminus.handoff.NearFieldOverride;
 import com.eminus.mixin.LevelRendererAccessor;
 import com.eminus.mixin.ViewAreaAccessor;
@@ -10,6 +11,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.TextureFilteringMethod;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.ViewArea;
 import net.minecraft.client.renderer.chunk.CompiledSectionMesh;
@@ -31,6 +33,7 @@ public final class GameFrames {
     public static final double NO_FADE_IN = 0.0;
 
     private static final double MILLIS_PER_SECOND = 1000.0;
+    private static final int NO_ANISOTROPY = 1;
 
     public static GameFrame read(Minecraft client) {
         GameRenderState state = client.gameRenderer.getGameRenderState();
@@ -43,7 +46,11 @@ public final class GameFrames {
                 camera.getFluidInCamera() == FogType.NONE, fog(state), state.optionsRenderState.renderDistance,
                 Mth.floor(sectionFadeInSeconds(client.options.chunkSectionFadeInTime().get()) * MILLIS_PER_SECOND),
                 new FaceShade(shade.down(), shade.up(), shade.north(), shade.south(), shade.west(), shade.east()),
-                state.optionsRenderState.ambientOcclusion);
+                state.optionsRenderState.ambientOcclusion,
+                state.optionsRenderState.textureFiltering == TextureFilteringMethod.RGSS,
+                state.optionsRenderState.textureFiltering == TextureFilteringMethod.ANISOTROPIC
+                        ? state.optionsRenderState.maxAnisotropyValue : NO_ANISOTROPY,
+                SodiumTerrainFilter.read());
     }
 
     public static GameFog fog() {
