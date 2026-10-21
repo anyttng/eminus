@@ -53,7 +53,7 @@ import org.lwjgl.opengl.GL30C;
 import org.lwjgl.system.MemoryStack;
 
 public final class PackProgram {
-    private static final int FIRST_UNIT = IrisSamplers.WORLD_RESERVED_TEXTURE_UNITS.stream()
+    static final int FIRST_UNIT = IrisSamplers.WORLD_RESERVED_TEXTURE_UNITS.stream()
             .mapToInt(Integer::intValue).max().orElseThrow() + 1;
     private static final String LOCATION_PREFIX = "pack";
     private static final String DEPTH_SUFFIX = "_depth";
