@@ -12,5 +12,8 @@ public record GameFrame(
         GameFog fog,
         int renderDistance,
         FaceShade shade,
-        boolean smoothLighting) {
+        boolean smoothLighting,
+        boolean rgss,
+        int anisotropy,
+        TerrainFilter terrainFilter) {
 }

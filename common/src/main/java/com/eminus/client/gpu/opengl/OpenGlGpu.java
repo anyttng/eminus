@@ -289,6 +289,10 @@ public final class OpenGlGpu implements Gpu, Foreign {
                 GL33C.glSamplerParameteri(id, GL11C.GL_TEXTURE_MIN_FILTER, GL11C.GL_NEAREST_MIPMAP_LINEAR);
                 GL33C.glSamplerParameteri(id, GL11C.GL_TEXTURE_MAG_FILTER, GL11C.GL_NEAREST);
             }
+            case LINEAR_MIPPED -> {
+                GL33C.glSamplerParameteri(id, GL11C.GL_TEXTURE_MIN_FILTER, GL11C.GL_LINEAR_MIPMAP_LINEAR);
+                GL33C.glSamplerParameteri(id, GL11C.GL_TEXTURE_MAG_FILTER, GL11C.GL_LINEAR);
+            }
         }
         objects.created(OpenGlObjects.Kind.SAMPLER, id, SAMPLER_LABEL + sampler.name().toLowerCase(Locale.ROOT));
         return id;

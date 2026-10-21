@@ -16,6 +16,7 @@ import com.eminus.gpu.pass.PassSpec;
 import com.eminus.gpu.pipeline.Blend;
 import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
 import com.eminus.model.port.VariantDraw;
 import com.eminus.render.backend.DepthConvention;
@@ -52,26 +53,26 @@ public final class TranslucentPass {
         return List.of(color, depth);
     }
 
-    public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer commands,
-            int firstCommand, int drawCount, Buffer frame, TexelView nearSections) {
+    public void draw(FarTarget target, GeometryArena arena, ModelPublisher models, Texture lightmap, Sampler atlas,
+            Buffer commands, int firstCommand, int drawCount, Buffer frame, TexelView nearSections) {
         gpu.assertRenderThread();
         if (drawCount == 0) {
             return;
         }
 
-        draw(PASS_LABEL, color, target, arena, models, lightmap, commands, firstCommand, drawCount, frame,
+        draw(PASS_LABEL, color, target, arena, models, lightmap, atlas, commands, firstCommand, drawCount, frame,
                 nearSections);
-        draw(DEPTH_PASS_LABEL, depth, target, arena, models, lightmap, commands, firstCommand, drawCount, frame,
-                nearSections);
+        draw(DEPTH_PASS_LABEL, depth, target, arena, models, lightmap, atlas, commands, firstCommand, drawCount,
+                frame, nearSections);
     }
 
     private void draw(String label, Pipeline pipeline, FarTarget target, GeometryArena arena, ModelPublisher models,
-            Texture lightmap, Buffer commands, int firstCommand, int drawCount, Buffer frame,
+            Texture lightmap, Sampler atlas, Buffer commands, int firstCommand, int drawCount, Buffer frame,
             TexelView nearSections) {
         try (Pass pass = gpu.pass(PassSpec.of(label, target.color(), null)
                 .withDepth(target.depth(), OptionalDouble.empty()))) {
             pass.pipeline(pipeline);
-            FarQuads.bind(pass, arena, models, lightmap, frame, nearSections);
+            FarQuads.bind(pass, arena, models, lightmap, atlas, frame, nearSections);
             pass.drawIndexedIndirect(commands, firstCommand, drawCount);
         }
     }

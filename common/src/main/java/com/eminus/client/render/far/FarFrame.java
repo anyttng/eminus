@@ -37,6 +37,8 @@ public final class FarFrame implements AutoCloseable {
     private static final Std140.Member CAMERA_BLOCK_POS = BLOCK.add(Std140.Type.IVEC3, "EminusCameraBlockPos");
     private static final Std140.Member CAMERA_OFFSET = BLOCK.add(Std140.Type.VEC3, "EminusCameraOffset");
     private static final Std140.Member SMOOTH_LIGHTING = BLOCK.add(Std140.Type.INT, "EminusSmoothLighting");
+    private static final Std140.Member RGSS = BLOCK.add(Std140.Type.INT, "EminusRgss");
+    private static final Std140.Member ANISOTROPY = BLOCK.add(Std140.Type.INT, "EminusAnisotropy");
     private static final int SIZE = BLOCK.size();
 
     private static final String LABEL = "eminus-far-frame";
@@ -63,7 +65,7 @@ public final class FarFrame implements AutoCloseable {
     }
 
     public void write(Matrix4fc viewProjection, Matrix4fc view, int minBlockY, ModelAtlas atlas, NearSections near,
-            FaceShade shade, boolean smoothLighting, CameraOrigin camera) {
+            FaceShade shade, boolean smoothLighting, boolean rgss, int anisotropy, CameraOrigin camera) {
         gpu.assertRenderThread();
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -86,6 +88,8 @@ public final class FarFrame implements AutoCloseable {
                     .putIVec3(CAMERA_BLOCK_POS, camera.blockX(), camera.blockY(), camera.blockZ())
                     .putVec3(CAMERA_OFFSET, camera.offsetX(), camera.offsetY(), camera.offsetZ())
                     .putInt(SMOOTH_LIGHTING, smoothLighting ? ON : OFF)
+                    .putInt(RGSS, rgss ? ON : OFF)
+                    .putInt(ANISOTROPY, anisotropy)
                     .get();
             gpu.write(buffer, START_OF_BUFFER, written);
         }

@@ -30,6 +30,8 @@ public final class GameFrames {
     public static final float NO_FOG = Float.MAX_VALUE;
 
     private static final boolean SHADED = true;
+    private static final boolean NO_RGSS = false;
+    private static final int NO_ANISOTROPY = 1;
 
     private static float fov;
     private static boolean renderDistanceFog;
@@ -45,7 +47,7 @@ public final class GameFrames {
                 new FaceShade(level.getShade(Direction.DOWN, SHADED), level.getShade(Direction.UP, SHADED),
                         level.getShade(Direction.NORTH, SHADED), level.getShade(Direction.SOUTH, SHADED),
                         level.getShade(Direction.WEST, SHADED), level.getShade(Direction.EAST, SHADED)),
-                client.options.ambientOcclusion().get());
+                client.options.ambientOcclusion().get(), NO_RGSS, NO_ANISOTROPY, TerrainFilter.NEAREST);
     }
 
     public static void captureFov(double levelFov) {

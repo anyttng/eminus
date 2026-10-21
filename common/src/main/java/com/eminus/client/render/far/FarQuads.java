@@ -28,6 +28,7 @@ import com.eminus.gpu.buffer.TexelView;
 import com.eminus.gpu.pass.Pass;
 import com.eminus.gpu.pipeline.Binding;
 import com.eminus.gpu.pipeline.PipelineSpec;
+import com.eminus.client.frame.TerrainFilter;
 import com.eminus.gpu.texture.Sampler;
 import com.eminus.gpu.texture.Texture;
 
@@ -45,6 +46,8 @@ final class FarQuads {
     private static final String NEAR_SECTIONS = "EminusNearSections";
     private static final String ATLAS = "EminusAtlas";
     private static final String TINT_MASK = "EminusTintMask";
+    private static final String ATLAS_NEAREST = "EminusAtlasNearest";
+    private static final String TINT_MASK_NEAREST = "EminusTintMaskNearest";
     private static final String LIGHTMAP = "Lightmap";
     private static final String NEXT_LONG_MODULO = "VARIANT_NEXT_LONG_MODULO";
 
@@ -178,8 +181,12 @@ final class FarQuads {
                 .withDefine("OCCLUSION_HIGH_U_HIGH_V", OcclusionWord.HIGH_U_HIGH_V);
     }
 
-    static void bind(Pass pass, GeometryArena arena, ModelPublisher models, Texture lightmap, Buffer frame,
-            @Nullable TexelView nearSections) {
+    static Sampler atlasSampler(TerrainFilter filter) {
+        return filter == TerrainFilter.NEAREST ? Sampler.NEAREST_MIPPED : Sampler.LINEAR_MIPPED;
+    }
+
+    static void bind(Pass pass, GeometryArena arena, ModelPublisher models, Texture lightmap, Sampler atlas,
+            Buffer frame, @Nullable TexelView nearSections) {
         pass.bind(FarFrame.BLOCK.name(), frame);
         pass.bind(QUADS, arena.quads());
         pass.bind(MESH_RECORDS, arena.records().texels());
@@ -188,10 +195,20 @@ final class FarQuads {
         if (nearSections != null) {
             pass.bind(NEAR_SECTIONS, nearSections);
         }
-        pass.bind(ATLAS, models.atlas().color(), Sampler.NEAREST_MIPPED);
-        pass.bind(TINT_MASK, models.atlas().tintMask(), Sampler.NEAREST_MIPPED);
+        pass.bind(ATLAS, models.atlas().color(), atlas);
+        pass.bind(TINT_MASK, models.atlas().tintMask(), atlas);
         pass.bind(LIGHTMAP, lightmap, Sampler.LINEAR);
         pass.quadIndices(MAX_GROUP_INDICES);
+    }
+
+    static PipelineSpec.Builder withNearestAtlas(PipelineSpec.Builder builder) {
+        return builder.withBinding(Binding.sampled(ATLAS_NEAREST))
+                .withBinding(Binding.sampled(TINT_MASK_NEAREST));
+    }
+
+    static void bindNearestAtlas(Pass pass, ModelPublisher models) {
+        pass.bind(ATLAS_NEAREST, models.atlas().color(), Sampler.NEAREST_MIPPED);
+        pass.bind(TINT_MASK_NEAREST, models.atlas().tintMask(), Sampler.NEAREST_MIPPED);
     }
 
     private FarQuads() {
