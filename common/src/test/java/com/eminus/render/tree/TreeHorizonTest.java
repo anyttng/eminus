@@ -38,6 +38,17 @@ class TreeHorizonTest {
     }
 
     @Test
+    void aResetHorizonRefinesEverythingAgain() {
+        horizon.lower(HORIZON);
+
+        horizon.reset();
+
+        assertTrue(horizon.refines(Double.MAX_VALUE));
+        assertFalse(horizon.bounded());
+        assertTrue(horizon.settled());
+    }
+
+    @Test
     void aLevelZeroSetAtAThousandBlocksGoesBeforeALevelOneSetAtFourteenHundred() {
         assertEquals(1_000.0, TreeHorizon.key(1_000.0, LEVEL_ONE), TOLERANCE);
         assertEquals(1_400.0 / 1.5, TreeHorizon.key(1_400.0, LEVEL_TWO), TOLERANCE);

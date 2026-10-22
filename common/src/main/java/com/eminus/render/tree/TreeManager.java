@@ -117,6 +117,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         }
     }
 
+    public void resize(int capacity) {
+        messages.add(new TreeMessage.Resize(capacity));
+    }
+
     public CompletableFuture<List<long[]>> describe(List<long[]> rows) {
         CompletableFuture<List<long[]>> answer = new CompletableFuture<>();
         messages.add(new TreeMessage.Describe(rows, answer));
@@ -202,6 +206,11 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             case TreeMessage.CellFailed failure -> applyFailure(failure.key(), failure.request());
             case TreeMessage.ColumnCovered covered -> changes.covered(covered.chunkX(), covered.chunkZ(), camera);
             case TreeMessage.FrameReady ready -> applyFrame();
+            case TreeMessage.Resize resize -> {
+                nodes.resize(resize.capacity());
+                horizon.reset();
+                treeChanged = true;
+            }
             case TreeMessage.Describe describe ->
                     describe.answer().complete(NodeRow.describe(nodes, describe.rows(), walks));
             case TreeMessage.Snapshot snapshot -> snapshot.answer().complete(state());

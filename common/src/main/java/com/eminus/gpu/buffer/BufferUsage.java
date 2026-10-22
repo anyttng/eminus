@@ -6,5 +6,6 @@ public enum BufferUsage {
     TEXEL,
     INDIRECT,
     STORAGE,
+    COPY_SRC,
     COPY_DST
 }

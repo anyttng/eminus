@@ -6,6 +6,7 @@
   "gui.eminus.settings.restart.reread": "바꾸면 주변 청크를 다시 읽습니다.",
   "gui.eminus.settings.restart.lod_quality": "바꾸면 LOD를 다시 만들고(텍스처 해상도만 바뀌면 텍스처만 다시 불러옵니다), 복셀 크기도 함께 바뀌면 주변 청크를 다시 읽습니다.",
   "gui.eminus.settings.restart.reload_pack": "바꾸면 셰이더 팩을 다시 불러오고 LOD를 다시 만듭니다.",
+  "gui.eminus.settings.restart.resize": "바꿔도 이미 만든 LOD는 그대로 두고 세부만 더하거나 줄입니다.",
   "gui.eminus.settings.impact": "성능 영향: %s",
   "gui.eminus.settings.impact.low": "낮음",
   "gui.eminus.settings.impact.medium": "보통",

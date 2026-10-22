@@ -77,6 +77,19 @@ class NodeTableTest {
         assertFalse(table.pressure());
     }
 
+    @Test
+    void aShrunkTablePressesAndAGrownOneLetsGo() {
+        fillTo(LOW_WATER_NODES - ONE_NODE);
+        assertFalse(table.pressure());
+
+        table.resize(LOW_WATER_NODES + ONE_NODE);
+        assertTrue(table.pressure());
+
+        table.resize(CAPACITY);
+        assertFalse(table.pressure());
+        assertEquals(CAPACITY - LOW_WATER_NODES + ONE_NODE, table.free());
+    }
+
     private void fillTo(int size) {
         while (table.size() < size) {
             roots.add(table.root(CellKey.pack(DetailLevel.MAX, roots.size(), 0, 0)));

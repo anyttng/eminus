@@ -2,6 +2,7 @@ package com.eminus.gpu;
 
 import java.nio.ByteBuffer;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 
 import com.eminus.gpu.buffer.Buffer;
@@ -28,6 +29,10 @@ public interface Gpu extends AutoCloseable {
     Buffer buffer(String label, Set<BufferUsage> usage, ByteBuffer data);
 
     void write(Buffer target, long offset, ByteBuffer data);
+
+    void copy(Buffer source, long sourceOffset, Buffer target, long targetOffset, long bytes);
+
+    OptionalLong freeBytes();
 
     TexelView texelView(Buffer buffer, Format format);
 

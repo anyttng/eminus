@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 
 import com.eminus.gpu.Capabilities;
@@ -104,6 +105,17 @@ public final class GameGpu implements Gpu {
     public void write(Buffer target, long offset, ByteBuffer data) {
         GpuBuffer buffer = ((GameBuffer) target).buffer();
         device.createCommandEncoder().writeToBuffer(buffer.slice(offset, data.remaining()), data);
+    }
+
+    @Override
+    public void copy(Buffer source, long sourceOffset, Buffer target, long targetOffset, long bytes) {
+        device.createCommandEncoder().copyToBuffer(((GameBuffer) source).buffer().slice(sourceOffset, bytes),
+                ((GameBuffer) target).buffer().slice(targetOffset, bytes));
+    }
+
+    @Override
+    public OptionalLong freeBytes() {
+        return DeviceReading.read(device).freeBytes();
     }
 
     @Override
