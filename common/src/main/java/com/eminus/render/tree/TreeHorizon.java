@@ -32,6 +32,13 @@ final class TreeHorizon {
         quietFrames = 0;
     }
 
+    void reset() {
+        horizon = UNBOUNDED;
+        lifted = false;
+        locked = false;
+        quietFrames = 0;
+    }
+
     boolean frame(CameraFrame camera, boolean idle) {
         if (locked && moved(camera)) {
             locked = false;

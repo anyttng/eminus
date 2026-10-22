@@ -1,14 +1,8 @@
 package com.eminus.client.render.far;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
-
-import com.eminus.gpu.Location;
-import com.eminus.gpu.pipeline.Pipeline;
 import com.eminus.settings.CornerOcclusion;
 import com.eminus.settings.DetailDistance;
 import com.eminus.settings.LeafMode;
@@ -20,33 +14,25 @@ import org.junit.jupiter.api.Test;
 
 class FarRendererTest {
     private static final Settings BUILT = new Settings(true, LodChoice.ULTRA, Settings.DEFAULT_CUSTOM_LOD, 16, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true);
-    private static final Location MASK = new Location("eminus", "near_mask");
-    private static final Location OPAQUE = new Location("eminus", "far_opaque");
-    private static final Location TRANSLUCENT = new Location("eminus", "far_translucent");
+    @Test
+    void aFarDistanceChangeResizesAndKeepsTheRenderer() {
+        Settings updated = new Settings(true, LodChoice.ULTRA, Settings.DEFAULT_CUSTOM_LOD, 32, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true);
 
-    private record FakePipeline(Location location, boolean compiles) implements Pipeline {
+        assertFalse(FarRenderer.recreates(BUILT, updated));
+        assertTrue(FarRenderer.resizes(BUILT, updated));
     }
 
     @Test
-    void theFirstProgramThatDoesNotCompileRefusesTheRenderer() {
-        assertEquals(OPAQUE, FarRenderer.refusedProgram(List.of(new FakePipeline(MASK, true),
-                new FakePipeline(OPAQUE, false), new FakePipeline(TRANSLUCENT, false))));
+    void aDetailDistanceChangeResizesAndKeepsTheRenderer() {
+        Settings updated = new Settings(true, LodChoice.ULTRA, Settings.DEFAULT_CUSTOM_LOD, 16, 4, DetailDistance.HIGH, true, true, ShaderPackLod.DEFAULT, true);
+
+        assertFalse(FarRenderer.recreates(BUILT, updated));
+        assertTrue(FarRenderer.resizes(BUILT, updated));
     }
 
     @Test
-    void programsThatAllCompileRefuseNothing() {
-        assertNull(FarRenderer.refusedProgram(List.of(new FakePipeline(MASK, true), new FakePipeline(OPAQUE, true),
-                new FakePipeline(TRANSLUCENT, true))));
-    }
-
-    @Test
-    void aFarDistanceChangeRecreatesTheRenderer() {
-        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, LodChoice.ULTRA, Settings.DEFAULT_CUSTOM_LOD, 32, 4, DetailDistance.MEDIUM, true, true, ShaderPackLod.DEFAULT, true)));
-    }
-
-    @Test
-    void aDetailDistanceChangeRecreatesTheRenderer() {
-        assertTrue(FarRenderer.recreates(BUILT, new Settings(true, LodChoice.ULTRA, Settings.DEFAULT_CUSTOM_LOD, 16, 4, DetailDistance.HIGH, true, true, ShaderPackLod.DEFAULT, true)));
+    void aLodQualityChangeResizesNothing() {
+        assertFalse(FarRenderer.resizes(BUILT, BUILT.withLodChoice(LodChoice.HIGH)));
     }
 
     @Test

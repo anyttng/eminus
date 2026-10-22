@@ -6,6 +6,7 @@
   "gui.eminus.settings.restart.reread": "Зміна знову зчитує чанки навколо вас.",
   "gui.eminus.settings.restart.lod_quality": "Зміна перебудовує LOD, а якщо змінюється лише роздільність текстур, тільки перезавантажує його текстури. Якщо змінюється й розмір вокселя, чанки навколо вас зчитуються знову.",
   "gui.eminus.settings.restart.reload_pack": "Зміна перезавантажує шейдер-пак і перебудовує LOD.",
+  "gui.eminus.settings.restart.resize": "Зміна зберігає вже побудований LOD і лише додає або прибирає деталі.",
   "gui.eminus.settings.impact": "Вплив на продуктивність: %s",
   "gui.eminus.settings.impact.low": "Низький",
   "gui.eminus.settings.impact.medium": "Середній",

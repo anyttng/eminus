@@ -101,6 +101,7 @@ final class GameTypes {
                 case UNIFORM -> GpuBuffer.USAGE_UNIFORM;
                 case TEXEL -> GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER;
                 case INDIRECT -> GpuBuffer.USAGE_INDIRECT_PARAMETERS;
+                case COPY_SRC -> GpuBuffer.USAGE_COPY_SRC;
                 case COPY_DST -> GpuBuffer.USAGE_COPY_DST;
                 case STORAGE -> throw new IllegalArgumentException("The game's GPU abstraction has no storage buffers");
             };

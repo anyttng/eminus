@@ -6,6 +6,7 @@
   "gui.eminus.settings.restart.reread": "Mudar isto lê de novo os chunks ao seu redor.",
   "gui.eminus.settings.restart.lod_quality": "Mudar isto reconstrói o LOD, ou recarrega só as texturas dele se apenas a resolução das texturas mudar. Se o tamanho do voxel mudar junto, lê de novo os chunks ao seu redor.",
   "gui.eminus.settings.restart.reload_pack": "Mudar isto recarrega o pacote de shaders e reconstrói o LOD.",
+  "gui.eminus.settings.restart.resize": "Mudar isto mantém o LOD já construído e só adiciona ou remove detalhes.",
   "gui.eminus.settings.impact": "Impacto no desempenho: %s",
   "gui.eminus.settings.impact.low": "Baixo",
   "gui.eminus.settings.impact.medium": "Médio",

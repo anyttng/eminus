@@ -6,6 +6,7 @@
   "gui.eminus.settings.restart.reread": "更改后会重新读取你周围的区块。",
   "gui.eminus.settings.restart.lod_quality": "更改后会重建 LOD（若只改变纹理分辨率，则只重新加载纹理）；如果体素大小也随之改变，还会重新读取你周围的区块。",
   "gui.eminus.settings.restart.reload_pack": "更改后会重新加载光影包并重建 LOD。",
+  "gui.eminus.settings.restart.resize": "更改后会保留已生成的 LOD，只增加或减少细节。",
   "gui.eminus.settings.impact": "性能影响：%s",
   "gui.eminus.settings.impact.low": "低",
   "gui.eminus.settings.impact.medium": "中",

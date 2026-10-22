@@ -24,6 +24,9 @@ public sealed interface TreeMessage {
     record FrameReady() implements TreeMessage {
     }
 
+    record Resize(int capacity) implements TreeMessage {
+    }
+
     record Describe(List<long[]> rows, CompletableFuture<List<long[]>> answer) implements TreeMessage {
     }
 

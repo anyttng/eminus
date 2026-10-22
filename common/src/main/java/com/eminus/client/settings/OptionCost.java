@@ -4,8 +4,8 @@ import org.jspecify.annotations.Nullable;
 
 public enum OptionCost {
     LOD_QUALITY(Restart.LOD_QUALITY, null),
-    LOD_DISTANCE(Restart.REBUILD, null),
-    DETAIL_DISTANCE(Restart.REBUILD, null),
+    LOD_DISTANCE(Restart.RESIZE, null),
+    DETAIL_DISTANCE(Restart.RESIZE, null),
     SHADER_PACK_LOD(Restart.RELOAD_PACK, null),
     LOD_ANIMATIONS(Restart.RELOAD_PACK, SettingImpact.MEDIUM),
     VOXEL_SIZE(Restart.REREAD, SettingImpact.HIGH),
@@ -16,6 +16,7 @@ public enum OptionCost {
 
     public enum Restart {
         REBUILD("rebuild"),
+        RESIZE("resize"),
         RETEXTURE("retexture"),
         REREAD("reread"),
         LOD_QUALITY("lod_quality"),
