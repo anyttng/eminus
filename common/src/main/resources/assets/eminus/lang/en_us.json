@@ -47,7 +47,7 @@
   "gui.eminus.settings.custom_lod.leaves.hint.off": "leaves in LOD draw solid.",
   "gui.eminus.settings.custom_lod.leaves.hint.note": "The game's See-Through Leaves option does not change LOD. The leaf faces inside a canopy show only where a voxel is 1 block.",
   "gui.eminus.settings.custom_lod.grass_and_flowers": "Grass and Flowers",
-  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "grass, ferns, flowers and saplings are drawn in LOD.",
+  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "grass, ferns, flowers, saplings, petals and leaf litter are drawn in LOD.",
   "gui.eminus.settings.custom_lod.grass_and_flowers.hint.off": "LOD leaves them out.",
   "gui.eminus.settings.custom_lod.textures": "Texture Resolution",
   "gui.eminus.settings.custom_lod.textures.hint.full": "16×16 texels on each block face.",

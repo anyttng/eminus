@@ -47,7 +47,7 @@
   "gui.eminus.settings.custom_lod.leaves.hint.off": "liście w LOD są pełne.",
   "gui.eminus.settings.custom_lod.leaves.hint.note": "Opcja gry „Prześwitujące liście” nie zmienia LOD. Ściany liści wewnątrz korony widać tylko tam, gdzie woksel ma 1 blok.",
   "gui.eminus.settings.custom_lod.grass_and_flowers": "Trawa i kwiaty",
-  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "w LOD rysowane są trawa, paprocie, kwiaty i sadzonki.",
+  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "w LOD rysowane są trawa, paprocie, kwiaty, sadzonki, płatki i ściółka.",
   "gui.eminus.settings.custom_lod.grass_and_flowers.hint.off": "LOD je pomija.",
   "gui.eminus.settings.custom_lod.textures": "Rozdzielczość tekstur",
   "gui.eminus.settings.custom_lod.textures.hint.full": "16×16 tekseli na każdej ścianie bloku.",
