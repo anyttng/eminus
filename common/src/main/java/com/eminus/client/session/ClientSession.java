@@ -119,10 +119,19 @@ public final class ClientSession {
             instance.resizeWorkers(updated.workerThreads());
         }
 
-        if (runtime != null && rendered != null && FarRenderer.recreates(rendered, updated)) {
+        if (runtime == null || rendered == null) {
+            return;
+        }
+
+        boolean resizes = FarRenderer.resizes(rendered, updated);
+        if (FarRenderer.recreates(rendered, updated) || (resizes && renderer == null)) {
             restartRenderer();
         } else if (renderer != null) {
+            if (resizes) {
+                renderer.resize(Minecraft.getInstance(), updated);
+            }
             renderer.retexture(updated.lodQuality());
+            rendered = updated;
         }
     }
 

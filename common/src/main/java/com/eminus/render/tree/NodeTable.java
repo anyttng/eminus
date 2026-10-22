@@ -18,10 +18,11 @@ public final class NodeTable {
 
     private static final long WHOLE_PERCENT = 100L;
 
-    private final int capacity;
     private final Long2ObjectOpenHashMap<TreeNode> nodes = new Long2ObjectOpenHashMap<>();
     private final Long2ObjectOpenHashMap<TreeNode> roots = new Long2ObjectOpenHashMap<>();
     private final ArenaPressure pressure = new ArenaPressure();
+
+    private int capacity;
 
     public NodeTable(int capacity) {
         this.capacity = capacity;
@@ -45,6 +46,11 @@ public final class NodeTable {
 
     public int capacity() {
         return capacity;
+    }
+
+    public void resize(int capacity) {
+        this.capacity = capacity;
+        updatePressure();
     }
 
     public int free() {

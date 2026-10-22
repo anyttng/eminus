@@ -17,12 +17,12 @@ final class ArenaBudget {
     private ArenaBudget() {
     }
 
-    static long ceiling(Capabilities device, long replacedArenaBytes) {
+    static long ceiling(Capabilities device, OptionalLong deviceFreeBytes, long replacedArenaBytes) {
         OptionalLong texelBytes = device.texelElements().isPresent()
                 ? OptionalLong.of(device.texelElements().getAsLong() * ArenaSizing.QUAD_BYTES)
                 : OptionalLong.empty();
-        OptionalLong freeBytes = device.freeBytes().isPresent()
-                ? OptionalLong.of(device.freeBytes().getAsLong() + replacedArenaBytes)
+        OptionalLong freeBytes = deviceFreeBytes.isPresent()
+                ? OptionalLong.of(deviceFreeBytes.getAsLong() + replacedArenaBytes)
                 : OptionalLong.empty();
         long maxAllocation = device.maxAllocationBytes();
         long ceiling = ArenaSizing.ceiling(texelBytes, maxAllocation, freeBytes);

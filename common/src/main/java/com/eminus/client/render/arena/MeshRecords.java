@@ -20,7 +20,8 @@ public final class MeshRecords implements AutoCloseable {
     public static final int UNOCCLUDED_SHIFT = Integer.SIZE - 1;
 
     private static final String LABEL = "eminus-mesh-records";
-    private static final Set<BufferUsage> USAGE = EnumSet.of(BufferUsage.TEXEL, BufferUsage.COPY_DST);
+    private static final Set<BufferUsage> USAGE =
+            EnumSet.of(BufferUsage.TEXEL, BufferUsage.COPY_SRC, BufferUsage.COPY_DST);
     private static final int KEY_SHIFT = 32;
     private static final int MAX_BLOCKS_PER_MESH = ArenaAllocator.blocksFor(ArenaUploader.MAX_SLOTS);
 
@@ -41,6 +42,14 @@ public final class MeshRecords implements AutoCloseable {
     public static MeshRecords create(Gpu gpu, int capacity) {
         gpu.assertRenderThread();
         return new MeshRecords(gpu, gpu.buffer(LABEL, USAGE, (long) capacity * BYTES), capacity);
+    }
+
+    public MeshRecords grown(int capacity) {
+        gpu.assertRenderThread();
+        MeshRecords grown = create(gpu, capacity);
+        gpu.copy(buffer, 0, grown.buffer, 0, (long) this.capacity * BYTES);
+        close();
+        return grown;
     }
 
     public TexelView texels() {

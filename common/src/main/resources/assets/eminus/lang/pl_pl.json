@@ -6,6 +6,7 @@
   "gui.eminus.settings.restart.reread": "Zmiana ponownie wczytuje chunki wokół ciebie.",
   "gui.eminus.settings.restart.lod_quality": "Zmiana przebudowuje LOD, a gdy zmienia się tylko rozdzielczość tekstur, wczytuje ponownie same jego tekstury. Gdy zmienia się też rozmiar woksela, ponownie wczytuje chunki wokół ciebie.",
   "gui.eminus.settings.restart.reload_pack": "Zmiana przeładowuje paczkę shaderów i przebudowuje LOD.",
+  "gui.eminus.settings.restart.resize": "Zmiana zachowuje już zbudowany LOD i tylko dodaje lub usuwa szczegóły.",
   "gui.eminus.settings.impact": "Wpływ na wydajność: %s",
   "gui.eminus.settings.impact.low": "Niski",
   "gui.eminus.settings.impact.medium": "Średni",

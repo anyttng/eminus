@@ -6,6 +6,7 @@
   "gui.eminus.settings.restart.reread": "変更すると周囲のチャンクを読み直します。",
   "gui.eminus.settings.restart.lod_quality": "変更すると LOD を作り直し（テクスチャ解像度だけが変わる場合はテクスチャだけを読み込み直し）、ボクセルの大きさも変わる場合は周囲のチャンクを読み直します。",
   "gui.eminus.settings.restart.reload_pack": "変更するとシェーダーパックを再読み込みし、LOD を作り直します。",
+  "gui.eminus.settings.restart.resize": "変更しても作成済みの LOD はそのまま残り、細部を足したり減らしたりするだけです。",
   "gui.eminus.settings.impact": "パフォーマンスへの影響：%s",
   "gui.eminus.settings.impact.low": "低",
   "gui.eminus.settings.impact.medium": "中",

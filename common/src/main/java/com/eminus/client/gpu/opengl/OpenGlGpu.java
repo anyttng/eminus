@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 
@@ -142,6 +143,16 @@ public final class OpenGlGpu implements Gpu, Foreign {
     @Override
     public void write(Buffer target, long offset, ByteBuffer data) {
         ((OpenGlBuffer) target).write(offset, data);
+    }
+
+    @Override
+    public void copy(Buffer source, long sourceOffset, Buffer target, long targetOffset, long bytes) {
+        OpenGlStaging.copy(((OpenGlBuffer) source).handle(), sourceOffset, (OpenGlBuffer) target, targetOffset, bytes);
+    }
+
+    @Override
+    public OptionalLong freeBytes() {
+        return DeviceQueries.openGlFreeBytes();
     }
 
     @Override
