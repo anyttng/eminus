@@ -46,7 +46,7 @@
   "gui.eminus.settings.custom_lod.leaves.hint.off": "Blätter im LOD sind massiv.",
   "gui.eminus.settings.custom_lod.leaves.hint.note": "Die Spieloption „Durchsichtiges Laub“ ändert das LOD nicht. Blattflächen im Inneren einer Baumkrone erscheinen nur dort, wo ein Voxel 1 Block groß ist.",
   "gui.eminus.settings.custom_lod.grass_and_flowers": "Gras und Blumen",
-  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "Gras, Farne, Blumen und Setzlinge werden im LOD gezeichnet.",
+  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "Gras, Farne, Blumen, Setzlinge, Blütenblätter und Laubhaufen werden im LOD gezeichnet.",
   "gui.eminus.settings.custom_lod.grass_and_flowers.hint.off": "das LOD lässt sie weg.",
   "gui.eminus.settings.custom_lod.textures": "Texturauflösung",
   "gui.eminus.settings.custom_lod.textures.hint.full": "16×16 Texel pro Blockseite.",

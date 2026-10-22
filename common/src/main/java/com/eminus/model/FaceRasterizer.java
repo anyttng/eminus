@@ -316,6 +316,10 @@ public final class FaceRasterizer {
                 && Math.abs(Math.abs(normal.x()) - Math.abs(normal.z())) <= MIN_FACING;
     }
 
+    static boolean horizontal(Vector3fc normal) {
+        return Math.abs(normal.y()) >= ALIGNED;
+    }
+
     private static boolean facing(Facing quad, Vector3fc normal) {
         return quad.normal().dot(normal) > MIN_FACING;
     }
