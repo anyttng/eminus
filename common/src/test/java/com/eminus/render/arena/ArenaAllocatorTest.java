@@ -19,6 +19,40 @@ class ArenaAllocatorTest {
     }
 
     @Test
+    void aGrownArenaMergesItsNewBlocksWithTheFreeTail() {
+        allocator.allocate(THREE_BLOCKS);
+        allocator.allocate(THREE_BLOCKS);
+
+        allocator.grow(ARENA_BLOCKS + 4);
+
+        assertEquals(1, allocator.freeRuns());
+        assertEquals(6, allocator.largestFreeRun());
+        assertEquals(6, allocator.allocate(6 * ONE_BLOCK));
+    }
+
+    @Test
+    void aFullArenaGrownKeepsItsBlocksAndPlacesPastThem() {
+        for (int index = 0; index < ARENA_BLOCKS; index++) {
+            allocator.allocate(ONE_BLOCK);
+        }
+
+        allocator.grow(ARENA_BLOCKS + 2);
+
+        assertEquals(ARENA_BLOCKS, allocator.allocate(TWO_BLOCKS));
+        assertEquals(ARENA_BLOCKS + 2, allocator.usedBlocks());
+    }
+
+    @Test
+    void aFreshArenaPlacesRangesBackToBack() {
+        ArenaAllocator packing = new ArenaAllocator(6);
+
+        assertEquals(0, packing.allocate(TWO_BLOCKS));
+        assertEquals(2, packing.allocate(ONE_BLOCK));
+        assertEquals(3, packing.allocate(THREE_BLOCKS));
+        assertEquals(0, packing.freeBlocks());
+    }
+
+    @Test
     void anAllocationTakesTheEarliestRangeThatHoldsIt() {
         allocator.allocate(ONE_BLOCK);
         int middle = allocator.allocate(TWO_BLOCKS);

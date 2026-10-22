@@ -1,5 +1,7 @@
 package com.eminus.client.render.arena;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -33,24 +35,25 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
 
     private static final String LABEL = "eminus-geometry-arena";
     private static final Set<BufferUsage> USAGE =
-            EnumSet.of(BufferUsage.VERTEX, BufferUsage.TEXEL, BufferUsage.COPY_DST);
+            EnumSet.of(BufferUsage.VERTEX, BufferUsage.TEXEL, BufferUsage.COPY_SRC, BufferUsage.COPY_DST);
     private static final long WARNING_PERIOD_NANOS = 1_000_000_000L;
     private static final int MIB_SHIFT = 20;
     private static final int KIB_SHIFT = 10;
     private static final long PLAIN = 0L;
 
     private final Gpu gpu;
-    private final Buffer quads;
     private final @Nullable SparseBuffer sparseQuads;
     private final @Nullable ArenaPages pages;
-    private final TexelView quadTexels;
-    private final long bytes;
-    private final ArenaAllocator allocator;
-    private final MeshRecords records;
     private final ArenaUploader uploader;
     private final Long2ObjectOpenHashMap<MeshSlot> held = new Long2ObjectOpenHashMap<>();
     private final ArenaPressure pressure = new ArenaPressure();
 
+    private Buffer quads;
+    private TexelView quadTexels;
+    private long bytes;
+    private long targetBytes;
+    private ArenaAllocator allocator;
+    private MeshRecords records;
     private int refused;
     private long refusedTotal;
     private int refusedSinceWarning;
@@ -65,6 +68,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         this.sparseQuads = sparseQuads;
         this.pages = pages;
         this.bytes = bytes;
+        this.targetBytes = bytes;
         this.allocator = allocator;
         this.records = records;
         this.uploader = uploader;
@@ -167,13 +171,94 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
             warnAboutRefusals();
         }
 
-        if (pressure.update(allocator.usedBlocks(), allocator.blocks(), refused > 0) && !announcedPressure) {
+        compactIfFits();
+        if (pressure.update(allocator.usedBlocks(), ArenaSizing.blocks(targetBytes), refused > 0)
+                && !announcedPressure) {
             announcedPressure = true;
             Eminus.LOGGER.info("Geometry arena of {} MiB is full: the far layer stops refining and is drawn coarser"
-                    + " than the detail distance asks", bytes >> MIB_SHIFT);
+                    + " than the detail distance asks", targetBytes >> MIB_SHIFT);
         }
 
         return index;
+    }
+
+    public void resize(long wanted) {
+        gpu.assertRenderThread();
+        if (pages != null || wanted == targetBytes) {
+            return;
+        }
+
+        targetBytes = wanted;
+        if (wanted > bytes) {
+            grow(wanted);
+        } else if (wanted < bytes) {
+            Eminus.LOGGER.info("Geometry arena of {} MiB shrinks to {} MiB once its meshes fit", bytes >> MIB_SHIFT,
+                    wanted >> MIB_SHIFT);
+            compactIfFits();
+        }
+    }
+
+    private void grow(long wanted) {
+        int blocks = ArenaSizing.blocks(wanted);
+        Buffer grown = gpu.buffer(LABEL, USAGE, wanted);
+        gpu.copy(quads, 0, grown, 0, bytes);
+        Eminus.LOGGER.info("Geometry arena grew in place from {} to {} MiB: {} blocks of {} quads",
+                bytes >> MIB_SHIFT, wanted >> MIB_SHIFT, blocks, ArenaAllocator.QUADS_PER_BLOCK);
+        replaceQuads(grown, wanted);
+        allocator.grow(blocks);
+        records = records.grown(blocks);
+    }
+
+    private void compactIfFits() {
+        int blocks = ArenaSizing.blocks(targetBytes);
+        if (targetBytes >= bytes || allocator.usedBlocks() > blocks) {
+            return;
+        }
+
+        Buffer packed = gpu.buffer(LABEL, USAGE, targetBytes);
+        ArenaAllocator packing = new ArenaAllocator(blocks);
+        MeshRecords packedRecords = MeshRecords.create(gpu, blocks);
+        MeshSlot[] slots = held.values().toArray(MeshSlot[]::new);
+        Arrays.sort(slots, Comparator.comparingInt(MeshSlot::block));
+        int runFrom = 0;
+        int runTo = 0;
+        int runTarget = 0;
+        for (MeshSlot slot : slots) {
+            int length = ArenaAllocator.blocksFor(slot.slots());
+            int block = packing.allocate(slot.slots());
+            if (slot.block() != runTo || block != runTarget + runTo - runFrom) {
+                copyBlocks(packed, runFrom, runTarget, runTo - runFrom);
+                runFrom = slot.block();
+                runTarget = block;
+            }
+            runTo = slot.block() + length;
+            MeshSlot moved = slot.at(block);
+            held.put(slot.key(), moved);
+            packedRecords.write(moved);
+        }
+        copyBlocks(packed, runFrom, runTarget, runTo - runFrom);
+
+        Eminus.LOGGER.info("Geometry arena compacted from {} to {} MiB: {} meshes in {} blocks",
+                bytes >> MIB_SHIFT, targetBytes >> MIB_SHIFT, slots.length, packing.usedBlocks());
+        replaceQuads(packed, targetBytes);
+        allocator = packing;
+        records.close();
+        records = packedRecords;
+    }
+
+    private void copyBlocks(Buffer target, int from, int to, int length) {
+        if (length > 0) {
+            gpu.copy(quads, from * ArenaSizing.BLOCK_BYTES, target, to * ArenaSizing.BLOCK_BYTES,
+                    length * ArenaSizing.BLOCK_BYTES);
+        }
+    }
+
+    private void replaceQuads(Buffer replacement, long replacementBytes) {
+        quadTexels.close();
+        quads.close();
+        quads = replacement;
+        bytes = replacementBytes;
+        quadTexels = gpu.texelView(quads, QUAD_FORMAT);
     }
 
     public void evict(LongCollection keys) {

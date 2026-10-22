@@ -9,8 +9,9 @@ public final class ArenaAllocator {
     private static final int START_SHIFT = 32;
     private static final long LENGTH_MASK = 0xFFFFFFFFL;
 
-    private final int blocks;
     private final LongArrayList free = new LongArrayList();
+
+    private int blocks;
 
     private int used;
 
@@ -51,6 +52,19 @@ public final class ArenaAllocator {
 
     public int freeRuns() {
         return free.size();
+    }
+
+    public void grow(int blocks) {
+        if (blocks <= this.blocks) {
+            throw new IllegalArgumentException(
+                    "An arena of " + this.blocks + " blocks does not grow to " + blocks + " blocks.");
+        }
+
+        free.add(range(this.blocks, blocks - this.blocks));
+        this.blocks = blocks;
+        if (free.size() > 1) {
+            mergeWithNext(free.size() - 2);
+        }
     }
 
     public int allocate(int quads) {

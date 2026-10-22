@@ -6,6 +6,7 @@
   "gui.eminus.settings.restart.reread": "Eine Änderung liest die Chunks um dich herum neu ein.",
   "gui.eminus.settings.restart.lod_quality": "Eine Änderung baut das LOD neu auf oder lädt nur seine Texturen neu, wenn sich allein die Texturauflösung ändert. Ändert sich auch die Voxelgröße, werden die Chunks um dich herum neu eingelesen.",
   "gui.eminus.settings.restart.reload_pack": "Eine Änderung lädt das Shaderpack neu und baut das LOD neu auf.",
+  "gui.eminus.settings.restart.resize": "Eine Änderung behält das bereits gebaute LOD und fügt nur Details hinzu oder entfernt sie.",
   "gui.eminus.settings.impact": "Leistungseinfluss: %s",
   "gui.eminus.settings.impact.low": "Niedrig",
   "gui.eminus.settings.impact.medium": "Mittel",

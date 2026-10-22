@@ -6,6 +6,7 @@
   "gui.eminus.settings.restart.reread": "Cambiarlo vuelve a leer los chunks a tu alrededor.",
   "gui.eminus.settings.restart.lod_quality": "Cambiarlo reconstruye el LOD, o solo recarga sus texturas si lo único que cambia es la resolución de texturas. Si cambia también el tamaño del vóxel, vuelve a leer los chunks a tu alrededor.",
   "gui.eminus.settings.restart.reload_pack": "Cambiarlo recarga el paquete de shaders y reconstruye el LOD.",
+  "gui.eminus.settings.restart.resize": "Cambiarlo conserva el LOD ya construido y solo agrega o quita detalle.",
   "gui.eminus.settings.impact": "Impacto en el rendimiento: %s",
   "gui.eminus.settings.impact.low": "Bajo",
   "gui.eminus.settings.impact.medium": "Medio",
