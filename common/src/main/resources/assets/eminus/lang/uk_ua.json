@@ -47,7 +47,7 @@
   "gui.eminus.settings.custom_lod.leaves.hint.off": "листя в LOD суцільне.",
   "gui.eminus.settings.custom_lod.leaves.hint.note": "Опція гри «Прозоре листя» на LOD не впливає. Грані листя всередині крони видно лише там, де воксель дорівнює 1 блоку.",
   "gui.eminus.settings.custom_lod.grass_and_flowers": "Трава й квіти",
-  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "трава, папороть, квіти й саджанці малюються в LOD.",
+  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "трава, папороть, квіти, саджанці й пелюстки малюються в LOD.",
   "gui.eminus.settings.custom_lod.grass_and_flowers.hint.off": "LOD їх не малює.",
   "gui.eminus.settings.custom_lod.textures": "Роздільність текстур",
   "gui.eminus.settings.custom_lod.textures.hint.full": "16×16 текселів на кожній грані блока.",

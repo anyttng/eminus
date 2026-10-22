@@ -10,13 +10,17 @@ import com.eminus.model.port.BlockTints;
 import com.eminus.model.port.ModelQuad;
 import com.eminus.model.port.Variant;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.BushBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 
+import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
 public final class ModelBaker implements StateBaker {
@@ -147,7 +151,7 @@ public final class ModelBaker implements StateBaker {
     }
 
     private BakedModel rasterize(BlockState shape, boolean opaque) {
-        if (!drawsBlades && FaceRasterizer.bladed(quads)) {
+        if (!drawsBlades && (FaceRasterizer.bladed(quads) || groundCover(shape, quads))) {
             return BakedModel.empty();
         }
 
@@ -172,6 +176,25 @@ public final class ModelBaker implements StateBaker {
         }
 
         return random.drew();
+    }
+
+    static boolean groundCover(BlockState state, List<ModelQuad> quads) {
+        if (!(state.getBlock() instanceof BushBlock)
+                || !state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).isEmpty()) {
+            return false;
+        }
+
+        boolean flat = false;
+        for (ModelQuad quad : quads) {
+            Vector3fc normal = FaceRasterizer.normal(quad);
+            if (FaceRasterizer.horizontal(normal)) {
+                flat = true;
+            } else if (!FaceRasterizer.blade(normal)) {
+                return false;
+            }
+        }
+
+        return flat;
     }
 
     private static BlockState baseOf(BlockState state) {

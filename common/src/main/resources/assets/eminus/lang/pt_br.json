@@ -47,7 +47,7 @@
   "gui.eminus.settings.custom_lod.leaves.hint.off": "as folhas do LOD são sólidas.",
   "gui.eminus.settings.custom_lod.leaves.hint.note": "A opção “Folhas transparentes” do jogo não muda o LOD. As faces de folhas dentro de uma copa só aparecem onde um voxel tem 1 bloco.",
   "gui.eminus.settings.custom_lod.grass_and_flowers": "Grama e flores",
-  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "grama, samambaias, flores e mudas são desenhadas no LOD.",
+  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "grama, samambaias, flores, mudas e pétalas são desenhadas no LOD.",
   "gui.eminus.settings.custom_lod.grass_and_flowers.hint.off": "o LOD as deixa de fora.",
   "gui.eminus.settings.custom_lod.textures": "Resolução das texturas",
   "gui.eminus.settings.custom_lod.textures.hint.full": "16×16 texels em cada face de bloco.",

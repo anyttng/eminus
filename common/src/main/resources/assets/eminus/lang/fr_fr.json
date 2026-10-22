@@ -47,7 +47,7 @@
   "gui.eminus.settings.custom_lod.leaves.hint.off": "les feuilles du LOD sont pleines.",
   "gui.eminus.settings.custom_lod.leaves.hint.note": "L'option « Feuilles transparentes » du jeu ne change pas le LOD. Les faces de feuilles à l'intérieur d'un feuillage n'apparaissent que là où un voxel fait 1 bloc.",
   "gui.eminus.settings.custom_lod.grass_and_flowers": "Herbe et fleurs",
-  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "l'herbe, les fougères, les fleurs et les pousses sont dessinées dans le LOD.",
+  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "l'herbe, les fougères, les fleurs, les pousses et les pétales sont dessinés dans le LOD.",
   "gui.eminus.settings.custom_lod.grass_and_flowers.hint.off": "le LOD ne les dessine pas.",
   "gui.eminus.settings.custom_lod.textures": "Résolution des textures",
   "gui.eminus.settings.custom_lod.textures.hint.full": "16×16 texels par face de bloc.",

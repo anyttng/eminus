@@ -47,7 +47,7 @@
   "gui.eminus.settings.custom_lod.leaves.hint.off": "LOD의 잎은 꽉 찹니다.",
   "gui.eminus.settings.custom_lod.leaves.hint.note": "게임의 '나뭇잎 너머 보임' 설정은 LOD에 영향을 주지 않습니다. 수관 안쪽의 잎 면은 복셀 하나가 1블록인 곳에서만 보입니다.",
   "gui.eminus.settings.custom_lod.grass_and_flowers": "풀과 꽃",
-  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "LOD에 풀, 고사리, 꽃, 묘목을 그립니다.",
+  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "LOD에 풀, 고사리, 꽃, 묘목, 꽃잎을 그립니다.",
   "gui.eminus.settings.custom_lod.grass_and_flowers.hint.off": "LOD에 그리지 않습니다.",
   "gui.eminus.settings.custom_lod.textures": "텍스처 해상도",
   "gui.eminus.settings.custom_lod.textures.hint.full": "블록 면마다 16×16 텍셀.",

@@ -47,7 +47,7 @@
   "gui.eminus.settings.custom_lod.leaves.hint.off": "las hojas del LOD son macizas.",
   "gui.eminus.settings.custom_lod.leaves.hint.note": "La opción «Ver a través de hojas» del juego no cambia el LOD. Las caras de hojas dentro de una copa solo se ven donde un vóxel mide 1 bloque.",
   "gui.eminus.settings.custom_lod.grass_and_flowers": "Pasto y flores",
-  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "se dibujan pasto, helechos, flores y brotes en el LOD.",
+  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "se dibujan pasto, helechos, flores, brotes y pétalos en el LOD.",
   "gui.eminus.settings.custom_lod.grass_and_flowers.hint.off": "el LOD no los dibuja.",
   "gui.eminus.settings.custom_lod.textures": "Resolución de texturas",
   "gui.eminus.settings.custom_lod.textures.hint.full": "16×16 téxeles en cada cara de bloque.",
