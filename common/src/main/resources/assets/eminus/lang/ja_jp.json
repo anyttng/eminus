@@ -46,7 +46,7 @@
   "gui.eminus.settings.custom_lod.leaves.hint.off": "LOD の葉は不透明です。",
   "gui.eminus.settings.custom_lod.leaves.hint.note": "ゲームの「葉ブロックの透過」は LOD に影響しません。樹冠の内側の葉の面は、1 ボクセルが 1 ブロックの所でだけ見えます。",
   "gui.eminus.settings.custom_lod.grass_and_flowers": "草と花",
-  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "LOD に草、シダ、花、苗木を描きます。",
+  "gui.eminus.settings.custom_lod.grass_and_flowers.hint.on": "LOD に草、シダ、花、苗木、花びら、落ち葉を描きます。",
   "gui.eminus.settings.custom_lod.grass_and_flowers.hint.off": "LOD はそれらを描きません。",
   "gui.eminus.settings.custom_lod.textures": "テクスチャ解像度",
   "gui.eminus.settings.custom_lod.textures.hint.full": "ブロックの各面に 16×16 テクセル。",
