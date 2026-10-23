@@ -21,6 +21,10 @@ public record MeshSlot(long key, int block, int quads, int occlusion, int colors
                 mesh.groupStart(), mesh.groupCount(), mesh.groupSolid());
     }
 
+    public MeshSlot at(int block) {
+        return new MeshSlot(key, block, quads, occlusion, colors, groupStart, groupCount, groupSolid);
+    }
+
     public int slots() {
         return quads + occlusion + colors;
     }
