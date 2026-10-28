@@ -53,6 +53,11 @@ public final class FaceOcclusion {
     }
 
     private int word(Direction face, int x, int y, int z, boolean cubic) {
+        aim(face, x, y, z, cubic);
+        return bits(face);
+    }
+
+    private void aim(Direction face, int x, int y, int z, boolean cubic) {
         int lift = cubic ? 1 : 0;
         baseX = x + face.getStepX() * lift;
         baseY = y + face.getStepY() * lift;
@@ -71,7 +76,10 @@ public final class FaceOcclusion {
         vX = height == Direction.Axis.X ? 1 : 0;
         vY = height == Direction.Axis.Y ? 1 : 0;
         vZ = height == Direction.Axis.Z ? 1 : 0;
+    }
 
+    private int bits(Direction face) {
+        Direction.Axis width = PlaneAxes.width(face.getAxis());
         boolean lowU = dark(LOW, 0);
         boolean highU = dark(HIGH, 0);
         boolean lowV = dark(0, LOW);

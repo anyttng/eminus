@@ -9,11 +9,11 @@ import com.eminus.render.far.DrawCommands;
 
 public final class ArenaSizing {
     public static final int QUAD_BYTES = Long.BYTES;
-    public static final long BLOCK_BYTES = (long) ArenaAllocator.QUADS_PER_BLOCK * QUAD_BYTES;
+    public static final long SEGMENT_BYTES = (long) ArenaAllocator.QUADS_PER_SEGMENT * QUAD_BYTES;
     public static final long MIN_BYTES = 32L * 1024 * 1024;
     public static final long UNREAD_TEXEL_BYTES = 2048L * 1024 * 1024;
     public static final long VERTEX_INDEX_BYTES = (1L << (Integer.SIZE - 1)) / DrawCommands.VERTICES_PER_QUAD * QUAD_BYTES;
-    public static final int BLOCK_FILL_PERCENT = 95;
+    public static final int SEGMENT_FILL_PERCENT = 95;
     public static final int DEVICE_SHARE = 4;
     public static final int FREE_MEMORY_SHARE = 2;
     public static final long REFUSED = 0L;
@@ -40,7 +40,7 @@ public final class ArenaSizing {
         }
 
         long bytes = Math.ceilDiv(slots * QUAD_BYTES * WHOLE_PERCENT * WHOLE_PERCENT,
-                (long) ArenaPressure.HIGH_WATER_PERCENT * BLOCK_FILL_PERCENT);
+                (long) ArenaPressure.HIGH_WATER_PERCENT * SEGMENT_FILL_PERCENT);
         return Math.max(bytes, MIN_BYTES);
     }
 
@@ -52,16 +52,16 @@ public final class ArenaSizing {
 
     public static long fitted(long wanted, long ceiling) {
         long allowed = Math.min(wanted, ceiling);
-        long aligned = allowed - Math.floorMod(allowed, BLOCK_BYTES);
+        long aligned = allowed - Math.floorMod(allowed, SEGMENT_BYTES);
         return aligned < MIN_BYTES ? REFUSED : aligned;
     }
 
-    public static int blocks(long bytes) {
-        return (int) (bytes / BLOCK_BYTES);
+    public static int segments(long bytes) {
+        return (int) (bytes / SEGMENT_BYTES);
     }
 
-    public static int blocksPerPage(long pageBytes) {
-        return pageBytes > 0 && Math.floorMod(pageBytes, BLOCK_BYTES) == 0 ? blocks(pageBytes) : NO_PAGES;
+    public static int segmentsPerPage(long pageBytes) {
+        return pageBytes > 0 && Math.floorMod(pageBytes, SEGMENT_BYTES) == 0 ? segments(pageBytes) : NO_PAGES;
     }
 
     public static long reserved(long fitted, long pageBytes) {

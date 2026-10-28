@@ -12,12 +12,12 @@ public final class ArenaPressure {
         return holding;
     }
 
-    public boolean update(int usedBlocks, int blocks, boolean refused) {
+    public boolean update(int usedSegments, int segments, boolean refused) {
         boolean was = holding;
-        long usedPercentOfBlocks = (long) usedBlocks * WHOLE_PERCENT;
-        if (refused || usedPercentOfBlocks >= (long) blocks * HIGH_WATER_PERCENT) {
+        long usedPercentOfSegments = (long) usedSegments * WHOLE_PERCENT;
+        if (refused || usedPercentOfSegments >= (long) segments * HIGH_WATER_PERCENT) {
             holding = true;
-        } else if (usedPercentOfBlocks < (long) blocks * LOW_WATER_PERCENT) {
+        } else if (usedPercentOfSegments < (long) segments * LOW_WATER_PERCENT) {
             holding = false;
         }
 

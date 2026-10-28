@@ -33,8 +33,8 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private final TreeBuilds builds;
     private final TreeExtent extent;
     private final NodeTable nodes;
-    private final TreeRing ring = new TreeRing();
-    private final TreeRing.Columns columns = new Columns();
+    private final TreeRoots roots = new TreeRoots();
+    private final TreeRoots.Columns columns = new Columns();
     private final TreeTraversal traversal;
     private final TreeCleaner cleaner = new TreeCleaner();
     private final TreeHorizon horizon = new TreeHorizon();
@@ -166,6 +166,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             builds.urgent(false);
         }
 
+        refuseUnanswered();
+    }
+
+    private void refuseUnanswered() {
         for (TreeMessage left : messages) {
             switch (left) {
                 case TreeMessage.Snapshot snapshot -> snapshot.answer().completeExceptionally(stopped());
@@ -224,18 +228,30 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     }
 
     private TreeState state() {
+        int building = 0;
+        for (TreeNode node : nodes.all()) {
+            if (node.building()) {
+                building++;
+            }
+        }
+
+        int backlog = builds.backlog();
+        boolean batchWaiting = !batch.isEmpty() || batches.waiting();
+        boolean settled = settled(building, backlog, batchWaiting);
+
+        return new TreeState(walks, nodes.size(), nodes.free(), lastDrawn, backlog, building, lastRequested,
+                lastStarved, treeChanged, batchWaiting, pressureEvictions, settled, lastWaiting, lastFront,
+                levels());
+    }
+
+    private List<LevelState> levels() {
         int[] levelNodes = new int[DetailLevel.COUNT];
         int[] levelMeshed = new int[DetailLevel.COUNT];
         long[] levelQuads = new long[DetailLevel.COUNT];
-        int building = 0;
 
         for (TreeNode node : nodes.all()) {
             int level = node.level() - DetailLevel.MIN;
             levelNodes[level]++;
-            if (node.building()) {
-                building++;
-            }
-
             MeshSummary mesh = node.mesh();
             if (mesh != null) {
                 levelMeshed[level]++;
@@ -248,14 +264,12 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             levels.add(new LevelState(level + DetailLevel.MIN, levelNodes[level], levelMeshed[level], levelQuads[level]));
         }
 
-        int backlog = builds.backlog();
-        boolean batchWaiting = !batch.isEmpty() || batches.waiting();
-        boolean settled = building == 0 && failed.isEmpty() && !treeChanged && lastRequested == 0 && !lastStarved
-                && backlog == 0 && !batchWaiting && horizon.settled();
+        return List.copyOf(levels);
+    }
 
-        return new TreeState(walks, nodes.size(), nodes.free(), lastDrawn, backlog, building, lastRequested,
-                lastStarved, treeChanged, batchWaiting, pressureEvictions, settled, lastWaiting, lastFront,
-                List.copyOf(levels));
+    private boolean settled(int building, int backlog, boolean batchWaiting) {
+        return building == 0 && failed.isEmpty() && !treeChanged && lastRequested == 0 && !lastStarved
+                && backlog == 0 && !batchWaiting && horizon.settled();
     }
 
     private void applyMesh(CellMesh mesh, long request) {
@@ -314,8 +328,28 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             return;
         }
 
+        CameraFrame camera = acceptFrame(posted);
+        if (failed.due(System.nanoTime())) {
+            retryFailed();
+        }
+
+        boolean still = still(camera);
+        if (!treeChanged && still && !outOfViewDue) {
+            return;
+        }
+
+        boolean evicted = evictStale(camera);
+        long walk = walks + 1;
+        walkTree(camera, still, walk);
+        dispatchRequested();
+        list(camera);
+        treeChanged = evicted;
+        remember(camera, walk);
+    }
+
+    private CameraFrame acceptFrame(CameraFrame posted) {
         this.camera = posted;
-        if (ring.update(posted.eyeX(), posted.eyeZ(), posted.farCells(), columns)) {
+        if (roots.update(posted.eyeX(), posted.eyeZ(), posted.farCells(), columns)) {
             treeChanged = true;
         }
 
@@ -339,15 +373,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             treeChanged = true;
         }
 
-        if (failed.due(System.nanoTime())) {
-            retryFailed();
-        }
+        return camera;
+    }
 
-        boolean still = still(camera);
-        if (!treeChanged && still && !outOfViewDue) {
-            return;
-        }
-
+    private boolean evictStale(CameraFrame camera) {
         List<TreeNode> stale = cleaner.pick(nodes.all(), camera, extent.frame(), horizon);
         for (int index = 0; index < stale.size(); index++) {
             TreeNode node = stale.get(index);
@@ -358,18 +387,23 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             }
         }
 
-        long walk = walks + 1;
+        return !stale.isEmpty();
+    }
+
+    private void walkTree(CameraFrame camera, boolean still, long walk) {
         int free = nodes.free();
         int budget = dispatch.budget(free);
         int outOfViewBudget = still ? dispatch.outOfViewBudget(free) : 0;
         traversal.walk(nodes.roots(), camera, budget, outOfViewBudget, walk);
-        List<TreeNode> requested = traversal.requested();
-        List<TreeNode> outOfView = traversal.outOfViewRequested();
-        lastRequested = requested.size() + outOfView.size();
+        lastRequested = traversal.requested().size() + traversal.outOfViewRequested().size();
         lastStarved = traversal.starved();
         lastWaiting = traversal.waitingInView();
         outOfViewDue = !still;
+    }
 
+    private void dispatchRequested() {
+        List<TreeNode> requested = traversal.requested();
+        List<TreeNode> outOfView = traversal.outOfViewRequested();
         for (int index = 0; index < requested.size(); index++) {
             churn.requested(requested.get(index));
             dispatch.build(requested.get(index), traversal.requestedPriority(index), false);
@@ -379,7 +413,9 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             churn.requested(outOfView.get(index));
             dispatch.build(outOfView.get(index), ProjectedSize.outOfView(traversal.outOfViewSize(index)), true);
         }
+    }
 
+    private void list(CameraFrame camera) {
         RenderList listed = traversal.list(camera);
         for (TreeNode node : traversal.rebuilds()) {
             dispatch.build(node, dispatch.priority(node, camera), false);
@@ -388,7 +424,9 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         lastFront = traversal.front(System.nanoTime());
         batch.renderList(listed);
         lastDrawn = listed.meshes().size();
-        treeChanged = !stale.isEmpty();
+    }
+
+    private void remember(CameraFrame camera, long walk) {
         lastEyeX = camera.eyeX();
         lastEyeY = camera.eyeY();
         lastEyeZ = camera.eyeZ();
@@ -453,6 +491,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             batch = new TreeBatch();
         }
 
+        followRefining();
+    }
+
+    private void followRefining() {
         boolean refining = dispatch.refining();
         if (refining != urgent) {
             urgent = refining;
@@ -460,7 +502,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         }
     }
 
-    private final class Columns implements TreeRing.Columns {
+    private final class Columns implements TreeRoots.Columns {
         @Override
         public void added(int cellX, int cellZ) {
             for (int cellY = 0; cellY < extent.heightCells(); cellY++) {

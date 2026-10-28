@@ -17,7 +17,7 @@ final class TreeChurn {
     static final String HORIZON_LOCKED = "horizon_locked";
     static final long UNBOUNDED_HORIZON = -1L;
 
-    private static final double FORGET_BLOCKS_SQUARED = (double) TreeRing.MOVE_BLOCKS * TreeRing.MOVE_BLOCKS;
+    private static final double FORGET_BLOCKS_SQUARED = (double) TreeRoots.MOVE_BLOCKS * TreeRoots.MOVE_BLOCKS;
 
     private final LongOpenHashSet evictedBuilt = new LongOpenHashSet();
 

@@ -68,7 +68,7 @@ public final class ShapeReading {
     public static CompletableFuture<List<long[]>> start() {
         Minecraft client = Minecraft.getInstance();
         ClientBakery baking = ClientBakery.start(client);
-        BlockModels models = GameModels.of(client, baking.cutoutLeaves()).blocks();
+        BlockModels models = GameModels.of(client, baking.seeThroughLeaves()).blocks();
         Path directory = client.gameDirectory.toPath();
 
         CompletableFuture<List<long[]>> result = new CompletableFuture<>();
@@ -99,32 +99,14 @@ public final class ShapeReading {
             writer.newLine();
 
             for (BlockState state : states) {
-                quads.clear();
-                if (state.getRenderShape() != RenderShape.INVISIBLE) {
-                    models.model(state).quads(RandomSource.create(state.getSeed(BlockPos.ZERO)), quads);
-                }
-
+                gameQuads(models, state, quads);
                 boolean positional = bakery.positional(state);
-                int modelId = positional
-                        ? ModelReading.awaitBake(state,
-                                whenBaked -> bakery.positionalModelId(state, 0, 0, 0, whenBaked))
-                        : bakery.modelId(state);
-                if (modelId < 0) {
-                    throw new IllegalStateException("No model was baked for " + state + ".");
-                }
-
+                int modelId = bakedModelId(bakery, state, positional);
                 BakedModel baked = bakery.model(modelId);
                 ShapeDivergence divergence = ShapeDivergence.measure(quads, baked, ShapeReading::spriteColumns);
-                float fluidHeight = NO_FLUID;
-                float fluidTop = NO_FLUID;
                 FluidState fluid = state.getFluidState();
-                if (!fluid.isEmpty()) {
-                    fluidHeight = fluid.getOwnHeight();
-                    int fluidId = bakery.fluidModelId(state);
-                    BakedModel surface = fluidId >= 0 ? bakery.model(fluidId) : baked;
-                    fluidTop = 1.0F - surface.insets()[Direction.UP.get3DDataValue()];
-                }
-
+                float fluidHeight = fluid.isEmpty() ? NO_FLUID : fluid.getOwnHeight();
+                float fluidTop = fluid.isEmpty() ? NO_FLUID : fluidTop(bakery, state, baked);
                 writeState(writer, state, modelId, positional, divergence, fluidHeight, fluidTop);
                 count(summary, state, divergence, fluidHeight, fluidTop);
                 classes.computeIfAbsent(state.getBlock().getClass().getSimpleName(), name -> new ClassRow())
@@ -137,6 +119,30 @@ public final class ShapeReading {
         writeClasses(directory.resolve(CLASSES_FILE_NAME), classes);
         summary[CLASSES] = classes.size();
         return List.of(summary);
+    }
+
+    private static void gameQuads(BlockModels models, BlockState state, List<ModelQuad> quads) {
+        quads.clear();
+        if (state.getRenderShape() != RenderShape.INVISIBLE) {
+            models.model(state).quads(RandomSource.create(state.getSeed(BlockPos.ZERO)), quads);
+        }
+    }
+
+    private static int bakedModelId(ModelBakery bakery, BlockState state, boolean positional) {
+        int modelId = positional
+                ? ModelReading.awaitBake(state, whenBaked -> bakery.positionalModelId(state, 0, 0, 0, whenBaked))
+                : bakery.modelId(state);
+        if (modelId < 0) {
+            throw new IllegalStateException("No model was baked for " + state + ".");
+        }
+
+        return modelId;
+    }
+
+    private static float fluidTop(ModelBakery bakery, BlockState state, BakedModel baked) {
+        int fluidId = bakery.fluidModelId(state);
+        BakedModel surface = fluidId >= 0 ? bakery.model(fluidId) : baked;
+        return 1.0F - surface.insets()[Direction.UP.get3DDataValue()];
     }
 
     private static float spriteColumns(ModelQuad quad, float uSpan) {

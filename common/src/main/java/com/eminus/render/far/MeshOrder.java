@@ -83,12 +83,16 @@ public final class MeshOrder {
         Arrays.sort(distances, 0, count);
 
         nearest.clear();
-        translucent.clear();
         for (int at = 0; at < count; at++) {
             nearest.add(meshes.get((int) (distances[at] & INDEX_MASK)));
         }
 
-        for (int at = count - 1; at >= 0; at--) {
+        collectTranslucent();
+    }
+
+    private void collectTranslucent() {
+        translucent.clear();
+        for (int at = nearest.size() - 1; at >= 0; at--) {
             MeshSummary mesh = nearest.get(at);
             if (mesh.translucentQuads() > 0) {
                 translucent.add(mesh);

@@ -13,7 +13,7 @@ import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
 
-public record GameBlockModels(BlockStateModelSet models, boolean cutoutLeaves) implements BlockModels {
+public record GameBlockModels(BlockStateModelSet models, boolean seeThroughLeaves) implements BlockModels {
     private static final boolean OPAQUE_LEAVES = false;
 
     @Override
@@ -34,7 +34,7 @@ public record GameBlockModels(BlockStateModelSet models, boolean cutoutLeaves) i
 
     @Override
     public boolean forceOpaque(BlockState state) {
-        return ModelBlockRenderer.forceOpaque(cutoutLeaves, state);
+        return ModelBlockRenderer.forceOpaque(seeThroughLeaves, state);
     }
 
     @Override

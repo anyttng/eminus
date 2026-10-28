@@ -73,6 +73,15 @@ final class TreeTraversal {
     }
 
     void walk(Collection<TreeNode> roots, CameraFrame camera, int budget, int outOfViewBudget, long walk) {
+        begin(roots, camera);
+        double farBlocks = (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
+        visitAll(camera, farBlocks, walk);
+        if (!camera.pressure()) {
+            request(camera, farBlocks, budget, outOfViewBudget);
+        }
+    }
+
+    private void begin(Collection<TreeNode> roots, CameraFrame camera) {
         frustum.set(camera.viewProjection());
         camera.viewProjection().frustumRayDir(SCREEN_CENTER, SCREEN_CENTER, axis).normalize();
         current.clear();
@@ -93,8 +102,9 @@ final class TreeTraversal {
         front.begin(camera.eyeX(), camera.eyeZ(), (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL
                 - DetailLevel.blocksPerCell(DetailLevel.MAX));
         starved = false;
-        double farBlocks = (double) camera.farCells() * FarDistance.BLOCKS_PER_TOP_LEVEL_CELL;
+    }
 
+    private void visitAll(CameraFrame camera, double farBlocks, long walk) {
         while (!current.isEmpty()) {
             next.clear();
 
@@ -105,18 +115,29 @@ final class TreeTraversal {
             current.clear();
             current.addAll(next);
         }
+    }
 
-        if (!camera.pressure()) {
-            starved = hand(candidates, budget, requested, requestedPriorities, camera, camera.inViewPixelsPerBlock(),
-                    camera.zoomed()) == UNSERVED;
-            int outOfViewLeft = outOfViewBudget - requested.size();
-            if (!starved && outOfViewLeft > 0) {
-                requestOutOfView(camera, farBlocks, outOfViewLeft);
-            }
+    private void request(CameraFrame camera, double farBlocks, int budget, int outOfViewBudget) {
+        starved = hand(candidates, budget, requested, requestedPriorities, camera, camera.inViewPixelsPerBlock(),
+                camera.zoomed()) == UNSERVED;
+        int outOfViewLeft = outOfViewBudget - requested.size();
+        if (!starved && outOfViewLeft > 0) {
+            requestOutOfView(camera, farBlocks, outOfViewLeft);
         }
     }
 
     RenderList list(CameraFrame camera) {
+        listOutside(camera);
+        List<MeshSummary> meshes = uncovered();
+        for (MeshSummary mesh : meshes) {
+            front.shown(mesh.key());
+        }
+
+        front.finish();
+        return new RenderList(List.copyOf(meshes), borders.of(meshes), camera);
+    }
+
+    private void listOutside(CameraFrame camera) {
         outOfViewDrawn.clear();
         outOfViewDrawnKeys.clear();
         outOfViewDescendedKeys.clear();
@@ -138,18 +159,16 @@ final class TreeTraversal {
         }
 
         listing = false;
+    }
+
+    private List<MeshSummary> uncovered() {
         hiddenBehind = 0;
         hiddenUnder = 0;
         hiddenUnderOutOfView = 0;
         List<MeshSummary> meshes = new ArrayList<>(drawn.size() + outOfViewDrawn.size());
         keepUncovered(drawn, drawnKeys, waitingKeys, true, meshes);
         keepUncovered(outOfViewDrawn, outOfViewDrawnKeys, outOfViewWaitingKeys, false, meshes);
-        for (MeshSummary mesh : meshes) {
-            front.shown(mesh.key());
-        }
-
-        front.finish();
-        return new RenderList(List.copyOf(meshes), borders.of(meshes), camera);
+        return meshes;
     }
 
     private void keepUncovered(List<MeshSummary> from, LongOpenHashSet keys, LongOpenHashSet waitingKeys,

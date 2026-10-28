@@ -8,7 +8,7 @@ import com.eminus.model.BakedModel;
 import com.eminus.model.ModelBakery;
 
 public final class ModelPublisher implements AutoCloseable {
-    public static final int START_CELLS = 4;
+    public static final int START_ATLAS_CELLS_PER_SIDE = 4;
     public static final int START_RECORDS = 1024;
     public static final int START_VARIANTS = 256;
 
@@ -38,7 +38,7 @@ public final class ModelPublisher implements AutoCloseable {
 
     public static ModelPublisher start(Gpu gpu, ModelBakery bakery, int atlasFirstMip) {
         gpu.assertRenderThread();
-        return new ModelPublisher(gpu, bakery, ModelAtlas.create(gpu, START_CELLS, atlasFirstMip),
+        return new ModelPublisher(gpu, bakery, ModelAtlas.create(gpu, START_ATLAS_CELLS_PER_SIDE, atlasFirstMip),
                 ModelRecords.create(gpu, START_RECORDS), ModelVariants.create(gpu, START_VARIANTS));
     }
 
@@ -74,27 +74,29 @@ public final class ModelPublisher implements AutoCloseable {
         }
 
         while (published < baked && fitAtlas(published)) {
-            BakedModel model = bakery.model(published);
-            if (variantEntries + model.variantCount() > variants.capacity()) {
-                growVariants(variantEntries + model.variantCount());
-            }
-
-            atlas.upload(published, model);
-            variantStarts[published] = variantEntries;
-            records.write(published, model, variantEntries);
-            if (model.variantCount() > 0) {
-                variants.write(variantEntries, model.variants());
-                variantEntries += model.variantCount();
-            }
-
+            publish(bakery.model(published));
             published++;
+        }
+    }
+
+    private void publish(BakedModel model) {
+        if (variantEntries + model.variantCount() > variants.capacity()) {
+            growVariants(variantEntries + model.variantCount());
+        }
+
+        atlas.upload(published, model);
+        variantStarts[published] = variantEntries;
+        records.write(published, model, variantEntries);
+        if (model.variantCount() > 0) {
+            variants.write(variantEntries, model.variants());
+            variantEntries += model.variantCount();
         }
     }
 
     public void retexture(int atlasFirstMip) {
         gpu.assertRenderThread();
         atlas.close();
-        atlas = ModelAtlas.create(gpu, START_CELLS, atlasFirstMip);
+        atlas = ModelAtlas.create(gpu, START_ATLAS_CELLS_PER_SIDE, atlasFirstMip);
         atlasFull = false;
         published = 0;
         variantEntries = 0;
@@ -128,30 +130,37 @@ public final class ModelPublisher implements AutoCloseable {
     }
 
     private void growRecords(int wanted) {
-        int grown = recordCapacity;
-        while (grown < wanted) {
-            grown *= GROWTH;
-        }
-
+        int grown = grownCapacity(recordCapacity, wanted);
         records.close();
         records = ModelRecords.create(gpu, grown);
         recordCapacity = grown;
         variantStarts = Arrays.copyOf(variantStarts, grown);
+        rewriteRecords();
+    }
 
+    private void rewriteRecords() {
         for (int modelId = 0; modelId < published; modelId++) {
             records.write(modelId, bakery.model(modelId), variantStarts[modelId]);
         }
     }
 
     private void growVariants(int wanted) {
-        int grown = variants.capacity();
+        int grown = grownCapacity(variants.capacity(), wanted);
+        variants.close();
+        variants = ModelVariants.create(gpu, grown);
+        rewriteVariants();
+    }
+
+    private static int grownCapacity(int capacity, int wanted) {
+        int grown = capacity;
         while (grown < wanted) {
             grown *= GROWTH;
         }
 
-        variants.close();
-        variants = ModelVariants.create(gpu, grown);
+        return grown;
+    }
 
+    private void rewriteVariants() {
         for (int modelId = 0; modelId < published; modelId++) {
             BakedModel model = bakery.model(modelId);
             if (model.variantCount() > 0) {

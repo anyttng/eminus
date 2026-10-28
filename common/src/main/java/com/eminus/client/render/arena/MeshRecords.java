@@ -23,14 +23,14 @@ public final class MeshRecords implements AutoCloseable {
     private static final Set<BufferUsage> USAGE =
             EnumSet.of(BufferUsage.TEXEL, BufferUsage.COPY_SRC, BufferUsage.COPY_DST);
     private static final int KEY_SHIFT = 32;
-    private static final int MAX_BLOCKS_PER_MESH = ArenaAllocator.blocksFor(ArenaUploader.MAX_SLOTS);
+    private static final int MAX_SEGMENTS_PER_MESH = ArenaAllocator.segmentsFor(ArenaUploader.MAX_SLOTS);
 
     private final Gpu gpu;
     private final Buffer buffer;
     private final TexelView texels;
     private final int capacity;
     private final ByteBuffer scratch =
-            ByteBuffer.allocateDirect(MAX_BLOCKS_PER_MESH * BYTES).order(ByteOrder.nativeOrder());
+            ByteBuffer.allocateDirect(MAX_SEGMENTS_PER_MESH * BYTES).order(ByteOrder.nativeOrder());
 
     private MeshRecords(Gpu gpu, Buffer buffer, int capacity) {
         this.gpu = gpu;
@@ -60,14 +60,14 @@ public final class MeshRecords implements AutoCloseable {
         return capacity;
     }
 
-    // Every block of the mesh carries the record, so the vertex stage reads it by the quad's own block.
+    // Every segment of the mesh carries the record, so the vertex stage reads it by the quad's own segment.
     public void write(MeshSlot mesh) {
         gpu.assertRenderThread();
-        int blocks = ArenaAllocator.blocksFor(mesh.slots());
+        int segments = ArenaAllocator.segmentsFor(mesh.slots());
         int quads = mesh.occluded() ? mesh.quads() : mesh.quads() | 1 << UNOCCLUDED_SHIFT;
         scratch.clear();
 
-        for (int block = 0; block < blocks; block++) {
+        for (int segment = 0; segment < segments; segment++) {
             scratch.putInt((int) mesh.key())
                     .putInt((int) (mesh.key() >>> KEY_SHIFT))
                     .putInt(mesh.baseQuad())
@@ -75,7 +75,7 @@ public final class MeshRecords implements AutoCloseable {
         }
 
         scratch.flip();
-        gpu.write(buffer, (long) mesh.block() * BYTES, scratch);
+        gpu.write(buffer, (long) mesh.segment() * BYTES, scratch);
     }
 
     @Override
