@@ -36,6 +36,13 @@ public final class ShadowCasterVolume {
     }
 
     public ShadowCasterVolume set(Matrix4fc cameraViewProjection, Vector3fc lightTravel) {
+        setSides(cameraViewProjection);
+        setForward();
+        setPlanes(lightTravel);
+        return this;
+    }
+
+    private void setSides(Matrix4fc cameraViewProjection) {
         for (int side = 0; side < SIDES; side++) {
             cameraViewProjection.frustumPlane(SIDE_PLANES[side], plane);
             sideNormals[side].set(plane.x, plane.y, plane.z);
@@ -44,7 +51,9 @@ public final class ShadowCasterVolume {
 
         solve.setRow(0, sideNormals[0]).setRow(1, sideNormals[1]).setRow(2, sideNormals[2]).invert()
                 .transform(apex.set(-offsets[0], -offsets[1], -offsets[2]));
+    }
 
+    private void setForward() {
         forward.zero();
         for (int side = 0; side < SIDES; side++) {
             Vector3f edge = sideNormals[side].cross(sideNormals[(side + 1) % SIDES], edges[side]);
@@ -53,7 +62,9 @@ public final class ShadowCasterVolume {
             }
             forward.add(edge.normalize());
         }
+    }
 
+    private void setPlanes(Vector3fc lightTravel) {
         planeCount = 0;
         for (int side = 0; side < SIDES; side++) {
             if (bounds(side, lightTravel)) {
@@ -71,7 +82,6 @@ public final class ShadowCasterVolume {
                 }
             }
         }
-        return this;
     }
 
     public boolean testAab(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {

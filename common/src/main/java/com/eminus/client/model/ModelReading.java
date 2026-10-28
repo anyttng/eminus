@@ -127,40 +127,51 @@ public final class ModelReading {
 
     private static void upload(ModelBakery bakery, long[] summary) {
         try (Gpu gpu = Gpus.create()) {
-            try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery,
-                    LodChoice.ULTRA.presetQuality().orElseThrow().atlasFirstMip())) {
-                summary[CELLS_FROM] = publisher.atlas().cellsPerSide();
-                publisher.publish();
-                summary[UPLOADED] = publisher.published();
-                summary[GROWTHS] = publisher.growths();
-                summary[REUPLOADED] = publisher.reuploaded();
-                summary[CELLS_TO] = publisher.atlas().cellsPerSide();
-                summary[SIDE] = publisher.atlas().side();
-                summary[CELL_SIDE] = publisher.atlas().cellSide();
-                summary[BYTES] = publisher.atlas().bytes();
-            }
+            uploadFull(gpu, bakery, summary);
+            uploadLow(gpu, bakery, summary);
+        }
+    }
 
-            try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery,
-                    LodChoice.LOW.presetQuality().orElseThrow().atlasFirstMip())) {
-                publisher.publish();
-                summary[LOW_SIDE] = publisher.atlas().side();
-                summary[LOW_CELL_SIDE] = publisher.atlas().cellSide();
-                summary[LOW_BYTES] = publisher.atlas().bytes();
-            }
+    private static void uploadFull(Gpu gpu, ModelBakery bakery, long[] summary) {
+        try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery,
+                LodChoice.ULTRA.presetQuality().orElseThrow().atlasFirstMip())) {
+            summary[CELLS_FROM] = publisher.atlas().cellsPerSide();
+            publisher.publish();
+            summary[UPLOADED] = publisher.published();
+            summary[GROWTHS] = publisher.growths();
+            summary[REUPLOADED] = publisher.reuploaded();
+            summary[CELLS_TO] = publisher.atlas().cellsPerSide();
+            summary[SIDE] = publisher.atlas().side();
+            summary[CELL_SIDE] = publisher.atlas().cellSide();
+            summary[BYTES] = publisher.atlas().bytes();
+        }
+    }
+
+    private static void uploadLow(Gpu gpu, ModelBakery bakery, long[] summary) {
+        try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery,
+                LodChoice.LOW.presetQuality().orElseThrow().atlasFirstMip())) {
+            publisher.publish();
+            summary[LOW_SIDE] = publisher.atlas().side();
+            summary[LOW_CELL_SIDE] = publisher.atlas().cellSide();
+            summary[LOW_BYTES] = publisher.atlas().bytes();
         }
     }
 
     private static void sheet(ModelBakery bakery, Path file) {
+        try {
+            ModelSheet.write(models(bakery), file);
+        } catch (IOException failure) {
+            throw new UncheckedIOException(failure);
+        }
+    }
+
+    private static List<BakedModel> models(ModelBakery bakery) {
         List<BakedModel> models = new ArrayList<>();
         for (int modelId = 0; modelId < bakery.modelCount(); modelId++) {
             models.add(bakery.model(modelId));
         }
 
-        try {
-            ModelSheet.write(models, file);
-        } catch (IOException failure) {
-            throw new UncheckedIOException(failure);
-        }
+        return models;
     }
 
     private static List<long[]> details(ModelBakery bakery, int detail) {

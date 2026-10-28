@@ -88,7 +88,12 @@ public final class NearSectionTable implements AutoCloseable {
         }
 
         sections.reset(cameraSectionX, cameraSectionZ, radius, minSectionY, sectionCount);
+        queryMeshes(meshes, frame);
+        levelRenderer = null;
+        upload();
+    }
 
+    private void queryMeshes(List<MeshSummary> meshes, CellFrame frame) {
         for (MeshSummary mesh : meshes) {
             long key = mesh.key();
             int side = DetailLevel.blocksPerCell(CellKey.level(key));
@@ -97,9 +102,6 @@ public final class NearSectionTable implements AutoCloseable {
             int minZ = CellFrame.originZOf(key);
             sections.queryBlocks(minX, minY, minZ, minX + side, minY + side, minZ + side, query);
         }
-
-        levelRenderer = null;
-        upload();
     }
 
     @Override

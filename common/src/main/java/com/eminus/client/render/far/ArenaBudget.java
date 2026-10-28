@@ -26,7 +26,12 @@ final class ArenaBudget {
                 : OptionalLong.empty();
         long maxAllocation = device.maxAllocationBytes();
         long ceiling = ArenaSizing.ceiling(texelBytes, maxAllocation, freeBytes);
+        logCeiling(ceiling, texelBytes, maxAllocation, freeBytes, replacedArenaBytes);
+        return ceiling;
+    }
 
+    private static void logCeiling(long ceiling, OptionalLong texelBytes, long maxAllocation, OptionalLong freeBytes,
+            long replacedArenaBytes) {
         Eminus.LOGGER.info("Geometry arena ceiling {} MiB: texel buffer {}, vertex index {} MiB, device share {}, "
                 + "free video memory {}", ceiling / BYTES_PER_MIB,
                 texelBytes.isPresent() ? texelBytes.getAsLong() / BYTES_PER_MIB + " MiB"
@@ -38,7 +43,6 @@ final class ArenaBudget {
                         + replacedArenaBytes / BYTES_PER_MIB + " MiB, "
                         + freeBytes.getAsLong() / ArenaSizing.FREE_MEMORY_SHARE / BYTES_PER_MIB + " MiB taken"
                         : "not reported");
-        return ceiling;
     }
 
     static @Nullable Sparse sparse(Gpu gpu) {
@@ -48,9 +52,9 @@ final class ArenaBudget {
         }
 
         long pageBytes = sparse.get().pageBytes();
-        if (ArenaSizing.blocksPerPage(pageBytes) == ArenaSizing.NO_PAGES) {
-            Eminus.LOGGER.info("Sparse pages of {} bytes do not hold whole arena blocks of {} bytes: the arena is a"
-                    + " plain buffer", pageBytes, ArenaSizing.BLOCK_BYTES);
+        if (ArenaSizing.segmentsPerPage(pageBytes) == ArenaSizing.NO_PAGES) {
+            Eminus.LOGGER.info("Sparse pages of {} bytes do not hold whole arena segments of {} bytes: the arena is a"
+                    + " plain buffer", pageBytes, ArenaSizing.SEGMENT_BYTES);
             return null;
         }
 
@@ -64,25 +68,34 @@ final class ArenaBudget {
     }
 
     static long bounded(long wanted, long ceiling) {
-        long bytes = wanted;
+        return capped(raisedToFloor(wanted, ceiling), wanted);
+    }
+
+    private static long raisedToFloor(long wanted, long ceiling) {
         Long floorMiB = Long.getLong(FarRenderer.ARENA_FLOOR_PROPERTY);
-        if (floorMiB != null) {
-            Eminus.LOGGER.info("Geometry arena raised to at least {} MiB by -D{}, {} MiB wanted", floorMiB,
-                    FarRenderer.ARENA_FLOOR_PROPERTY, wanted / BYTES_PER_MIB);
-            bytes = Math.max(bytes, floorMiB * BYTES_PER_MIB);
-            if (bytes > ceiling) {
-                Eminus.LOGGER.info("Geometry arena floor of {} MiB is above the device ceiling: the arena starts at "
-                        + "{} MiB", floorMiB, ceiling / BYTES_PER_MIB);
-            }
+        if (floorMiB == null) {
+            return wanted;
         }
 
-        Long capMiB = Long.getLong(FarRenderer.ARENA_CAP_PROPERTY);
-        if (capMiB != null) {
-            Eminus.LOGGER.info("Geometry arena capped at {} MiB by -D{}, {} MiB wanted", capMiB,
-                    FarRenderer.ARENA_CAP_PROPERTY, wanted / BYTES_PER_MIB);
-            bytes = Math.min(bytes, capMiB * BYTES_PER_MIB);
+        Eminus.LOGGER.info("Geometry arena raised to at least {} MiB by -D{}, {} MiB wanted", floorMiB,
+                FarRenderer.ARENA_FLOOR_PROPERTY, wanted / BYTES_PER_MIB);
+        long bytes = Math.max(wanted, floorMiB * BYTES_PER_MIB);
+        if (bytes > ceiling) {
+            Eminus.LOGGER.info("Geometry arena floor of {} MiB is above the device ceiling: the arena starts at "
+                    + "{} MiB", floorMiB, ceiling / BYTES_PER_MIB);
         }
 
         return bytes;
+    }
+
+    private static long capped(long bytes, long wanted) {
+        Long capMiB = Long.getLong(FarRenderer.ARENA_CAP_PROPERTY);
+        if (capMiB == null) {
+            return bytes;
+        }
+
+        Eminus.LOGGER.info("Geometry arena capped at {} MiB by -D{}, {} MiB wanted", capMiB,
+                FarRenderer.ARENA_CAP_PROPERTY, wanted / BYTES_PER_MIB);
+        return Math.min(bytes, capMiB * BYTES_PER_MIB);
     }
 }

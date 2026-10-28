@@ -213,18 +213,20 @@ public final class Cell {
     }
 
     private void recountOctants() {
-        Arrays.fill(octantCounts, 0);
+        countOctants();
         occupancy = OccupancyMask.EMPTY;
-
-        for (int voxel = 0; voxel < VOXELS; voxel++) {
-            if (!VoxelEntry.isAir(palette[indices[voxel] & INDEX_MASK])) {
-                octantCounts[octantOfVoxel(voxel)]++;
-            }
-        }
-
         for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
             if (octantCounts[octant] > 0) {
                 occupancy = OccupancyMask.set(occupancy, octant);
+            }
+        }
+    }
+
+    private void countOctants() {
+        Arrays.fill(octantCounts, 0);
+        for (int voxel = 0; voxel < VOXELS; voxel++) {
+            if (!VoxelEntry.isAir(palette[indices[voxel] & INDEX_MASK])) {
+                octantCounts[octantOfVoxel(voxel)]++;
             }
         }
     }

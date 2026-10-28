@@ -9,7 +9,7 @@ import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 class ArenaChurnTest {
-    private static final int ARENA_BLOCKS = 100_000;
+    private static final int ARENA_SEGMENTS = 100_000;
     private static final int HIGH_WATER_PERCENT = 85;
     private static final int WHOLE_PERCENT = 100;
     private static final int MIN_QUADS = 2_000;
@@ -19,10 +19,10 @@ class ArenaChurnTest {
     private static final int CYCLES = 2_000;
     private static final long SEED = 20260912L;
 
-    private record Placed(int block, int quads) {
+    private record Placed(int segment, int quads) {
     }
 
-    private final ArenaAllocator allocator = new ArenaAllocator(ARENA_BLOCKS);
+    private final ArenaAllocator allocator = new ArenaAllocator(ARENA_SEGMENTS);
     private final List<Placed> live = new ArrayList<>();
     private final Random churn = new Random(SEED);
 
@@ -43,15 +43,15 @@ class ArenaChurnTest {
             }
         }
 
-        assertTrue(tightest >= ArenaAllocator.blocksFor(MAX_QUADS),
-                "The largest free run fell to " + tightest + " blocks against a largest request of "
-                        + ArenaAllocator.blocksFor(MAX_QUADS) + "; the mark left "
-                        + allocator.freeBlocks() + " blocks free across " + allocator.freeRuns()
+        assertTrue(tightest >= ArenaAllocator.segmentsFor(MAX_QUADS),
+                "The largest free run fell to " + tightest + " segments against a largest request of "
+                        + ArenaAllocator.segmentsFor(MAX_QUADS) + "; the mark left "
+                        + allocator.freeSegments() + " segments free across " + allocator.freeRuns()
                         + " runs holding " + live.size() + " meshes, and " + refusals + " were refused");
     }
 
     private boolean overTheHighWaterMark() {
-        return (long) allocator.usedBlocks() * WHOLE_PERCENT >= (long) ARENA_BLOCKS * HIGH_WATER_PERCENT;
+        return (long) allocator.usedSegments() * WHOLE_PERCENT >= (long) ARENA_SEGMENTS * HIGH_WATER_PERCENT;
     }
 
     private void fillToTheHighWaterMark() {
@@ -61,20 +61,20 @@ class ArenaChurnTest {
     }
 
     private void place(int quads, int cycle) {
-        int wanted = ArenaAllocator.blocksFor(quads);
-        int free = allocator.freeBlocks();
-        int block = allocator.allocate(quads);
+        int wanted = ArenaAllocator.segmentsFor(quads);
+        int free = allocator.freeSegments();
+        int segment = allocator.allocate(quads);
         tightest = Math.min(tightest, allocator.largestFreeRun());
 
-        if (block == ArenaAllocator.NO_BLOCK) {
+        if (segment == ArenaAllocator.NO_SEGMENT) {
             refusals++;
             assertTrue(free < wanted, "Cycle " + cycle + ": a mesh of " + quads + " quads wanting " + wanted
-                    + " blocks was refused while " + free + " blocks were free, the largest run "
-                    + allocator.largestFreeRun() + " blocks across " + allocator.freeRuns() + " runs");
+                    + " segments was refused while " + free + " segments were free, the largest run "
+                    + allocator.largestFreeRun() + " segments across " + allocator.freeRuns() + " runs");
             return;
         }
 
-        live.add(new Placed(block, quads));
+        live.add(new Placed(segment, quads));
     }
 
     private void evictScattered(int count) {
@@ -82,7 +82,7 @@ class ArenaChurnTest {
             int at = churn.nextInt(live.size());
             Placed gone = live.set(at, live.get(live.size() - 1));
             live.remove(live.size() - 1);
-            allocator.free(gone.block(), gone.quads());
+            allocator.free(gone.segment(), gone.quads());
         }
     }
 

@@ -22,13 +22,22 @@ public final class FaceMips {
     public static int[][] colorLevels(int[] face, int side, FaceMip mip, boolean opaque) {
         // A face is stored bottom-up; the game's float sums run over the sprite's rows top-down.
         flipRows(face, side);
-        MipStrategy strategy = mip.strategy();
+        fillEmpty(face, side, mip.strategy());
+        int[][] levels = chain(face, side, mip);
+        finish(levels, side, opaque);
+        return levels;
+    }
+
+    private static void fillEmpty(int[] face, int side, MipStrategy strategy) {
         switch (strategy) {
             case CUTOUT, STRICT_CUTOUT -> Solidify.apply(face, side, side);
             case DARK_CUTOUT -> fillEmptyDark(face, side);
             case MEAN -> { }
         }
+    }
 
+    private static int[][] chain(int[] face, int side, FaceMip mip) {
+        MipStrategy strategy = mip.strategy();
         boolean cutout = strategy != MipStrategy.MEAN;
         float reference = strategy == MipStrategy.STRICT_CUTOUT ? STRICT_CUTOUT_REFERENCE : CUTOUT_REFERENCE;
         float coverage = cutout ? coverage(face, side, reference, 1.0F) : 0.0F;
@@ -43,6 +52,10 @@ public final class FaceMips {
             }
         }
 
+        return levels;
+    }
+
+    private static void finish(int[][] levels, int side, boolean opaque) {
         for (int level = 0; level < levels.length; level++) {
             flipRows(levels[level], side >> level);
             if (opaque) {
@@ -51,8 +64,6 @@ public final class FaceMips {
                 }
             }
         }
-
-        return levels;
     }
 
     private static void flipRows(int[] texels, int side) {
@@ -66,6 +77,17 @@ public final class FaceMips {
     }
 
     private static void fillEmptyDark(int[] face, int side) {
+        int darkest = darkest(face, side);
+        int dark = darkened(darkest, RED_SHIFT) << RED_SHIFT | darkened(darkest, GREEN_SHIFT) << GREEN_SHIFT
+                | darkened(darkest, 0);
+        for (int texel = 0; texel < face.length; texel++) {
+            if ((face[texel] & ALPHA_MASK) == 0) {
+                face[texel] = dark;
+            }
+        }
+    }
+
+    private static int darkest(int[] face, int side) {
         int darkest = UNDRAWN_DARKEST;
         int minBrightness = Integer.MAX_VALUE;
 
@@ -79,13 +101,7 @@ public final class FaceMips {
             }
         }
 
-        int dark = darkened(darkest, RED_SHIFT) << RED_SHIFT | darkened(darkest, GREEN_SHIFT) << GREEN_SHIFT
-                | darkened(darkest, 0);
-        for (int texel = 0; texel < face.length; texel++) {
-            if ((face[texel] & ALPHA_MASK) == 0) {
-                face[texel] = dark;
-            }
-        }
+        return darkest;
     }
 
     private static int brightness(int argb) {
@@ -131,6 +147,14 @@ public final class FaceMips {
     }
 
     private static void scaleAlphaToCoverage(int[] level, int side, float desired, float reference, float bias) {
+        float scale = coverageScale(level, side, desired, reference);
+        for (int texel = 0; texel < level.length; texel++) {
+            float alpha = Argb.alphaFloat(level[texel]) * scale + bias + ALPHA_LIFT;
+            level[texel] = Argb.withAlpha(Math.clamp(alpha, 0.0F, 1.0F), level[texel]);
+        }
+    }
+
+    private static float coverageScale(int[] level, int side, float desired, float reference) {
         float minScale = 0.0F;
         float maxScale = MAX_ALPHA_SCALE;
         float scale = 1.0F;
@@ -158,10 +182,7 @@ public final class FaceMips {
             scale = (minScale + maxScale) * 0.5F;
         }
 
-        for (int texel = 0; texel < level.length; texel++) {
-            float alpha = Argb.alphaFloat(level[texel]) * bestScale + bias + ALPHA_LIFT;
-            level[texel] = Argb.withAlpha(Math.clamp(alpha, 0.0F, 1.0F), level[texel]);
-        }
+        return bestScale;
     }
 
     private FaceMips() {

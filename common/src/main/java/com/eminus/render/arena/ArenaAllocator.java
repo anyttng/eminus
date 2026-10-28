@@ -3,41 +3,41 @@ package com.eminus.render.arena;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 public final class ArenaAllocator {
-    public static final int QUADS_PER_BLOCK = 256;
-    public static final int NO_BLOCK = -1;
+    public static final int QUADS_PER_SEGMENT = 256;
+    public static final int NO_SEGMENT = -1;
 
     private static final int START_SHIFT = 32;
     private static final long LENGTH_MASK = 0xFFFFFFFFL;
 
     private final LongArrayList free = new LongArrayList();
 
-    private int blocks;
+    private int segments;
 
     private int used;
 
-    public ArenaAllocator(int blocks) {
-        if (blocks <= 0) {
-            throw new IllegalArgumentException("An arena of " + blocks + " blocks holds nothing.");
+    public ArenaAllocator(int segments) {
+        if (segments <= 0) {
+            throw new IllegalArgumentException("An arena of " + segments + " segments holds nothing.");
         }
 
-        this.blocks = blocks;
-        free.add(range(0, blocks));
+        this.segments = segments;
+        free.add(range(0, segments));
     }
 
-    public static int blocksFor(int quads) {
-        return (quads + QUADS_PER_BLOCK - 1) / QUADS_PER_BLOCK;
+    public static int segmentsFor(int quads) {
+        return (quads + QUADS_PER_SEGMENT - 1) / QUADS_PER_SEGMENT;
     }
 
-    public int blocks() {
-        return blocks;
+    public int segments() {
+        return segments;
     }
 
-    public int usedBlocks() {
+    public int usedSegments() {
         return used;
     }
 
-    public int freeBlocks() {
-        return blocks - used;
+    public int freeSegments() {
+        return segments - used;
     }
 
     public int largestFreeRun() {
@@ -54,23 +54,23 @@ public final class ArenaAllocator {
         return free.size();
     }
 
-    public void grow(int blocks) {
-        if (blocks <= this.blocks) {
+    public void grow(int segments) {
+        if (segments <= this.segments) {
             throw new IllegalArgumentException(
-                    "An arena of " + this.blocks + " blocks does not grow to " + blocks + " blocks.");
+                    "An arena of " + this.segments + " segments does not grow to " + segments + " segments.");
         }
 
-        free.add(range(this.blocks, blocks - this.blocks));
-        this.blocks = blocks;
+        free.add(range(this.segments, segments - this.segments));
+        this.segments = segments;
         if (free.size() > 1) {
             mergeWithNext(free.size() - 2);
         }
     }
 
     public int allocate(int quads) {
-        int wanted = blocksFor(quads);
+        int wanted = segmentsFor(quads);
         if (wanted == 0) {
-            return NO_BLOCK;
+            return NO_SEGMENT;
         }
 
         for (int index = 0; index < free.size(); index++) {
@@ -91,18 +91,18 @@ public final class ArenaAllocator {
             return start;
         }
 
-        return NO_BLOCK;
+        return NO_SEGMENT;
     }
 
     public void free(int start, int quads) {
-        int length = blocksFor(quads);
+        int length = segmentsFor(quads);
         if (length == 0) {
             return;
         }
 
-        if (start < 0 || start + length > blocks) {
+        if (start < 0 || start + length > segments) {
             throw new IllegalArgumentException(
-                    "Block range " + start + ".." + (start + length) + " is outside an arena of " + blocks + " blocks.");
+                    "Segment range " + start + ".." + (start + length) + " is outside an arena of " + segments + " segments.");
         }
 
         int index = insertionPoint(start);

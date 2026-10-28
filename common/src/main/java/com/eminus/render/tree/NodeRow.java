@@ -12,7 +12,7 @@ public final class NodeRow {
     public static final int CELL_Z = 3;
     public static final int SLOT_PRESENT = 4;
     public static final int SLOT_QUADS = 5;
-    public static final int SLOT_BLOCK = 6;
+    public static final int SLOT_SEGMENT = 6;
     public static final int NODE_PRESENT = 7;
     public static final int MESHED = 8;
     public static final int MESH_QUADS = 9;

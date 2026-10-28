@@ -123,7 +123,7 @@ public final class FacePasses {
         for (int atV = 0; atV < SIDE; atV++) {
             for (int atU = 0; atU < SIDE; atU++) {
                 int row = atV * SIDE + atU;
-                if (!masks.solid(row, plane)) {
+                if (!masks.occupied(row, plane)) {
                     continue;
                 }
 

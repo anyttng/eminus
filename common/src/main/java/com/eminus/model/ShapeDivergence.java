@@ -29,7 +29,6 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
 
     public static ShapeDivergence measure(List<ModelQuad> quads, BakedModel baked, SpriteColumns sprites) {
         float[] depth = new float[BakedModel.FACE_COUNT];
-        float[] bounds = new float[AXES];
         int tilted = 0;
         int blades = 0;
         int lostFaces = FaceMask.NONE;
@@ -65,21 +64,30 @@ public record ShapeDivergence(int quads, float[] depth, float[] bounds, int plan
             }
         }
 
+        return new ShapeDivergence(quads.size(), depth, boundsDrift(quads, baked), mostPlanes(planes), tilted,
+                blades, lostFaces, bladed, bladeScale);
+    }
+
+    private static float[] boundsDrift(List<ModelQuad> quads, BakedModel baked) {
+        float[] drift = new float[AXES];
         if (!quads.isEmpty()) {
             float[] game = FaceRasterizer.bounds(quads);
             for (int axis = 0; axis < AXES; axis++) {
-                bounds[axis] = Math.max(Math.abs(game[axis] - baked.bounds()[axis]),
+                drift[axis] = Math.max(Math.abs(game[axis] - baked.bounds()[axis]),
                         Math.abs(game[axis + AXES] - baked.bounds()[axis + AXES]));
             }
         }
 
+        return drift;
+    }
+
+    private static int mostPlanes(FloatOpenHashSet[] planes) {
         int mostPlanes = 0;
         for (FloatOpenHashSet facePlanes : planes) {
             mostPlanes = Math.max(mostPlanes, facePlanes.size());
         }
 
-        return new ShapeDivergence(quads.size(), depth, bounds, mostPlanes, tilted, blades, lostFaces, bladed,
-                bladeScale);
+        return mostPlanes;
     }
 
     public float bladeDrift() {

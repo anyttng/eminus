@@ -9,7 +9,7 @@ final class TreeHorizon {
     static final int LIFT_FRAMES = 300;
     static final double UNBOUNDED = Double.POSITIVE_INFINITY;
 
-    private static final double UNLOCK_BLOCKS_SQUARED = (double) TreeRing.MOVE_BLOCKS * TreeRing.MOVE_BLOCKS;
+    private static final double UNLOCK_BLOCKS_SQUARED = (double) TreeRoots.MOVE_BLOCKS * TreeRoots.MOVE_BLOCKS;
     private static final double[] RING_DIVISORS = ringDivisors();
 
     private double horizon = UNBOUNDED;

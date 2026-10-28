@@ -22,7 +22,7 @@ public final class RowMasks {
         for (int row = 0; row < ROWS; row++) {
             int v = row / SIDE;
             int u = row % SIDE;
-            long solidBits = 0L;
+            long occupiedBits = 0L;
             long opaqueBits = 0L;
 
             for (int at = -1; at <= SIDE; at++) {
@@ -32,7 +32,7 @@ public final class RowMasks {
                 }
 
                 long bit = 1L << (at + FIRST_VOXEL_BIT);
-                solidBits |= bit;
+                occupiedBits |= bit;
                 if (VoxelEntry.gaps(entry) == VoxelEntry.NO_GAPS
                         && (opacity.opacity(VoxelEntry.state(entry)) >= StateTable.FULL_OPACITY
                                 || opacity.coversGround(entry, voxelBlocks))) {
@@ -40,14 +40,14 @@ public final class RowMasks {
                 }
             }
 
-            nonAir[row] = solidBits;
+            nonAir[row] = occupiedBits;
             opaque[row] = opaqueBits;
             positive[row] = opaqueBits & ~(opaqueBits >>> 1);
             negative[row] = opaqueBits & ~(opaqueBits << 1);
         }
     }
 
-    public boolean solid(int row, int voxel) {
+    public boolean occupied(int row, int voxel) {
         return isSet(nonAir[row], voxel);
     }
 

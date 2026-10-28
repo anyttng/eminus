@@ -223,12 +223,7 @@ final class PackLayer {
 
     private void build(FarRenderer renderer, PackPath chosen) {
         builtFor = renderer;
-        opaque = null;
-        translucent = null;
-        translucentDepth = null;
-        shadow = null;
-        shadowTranslucent = null;
-        shadowDrawn = null;
+        forgetPrograms();
         FarDraw draw = renderer.farDraw();
         Optional<Foreign> foreign = draw.gpu().foreign();
         if (foreign.isEmpty()) {
@@ -251,16 +246,29 @@ final class PackLayer {
             return;
         }
 
+        createFramebuffers(builtOpaque, builtTranslucent);
+        opaque = builtOpaque;
+        translucent = builtTranslucent;
+        translucentDepth = builtDepth;
+        buildShadow(draw, foreign.get());
+    }
+
+    private void forgetPrograms() {
+        opaque = null;
+        translucent = null;
+        translucentDepth = null;
+        shadow = null;
+        shadowTranslucent = null;
+        shadowDrawn = null;
+    }
+
+    private void createFramebuffers(PackProgram builtOpaque, PackProgram builtTranslucent) {
         if (opaqueFramebuffer == null) {
             opaqueFramebuffer = pipeline.createDHFramebuffer(builtOpaque.source(), false);
         }
         if (translucentFramebuffer == null) {
             translucentFramebuffer = pipeline.createDHFramebuffer(builtTranslucent.source(), true);
         }
-        opaque = builtOpaque;
-        translucent = builtTranslucent;
-        translucentDepth = builtDepth;
-        buildShadow(draw, foreign.get());
     }
 
     private void release() {
@@ -270,12 +278,7 @@ final class PackLayer {
                 program.release();
             }
         }
-        opaque = null;
-        translucent = null;
-        translucentDepth = null;
-        shadow = null;
-        shadowTranslucent = null;
-        shadowDrawn = null;
+        forgetPrograms();
     }
 
     private void buildShadow(FarDraw draw, Foreign foreign) {

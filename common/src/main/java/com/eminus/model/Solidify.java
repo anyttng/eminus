@@ -13,9 +13,19 @@ public final class Solidify {
         Arrays.fill(source, UNREACHED);
 
         int[] queue = new int[size];
+        int seeded = seed(argb, width, source, queue);
+        if (seeded == 0 || seeded == size) {
+            return;
+        }
+
+        reach(width, size, source, queue, seeded);
+        recolor(argb, source);
+    }
+
+    private static int seed(int[] argb, int width, int[] source, int[] queue) {
         int tail = 0;
         for (int column = 0; column < width; column++) {
-            for (int index = column; index < size; index += width) {
+            for (int index = column; index < source.length; index += width) {
                 if ((argb[index] & ALPHA_MASK) != 0) {
                     source[index] = index;
                     queue[tail++] = index;
@@ -23,10 +33,11 @@ public final class Solidify {
             }
         }
 
-        if (tail == 0 || tail == size) {
-            return;
-        }
+        return tail;
+    }
 
+    private static void reach(int width, int size, int[] source, int[] queue, int seeded) {
+        int tail = seeded;
         for (int head = 0; head < tail; head++) {
             int index = queue[head];
             int drawn = source[index];
@@ -48,8 +59,10 @@ public final class Solidify {
                 tail = spread(queue, tail, source, index - width, drawn);
             }
         }
+    }
 
-        for (int index = 0; index < size; index++) {
+    private static void recolor(int[] argb, int[] source) {
+        for (int index = 0; index < source.length; index++) {
             if (source[index] != UNREACHED && source[index] != index) {
                 argb[index] = (argb[index] & ALPHA_MASK) | (argb[source[index]] & RGB_MASK);
             }
