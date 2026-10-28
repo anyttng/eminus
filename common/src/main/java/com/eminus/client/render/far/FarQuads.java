@@ -79,7 +79,7 @@ final class FarQuads {
         builder.withBinding(Binding.sampled(ATLAS))
                 .withBinding(Binding.sampled(TINT_MASK))
                 .withBinding(Binding.sampled(LIGHTMAP))
-                .withDefine("QUADS_PER_BLOCK", ArenaAllocator.QUADS_PER_BLOCK)
+                .withDefine("QUADS_PER_SEGMENT", ArenaAllocator.QUADS_PER_SEGMENT)
                 .withDefine("VOXELS_PER_SIDE", DetailLevel.VOXELS_PER_SIDE)
                 .withDefine("MIN_HORIZONTAL", CellKey.MIN_HORIZONTAL)
                 .withDefine("MIN_VERTICAL", CellKey.MIN_VERTICAL)

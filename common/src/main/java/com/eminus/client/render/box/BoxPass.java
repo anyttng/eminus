@@ -126,20 +126,27 @@ public final class BoxPass implements AutoCloseable {
         }
 
         long bytes = BoxRecords.bytes(count);
-        if (records == null || records.size() < bytes) {
-            long capacity = records == null ? bytes : Math.max(bytes, records.size() * 2);
+        Buffer target = reserve(bytes);
+        scratch.clear();
+        BoxRecords.write(snapshot.boxes(), scratch);
+        scratch.flip();
+        gpu.write(target, START_OF_BUFFER, scratch);
+    }
+
+    private Buffer reserve(long bytes) {
+        Buffer target = records;
+        if (target == null || target.size() < bytes) {
+            long capacity = target == null ? bytes : Math.max(bytes, target.size() * 2);
             closeRecords();
-            records = gpu.buffer(RECORDS_LABEL, RECORD_USAGE, capacity);
-            texels = gpu.texelView(records, TEXEL_FORMAT);
+            target = gpu.buffer(RECORDS_LABEL, RECORD_USAGE, capacity);
+            records = target;
+            texels = gpu.texelView(target, TEXEL_FORMAT);
         }
         if (scratch.capacity() < bytes) {
             scratch = ByteBuffer.allocateDirect(Math.toIntExact(bytes)).order(ByteOrder.nativeOrder());
         }
 
-        scratch.clear();
-        BoxRecords.write(snapshot.boxes(), scratch);
-        scratch.flip();
-        gpu.write(records, START_OF_BUFFER, scratch);
+        return target;
     }
 
     public void drawFar(FarTarget target, Matrix4fc farViewProjection, GameFrame game) {

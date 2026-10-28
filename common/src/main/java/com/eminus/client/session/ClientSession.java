@@ -243,6 +243,24 @@ public final class ClientSession {
             swapLevel(current);
         }
 
+        restartOnStaleInputs(minecraft);
+        if (heldChunksPending) {
+            submitHeldChunks();
+        }
+
+        ClientLevel ticking = level;
+        if (ticking == null) {
+            return;
+        }
+
+        IngestService ingest = ingestFor(ticking);
+        if (ingest != null) {
+            ingest.pollDebounce(ticking, System.currentTimeMillis());
+        }
+    }
+
+    @SuppressWarnings("ReferenceEquality")
+    private static void restartOnStaleInputs(Minecraft minecraft) {
         if (renderer != null && minecraft.options.biomeBlendRadius().get() != renderedBiomeBlend) {
             restartRenderer();
         }
@@ -256,20 +274,6 @@ public final class ClientSession {
             Eminus.LOGGER.info("Shader pack's moved blocks changed to {}: the far layer rebuilds",
                     IrisShaderPack.movedIds());
             restartRenderer();
-        }
-
-        if (heldChunksPending) {
-            submitHeldChunks();
-        }
-
-        ClientLevel ticking = level;
-        if (ticking == null) {
-            return;
-        }
-
-        IngestService ingest = ingestFor(ticking);
-        if (ingest != null) {
-            ingest.pollDebounce(ticking, System.currentTimeMillis());
         }
     }
 
@@ -383,16 +387,22 @@ public final class ClientSession {
 
     private static void startRenderer(Gpu gpu, long replacedArenaBytes) {
         Minecraft minecraft = Minecraft.getInstance();
-        rendered = SettingsService.get().settings();
+        Settings settings = captureRenderedInputs(minecraft);
+        FarStart start = FarRenderer.start(minecraft, gpu, Objects.requireNonNull(instance, IN_SESSION),
+                Objects.requireNonNull(runtime, WITH_LEVEL), Objects.requireNonNull(level, WITH_LEVEL).getHeight(),
+                settings, replacedArenaBytes, renderedPackBlocks);
+        renderer = start.renderer();
+        refusal = start.refusal();
+    }
+
+    private static Settings captureRenderedInputs(Minecraft minecraft) {
+        Settings settings = SettingsService.get().settings();
+        rendered = settings;
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
         renderedPackIds = IrisShaderPack.packIds(renderedPackIds);
         renderedPackBlocks = renderedPackIds == null ? PackBlocks.NONE
                 : new PackBlocks(renderedPackIds, IrisShaderPack.movedIds());
-        FarStart start = FarRenderer.start(minecraft, gpu, Objects.requireNonNull(instance, IN_SESSION),
-                Objects.requireNonNull(runtime, WITH_LEVEL), Objects.requireNonNull(level, WITH_LEVEL).getHeight(),
-                rendered, replacedArenaBytes, renderedPackBlocks);
-        renderer = start.renderer();
-        refusal = start.refusal();
+        return settings;
     }
 
     private static void stopRenderer() {

@@ -14,22 +14,22 @@ class LodQualityTest {
 
     @Test
     void ultraDrawsSeeThroughLeaves() {
-        assertTrue(preset(LodChoice.ULTRA).cutoutLeaves());
+        assertTrue(preset(LodChoice.ULTRA).seeThroughLeaves());
     }
 
     @Test
     void everyOtherPresetDrawsLeavesOpaque() {
         for (LodChoice choice : presets()) {
             if (choice != LodChoice.ULTRA) {
-                assertFalse(preset(choice).cutoutLeaves(), choice.key());
+                assertFalse(preset(choice).seeThroughLeaves(), choice.key());
             }
         }
     }
 
     @Test
     void eachLeafModeCutsOutOrNot() {
-        assertTrue(LeafMode.SEE_THROUGH.cutout());
-        assertFalse(LeafMode.OPAQUE.cutout());
+        assertTrue(LeafMode.SEE_THROUGH.seeThrough());
+        assertFalse(LeafMode.OPAQUE.seeThrough());
         assertEquals(LeafMode.SEE_THROUGH, LeafMode.of(true));
         assertEquals(LeafMode.OPAQUE, LeafMode.of(false));
     }
@@ -135,7 +135,7 @@ class LodQualityTest {
     void eachDetailActsOnItsOwn() {
         LodQuality seeThroughAlone = preset(LodChoice.HIGH).withLeaves(LeafMode.SEE_THROUGH);
 
-        assertTrue(seeThroughAlone.cutoutLeaves());
+        assertTrue(seeThroughAlone.seeThroughLeaves());
         assertFalse(seeThroughAlone.drawsBlades());
         assertEquals(0, seeThroughAlone.atlasFirstMip());
         assertEquals(1, preset(LodChoice.HIGH).withFullTextures(false).atlasFirstMip());

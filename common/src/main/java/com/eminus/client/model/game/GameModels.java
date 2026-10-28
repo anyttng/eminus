@@ -21,9 +21,10 @@ public record GameModels(BlockModels blocks, BlockTints tints, FluidModels fluid
         loader = chosen;
     }
 
-    public static GameModels of(Minecraft client, boolean cutoutLeaves) {
+    public static GameModels of(Minecraft client, boolean seeThroughLeaves) {
         LoaderModels models = loader();
-        BlockModels blocks = new GameBlockModels(client.getModelManager().getBlockModelShaper(), cutoutLeaves, models);
+        BlockModels blocks = new GameBlockModels(client.getModelManager().getBlockModelShaper(), seeThroughLeaves,
+                models);
         return new GameModels(blocks, new GameTints(client.getBlockColors(), blocks), new GameFluids(models),
                 biomes(client.level));
     }

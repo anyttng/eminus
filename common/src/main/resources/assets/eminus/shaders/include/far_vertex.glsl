@@ -172,7 +172,7 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
     int corner = vertexId % EMINUS_CORNERS_PER_QUAD;
     vec2 unit = vec2(corner == 1 || corner == 2 ? 1.0 : 0.0, corner >= 2 ? 1.0 : 0.0);
 
-    uvec4 mesh = texelFetch(EminusMeshRecords,quadIndex / QUADS_PER_BLOCK);
+    uvec4 mesh = texelFetch(EminusMeshRecords,quadIndex / QUADS_PER_SEGMENT);
     int level = int(eminus_field(mesh.xy, CELL_LEVEL_SHIFT, CELL_LEVEL_BITS));
     int cellX = int(eminus_field(mesh.xy, CELL_X_SHIFT, CELL_HORIZONTAL_BITS)) + MIN_HORIZONTAL;
     int cellZ = int(eminus_field(mesh.xy, CELL_Z_SHIFT, CELL_HORIZONTAL_BITS)) + MIN_HORIZONTAL;

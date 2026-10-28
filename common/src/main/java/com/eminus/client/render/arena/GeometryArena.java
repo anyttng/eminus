@@ -83,20 +83,20 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
             return null;
         }
 
-        int blocks = ArenaSizing.blocks(bytes);
-        ArenaAllocator allocator = new ArenaAllocator(blocks);
-        MeshRecords records = MeshRecords.create(gpu, blocks);
+        int segments = ArenaSizing.segments(bytes);
+        ArenaAllocator allocator = new ArenaAllocator(segments);
+        MeshRecords records = MeshRecords.create(gpu, segments);
         if (sparse == null) {
             Buffer quads = gpu.buffer(LABEL, USAGE, bytes);
-            Eminus.LOGGER.info("Geometry arena of {} MiB: {} blocks of {} quads",
-                    bytes >> MIB_SHIFT, blocks, ArenaAllocator.QUADS_PER_BLOCK);
+            Eminus.LOGGER.info("Geometry arena of {} MiB: {} segments of {} quads",
+                    bytes >> MIB_SHIFT, segments, ArenaAllocator.QUADS_PER_SEGMENT);
             return new GeometryArena(gpu, quads, null, null, bytes, allocator, records, ArenaUploader.create(gpu));
         }
 
         SparseBuffer quads = sparse.reserve(LABEL, USAGE, bytes);
-        ArenaPages pages = new ArenaPages(blocks, ArenaSizing.blocksPerPage(sparse.pageBytes()));
-        Eminus.LOGGER.info("Geometry arena reserved {} MiB as a sparse buffer: {} blocks of {} quads in {} pages of {}"
-                        + " KiB, 0 MiB committed", bytes >> MIB_SHIFT, blocks, ArenaAllocator.QUADS_PER_BLOCK,
+        ArenaPages pages = new ArenaPages(segments, ArenaSizing.segmentsPerPage(sparse.pageBytes()));
+        Eminus.LOGGER.info("Geometry arena reserved {} MiB as a sparse buffer: {} segments of {} quads in {} pages"
+                        + " of {} KiB, 0 MiB committed", bytes >> MIB_SHIFT, segments, ArenaAllocator.QUADS_PER_SEGMENT,
                 pages.pages(), sparse.pageBytes() >> KIB_SHIFT);
         return new GeometryArena(gpu, quads, quads, pages, bytes, allocator, records, ArenaUploader.create(gpu));
     }
@@ -113,14 +113,14 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         return held.size();
     }
 
-    public int usedBlocks() {
-        return allocator.usedBlocks();
+    public int usedSegments() {
+        return allocator.usedSegments();
     }
 
     public ArenaState state() {
         return new ArenaState(bytes, committedBytes(), pages == null ? PLAIN : pageBytes(pages, 1),
-                allocator.blocks(), held.size(), allocator.usedBlocks(),
-                allocator.freeBlocks(), allocator.largestFreeRun(), allocator.freeRuns(), refusedTotal, pressure());
+                allocator.segments(), held.size(), allocator.usedSegments(),
+                allocator.freeSegments(), allocator.largestFreeRun(), allocator.freeRuns(), refusedTotal, pressure());
     }
 
     public long committedBytes() {
@@ -139,6 +139,17 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     public int accept(List<CellMesh> meshes, int from) {
         gpu.assertRenderThread();
         refused = 0;
+        int index = upload(meshes, from);
+        if (refused > 0) {
+            warnAboutRefusals();
+        }
+
+        compactIfFits();
+        updatePressure();
+        return index;
+    }
+
+    private int upload(List<CellMesh> meshes, int from) {
         int index = from;
 
         try (ArenaUploader.Step step = uploader.step()) {
@@ -160,26 +171,23 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
                 if (placed == null) {
                     refuse(mesh.quadCount());
                 } else {
-                    step.copy(staged, quads, placed.block() * ArenaSizing.BLOCK_BYTES);
+                    step.copy(staged, quads, placed.segment() * ArenaSizing.SEGMENT_BYTES);
                 }
 
                 index++;
             }
         }
 
-        if (refused > 0) {
-            warnAboutRefusals();
-        }
+        return index;
+    }
 
-        compactIfFits();
-        if (pressure.update(allocator.usedBlocks(), ArenaSizing.blocks(targetBytes), refused > 0)
+    private void updatePressure() {
+        if (pressure.update(allocator.usedSegments(), ArenaSizing.segments(targetBytes), refused > 0)
                 && !announcedPressure) {
             announcedPressure = true;
             Eminus.LOGGER.info("Geometry arena of {} MiB is full: the far layer stops refining and is drawn coarser"
                     + " than the detail distance asks", targetBytes >> MIB_SHIFT);
         }
-
-        return index;
     }
 
     public void resize(long wanted) {
@@ -199,57 +207,57 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     }
 
     private void grow(long wanted) {
-        int blocks = ArenaSizing.blocks(wanted);
+        int segments = ArenaSizing.segments(wanted);
         Buffer grown = gpu.buffer(LABEL, USAGE, wanted);
         gpu.copy(quads, 0, grown, 0, bytes);
-        Eminus.LOGGER.info("Geometry arena grew in place from {} to {} MiB: {} blocks of {} quads",
-                bytes >> MIB_SHIFT, wanted >> MIB_SHIFT, blocks, ArenaAllocator.QUADS_PER_BLOCK);
+        Eminus.LOGGER.info("Geometry arena grew in place from {} to {} MiB: {} segments of {} quads",
+                bytes >> MIB_SHIFT, wanted >> MIB_SHIFT, segments, ArenaAllocator.QUADS_PER_SEGMENT);
         replaceQuads(grown, wanted);
-        allocator.grow(blocks);
-        records = records.grown(blocks);
+        allocator.grow(segments);
+        records = records.grown(segments);
     }
 
     private void compactIfFits() {
-        int blocks = ArenaSizing.blocks(targetBytes);
-        if (targetBytes >= bytes || allocator.usedBlocks() > blocks) {
+        int segments = ArenaSizing.segments(targetBytes);
+        if (targetBytes >= bytes || allocator.usedSegments() > segments) {
             return;
         }
 
         Buffer packed = gpu.buffer(LABEL, USAGE, targetBytes);
-        ArenaAllocator packing = new ArenaAllocator(blocks);
-        MeshRecords packedRecords = MeshRecords.create(gpu, blocks);
+        ArenaAllocator packing = new ArenaAllocator(segments);
+        MeshRecords packedRecords = MeshRecords.create(gpu, segments);
         MeshSlot[] slots = held.values().toArray(MeshSlot[]::new);
-        Arrays.sort(slots, Comparator.comparingInt(MeshSlot::block));
+        Arrays.sort(slots, Comparator.comparingInt(MeshSlot::segment));
         int runFrom = 0;
         int runTo = 0;
         int runTarget = 0;
         for (MeshSlot slot : slots) {
-            int length = ArenaAllocator.blocksFor(slot.slots());
-            int block = packing.allocate(slot.slots());
-            if (slot.block() != runTo || block != runTarget + runTo - runFrom) {
-                copyBlocks(packed, runFrom, runTarget, runTo - runFrom);
-                runFrom = slot.block();
-                runTarget = block;
+            int length = ArenaAllocator.segmentsFor(slot.slots());
+            int segment = packing.allocate(slot.slots());
+            if (slot.segment() != runTo || segment != runTarget + runTo - runFrom) {
+                copySegments(packed, runFrom, runTarget, runTo - runFrom);
+                runFrom = slot.segment();
+                runTarget = segment;
             }
-            runTo = slot.block() + length;
-            MeshSlot moved = slot.at(block);
+            runTo = slot.segment() + length;
+            MeshSlot moved = slot.at(segment);
             held.put(slot.key(), moved);
             packedRecords.write(moved);
         }
-        copyBlocks(packed, runFrom, runTarget, runTo - runFrom);
+        copySegments(packed, runFrom, runTarget, runTo - runFrom);
 
-        Eminus.LOGGER.info("Geometry arena compacted from {} to {} MiB: {} meshes in {} blocks",
-                bytes >> MIB_SHIFT, targetBytes >> MIB_SHIFT, slots.length, packing.usedBlocks());
+        Eminus.LOGGER.info("Geometry arena compacted from {} to {} MiB: {} meshes in {} segments",
+                bytes >> MIB_SHIFT, targetBytes >> MIB_SHIFT, slots.length, packing.usedSegments());
         replaceQuads(packed, targetBytes);
         allocator = packing;
         records.close();
         records = packedRecords;
     }
 
-    private void copyBlocks(Buffer target, int from, int to, int length) {
+    private void copySegments(Buffer target, int from, int to, int length) {
         if (length > 0) {
-            gpu.copy(quads, from * ArenaSizing.BLOCK_BYTES, target, to * ArenaSizing.BLOCK_BYTES,
-                    length * ArenaSizing.BLOCK_BYTES);
+            gpu.copy(quads, from * ArenaSizing.SEGMENT_BYTES, target, to * ArenaSizing.SEGMENT_BYTES,
+                    length * ArenaSizing.SEGMENT_BYTES);
         }
     }
 
@@ -270,14 +278,14 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     }
 
     private @Nullable MeshSlot place(CellMesh mesh) {
-        int block = allocator.allocate(mesh.slotCount());
-        if (block == ArenaAllocator.NO_BLOCK) {
+        int segment = allocator.allocate(mesh.slotCount());
+        if (segment == ArenaAllocator.NO_SEGMENT) {
             return null;
         }
 
-        MeshSlot placed = MeshSlot.of(mesh, block);
+        MeshSlot placed = MeshSlot.of(mesh, segment);
         if (pages != null && sparseQuads != null) {
-            ArenaPages.PageRun run = pages.place(block, ArenaAllocator.blocksFor(mesh.slotCount()));
+            ArenaPages.PageRun run = pages.place(segment, ArenaAllocator.segmentsFor(mesh.slotCount()));
             if (!run.isEmpty()) {
                 sparseQuads.commit(pageBytes(pages, run.first()), pageBytes(pages, run.count()));
             }
@@ -302,9 +310,9 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         }
 
         lastWarning = now;
-        Eminus.LOGGER.warn("{} cells of up to {} quads do not fit the arena and are dropped: {} free blocks, "
-                        + "largest free run {} blocks, {} free runs",
-                refusedSinceWarning, refusedQuadsMax, allocator.freeBlocks(), allocator.largestFreeRun(),
+        Eminus.LOGGER.warn("{} cells of up to {} quads do not fit the arena and are dropped: {} free segments, "
+                        + "largest free run {} segments, {} free runs",
+                refusedSinceWarning, refusedQuadsMax, allocator.freeSegments(), allocator.largestFreeRun(),
                 allocator.freeRuns());
         refusedSinceWarning = 0;
         refusedQuadsMax = 0;
@@ -316,9 +324,9 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
             return;
         }
 
-        allocator.free(released.block(), released.slots());
+        allocator.free(released.segment(), released.slots());
         if (pages != null && sparseQuads != null) {
-            ArenaPages.PageRun run = pages.free(released.block(), ArenaAllocator.blocksFor(released.slots()));
+            ArenaPages.PageRun run = pages.free(released.segment(), ArenaAllocator.segmentsFor(released.slots()));
             if (!run.isEmpty()) {
                 sparseQuads.decommit(pageBytes(pages, run.first()), pageBytes(pages, run.count()));
             }
@@ -326,7 +334,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     }
 
     private static long pageBytes(ArenaPages pages, int count) {
-        return (long) count * pages.blocksPerPage() * ArenaSizing.BLOCK_BYTES;
+        return (long) count * pages.segmentsPerPage() * ArenaSizing.SEGMENT_BYTES;
     }
 
     @Override

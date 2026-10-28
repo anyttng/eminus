@@ -12,7 +12,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
-public record GameBlockModels(BlockModelShaper shaper, boolean cutoutLeaves, LoaderModels loader)
+public record GameBlockModels(BlockModelShaper shaper, boolean seeThroughLeaves, LoaderModels loader)
         implements BlockModels {
     private static final boolean OPAQUE_LEAVES = false;
 
@@ -33,7 +33,7 @@ public record GameBlockModels(BlockModelShaper shaper, boolean cutoutLeaves, Loa
 
     @Override
     public boolean forceOpaque(BlockState state) {
-        return forceOpaque(cutoutLeaves, state);
+        return forceOpaque(seeThroughLeaves, state);
     }
 
     @Override
@@ -46,7 +46,7 @@ public record GameBlockModels(BlockModelShaper shaper, boolean cutoutLeaves, Loa
         return GameBlockModel.VARIANT_DRAW;
     }
 
-    private static boolean forceOpaque(boolean cutoutLeaves, BlockState state) {
-        return !cutoutLeaves && state.getBlock() instanceof LeavesBlock;
+    private static boolean forceOpaque(boolean seeThroughLeaves, BlockState state) {
+        return !seeThroughLeaves && state.getBlock() instanceof LeavesBlock;
     }
 }

@@ -15,8 +15,8 @@ public record LodQuality(int storedLevel, LeafMode leaves, boolean drawsBlades, 
         }
     }
 
-    public boolean cutoutLeaves() {
-        return leaves.cutout();
+    public boolean seeThroughLeaves() {
+        return leaves.seeThrough();
     }
 
     public int atlasFirstMip() {

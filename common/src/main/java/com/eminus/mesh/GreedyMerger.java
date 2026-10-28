@@ -129,6 +129,10 @@ public final class GreedyMerger {
             index++;
         }
 
+        swapRows(grownCount);
+    }
+
+    private void swapRows(int grownCount) {
         int[] carriedRuns = open;
         long[] carriedData = openData;
         int[] carriedOcclusion = openOcclusion;

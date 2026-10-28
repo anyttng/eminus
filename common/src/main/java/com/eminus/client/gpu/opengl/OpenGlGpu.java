@@ -369,20 +369,24 @@ public final class OpenGlGpu implements Gpu, Foreign {
         }
 
         if (quadIndexCapacity < maxIndices) {
-            int quads = Math.ceilDiv(maxIndices, INDICES_PER_QUAD);
-            IntBuffer indices = MemoryUtil.memAllocInt(quads * INDICES_PER_QUAD);
-            try {
-                for (int quad = 0; quad < quads; quad++) {
-                    for (int corner : QUAD_CORNERS) {
-                        indices.put(quad * VERTICES_PER_QUAD + corner);
-                    }
-                }
-                GL15C.glBufferData(GL15C.GL_ELEMENT_ARRAY_BUFFER, indices.flip(), GL15C.GL_STATIC_DRAW);
-            } finally {
-                MemoryUtil.memFree(indices);
-            }
-            quadIndexCapacity = quads * INDICES_PER_QUAD;
+            fillQuadIndices(maxIndices);
         }
+    }
+
+    private void fillQuadIndices(int maxIndices) {
+        int quads = Math.ceilDiv(maxIndices, INDICES_PER_QUAD);
+        IntBuffer indices = MemoryUtil.memAllocInt(quads * INDICES_PER_QUAD);
+        try {
+            for (int quad = 0; quad < quads; quad++) {
+                for (int corner : QUAD_CORNERS) {
+                    indices.put(quad * VERTICES_PER_QUAD + corner);
+                }
+            }
+            GL15C.glBufferData(GL15C.GL_ELEMENT_ARRAY_BUFFER, indices.flip(), GL15C.GL_STATIC_DRAW);
+        } finally {
+            MemoryUtil.memFree(indices);
+        }
+        quadIndexCapacity = quads * INDICES_PER_QUAD;
     }
 
     @Override

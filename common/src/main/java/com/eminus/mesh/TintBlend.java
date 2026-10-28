@@ -78,6 +78,11 @@ public final class TintBlend {
         int window = SIDE + 2 * radius;
         int stride = window + 1;
         clearBorders(stride, window);
+        sumWindow(row, y, window, stride);
+        average(stride, into);
+    }
+
+    private void sumWindow(int row, int y, int window, int stride) {
         int lastBiome = VoxelEntry.UNKNOWN_BIOME;
         int lastColor = NO_COLOR;
         boolean lastPositional = false;
@@ -118,7 +123,9 @@ public final class TintBlend {
                 count[at] = count[at - stride] + rowCount;
             }
         }
+    }
 
+    private void average(int stride, int[] into) {
         int span = 2 * radius + 1;
         for (int z = 0; z < SIDE; z++) {
             for (int x = 0; x < SIDE; x++) {

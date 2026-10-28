@@ -57,16 +57,25 @@ public final class FaceRasterizer {
     }
 
     public BakedModel rasterize(List<ModelQuad> quads, QuadTexels texels, IntFunction<Tint> tints, boolean opaque) {
+        reset(opaque);
+        List<Facing> facings = facings(quads);
+        return bladed(quads) ? blades(quads, facings, texels, tints) : box(quads, facings, texels, tints);
+    }
+
+    private void reset(boolean opaque) {
         forceOpaque = opaque;
         painter.opaque(opaque);
         Arrays.fill(mips, FaceMip.MEAN);
         Arrays.fill(shades, null);
+    }
+
+    private static List<Facing> facings(List<ModelQuad> quads) {
         List<Facing> facings = new ArrayList<>(quads.size());
         for (ModelQuad quad : quads) {
             facings.add(new Facing(quad, normal(quad)));
         }
 
-        return bladed(quads) ? blades(quads, facings, texels, tints) : box(quads, facings, texels, tints);
+        return facings;
     }
 
     private BakedModel box(List<ModelQuad> quads, List<Facing> facings, QuadTexels texels,
@@ -89,14 +98,26 @@ public final class FaceRasterizer {
         float[] bounds = bounds(quads);
         float[] frame = {bounds[BakedModel.MIN_X], bounds[BakedModel.MAX_X] - bounds[BakedModel.MIN_X],
                 bounds[BakedModel.MIN_Y], bounds[BakedModel.MAX_Y] - bounds[BakedModel.MIN_Y]};
-        List<Facing> planes = new ArrayList<>();
+        paintBlades(facings, frame, faces, tintMask, insets, texels);
 
+        float[] slopes = new float[BakedModel.SLOPES_LENGTH];
+        int flags = boxFaces(planes(facings), BakedModel.FIRST_SIDE_FACE, faces, tintMask, insets, slopes, texels);
+        return model(quads, faces, tintMask, insets, slopes, bounds, tints, flags | ModelMetadata.BLADED);
+    }
+
+    private static List<Facing> planes(List<Facing> facings) {
+        List<Facing> planes = new ArrayList<>();
         for (Facing facing : facings) {
             if (!blade(facing.normal())) {
                 planes.add(facing);
             }
         }
 
+        return planes;
+    }
+
+    private void paintBlades(List<Facing> facings, float[] frame, int[] faces, long[] tintMask, float[] insets,
+            QuadTexels texels) {
         for (int blade = 0; blade < BLADE_COUNT; blade++) {
             painter.clear();
             int offset = blade * BakedModel.FACE_TEXELS;
@@ -112,10 +133,6 @@ public final class FaceRasterizer {
             mips[blade] = painter.mip();
             shades[blade] = painter.shade(FACES[blade]);
         }
-
-        float[] slopes = new float[BakedModel.SLOPES_LENGTH];
-        int flags = boxFaces(planes, BakedModel.FIRST_SIDE_FACE, faces, tintMask, insets, slopes, texels);
-        return model(quads, faces, tintMask, insets, slopes, bounds, tints, flags | ModelMetadata.BLADED);
     }
 
     private int boxFaces(List<Facing> quads, int firstFace, int[] faces, long[] tintMask, float[] insets,
@@ -240,7 +257,10 @@ public final class FaceRasterizer {
 
         mips[face] = painter.mip();
         shades[face] = painter.shade(FACES[face]);
+        measureFace(face, faces, insets, offset);
+    }
 
+    private void measureFace(int face, int[] faces, float[] insets, int offset) {
         float nearest = Float.MAX_VALUE;
         float furthest = 0.0F;
         int drawn = 0;

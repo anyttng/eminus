@@ -72,6 +72,18 @@ final class OpenGlPipeline implements Pipeline {
             return new OpenGlPipeline(spec, NO_PROGRAM, Map.of(), firstUnit);
         }
 
+        int program = link(name, vertex, fragment);
+        if (program == NO_PROGRAM) {
+            return new OpenGlPipeline(spec, NO_PROGRAM, Map.of(), firstUnit);
+        }
+
+        objects.created(OpenGlObjects.Kind.PROGRAM, program, name);
+        Map<String, @Nullable Slot> slots = new HashMap<>();
+        int textureUnits = resolve(program, spec, slots, firstUnit);
+        return new OpenGlPipeline(spec, program, slots, textureUnits);
+    }
+
+    private static int link(String name, int vertex, int fragment) {
         int program = GL20C.glCreateProgram();
         GL20C.glAttachShader(program, vertex);
         GL20C.glAttachShader(program, fragment);
@@ -83,13 +95,10 @@ final class OpenGlPipeline implements Pipeline {
         if (GL20C.glGetProgrami(program, GL20C.GL_LINK_STATUS) == GL11C.GL_FALSE) {
             Eminus.LOGGER.error("Program {} did not link: {}", name, GL20C.glGetProgramInfoLog(program, LOG_LENGTH).strip());
             GL20C.glDeleteProgram(program);
-            return new OpenGlPipeline(spec, NO_PROGRAM, Map.of(), firstUnit);
+            return NO_PROGRAM;
         }
 
-        objects.created(OpenGlObjects.Kind.PROGRAM, program, name);
-        Map<String, @Nullable Slot> slots = new HashMap<>();
-        int textureUnits = resolve(program, spec, slots, firstUnit);
-        return new OpenGlPipeline(spec, program, slots, textureUnits);
+        return program;
     }
 
     static void requireTextureUnits(PipelineSpec spec, int firstUnit) {
@@ -171,15 +180,18 @@ final class OpenGlPipeline implements Pipeline {
             }
         }
         GL20C.glUseProgram(NO_PROGRAM);
+        logResolved(spec, slots, nextBlock, nextUnit);
+        return nextUnit;
+    }
 
+    private static void logResolved(PipelineSpec spec, Map<String, @Nullable Slot> slots, int blocks, int units) {
         StringBuilder resolved = new StringBuilder();
         for (Map.Entry<String, @Nullable Slot> slot : slots.entrySet()) {
             resolved.append(' ').append(slot.getKey()).append(':')
                     .append(slot.getValue() == null ? INACTIVE : slot.getValue().kind() + "" + slot.getValue().index());
         }
         Eminus.LOGGER.info("[eminus/gl] program name={} blocks={} units={} text={}", spec.location(),
-                nextBlock, nextUnit, resolved.toString().strip());
-        return nextUnit;
+                blocks, units, resolved.toString().strip());
     }
 
     PipelineSpec spec() {
