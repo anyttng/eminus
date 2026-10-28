@@ -52,8 +52,23 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
     @Override
     public void registerConfigLate(ConfigBuilder builder) {
         Settings defaults = Settings.defaults();
+        OptionGroupBuilder general = general(builder, defaults);
+        OptionGroupBuilder appearance = appearance(builder, defaults);
+        OptionGroupBuilder building = building(builder, defaults);
+        OptionPageBuilder page = builder.createOptionPage()
+                .setName(Component.translatable(SettingsText.TITLE_KEY))
+                .addOptionGroup(general)
+                .addOptionGroup(appearance)
+                .addOptionGroup(building);
+        if (IrisShaderPack.installed()) {
+            page.addOptionGroup(shaderPacks(builder, defaults));
+        }
 
-        OptionGroupBuilder general = builder.createOptionGroup()
+        builder.registerOwnModOptions().addPage(page);
+    }
+
+    private OptionGroupBuilder general(ConfigBuilder builder, Settings defaults) {
+        return builder.createOptionGroup()
                 .setName(Component.translatable(SettingsText.GENERAL_CATEGORY_KEY))
                 .addOption(builder.createIntegerOption(id(LOD_QUALITY_ID))
                         .setName(Component.translatable(SettingsText.LOD_QUALITY_KEY))
@@ -99,7 +114,10 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setDefaultValue(defaults.ingestion())
                         .setBinding(value -> edit(settings -> settings.withIngestion(value)),
                                 () -> current().ingestion()));
-        OptionGroupBuilder appearance = builder.createOptionGroup()
+    }
+
+    private OptionGroupBuilder appearance(ConfigBuilder builder, Settings defaults) {
+        return builder.createOptionGroup()
                 .setName(Component.translatable(SettingsText.APPEARANCE_CATEGORY_KEY))
                 .addOption(builder.createBooleanOption(id(FOG_ID))
                         .setName(Component.translatable(SettingsText.FOG_KEY))
@@ -115,7 +133,10 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setDefaultValue(defaults.fade())
                         .setBinding(value -> edit(settings -> settings.withFade(value)),
                                 () -> current().fade()));
-        OptionGroupBuilder building = builder.createOptionGroup()
+    }
+
+    private OptionGroupBuilder building(ConfigBuilder builder, Settings defaults) {
+        return builder.createOptionGroup()
                 .setName(Component.translatable(SettingsText.BUILDING_CATEGORY_KEY))
                 .addOption(builder.createIntegerOption(id(WORKER_THREADS_ID))
                         .setName(Component.translatable(SettingsText.WORKER_THREADS_KEY))
@@ -126,35 +147,29 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
                         .setDefaultValue(defaults.workerThreads())
                         .setBinding(value -> edit(settings -> settings.withWorkerThreads(value)),
                                 () -> current().workerThreads()));
-        OptionPageBuilder page = builder.createOptionPage()
-                .setName(Component.translatable(SettingsText.TITLE_KEY))
-                .addOptionGroup(general)
-                .addOptionGroup(appearance)
-                .addOptionGroup(building);
-        if (IrisShaderPack.installed()) {
-            page.addOptionGroup(builder.createOptionGroup()
-                    .setName(Component.translatable(SettingsText.SHADER_PACKS_CATEGORY_KEY))
-                    .addOption(builder.createEnumOption(id(SHADER_PACK_LOD_ID), ShaderPackLod.class)
-                            .setName(Component.translatable(SettingsText.SHADER_PACK_LOD_KEY))
-                            .setTooltip(value -> SettingsText.withRestart(SettingsText.shaderPackLodHint(),
-                                    OptionCost.SHADER_PACK_LOD))
-                            .setStorageHandler(this::save)
-                            .setElementNameProvider(SettingsText::shaderPackLod)
-                            .setDefaultValue(defaults.shaderPackLod())
-                            .setBinding(value -> edit(settings -> settings.withShaderPackLod(value)),
-                                    () -> current().shaderPackLod()))
-                    .addOption(builder.createBooleanOption(id(LOD_ANIMATIONS_ID))
-                            .setName(Component.translatable(SettingsText.LOD_ANIMATIONS_KEY))
-                            .setTooltip(value -> SettingsText.withRestart(
-                                    SettingsText.toggleHint(SettingsText.LOD_ANIMATIONS_KEY), OptionCost.LOD_ANIMATIONS))
-                            .setImpact(impact(OptionCost.LOD_ANIMATIONS))
-                            .setStorageHandler(this::save)
-                            .setDefaultValue(defaults.lodAnimations())
-                            .setBinding(value -> edit(settings -> settings.withLodAnimations(value)),
-                                    () -> current().lodAnimations())));
-        }
+    }
 
-        builder.registerOwnModOptions().addPage(page);
+    private OptionGroupBuilder shaderPacks(ConfigBuilder builder, Settings defaults) {
+        return builder.createOptionGroup()
+                .setName(Component.translatable(SettingsText.SHADER_PACKS_CATEGORY_KEY))
+                .addOption(builder.createEnumOption(id(SHADER_PACK_LOD_ID), ShaderPackLod.class)
+                        .setName(Component.translatable(SettingsText.SHADER_PACK_LOD_KEY))
+                        .setTooltip(value -> SettingsText.withRestart(SettingsText.shaderPackLodHint(),
+                                OptionCost.SHADER_PACK_LOD))
+                        .setStorageHandler(this::save)
+                        .setElementNameProvider(SettingsText::shaderPackLod)
+                        .setDefaultValue(defaults.shaderPackLod())
+                        .setBinding(value -> edit(settings -> settings.withShaderPackLod(value)),
+                                () -> current().shaderPackLod()))
+                .addOption(builder.createBooleanOption(id(LOD_ANIMATIONS_ID))
+                        .setName(Component.translatable(SettingsText.LOD_ANIMATIONS_KEY))
+                        .setTooltip(value -> SettingsText.withRestart(
+                                SettingsText.toggleHint(SettingsText.LOD_ANIMATIONS_KEY), OptionCost.LOD_ANIMATIONS))
+                        .setImpact(impact(OptionCost.LOD_ANIMATIONS))
+                        .setStorageHandler(this::save)
+                        .setDefaultValue(defaults.lodAnimations())
+                        .setBinding(value -> edit(settings -> settings.withLodAnimations(value)),
+                                () -> current().lodAnimations()));
     }
 
     private void edit(UnaryOperator<Settings> edit) {

@@ -28,10 +28,10 @@ import org.junit.jupiter.api.Test;
 class DrawCommandsTest {
     private static final int CAPACITY = 4;
     private static final int LEVEL = 0;
-    private static final int BLOCK = 3;
+    private static final int SEGMENT = 3;
     private static final int NO_COLORS = 0;
     private static final int NO_STREAM = 0;
-    private static final int FAR_BLOCK = 9;
+    private static final int FAR_SEGMENT = 9;
     private static final int UP_QUADS = 5;
     private static final int DOWN_QUADS = 7;
     private static final int WATER_QUADS = 2;
@@ -74,7 +74,7 @@ class DrawCommandsTest {
 
     @Test
     void aVisibleGroupBecomesOneCommandOverItsOwnQuadRange() {
-        write(slots(slot(key, BLOCK)), FAR_ABOVE);
+        write(slots(slot(key, SEGMENT)), FAR_ABOVE);
 
         assertEquals(1, commands.opaqueCount());
         assertEquals(UP_QUADS, commands.quads());
@@ -84,14 +84,14 @@ class DrawCommandsTest {
         assertEquals(UP_QUADS * INDICES_PER_QUAD, written.get(INDEX_COUNT));
         assertEquals(1, written.get(INSTANCE_COUNT));
         assertEquals(0, written.get(FIRST_INDEX));
-        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + DOWN_QUADS) * CORNERS_PER_QUAD,
+        assertEquals((SEGMENT * ArenaAllocator.QUADS_PER_SEGMENT + DOWN_QUADS) * CORNERS_PER_QUAD,
                 written.get(VERTEX_OFFSET));
         assertEquals(0, written.get(FIRST_INSTANCE));
     }
 
     @Test
     void aGroupFacingAwayFromTheCameraIsNotDrawn() {
-        write(slots(slot(key, BLOCK)), FAR_BELOW);
+        write(slots(slot(key, SEGMENT)), FAR_BELOW);
 
         assertEquals(1, commands.opaqueCount());
         assertEquals(DOWN_QUADS, commands.quads());
@@ -99,7 +99,7 @@ class DrawCommandsTest {
 
     @Test
     void bothGroupsAreDrawnWhileTheCameraIsInsideTheCell() {
-        write(slots(slot(key, BLOCK)), INSIDE);
+        write(slots(slot(key, SEGMENT)), INSIDE);
 
         assertEquals(2, commands.opaqueCount());
         assertEquals(UP_QUADS + DOWN_QUADS, commands.quads());
@@ -115,14 +115,14 @@ class DrawCommandsTest {
 
     @Test
     void aTranslucentGroupIsLeftToItsOwnPass() {
-        write(slots(water(key, BLOCK)), INSIDE);
+        write(slots(water(key, SEGMENT)), INSIDE);
 
         assertEquals(0, commands.count());
     }
 
     @Test
     void aTranslucentGroupBecomesOneCommandOverItsOwnQuadRange() {
-        translucent(slots(water(key, BLOCK)), mesh(key));
+        translucent(slots(water(key, SEGMENT)), mesh(key));
 
         assertEquals(0, commands.opaqueCount());
         assertEquals(1, commands.translucentCount());
@@ -130,14 +130,14 @@ class DrawCommandsTest {
 
         IntBuffer written = commands.buffer().asIntBuffer();
         assertEquals(WATER_QUADS * INDICES_PER_QUAD, written.get(INDEX_COUNT));
-        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * CORNERS_PER_QUAD,
+        assertEquals((SEGMENT * ArenaAllocator.QUADS_PER_SEGMENT + WATER_START) * CORNERS_PER_QUAD,
                 written.get(VERTEX_OFFSET));
     }
 
     @Test
     void theOpaqueCommandsKeepTheOrderTheyAreGivenIn() {
-        MeshSlot near = slot(key, BLOCK);
-        MeshSlot far = slot(farKey, FAR_BLOCK);
+        MeshSlot near = slot(key, SEGMENT);
+        MeshSlot far = slot(farKey, FAR_SEGMENT);
 
         commands.write(List.of(mesh(key), mesh(farKey)), List.of(), NO_BORDERS,
                 wanted -> wanted == key ? near : wanted == farKey ? far : null, frame, EVERYWHERE, AROUND, INSIDE,
@@ -146,31 +146,31 @@ class DrawCommandsTest {
         assertEquals(2, commands.opaqueCount());
 
         IntBuffer written = commands.buffer().asIntBuffer();
-        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + DOWN_QUADS) * CORNERS_PER_QUAD,
+        assertEquals((SEGMENT * ArenaAllocator.QUADS_PER_SEGMENT + DOWN_QUADS) * CORNERS_PER_QUAD,
                 written.get(VERTEX_OFFSET));
-        assertEquals((FAR_BLOCK * ArenaAllocator.QUADS_PER_BLOCK + DOWN_QUADS) * CORNERS_PER_QUAD,
+        assertEquals((FAR_SEGMENT * ArenaAllocator.QUADS_PER_SEGMENT + DOWN_QUADS) * CORNERS_PER_QUAD,
                 written.get(COMMAND_INTS + VERTEX_OFFSET));
     }
 
     @Test
     void theTranslucentCommandsKeepTheOrderTheyAreGivenIn() {
-        MeshSlot near = water(key, BLOCK);
-        MeshSlot far = water(farKey, FAR_BLOCK);
+        MeshSlot near = water(key, SEGMENT);
+        MeshSlot far = water(farKey, FAR_SEGMENT);
 
         translucent(wanted -> wanted == key ? near : wanted == farKey ? far : null, mesh(farKey), mesh(key));
 
         assertEquals(2, commands.translucentCount());
 
         IntBuffer written = commands.buffer().asIntBuffer();
-        assertEquals((FAR_BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * CORNERS_PER_QUAD,
+        assertEquals((FAR_SEGMENT * ArenaAllocator.QUADS_PER_SEGMENT + WATER_START) * CORNERS_PER_QUAD,
                 written.get(VERTEX_OFFSET));
-        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * CORNERS_PER_QUAD,
+        assertEquals((SEGMENT * ArenaAllocator.QUADS_PER_SEGMENT + WATER_START) * CORNERS_PER_QUAD,
                 written.get(COMMAND_INTS + VERTEX_OFFSET));
     }
 
     @Test
     void theTranslucentCommandsSitAfterTheOpaqueOnes() {
-        MeshSlot held = both(key, BLOCK);
+        MeshSlot held = both(key, SEGMENT);
 
         commands.write(List.of(mesh(key)), List.of(mesh(key)), NO_BORDERS, slots(held), frame, EVERYWHERE, AROUND,
                 INSIDE, INSIDE, INSIDE);
@@ -184,7 +184,7 @@ class DrawCommandsTest {
 
     @Test
     void aMeshWithoutTranslucentQuadsAddsNoCommand() {
-        translucent(slots(slot(key, BLOCK)), mesh(key));
+        translucent(slots(slot(key, SEGMENT)), mesh(key));
 
         assertEquals(0, commands.count());
     }
@@ -198,8 +198,8 @@ class DrawCommandsTest {
 
     @Test
     void aBorderGroupWithoutItsMarkIsNotDrawn() {
-        commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots(border(key, BLOCK)), frame, EVERYWHERE, AROUND,
-                INSIDE, INSIDE, INSIDE);
+        commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots(border(key, SEGMENT)), frame, EVERYWHERE,
+                AROUND, INSIDE, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
     }
@@ -207,19 +207,19 @@ class DrawCommandsTest {
     @Test
     void aBorderGroupUnderItsMarkBecomesOneOpaqueCommandOverItsOwnQuadRange() {
         commands.write(List.of(mesh(key)), List.of(), wanted -> wanted == key ? EAST_BIT : RenderList.NO_BORDER_FACES,
-                slots(border(key, BLOCK)), frame, EVERYWHERE, AROUND, INSIDE, INSIDE, INSIDE);
+                slots(border(key, SEGMENT)), frame, EVERYWHERE, AROUND, INSIDE, INSIDE, INSIDE);
 
         assertEquals(1, commands.opaqueCount());
         assertEquals(BORDER_QUADS, commands.quads());
 
         IntBuffer written = commands.buffer().asIntBuffer();
-        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * CORNERS_PER_QUAD,
+        assertEquals((SEGMENT * ArenaAllocator.QUADS_PER_SEGMENT + WATER_START) * CORNERS_PER_QUAD,
                 written.get(VERTEX_OFFSET));
     }
 
     @Test
     void aMarkedBorderGroupFacingAwayFromTheCameraIsNotDrawn() {
-        commands.write(List.of(mesh(key)), List.of(), wanted -> EAST_BIT, slots(border(key, BLOCK)), frame,
+        commands.write(List.of(mesh(key)), List.of(), wanted -> EAST_BIT, slots(border(key, SEGMENT)), frame,
                 EVERYWHERE, AROUND, FAR_BELOW, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
@@ -227,7 +227,7 @@ class DrawCommandsTest {
 
     @Test
     void aMeshOutsideTheFrameFrustumAddsNoCommand() {
-        commands.write(List.of(mesh(key)), List.of(mesh(key)), NO_BORDERS, slots(both(key, BLOCK)), frame, FAR_EAST,
+        commands.write(List.of(mesh(key)), List.of(mesh(key)), NO_BORDERS, slots(both(key, SEGMENT)), frame, FAR_EAST,
                 AROUND, INSIDE, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
@@ -235,18 +235,18 @@ class DrawCommandsTest {
 
     @Test
     void theFrameFrustumTestsTheCellFromTheCamera() {
-        commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots(slot(key, BLOCK)), frame, AROUND_THE_CAMERA,
+        commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots(slot(key, SEGMENT)), frame, AROUND_THE_CAMERA,
                 AROUND, INSIDE, INSIDE, INSIDE);
         assertEquals(2, commands.opaqueCount());
 
-        commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots(slot(key, BLOCK)), frame, AROUND_THE_CAMERA,
+        commands.write(List.of(mesh(key)), List.of(), NO_BORDERS, slots(slot(key, SEGMENT)), frame, AROUND_THE_CAMERA,
                 AROUND, FAR_EAST_CAMERA, INSIDE, INSIDE);
         assertEquals(0, commands.count());
     }
 
     @Test
     void aShadowWriteDrawsTheGroupFacingAwayFromTheCamera() {
-        shadow(slots(slot(key, BLOCK)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, FAR_BELOW);
+        shadow(slots(slot(key, SEGMENT)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, FAR_BELOW);
 
         assertEquals(2, commands.opaqueCount());
         assertEquals(UP_QUADS + DOWN_QUADS, commands.quads());
@@ -254,7 +254,7 @@ class DrawCommandsTest {
 
     @Test
     void aShadowWriteKeepsTheTranslucentGroupOutOfTheOpaqueRange() {
-        shadow(slots(both(key, BLOCK)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, INSIDE);
+        shadow(slots(both(key, SEGMENT)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, INSIDE);
 
         assertEquals(0, commands.translucentCount());
         assertEquals(UP_QUADS + DOWN_QUADS, commands.quads());
@@ -262,55 +262,55 @@ class DrawCommandsTest {
 
     @Test
     void aShadowWriteDrawsTheTranslucentListAfterTheOpaqueRange() {
-        shadow(slots(both(key, BLOCK)), List.of(mesh(key)), EVERYWHERE, EVERY_CASTER, INSIDE, INSIDE);
+        shadow(slots(both(key, SEGMENT)), List.of(mesh(key)), EVERYWHERE, EVERY_CASTER, INSIDE, INSIDE);
 
         assertEquals(2, commands.opaqueCount());
         assertEquals(1, commands.translucentCount());
         assertEquals(UP_QUADS + DOWN_QUADS + WATER_QUADS, commands.quads());
         IntBuffer written = commands.buffer().asIntBuffer();
         assertEquals(WATER_QUADS * INDICES_PER_QUAD, written.get(2 * COMMAND_INTS + INDEX_COUNT));
-        assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + WATER_START) * CORNERS_PER_QUAD,
+        assertEquals((SEGMENT * ArenaAllocator.QUADS_PER_SEGMENT + WATER_START) * CORNERS_PER_QUAD,
                 written.get(2 * COMMAND_INTS + VERTEX_OFFSET));
     }
 
     @Test
     void aShadowWriteKeepsABorderGroupWithoutItsMarkOut() {
-        shadow(slots(border(key, BLOCK)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, INSIDE);
+        shadow(slots(border(key, SEGMENT)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
     }
 
     @Test
     void aShadowWriteLeavesAMeshOutsideItsFrustumOut() {
-        shadow(slots(both(key, BLOCK)), List.of(mesh(key)), FAR_EAST, EVERY_CASTER, INSIDE, INSIDE);
+        shadow(slots(both(key, SEGMENT)), List.of(mesh(key)), FAR_EAST, EVERY_CASTER, INSIDE, INSIDE);
 
         assertEquals(0, commands.count());
     }
 
     @Test
     void aShadowWriteKeepsAMeshWhoseLightFallsIntoView() {
-        shadow(slots(both(key, BLOCK)), List.of(mesh(key)), EVERYWHERE, casters(-1.0F), FAR_EAST_CAMERA, INSIDE);
+        shadow(slots(both(key, SEGMENT)), List.of(mesh(key)), EVERYWHERE, casters(-1.0F), FAR_EAST_CAMERA, INSIDE);
 
         assertEquals(UP_QUADS + DOWN_QUADS + WATER_QUADS, commands.quads());
     }
 
     @Test
     void aShadowWriteLeavesAMeshWhoseLightNeverReachesTheViewOut() {
-        shadow(slots(both(key, BLOCK)), List.of(mesh(key)), EVERYWHERE, casters(1.0F), FAR_EAST_CAMERA, INSIDE);
+        shadow(slots(both(key, SEGMENT)), List.of(mesh(key)), EVERYWHERE, casters(1.0F), FAR_EAST_CAMERA, INSIDE);
 
         assertEquals(0, commands.count());
     }
 
     @Test
     void theSolidRunOfAMeshOutsideTheNearBoxComesFirstAndTheRestFollows() {
-        write(slots(solidUp(key, BLOCK)), ELSEWHERE, FAR_ABOVE);
+        write(slots(solidUp(key, SEGMENT)), ELSEWHERE, FAR_ABOVE);
 
         assertEquals(1, commands.solidCount());
         assertEquals(2, commands.opaqueCount());
         assertEquals(UP_QUADS, commands.quads());
 
         IntBuffer written = commands.buffer().asIntBuffer();
-        int upStart = BLOCK * ArenaAllocator.QUADS_PER_BLOCK + DOWN_QUADS;
+        int upStart = SEGMENT * ArenaAllocator.QUADS_PER_SEGMENT + DOWN_QUADS;
         assertEquals(SOLID_UP_QUADS * INDICES_PER_QUAD, written.get(INDEX_COUNT));
         assertEquals(upStart * CORNERS_PER_QUAD, written.get(VERTEX_OFFSET));
         assertEquals((UP_QUADS - SOLID_UP_QUADS) * INDICES_PER_QUAD, written.get(COMMAND_INTS + INDEX_COUNT));
@@ -319,7 +319,7 @@ class DrawCommandsTest {
 
     @Test
     void aMeshMeetingTheNearBoxDrawsItsSolidQuadsWithTheRest() {
-        write(slots(solidUp(key, BLOCK)), AROUND, FAR_ABOVE);
+        write(slots(solidUp(key, SEGMENT)), AROUND, FAR_ABOVE);
 
         assertEquals(0, commands.solidCount());
         assertEquals(1, commands.opaqueCount());
@@ -330,8 +330,8 @@ class DrawCommandsTest {
 
     @Test
     void theSolidRangeKeepsTheMeshOrderAheadOfEveryRestCommand() {
-        MeshSlot near = solidUp(key, BLOCK);
-        MeshSlot far = solidUp(farKey, FAR_BLOCK);
+        MeshSlot near = solidUp(key, SEGMENT);
+        MeshSlot far = solidUp(farKey, FAR_SEGMENT);
 
         commands.write(List.of(mesh(key), mesh(farKey)), List.of(), NO_BORDERS,
                 wanted -> wanted == key ? near : wanted == farKey ? far : null, frame, EVERYWHERE, ELSEWHERE, INSIDE,
@@ -341,17 +341,17 @@ class DrawCommandsTest {
         assertEquals(4, commands.opaqueCount());
 
         IntBuffer written = commands.buffer().asIntBuffer();
-        int[] firstQuads = {BLOCK, FAR_BLOCK, BLOCK, FAR_BLOCK};
+        int[] firstQuads = {SEGMENT, FAR_SEGMENT, SEGMENT, FAR_SEGMENT};
         int[] skipped = {0, 0, SOLID_UP_QUADS, SOLID_UP_QUADS};
         for (int command = 0; command < firstQuads.length; command++) {
-            int firstQuad = firstQuads[command] * ArenaAllocator.QUADS_PER_BLOCK + DOWN_QUADS + skipped[command];
+            int firstQuad = firstQuads[command] * ArenaAllocator.QUADS_PER_SEGMENT + DOWN_QUADS + skipped[command];
             assertEquals(firstQuad * CORNERS_PER_QUAD, written.get(command * COMMAND_INTS + VERTEX_OFFSET));
         }
     }
 
     @Test
     void aWhollySolidGroupLeavesNoRestCommand() {
-        MeshSlot slot = solidUp(key, BLOCK);
+        MeshSlot slot = solidUp(key, SEGMENT);
         slot.groupSolid()[Direction.UP.get3DDataValue()] = UP_QUADS;
 
         write(slots(slot), ELSEWHERE, FAR_ABOVE);
@@ -362,7 +362,7 @@ class DrawCommandsTest {
 
     @Test
     void aShadowWriteDrawsSolidQuadsWithTheRest() {
-        shadow(slots(solidUp(key, BLOCK)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, FAR_ABOVE);
+        shadow(slots(solidUp(key, SEGMENT)), List.of(), EVERYWHERE, EVERY_CASTER, INSIDE, FAR_ABOVE);
 
         assertEquals(0, commands.solidCount());
         assertEquals(UP_QUADS + DOWN_QUADS, commands.quads());
@@ -389,14 +389,14 @@ class DrawCommandsTest {
             groupCount[group] = UP_QUADS;
         }
 
-        write(slots(new MeshSlot(key, BLOCK, QuadGroups.DIRECTIONAL_COUNT * UP_QUADS, NO_STREAM, NO_COLORS, groupStart,
-                groupCount, new int[QuadGroups.COUNT])), INSIDE);
+        write(slots(new MeshSlot(key, SEGMENT, QuadGroups.DIRECTIONAL_COUNT * UP_QUADS, NO_STREAM, NO_COLORS,
+                groupStart, groupCount, new int[QuadGroups.COUNT])), INSIDE);
 
         assertEquals(QuadGroups.DIRECTIONAL_COUNT, commands.opaqueCount());
 
         IntBuffer written = commands.buffer().asIntBuffer();
         for (int group = 0; group < QuadGroups.DIRECTIONAL_COUNT; group++) {
-            assertEquals((BLOCK * ArenaAllocator.QUADS_PER_BLOCK + group * UP_QUADS) * CORNERS_PER_QUAD,
+            assertEquals((SEGMENT * ArenaAllocator.QUADS_PER_SEGMENT + group * UP_QUADS) * CORNERS_PER_QUAD,
                     written.get(group * COMMAND_INTS + VERTEX_OFFSET));
         }
     }
@@ -419,47 +419,47 @@ class DrawCommandsTest {
         return wanted -> wanted == held.key() ? held : null;
     }
 
-    private static MeshSlot slot(long key, int block) {
+    private static MeshSlot slot(long key, int segment) {
         int[] groupStart = new int[QuadGroups.COUNT];
         int[] groupCount = new int[QuadGroups.COUNT];
         groupCount[Direction.DOWN.get3DDataValue()] = DOWN_QUADS;
         groupStart[Direction.UP.get3DDataValue()] = DOWN_QUADS;
         groupCount[Direction.UP.get3DDataValue()] = UP_QUADS;
-        return new MeshSlot(key, block, DOWN_QUADS + UP_QUADS, NO_STREAM, NO_COLORS, groupStart, groupCount,
+        return new MeshSlot(key, segment, DOWN_QUADS + UP_QUADS, NO_STREAM, NO_COLORS, groupStart, groupCount,
                 new int[QuadGroups.COUNT]);
     }
 
-    private static MeshSlot solidUp(long key, int block) {
-        MeshSlot slot = slot(key, block);
+    private static MeshSlot solidUp(long key, int segment) {
+        MeshSlot slot = slot(key, segment);
         slot.groupSolid()[Direction.UP.get3DDataValue()] = SOLID_UP_QUADS;
         return slot;
     }
 
-    private static MeshSlot water(long key, int block) {
+    private static MeshSlot water(long key, int segment) {
         int[] groupStart = new int[QuadGroups.COUNT];
         int[] groupCount = new int[QuadGroups.COUNT];
         groupStart[QuadGroups.TRANSLUCENT] = WATER_START;
         groupCount[QuadGroups.TRANSLUCENT] = WATER_QUADS;
-        return new MeshSlot(key, block, WATER_START + WATER_QUADS, NO_STREAM, NO_COLORS, groupStart, groupCount,
+        return new MeshSlot(key, segment, WATER_START + WATER_QUADS, NO_STREAM, NO_COLORS, groupStart, groupCount,
                 new int[QuadGroups.COUNT]);
     }
 
-    private static MeshSlot border(long key, int block) {
+    private static MeshSlot border(long key, int segment) {
         int[] groupStart = new int[QuadGroups.COUNT];
         int[] groupCount = new int[QuadGroups.COUNT];
         groupStart[QuadGroups.border(Direction.EAST)] = WATER_START;
         groupCount[QuadGroups.border(Direction.EAST)] = BORDER_QUADS;
-        return new MeshSlot(key, block, WATER_START + BORDER_QUADS, NO_STREAM, NO_COLORS, groupStart, groupCount,
+        return new MeshSlot(key, segment, WATER_START + BORDER_QUADS, NO_STREAM, NO_COLORS, groupStart, groupCount,
                 new int[QuadGroups.COUNT]);
     }
 
-    private static MeshSlot both(long key, int block) {
-        MeshSlot opaque = slot(key, block);
+    private static MeshSlot both(long key, int segment) {
+        MeshSlot opaque = slot(key, segment);
         int[] groupStart = opaque.groupStart().clone();
         int[] groupCount = opaque.groupCount().clone();
         groupStart[QuadGroups.TRANSLUCENT] = WATER_START;
         groupCount[QuadGroups.TRANSLUCENT] = WATER_QUADS;
-        return new MeshSlot(key, block, WATER_START + WATER_QUADS, NO_STREAM, NO_COLORS, groupStart, groupCount,
+        return new MeshSlot(key, segment, WATER_START + WATER_QUADS, NO_STREAM, NO_COLORS, groupStart, groupCount,
                 new int[QuadGroups.COUNT]);
     }
 

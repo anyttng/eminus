@@ -26,7 +26,10 @@ public final class SaveService implements CellSaver {
         queue.add(handle);
         pending.incrementAndGet();
         service.enqueue(scratch -> saveOne());
+        drainOverCap();
+    }
 
+    private void drainOverCap() {
         while (pending.get() > SOFT_CAP) {
             if (!saveOne()) {
                 return;

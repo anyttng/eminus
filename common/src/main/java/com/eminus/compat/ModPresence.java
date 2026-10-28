@@ -96,7 +96,10 @@ public final class ModPresence {
             }
         }
 
-        List<String> covered = coveredMixins();
+        return admits(coveredMixins());
+    }
+
+    private boolean admits(List<String> covered) {
         Map<String, String> bodySourcesByClass = new HashMap<>();
         this.bodySources.forEach((mixin, owner) -> bodySourcesByClass.put(mixinPackage() + "." + mixin, owner));
         MixinTargetCheck check = new MixinTargetCheck(this.classLoader, bodySourcesByClass);

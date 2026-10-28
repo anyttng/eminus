@@ -29,7 +29,7 @@ import org.jspecify.annotations.Nullable;
 
 public final class MipReading {
     public static final int STATE_ID = 0;
-    public static final int CUTOUT_LEAVES = 1;
+    public static final int SEE_THROUGH_LEAVES = 1;
     public static final int FACE = 2;
     public static final int STRATEGY = 3;
     public static final int OPAQUE = 4;
@@ -60,8 +60,8 @@ public final class MipReading {
         Thread thread = new Thread(() -> {
             try {
                 List<long[]> rows = new ArrayList<>();
-                for (boolean cutoutLeaves : LEAF_MODES) {
-                    rows.addAll(run(client, cutoutLeaves));
+                for (boolean seeThroughLeaves : LEAF_MODES) {
+                    rows.addAll(run(client, seeThroughLeaves));
                 }
 
                 result.complete(rows);
@@ -74,9 +74,9 @@ public final class MipReading {
         return result;
     }
 
-    private static List<long[]> run(Minecraft client, boolean cutoutLeaves) {
-        ClientBakery baking = ClientBakery.start(client, cutoutLeaves);
-        GameModels game = GameModels.of(client, cutoutLeaves);
+    private static List<long[]> run(Minecraft client, boolean seeThroughLeaves) {
+        ClientBakery baking = ClientBakery.start(client, seeThroughLeaves);
+        GameModels game = GameModels.of(client, seeThroughLeaves);
         List<long[]> rows = new ArrayList<>();
 
         try {
@@ -90,7 +90,7 @@ public final class MipReading {
                 game.blocks().model(state).quads(RandomSource.create(state.getSeed(BlockPos.ZERO)), quads);
 
                 for (Direction face : FACES) {
-                    rows.add(row(state, face, model, quads, cutoutLeaves));
+                    rows.add(row(state, face, model, quads, seeThroughLeaves));
                 }
             }
         } finally {
@@ -112,21 +112,11 @@ public final class MipReading {
         return states;
     }
 
-    @SuppressWarnings("EnumOrdinal")
     private static long[] row(BlockState state, Direction face, BakedModel model, List<ModelQuad> quads,
-            boolean cutoutLeaves) {
+            boolean seeThroughLeaves) {
         int index = face.get3DDataValue();
         boolean opaque = ModelMetadata.has(model.metadata(), ModelMetadata.OPAQUE);
-        long[] row = new long[ROW_WIDTH];
-        Arrays.fill(row, FIRST_OFF, OFF_LEVEL, NOT_COMPARED);
-        row[STATE_ID] = Block.getId(state);
-        row[CUTOUT_LEAVES] = cutoutLeaves ? 1 : 0;
-        row[FACE] = index;
-        row[STRATEGY] = model.mips()[index].strategy().ordinal();
-        row[OPAQUE] = opaque ? 1 : 0;
-        row[SYMMETRY] = NOT_COMPARED;
-        row[OFF_LEVEL] = NOT_COMPARED;
-
+        long[] row = header(state, index, model, opaque, seeThroughLeaves);
         ModelQuad quad = wholeSpriteQuad(quads, face);
         if (quad == null) {
             return row;
@@ -138,29 +128,54 @@ public final class MipReading {
         }
 
         row[WHOLE_SPRITE] = 1;
+        compare(row, ourLevels(model, index, opaque), gameLevels, opaque);
+        return row;
+    }
+
+    @SuppressWarnings("EnumOrdinal")
+    private static long[] header(BlockState state, int index, BakedModel model, boolean opaque,
+            boolean seeThroughLeaves) {
+        long[] row = new long[ROW_WIDTH];
+        Arrays.fill(row, FIRST_OFF, OFF_LEVEL, NOT_COMPARED);
+        row[STATE_ID] = Block.getId(state);
+        row[SEE_THROUGH_LEAVES] = seeThroughLeaves ? 1 : 0;
+        row[FACE] = index;
+        row[STRATEGY] = model.mips()[index].strategy().ordinal();
+        row[OPAQUE] = opaque ? 1 : 0;
+        row[SYMMETRY] = NOT_COMPARED;
+        row[OFF_LEVEL] = NOT_COMPARED;
+        return row;
+    }
+
+    private static int[][] ourLevels(BakedModel model, int index, boolean opaque) {
         int[] face0 = new int[BakedModel.FACE_TEXELS];
         System.arraycopy(model.faces(), index * BakedModel.FACE_TEXELS, face0, 0, BakedModel.FACE_TEXELS);
-        int[][] ours = FaceMips.colorLevels(face0, BakedModel.FACE_SIDE, model.mips()[index], opaque);
+        return FaceMips.colorLevels(face0, BakedModel.FACE_SIDE, model.mips()[index], opaque);
+    }
+
+    private static void compare(long[] row, int[][] ours, int[][] gameLevels, boolean opaque) {
         int levels = Math.min(ours.length, gameLevels.length);
         row[LEVELS] = levels;
+        int symmetry = symmetry(ours[0], gameLevels[0], opaque);
+        row[SYMMETRY] = symmetry;
+        for (int level = 0; level < levels; level++) {
+            row[FIRST_OFF + level] = mismatches(ours[level], gameLevels[level], BakedModel.FACE_SIDE >> level,
+                    symmetry, opaque, row[OFF_LEVEL] == NOT_COMPARED ? row : null, level);
+        }
+    }
 
+    private static int symmetry(int[] ours, int[] game, boolean opaque) {
         int symmetry = 0;
         int fewest = Integer.MAX_VALUE;
         for (int candidate = 0; candidate < SYMMETRIES; candidate++) {
-            int off = mismatches(ours[0], gameLevels[0], BakedModel.FACE_SIDE, candidate, opaque, null, 0);
+            int off = mismatches(ours, game, BakedModel.FACE_SIDE, candidate, opaque, null, 0);
             if (off < fewest) {
                 fewest = off;
                 symmetry = candidate;
             }
         }
 
-        row[SYMMETRY] = symmetry;
-        for (int level = 0; level < levels; level++) {
-            row[FIRST_OFF + level] = mismatches(ours[level], gameLevels[level], BakedModel.FACE_SIDE >> level,
-                    symmetry, opaque, row[OFF_LEVEL] == NOT_COMPARED ? row : null, level);
-        }
-
-        return row;
+        return symmetry;
     }
 
     private static @Nullable ModelQuad wholeSpriteQuad(List<ModelQuad> quads, Direction face) {

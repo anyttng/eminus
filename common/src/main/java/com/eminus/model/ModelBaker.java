@@ -79,11 +79,7 @@ public final class ModelBaker implements StateBaker {
     }
 
     private BakedState bake(BlockState state, boolean opaque) {
-        if (!swept) {
-            TintSweep.sweep(Block.BLOCK_STATE_REGISTRY, blockTints, fluids::tintSource, ModelBaker::baseOf, colors);
-            swept = true;
-        }
-
+        sweepTintsOnce();
         BlockState shape = baseOf(state);
         BlockModel model = modelOf(shape);
         boolean drew = collect(model);
@@ -107,6 +103,13 @@ public final class ModelBaker implements StateBaker {
 
         List<WeightedModel> variants = variants(model, shape, state, opaque);
         return new BakedState(block, surface, submerged, variants, variants.isEmpty());
+    }
+
+    private void sweepTintsOnce() {
+        if (!swept) {
+            TintSweep.sweep(Block.BLOCK_STATE_REGISTRY, blockTints, fluids::tintSource, ModelBaker::baseOf, colors);
+            swept = true;
+        }
     }
 
     private BakedModel bakeParts(BlockState state, List<Object> picked, boolean opaque) {

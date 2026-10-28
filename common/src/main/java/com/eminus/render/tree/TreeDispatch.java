@@ -43,13 +43,21 @@ final class TreeDispatch {
     void build(TreeNode node, float priority, boolean outOfView) {
         boolean counted = node.building() ? node.countedBuild() : !node.isRoot() && node.mesh() == null;
         if (counted && !node.building()) {
-            if (outOfView) {
-                outOfViewRefinements++;
-            } else {
-                refinements++;
-            }
+            countRefinement(outOfView);
         }
 
+        startBuild(node, priority, outOfView, counted);
+    }
+
+    private void countRefinement(boolean outOfView) {
+        if (outOfView) {
+            outOfViewRefinements++;
+        } else {
+            refinements++;
+        }
+    }
+
+    private void startBuild(TreeNode node, float priority, boolean outOfView, boolean counted) {
         CellHandle handle = node.pending();
         int references = node.pendingReferences();
         long request = ++requests;

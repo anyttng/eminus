@@ -164,10 +164,10 @@ class ArenaSizingTest {
     }
 
     @Test
-    void aRoomyDeviceGetsWhatWasWantedDownToTheBlock() {
+    void aRoomyDeviceGetsWhatWasWantedDownToTheSegment() {
         long wanted = ArenaSizing.wanted(FAR_CELLS, SUBDIVISION, FOCAL_PIXELS, LOWEST_LEVEL, MeshOcclusion.EVERY_LEVEL);
 
-        assertEquals(wanted - wanted % ArenaSizing.BLOCK_BYTES, ArenaSizing.fitted(wanted, ROOMY_DEVICE));
+        assertEquals(wanted - wanted % ArenaSizing.SEGMENT_BYTES, ArenaSizing.fitted(wanted, ROOMY_DEVICE));
     }
 
     @Test
@@ -178,24 +178,24 @@ class ArenaSizingTest {
     }
 
     @Test
-    void theFittedSizeIsAWholeNumberOfBlocks() {
-        long unaligned = ArenaSizing.MIN_BYTES + ArenaSizing.BLOCK_BYTES + 1L;
+    void theFittedSizeIsAWholeNumberOfSegments() {
+        long unaligned = ArenaSizing.MIN_BYTES + ArenaSizing.SEGMENT_BYTES + 1L;
         long fitted = ArenaSizing.fitted(unaligned, ROOMY_DEVICE);
 
-        assertEquals(0L, fitted % ArenaSizing.BLOCK_BYTES);
-        assertEquals(fitted / ArenaSizing.BLOCK_BYTES, ArenaSizing.blocks(fitted));
+        assertEquals(0L, fitted % ArenaSizing.SEGMENT_BYTES);
+        assertEquals(fitted / ArenaSizing.SEGMENT_BYTES, ArenaSizing.segments(fitted));
     }
 
     @Test
-    void aSparsePageOfWholeBlocksHoldsThemAndAnyOtherPageIsUnusable() {
-        assertEquals(32, ArenaSizing.blocksPerPage(SPARSE_PAGE_BYTES));
-        assertEquals(ArenaSizing.NO_PAGES, ArenaSizing.blocksPerPage(SPARSE_PAGE_BYTES + 1L));
-        assertEquals(ArenaSizing.NO_PAGES, ArenaSizing.blocksPerPage(0L));
+    void aSparsePageOfWholeSegmentsHoldsThemAndAnyOtherPageIsUnusable() {
+        assertEquals(32, ArenaSizing.segmentsPerPage(SPARSE_PAGE_BYTES));
+        assertEquals(ArenaSizing.NO_PAGES, ArenaSizing.segmentsPerPage(SPARSE_PAGE_BYTES + 1L));
+        assertEquals(ArenaSizing.NO_PAGES, ArenaSizing.segmentsPerPage(0L));
     }
 
     @Test
     void theSparseReservationIsAWholeNumberOfPages() {
-        long ceiling = TEXEL_LIMITED + 3L * ArenaSizing.BLOCK_BYTES;
+        long ceiling = TEXEL_LIMITED + 3L * ArenaSizing.SEGMENT_BYTES;
 
         assertEquals(TEXEL_LIMITED, ArenaSizing.reserved(ceiling, SPARSE_PAGE_BYTES));
         assertEquals(ArenaSizing.REFUSED, ArenaSizing.reserved(SPARSE_PAGE_BYTES, SPARSE_PAGE_BYTES));

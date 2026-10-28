@@ -3,23 +3,24 @@ package com.eminus.render.arena;
 public final class ArenaPages {
     private static final int NO_PAGE = -1;
 
-    private final int blocksPerPage;
+    private final int segmentsPerPage;
     private final int[] used;
 
     private int committed;
 
-    public ArenaPages(int blocks, int blocksPerPage) {
-        if (blocks <= 0 || blocksPerPage <= 0) {
+    public ArenaPages(int segments, int segmentsPerPage) {
+        if (segments <= 0 || segmentsPerPage <= 0) {
             throw new IllegalArgumentException(
-                    "An arena of " + blocks + " blocks in pages of " + blocksPerPage + " blocks holds nothing.");
+                    "An arena of " + segments + " segments in pages of " + segmentsPerPage
+                            + " segments holds nothing.");
         }
 
-        this.blocksPerPage = blocksPerPage;
-        this.used = new int[Math.ceilDiv(blocks, blocksPerPage)];
+        this.segmentsPerPage = segmentsPerPage;
+        this.used = new int[Math.ceilDiv(segments, segmentsPerPage)];
     }
 
-    public int blocksPerPage() {
-        return blocksPerPage;
+    public int segmentsPerPage() {
+        return segmentsPerPage;
     }
 
     public int pages() {
@@ -30,31 +31,31 @@ public final class ArenaPages {
         return committed;
     }
 
-    public PageRun place(int block, int blocks) {
-        return change(block, blocks, true);
+    public PageRun place(int segment, int segments) {
+        return change(segment, segments, true);
     }
 
-    public PageRun free(int block, int blocks) {
-        return change(block, blocks, false);
+    public PageRun free(int segment, int segments) {
+        return change(segment, segments, false);
     }
 
-    private PageRun change(int block, int blocks, boolean placed) {
-        if (blocks <= 0) {
+    private PageRun change(int segment, int segments, boolean placed) {
+        if (segments <= 0) {
             return PageRun.NONE;
         }
 
-        int end = block + blocks;
+        int end = segment + segments;
         int first = NO_PAGE;
         int last = NO_PAGE;
         int changed = 0;
 
-        for (int page = block / blocksPerPage; page <= (end - 1) / blocksPerPage; page++) {
-            int overlap = Math.min(end, (page + 1) * blocksPerPage) - Math.max(block, page * blocksPerPage);
+        for (int page = segment / segmentsPerPage; page <= (end - 1) / segmentsPerPage; page++) {
+            int overlap = Math.min(end, (page + 1) * segmentsPerPage) - Math.max(segment, page * segmentsPerPage);
             boolean emptyBefore = used[page] == 0;
             used[page] += placed ? overlap : -overlap;
-            if (used[page] < 0 || used[page] > blocksPerPage) {
-                throw new IllegalStateException("Page " + page + " holds " + used[page] + " of " + blocksPerPage
-                        + " blocks after " + (placed ? "placing" : "freeing") + " blocks " + block + ".." + end);
+            if (used[page] < 0 || used[page] > segmentsPerPage) {
+                throw new IllegalStateException("Page " + page + " holds " + used[page] + " of " + segmentsPerPage
+                        + " segments after " + (placed ? "placing" : "freeing") + " segments " + segment + ".." + end);
             }
 
             if (placed ? emptyBefore : used[page] == 0) {
@@ -69,7 +70,7 @@ public final class ArenaPages {
         }
 
         if (changed != last - first + 1) {
-            throw new IllegalStateException("Blocks " + block + ".." + end + " changed pages " + first + ".." + last
+            throw new IllegalStateException("Segments " + segment + ".." + end + " changed pages " + first + ".." + last
                     + " with a gap: the allocator handed out a range that was not free.");
         }
 

@@ -25,8 +25,13 @@ public final class TintSweep {
     public static void sweep(Iterable<BlockState> states, BlockTints blockTints,
             Function<FluidState, @Nullable TintSource> fluidTints, UnaryOperator<BlockState> shapes,
             BiomeColors colors) {
-        Map<BiomeColors.Colors, Set<Block>> users = new HashMap<>();
+        colors.assign(ranked(users(states, blockTints, fluidTints, shapes, colors)));
+    }
 
+    private static Map<BiomeColors.Colors, Set<Block>> users(Iterable<BlockState> states, BlockTints blockTints,
+            Function<FluidState, @Nullable TintSource> fluidTints, UnaryOperator<BlockState> shapes,
+            BiomeColors colors) {
+        Map<BiomeColors.Colors, Set<Block>> users = new HashMap<>();
         for (BlockState state : states) {
             BlockState shape = shapes.apply(state);
             for (TintSource tint : blockTints.sources(shape)) {
@@ -40,12 +45,15 @@ public final class TintSweep {
             }
         }
 
-        List<BiomeColors.Colors> ranked = users.entrySet().stream()
+        return users;
+    }
+
+    private static List<BiomeColors.Colors> ranked(Map<BiomeColors.Colors, Set<Block>> users) {
+        return users.entrySet().stream()
                 .sorted(Comparator.comparingInt((Map.Entry<BiomeColors.Colors, Set<Block>> user) ->
                         user.getValue().size()).reversed().thenComparing(Map.Entry.comparingByKey()))
                 .map(Map.Entry::getKey)
                 .toList();
-        colors.assign(ranked);
     }
 
     private static void count(Map<BiomeColors.Colors, Set<Block>> users, BiomeColors colors,

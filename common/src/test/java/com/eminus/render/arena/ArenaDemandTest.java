@@ -63,7 +63,7 @@ class ArenaDemandTest {
 
         int columns = ArenaDemand.columns(DetailLevel.MAX, FOCAL_PIXELS, SUBDIVISION, FAR_CELLS);
         assertTrue(Math.abs(columns - counted) <= counted / (PERCENT / 5),
-                "The ring holds " + counted + " root columns, the formula answers " + columns);
+                "The disc holds " + counted + " root columns, the formula answers " + columns);
     }
 
     @Test

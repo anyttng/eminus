@@ -112,12 +112,7 @@ public final class DrawCommands {
     private void writeOpaque(List<MeshSummary> opaque, Long2IntFunction borderFaces, MeshSlots slots,
             CellFrame frame, FrustumIntersection frustum, @Nullable ShadowCasterVolume casters,
             @Nullable NearBox near, boolean facing, double cameraX, double cameraY, double cameraZ) {
-        commands.clear();
-        rest.clear();
-        opaqueCount = 0;
-        translucentCount = 0;
-        quads = 0;
-
+        clear();
         for (MeshSummary mesh : opaque) {
             MeshSlot slot = slots.slot(mesh.key());
             if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ)
@@ -128,6 +123,18 @@ public final class DrawCommands {
         }
 
         solidCount = opaqueCount;
+        appendRest();
+    }
+
+    private void clear() {
+        commands.clear();
+        rest.clear();
+        opaqueCount = 0;
+        translucentCount = 0;
+        quads = 0;
+    }
+
+    private void appendRest() {
         for (int index = 0; index < rest.size(); index += REST_WORDS) {
             put(rest.getInt(index), rest.getInt(index + 1));
             opaqueCount++;

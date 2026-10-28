@@ -167,14 +167,7 @@ public final class FarRenderer implements AutoCloseable {
         BoxPass boxes = BoxPass.create(gpu, support.depth());
         String refusal = FarPrograms.refusal(mask, opaque, translucent, composite, boxes);
         if (refusal != null) {
-            Eminus.LOGGER.warn("Renderer disabled: {}", refusal);
-            baking.stop();
-            boxes.close();
-            composite.close();
-            mask.close();
-            arena.close();
-            gpu.close();
-            return FarStart.refused(refusal);
+            return refused(refusal, gpu, arena, baking, mask, composite, boxes);
         }
 
         FarRenderer renderer = new FarRenderer(gpu, support.depth(), runtime, baking,
@@ -183,20 +176,35 @@ public final class FarRenderer implements AutoCloseable {
                         main.width(), main.height()), FarFrame.create(gpu),
                 mask, NearSectionTable.create(gpu), opaque, translucent, composite, boxes,
                 IndirectCommands.create(gpu, START_COMMANDS), levelHeight, sizing.nodeCapacity());
+        wire(renderer, client, runtime, instance, baking);
+        return FarStart.started(renderer);
+    }
 
+    private static FarStart refused(String refusal, Gpu gpu, GeometryArena arena, ClientBakery baking,
+            NearMaskPass mask, CompositePass composite, BoxPass boxes) {
+        Eminus.LOGGER.warn("Renderer disabled: {}", refusal);
+        baking.stop();
+        boxes.close();
+        composite.close();
+        mask.close();
+        arena.close();
+        gpu.close();
+        return FarStart.refused(refusal);
+    }
+
+    private static void wire(FarRenderer renderer, Minecraft client, DimensionRuntime runtime,
+            EminusInstance instance, ClientBakery baking) {
         renderer.meshes = MeshWiring.service(client, runtime, instance, baking, renderer.tree);
         runtime.listenTo(renderer.tree);
         Eminus.LOGGER.info("Far renderer started for {}", runtime.identity().dimension());
-
-        return FarStart.started(renderer);
     }
 
     public long arenaBytes() {
         return arena.committedBytes();
     }
 
-    public boolean cutoutLeaves() {
-        return baking.cutoutLeaves();
+    public boolean seeThroughLeaves() {
+        return baking.seeThroughLeaves();
     }
 
     public boolean drawsBlades() {
@@ -325,6 +333,34 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     private void stepFrame(Minecraft client) {
+        uploadBatch();
+        Texture main = gpu.mainColor();
+        target.resize(main.width(), main.height());
+
+        GameFrame game = GameFrames.read(client);
+        this.game = game;
+        project(game, main);
+        Settings settings = SettingsService.get().settings();
+        postWalk(client, game, main, settings);
+
+        ClientLevel level = Objects.requireNonNull(client.level, "a far frame steps with a level");
+        updateFog(game, level, settings);
+        if (fog.skip()) {
+            return;
+        }
+
+        farFrame = true;
+        order.update(renderList, runtime.frame(), game.eyeX(), game.eyeY(), game.eyeZ());
+        if (!writeCommands(game)) {
+            return;
+        }
+
+        fillNearSections(client, level, game);
+        writeFrame(game, settings);
+        terrainDrawn = true;
+    }
+
+    private void uploadBatch() {
         boxes.update(BoxRegistry.get(), runtime.identity().dimension());
         TreeBatch batch = tree.batches().peek();
         if (batch != null) {
@@ -332,33 +368,33 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         models.publish();
+    }
 
-        Texture main = gpu.mainColor();
-        target.resize(main.width(), main.height());
-
-        GameFrame game = GameFrames.read(client);
-        this.game = game;
-        int renderDistance = game.renderDistance();
-        projection.projection(NearPlane.blocks(renderDistance), game.fov(), levelProjection.fold(), main.width(),
-                main.height(), farProjection);
+    private void project(GameFrame game, Texture main) {
+        projection.projection(NearPlane.blocks(game.renderDistance()), game.fov(), levelProjection.fold(),
+                main.width(), main.height(), farProjection);
         farViewProjection.set(farProjection).mul(game.viewRotation());
         FarProjection.gameViewProjection(levelProjection.projection(), game.viewRotation(), gameViewProjection);
+    }
 
+    private void postWalk(Minecraft client, GameFrame game, Texture main, Settings settings) {
         frames++;
         Quaternionf rotation = game.viewRotation().getNormalizedRotation(new Quaternionf());
         float margin = turnMargin.frame(rotation);
-        Matrix4f walkViewProjection = projection.walkViewProjection(NearPlane.blocks(renderDistance), game.fov(),
-                margin, levelProjection.fold(), game.viewRotation(), main.width(), main.height(), new Matrix4f());
+        Matrix4f walkViewProjection = projection.walkViewProjection(NearPlane.blocks(game.renderDistance()),
+                game.fov(), margin, levelProjection.fold(), game.viewRotation(), main.width(), main.height(),
+                new Matrix4f());
 
-        Settings settings = SettingsService.get().settings();
         tree.frame(new CameraFrame(game.eyeX(), game.eyeY(), game.eyeZ(), walkViewProjection,
                 FarProjection.focalPixels(client.options.fov().get(), main.height()),
                 FarProjection.focalPixels(game.fov(), main.height()), settings.farRenderCells(),
                 settings.detailDistance().pixels(), arena.pressure(), frames, rotation, margin));
+    }
 
+    private void updateFog(GameFrame game, ClientLevel level, Settings settings) {
         GameFog gameFog = game.fog();
+        int renderDistance = game.renderDistance();
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
-        ClientLevel level = Objects.requireNonNull(client.level, "a far frame steps with a level");
         int keptChunks = renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS;
         float reachBlocks = NearReach.blocks(keptChunks, game.eyeY(), level.getMinY(),
                 level.getMinY() + level.getHeight());
@@ -366,19 +402,17 @@ public final class FarRenderer implements AutoCloseable {
                 gameFog.environmentalEnd(), nearBlocks, reachBlocks, NearReach.horizontalBlocks(keptChunks),
                 settings.farRenderCells());
         fogColor = gameFog.color();
-        if (fog.skip()) {
-            return;
-        }
+    }
 
-        farFrame = true;
-        order.update(renderList, runtime.frame(), game.eyeX(), game.eyeY(), game.eyeZ());
+    private boolean writeCommands(GameFrame game) {
         commands.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(),
                 drawFrustum.set(farViewProjection),
                 NearBox.around(NearSections.section(Mth.floor(game.eyeX())),
-                        NearSections.section(Mth.floor(game.eyeZ())), renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS),
+                        NearSections.section(Mth.floor(game.eyeZ())),
+                        game.renderDistance() + ClientSession.CLIENT_EXTRA_CHUNKS),
                 game.eyeX(), game.eyeY(), game.eyeZ());
         if (commands.count() == 0) {
-            return;
+            return false;
         }
 
         if (indirect.capacity() < commands.capacity()) {
@@ -387,15 +421,16 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         indirect.write(commands);
-        fillNearSections(client, level, game);
+        return true;
+    }
 
+    private void writeFrame(GameFrame game, Settings settings) {
         frame.write(farViewProjection, game.viewRotation(), runtime.frame().minBlockY(),
                 models.atlas(), nearSections.sections(), game.shade(), game.smoothLighting(), game.rgss(),
                 game.anisotropy(), CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
         draw.frame(indirect.buffer(), commands.opaqueCount(), commands.translucentCount(), gpu.lightmap(),
                 FarQuads.atlasSampler(game.terrainFilter()), farProjection, game.viewRotation(),
                 FarDistance.cellsToBlocks(settings.farRenderCells()));
-        terrainDrawn = true;
     }
 
     private void upload(TreeBatch batch) {
@@ -411,6 +446,10 @@ public final class FarRenderer implements AutoCloseable {
             return;
         }
 
+        takeRenderList(batch);
+    }
+
+    private void takeRenderList(TreeBatch batch) {
         RenderList walked = batch.renderList();
         if (walked != null) {
             renderList = walked;
@@ -450,7 +489,7 @@ public final class FarRenderer implements AutoCloseable {
             row[NodeRow.CELL_Z] = CellKey.z(key);
             row[NodeRow.SLOT_PRESENT] = slot == null ? 0 : 1;
             row[NodeRow.SLOT_QUADS] = slot == null ? 0 : slot.quads();
-            row[NodeRow.SLOT_BLOCK] = slot == null ? -1 : slot.block();
+            row[NodeRow.SLOT_SEGMENT] = slot == null ? -1 : slot.segment();
             rows.add(row);
         }
 
