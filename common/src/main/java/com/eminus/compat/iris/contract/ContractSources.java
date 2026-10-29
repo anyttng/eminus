@@ -10,6 +10,7 @@ import org.jspecify.annotations.Nullable;
 
 final class ContractSources {
     static final String MAIN = "void main() {\n    " + PackContract.FUNCTION + "(eminus_fragment());\n}\n";
+    static final String BEAM_MAIN = "void main() {\n    " + PackContract.BEAM_FUNCTION + "(eminus_beam());\n}\n";
 
     private static final String NO_MAIN = "";
 
@@ -23,6 +24,10 @@ final class ContractSources {
 
     static String splice(String packSource, String header) {
         return PackSources.insert(packSource, header, MAIN);
+    }
+
+    static String spliceBeam(String packSource, String header) {
+        return PackSources.insert(packSource, header, BEAM_MAIN);
     }
 
     static String spliceVertex(String packSource, String header) {

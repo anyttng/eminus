@@ -134,7 +134,8 @@ public final class FarRenderer implements AutoCloseable {
         this.composite = composite;
         this.overlays = overlays;
         this.indirect = indirect;
-        draw = new FarDraw(gpu, depth, baking.variantDraw(), arena, models, frame, nearSections, target);
+        draw = new FarDraw(gpu, depth, baking.variantDraw(), arena, models, frame, nearSections, target,
+                overlays.beams());
         shadow = FarShadow.create(gpu);
         tree = TreeManager.start(new FarBuilds(() -> meshes),
                 new TreeExtent(runtime.frame(), Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL),

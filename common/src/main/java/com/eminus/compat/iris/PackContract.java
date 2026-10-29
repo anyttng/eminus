@@ -4,20 +4,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class PackContract {
-    public static final int VERSION = 6;
+    public static final int VERSION = 7;
     public static final String OPAQUE_FILE = "eminus_opaque.glsl";
     public static final String TRANSLUCENT_FILE = "eminus_translucent.glsl";
     public static final String SHADOW_FILE = "eminus_shadow.glsl";
     public static final String SHADOW_TRANSLUCENT_FILE = "eminus_shadow_translucent.glsl";
     public static final String SHADOW_VERTEX_FILE = "eminus_shadow_vertex.glsl";
     public static final String VERTEX_FILE = "eminus_vertex.glsl";
+    public static final String BEAM_FILE = "eminus_beaconbeam.glsl";
     public static final List<String> FILES = List.of(OPAQUE_FILE, TRANSLUCENT_FILE, SHADOW_FILE,
-            SHADOW_TRANSLUCENT_FILE, SHADOW_VERTEX_FILE, VERTEX_FILE);
+            SHADOW_TRANSLUCENT_FILE, SHADOW_VERTEX_FILE, VERTEX_FILE, BEAM_FILE);
     public static final String MOVED_FILE = "eminus.properties";
     public static final String MOVED_KEY = "moved";
     public static final String MACRO = "EMINUS";
     public static final String VERSION_MACRO = "EMINUS_CONTRACT_VERSION";
     public static final String FUNCTION = "eminus_emitFragment";
+    public static final String BEAM_FUNCTION = "eminus_emitBeam";
     public static final String DEPTH_SAMPLER = "eminusDepthTex0";
     public static final String OPAQUE_DEPTH_SAMPLER = "eminusDepthTex1";
     public static final String PROJECTION = "eminusProjection";

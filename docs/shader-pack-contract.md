@@ -1,8 +1,8 @@
-# Eminus shader-pack contract, version 6
+# Eminus shader-pack contract, version 7
 
 Eminus draws the terrain past the render distance as a level-of-detail layer (LOD). Under an Iris shader pack that does not know Eminus, the LOD is drawn over the pack's finished frame in Eminus's own shading ([A pack without the contract](shader-packs/without-contract.md)). A pack that ships the contract below shades the LOD itself. Eminus runs the geometry, your code colors each pixel and writes it into your own buffers, so your lighting, fog and post-processing apply to the LOD the way they apply to near terrain.
 
-The contract is one fragment function, and optionally one vertex function.
+The contract is one fragment function, and optionally one vertex function and one function for beacon beams.
 
 It works under Iris on the game's OpenGL backend. On Vulkan, Eminus logs `Shader pack file … is not used: the far layer runs on the game's GPU path` and draws the LOD over the pack's finished frame. Under a Vitrail shader pack, the LOD is always drawn over the finished frame.
 
@@ -78,6 +78,10 @@ If your `shadow` program colors the shadow of stained glass or water, add `eminu
 
 If your `gbuffers_terrain` vertex program changes the position it projects (temporal anti-aliasing jitter, a render scale, a shadow distortion), add `eminus_vertex.glsl` with the same code, so the LOD reaches your later passes where they expect your terrain. [The vertex hook](shader-packs/vertex-hook.md) has the details. If it animates blocks, name the blocks it moves in `eminus.properties` ([Blocks your hook moves](shader-packs/vertex-hook.md#blocks-your-hook-moves)), or gaps open in the LOD where they sway.
 
+### 5. Shade the far beacon beams
+
+If your `gbuffers_beaconbeam` makes beams glow or bloom, add `eminus_beaconbeam.glsl` with the same shading, and the beams past the render distance get the same look. Without it, no beam is drawn past the render distance inside your pack. [Beacon beams](shader-packs/beacon-beams.md) has the fields and the example.
+
 The [example pack](example-pack/) is a complete minimal pack: textured, lit terrain, the contract file sharing its shading through one include, and a fog composite that is step 2 in one call. It carries its own MIT [license](example-pack/LICENSE), so a pack may copy any part of it.
 
 ## Reference
@@ -87,5 +91,6 @@ The [example pack](example-pack/) is a complete minimal pack: textured, lit terr
 - [Depth](shader-packs/depth.md): the LOD's depth textures and projection, the position helper, and reconstruction by hand.
 - [Shadows](shader-packs/shadows.md): the shadow files, shadow planes, and your own shadow program run on the LOD.
 - [The vertex hook](shader-packs/vertex-hook.md): `eminus_vertexPosition`, `eminus_project`, and the blocks your hook moves.
+- [Beacon beams](shader-packs/beacon-beams.md): `eminus_emitBeam`, every field of `beam`, and when the beams are drawn.
 - [When a file does not build](shader-packs/troubleshooting.md): what a failure leaves running, and the log lines.
 - [A pack without the contract](shader-packs/without-contract.md): the Shader Pack LOD setting and the Distant Horizons path.

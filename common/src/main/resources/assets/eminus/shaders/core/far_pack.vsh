@@ -28,22 +28,7 @@ flat out vec2 eminus_occlusionSize;
 flat out uvec2 eminus_occlusion;
 #endif
 #ifdef PACK_VERTEX
-struct EminusVertex {
-    vec3 playerPos;
-    int blockId;
-    int face;
-    bool blade;
-    bool top;
-    vec2 lmcoord;
-    int level;
-    bool shadow;
-};
-
-vec4 eminus_project(vec3 playerPos) {
-    return EminusProjView * vec4(playerPos, 1.0);
-}
-
-vec4 eminus_vertexPosition(inout EminusVertex vertex);
+#moj_import <eminus:far_pack_hook.glsl>
 #elif defined PACK_SHADOW_VERTEX
 vec4 eminus_shadowPosition(vec4 shadowClipPosition);
 #elif defined DH_PROGRAM

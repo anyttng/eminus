@@ -26,6 +26,8 @@ class PackHeaderNamesTest {
     private static final String INCLUDES = "/shaders/include/";
     private static final String FRAGMENT = "core/far_pack.fsh";
     private static final String VERTEX = "core/far_pack.vsh";
+    private static final String BEAM_FRAGMENT = "core/far_pack_beams.fsh";
+    private static final String BEAM_VERTEX = "core/far_pack_beams.vsh";
     private static final List<String> PREFIXES = List.of("eminus", "Eminus", "EMINUS", "iris_");
     private static final Set<String> ENTRY_POINTS = Set.of("main");
     private static final Pattern COMMENT = Pattern.compile("//[^\\n]*|/\\*.*?\\*/", Pattern.DOTALL);
@@ -52,6 +54,20 @@ class PackHeaderNamesTest {
     @Test
     void everyVertexHeaderNameCarriesAReservedPrefix() {
         assertEquals(List.of(), unprefixed(declared(header(VERTEX))), VERTEX);
+    }
+
+    @Test
+    void everyBeamFragmentHeaderNameCarriesAReservedPrefix() {
+        assertEquals(List.of(), unprefixed(declared(header(BEAM_FRAGMENT))), BEAM_FRAGMENT);
+    }
+
+    @Test
+    void everyBeamVertexHeaderNameCarriesAReservedPrefix() {
+        List<String> vertex = declared(header(BEAM_VERTEX));
+
+        assertEquals(List.of(), unprefixed(vertex), BEAM_VERTEX);
+        assertTrue(vertex.containsAll(List.of("EminusBeamVertex", "eminus_beam_vertex", "EminusVertex",
+                "eminus_vertexPosition")), vertex.toString());
     }
 
     @Test
