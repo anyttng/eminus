@@ -4,6 +4,7 @@ import com.eminus.Eminus;
 import com.eminus.client.handoff.NearSectionTable;
 import com.eminus.client.model.ModelPublisher;
 import com.eminus.client.render.arena.GeometryArena;
+import com.eminus.client.render.beam.BeamPass;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.Location;
 import com.eminus.gpu.buffer.Buffer;
@@ -32,6 +33,7 @@ public final class FarDraw {
     private final FarFrame frame;
     private final NearSectionTable nearSections;
     private final FarTarget target;
+    private final BeamPass beams;
     private final Matrix4f projection = new Matrix4f();
     private final Matrix4f previousProjection = new Matrix4f();
     private final Matrix4f view = new Matrix4f();
@@ -56,7 +58,7 @@ public final class FarDraw {
     }
 
     FarDraw(Gpu gpu, DepthConvention depth, VariantDraw variantDraw, GeometryArena arena, ModelPublisher models,
-            FarFrame frame, NearSectionTable nearSections, FarTarget target) {
+            FarFrame frame, NearSectionTable nearSections, FarTarget target, BeamPass beams) {
         this.gpu = gpu;
         this.depth = depth;
         this.variantDraw = variantDraw;
@@ -65,6 +67,7 @@ public final class FarDraw {
         this.frame = frame;
         this.nearSections = nearSections;
         this.target = target;
+        this.beams = beams;
     }
 
     @Initializer
@@ -124,6 +127,10 @@ public final class FarDraw {
                 .withDefine("TRANSLUCENT_PASS").build();
     }
 
+    public PipelineSpec packBeamPipeline(Location location, boolean glow, PackVertex vertex, boolean animated) {
+        return withVertex(BeamPass.packPipeline(location, glow, depth), vertex, animated).build();
+    }
+
     private PipelineSpec.Builder pack(Location location, float alphaCutout, @Nullable Blend blend,
             boolean writesColor, boolean writesDepth, PackVertex vertex, boolean animated) {
         return withVertex(FarQuads.pipeline(location, PACK_SHADER, alphaCutout, gpu.capabilities(), variantDraw)
@@ -179,5 +186,13 @@ public final class FarDraw {
         if (translucentCount > 0) {
             pass.drawIndexedIndirect(commands, opaqueCount, translucentCount);
         }
+    }
+
+    public boolean beamsDrawn() {
+        return beams.drawsAny();
+    }
+
+    public void drawBeams(Pass pass) {
+        beams.drawPack(pass, frame.buffer());
     }
 }

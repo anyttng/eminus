@@ -52,11 +52,17 @@ final class PackLayer {
     private @Nullable PackProgram translucentDepth;
     private @Nullable PackProgram shadow;
     private @Nullable PackProgram shadowTranslucent;
+    private @Nullable PackProgram beam;
+    private @Nullable PackProgram beamGlow;
     private @Nullable GlFramebuffer opaqueFramebuffer;
     private @Nullable GlFramebuffer translucentFramebuffer;
     private @Nullable GlFramebuffer shadowFramebuffer;
+    private @Nullable GlFramebuffer beamFramebuffer;
+    private @Nullable GlFramebuffer beamGlowFramebuffer;
     private int opaqueAttached = NO_TEXTURE;
     private int translucentAttached = NO_TEXTURE;
+    private int beamAttached = NO_TEXTURE;
+    private int beamGlowAttached = NO_TEXTURE;
     private @Nullable FarDraw drawn;
     private @Nullable FarShadow shadowDrawn;
 
@@ -192,10 +198,14 @@ final class PackLayer {
             current.translucentDepth = null;
             current.shadow = null;
             current.shadowTranslucent = null;
+            current.beam = null;
+            current.beamGlow = null;
             current.drawn = null;
             current.shadowDrawn = null;
             current.opaqueAttached = NO_TEXTURE;
             current.translucentAttached = NO_TEXTURE;
+            current.beamAttached = NO_TEXTURE;
+            current.beamGlowAttached = NO_TEXTURE;
         }
     }
 
@@ -251,6 +261,7 @@ final class PackLayer {
         translucent = builtTranslucent;
         translucentDepth = builtDepth;
         buildShadow(draw, foreign.get());
+        buildBeams(draw, foreign.get());
     }
 
     private void forgetPrograms() {
@@ -259,6 +270,8 @@ final class PackLayer {
         translucentDepth = null;
         shadow = null;
         shadowTranslucent = null;
+        beam = null;
+        beamGlow = null;
         shadowDrawn = null;
     }
 
@@ -273,7 +286,7 @@ final class PackLayer {
 
     private void release() {
         for (PackProgram program : new PackProgram[] {opaque, translucent, translucentDepth, shadow,
-                shadowTranslucent}) {
+                shadowTranslucent, beam, beamGlow}) {
             if (program != null) {
                 program.release();
             }
@@ -296,6 +309,26 @@ final class PackLayer {
         }
         shadow = built;
         shadowTranslucent = program(draw, foreign, PackProgram.Kind.SHADOW_TRANSLUCENT, false);
+    }
+
+    private void buildBeams(FarDraw draw, Foreign foreign) {
+        PackProgram builtBeam = program(draw, foreign, PackProgram.Kind.BEAM, false);
+        PackProgram builtGlow = builtBeam == null ? null : program(draw, foreign, PackProgram.Kind.BEAM_GLOW, false);
+        if (builtBeam == null || builtGlow == null) {
+            if (builtBeam != null) {
+                builtBeam.release();
+            }
+            return;
+        }
+
+        if (beamFramebuffer == null) {
+            beamFramebuffer = pipeline.createDHFramebuffer(builtBeam.source(), false);
+        }
+        if (beamGlowFramebuffer == null) {
+            beamGlowFramebuffer = pipeline.createDHFramebuffer(builtGlow.source(), true);
+        }
+        beam = builtBeam;
+        beamGlow = builtGlow;
     }
 
     private @Nullable PackProgram program(FarDraw draw, Foreign foreign, PackProgram.Kind kind, boolean depthOnly) {
@@ -328,6 +361,10 @@ final class PackLayer {
                 draw.previousProjection(), draw.farBlocks(), path.distantHorizons());
         opaqueAttached = attach(opaqueFramebuffer, opaqueAttached, depth);
         opaque.draw(draw, opaqueFramebuffer, false);
+        if (beam != null && beamFramebuffer != null && draw.beamsDrawn()) {
+            beamAttached = attach(beamFramebuffer, beamAttached, depth);
+            beam.drawBeams(draw, beamFramebuffer);
+        }
         foreign.copyDepth(target.color(), target.depth(), target.opaqueDepth());
         drawn = draw;
     }
@@ -340,6 +377,10 @@ final class PackLayer {
         }
 
         int depth = draw.gpu().foreign().orElseThrow().texture(draw.target().depth());
+        if (beamGlow != null && beamGlowFramebuffer != null && draw.beamsDrawn()) {
+            beamGlowAttached = attach(beamGlowFramebuffer, beamGlowAttached, depth);
+            beamGlow.drawBeams(draw, beamGlowFramebuffer);
+        }
         translucentAttached = attach(translucentFramebuffer, translucentAttached, depth);
         translucent.draw(draw, translucentFramebuffer, true);
         translucentDepth.draw(draw, translucentFramebuffer, true);

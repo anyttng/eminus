@@ -36,6 +36,10 @@ final class FarOverlays implements AutoCloseable {
         return pipelines;
     }
 
+    BeamPass beams() {
+        return beams;
+    }
+
     boolean drawsAny() {
         return boxes.drawsAny() || beams.drawsAny();
     }
