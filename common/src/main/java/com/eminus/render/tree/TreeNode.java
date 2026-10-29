@@ -27,6 +27,7 @@ public final class TreeNode {
     private long lastSeen;
     private long request;
     private long dispatchedAt;
+    private int failures;
     private boolean building;
     private boolean outOfViewBuild;
     private boolean countedBuild;
@@ -232,14 +233,20 @@ public final class TreeNode {
         }
 
         occupancyAhead = false;
+        failures = 0;
         building = false;
         outOfViewBuild = false;
         stale = false;
     }
 
-    void buildFailed() {
+    int buildFailed() {
         building = false;
         stale = false;
+        return ++failures;
+    }
+
+    void clearFailures() {
+        failures = 0;
     }
 
     void markRebuild() {
