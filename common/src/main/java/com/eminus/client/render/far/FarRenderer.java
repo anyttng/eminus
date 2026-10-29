@@ -7,7 +7,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import com.eminus.Eminus;
-import com.eminus.box.BoxRegistry;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.handoff.NearBox;
@@ -36,7 +35,6 @@ import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.render.backend.BackendSupport;
 import com.eminus.render.backend.DepthConvention;
 import com.eminus.client.render.backend.BackendCheck;
-import com.eminus.client.render.box.BoxPass;
 import com.eminus.render.far.CameraOrigin;
 import com.eminus.render.far.CompositeFog;
 import com.eminus.render.far.DrawCommands;
@@ -86,7 +84,7 @@ public final class FarRenderer implements AutoCloseable {
     private final OpaquePass opaque;
     private final TranslucentPass translucent;
     private final CompositePass composite;
-    private final BoxPass boxes;
+    private final FarOverlays overlays;
     private final DrawCommands commands = new DrawCommands(START_COMMANDS);
     private final MeshOrder order = new MeshOrder();
     private final FarProjection projection = new FarProjection();
@@ -120,7 +118,7 @@ public final class FarRenderer implements AutoCloseable {
     private FarRenderer(Gpu gpu, DepthConvention depth, DimensionRuntime runtime, ClientBakery baking,
             ModelPublisher models, GeometryArena arena, FarTarget target, FarFrame frame, NearMaskPass mask,
             NearSectionTable nearSections, OpaquePass opaque, TranslucentPass translucent, CompositePass composite,
-            BoxPass boxes, IndirectCommands indirect, int levelHeight, int nodeCapacity) {
+            FarOverlays overlays, IndirectCommands indirect, int levelHeight, int nodeCapacity) {
         this.gpu = gpu;
         this.levelHeight = levelHeight;
         this.runtime = runtime;
@@ -134,7 +132,7 @@ public final class FarRenderer implements AutoCloseable {
         this.opaque = opaque;
         this.translucent = translucent;
         this.composite = composite;
-        this.boxes = boxes;
+        this.overlays = overlays;
         this.indirect = indirect;
         draw = new FarDraw(gpu, depth, baking.variantDraw(), arena, models, frame, nearSections, target);
         shadow = FarShadow.create(gpu);
@@ -164,27 +162,27 @@ public final class FarRenderer implements AutoCloseable {
         OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw());
         TranslucentPass translucent = TranslucentPass.create(gpu, support.depth(), baking.variantDraw());
         CompositePass composite = CompositePass.create(gpu, support.depth());
-        BoxPass boxes = BoxPass.create(gpu, support.depth());
-        String refusal = FarPrograms.refusal(mask, opaque, translucent, composite, boxes);
+        FarOverlays overlays = FarOverlays.create(gpu, support.depth());
+        String refusal = FarPrograms.refusal(mask, opaque, translucent, composite, overlays);
         if (refusal != null) {
-            return refused(refusal, gpu, arena, baking, mask, composite, boxes);
+            return refused(refusal, gpu, arena, baking, mask, composite, overlays);
         }
 
         FarRenderer renderer = new FarRenderer(gpu, support.depth(), runtime, baking,
                 ModelPublisher.start(gpu, baking.bakery(), atlasFirstMip(settings.lodQuality())), arena,
                 FarTarget.create(gpu, Objects.requireNonNull(support.depthFormat(), "an accepted backend names one"),
                         main.width(), main.height()), FarFrame.create(gpu),
-                mask, NearSectionTable.create(gpu), opaque, translucent, composite, boxes,
+                mask, NearSectionTable.create(gpu), opaque, translucent, composite, overlays,
                 IndirectCommands.create(gpu, START_COMMANDS), levelHeight, sizing.nodeCapacity());
         wire(renderer, client, runtime, instance, baking);
         return FarStart.started(renderer);
     }
 
     private static FarStart refused(String refusal, Gpu gpu, GeometryArena arena, ClientBakery baking,
-            NearMaskPass mask, CompositePass composite, BoxPass boxes) {
+            NearMaskPass mask, CompositePass composite, FarOverlays overlays) {
         Eminus.LOGGER.warn("Renderer disabled: {}", refusal);
         baking.stop();
-        boxes.close();
+        overlays.close();
         composite.close();
         mask.close();
         arena.close();
@@ -268,7 +266,7 @@ public final class FarRenderer implements AutoCloseable {
 
         Texture main = gpu.mainColor();
         Texture mainDepth = gpu.mainDepth();
-        if (farFrame && (terrainDrawn || boxes.drawsAny())) {
+        if (farFrame && (terrainDrawn || overlays.drawsAny())) {
             drawMask();
             Texture lightmap = gpu.lightmap();
             Sampler atlas = FarQuads.atlasSampler(game.terrainFilter());
@@ -279,10 +277,10 @@ public final class FarRenderer implements AutoCloseable {
                 translucent.draw(target, arena, models, lightmap, atlas, indirect.buffer(), commands.opaqueCount(),
                         commands.translucentCount(), frame.buffer(), nearSections.texels());
             }
-            boxes.drawFar(target, farViewProjection, game);
+            overlays.drawFar(target, farViewProjection, game);
             composite.draw(target, main, mainDepth, farViewProjection, gameViewProjection, fog, fogColor);
         }
-        boxes.drawNear(main, mainDepth, gameViewProjection, game, NearPlane.blocks(game.renderDistance()));
+        overlays.drawNear(main, mainDepth, gameViewProjection, game, NearPlane.blocks(game.renderDistance()));
     }
 
     public @Nullable FarDraw packFrame(Minecraft client) {
@@ -344,6 +342,7 @@ public final class FarRenderer implements AutoCloseable {
         postWalk(client, game, main, settings);
 
         ClientLevel level = Objects.requireNonNull(client.level, "a far frame steps with a level");
+        overlays.update(runtime, level, game);
         updateFog(game, level, settings);
         if (fog.skip()) {
             return;
@@ -361,7 +360,6 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     private void uploadBatch() {
-        boxes.update(BoxRegistry.get(), runtime.identity().dimension());
         TreeBatch batch = tree.batches().peek();
         if (batch != null) {
             upload(batch);
@@ -511,7 +509,7 @@ public final class FarRenderer implements AutoCloseable {
 
         indirect.close();
         shadow.close();
-        boxes.close();
+        overlays.close();
         composite.close();
         mask.close();
         nearSections.close();

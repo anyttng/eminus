@@ -45,6 +45,11 @@ public final class SqliteCellStore implements CellStore {
     private static final String UPSERT_META = "INSERT OR REPLACE INTO meta (name, value) VALUES (?, ?)";
     private static final String ADD_META = "UPDATE meta SET value = value + ? WHERE name = ?";
     private static final String DELETE_META = "DELETE FROM meta WHERE name = ?";
+    private static final String CREATE_BEAMS =
+            "CREATE TABLE IF NOT EXISTS beams (pos INTEGER PRIMARY KEY, sections BLOB NOT NULL)";
+    private static final String UPSERT_BEAM = "INSERT OR REPLACE INTO beams (pos, sections) VALUES (?, ?)";
+    private static final String DELETE_BEAM = "DELETE FROM beams WHERE pos = ?";
+    private static final String SELECT_BEAMS = "SELECT pos, sections FROM beams";
     private static final String SELECT_LOWEST_KEY = "SELECT min(key) FROM cells";
     private static final String RAISED_LEVEL_KEY = "raised_level";
     private static final String PLAYED_MILLIS_KEY = "raised_played_millis";
@@ -63,6 +68,9 @@ public final class SqliteCellStore implements CellStore {
     private final PreparedStatement selectDictionary;
     private final PreparedStatement insertColumn;
     private final PreparedStatement selectColumns;
+    private final PreparedStatement upsertBeam;
+    private final PreparedStatement deleteBeam;
+    private final PreparedStatement selectBeams;
 
     private boolean closed;
 
@@ -81,6 +89,7 @@ public final class SqliteCellStore implements CellStore {
             StoreSchema.prepare(connection, file, lowestStoredLevel);
             try (Statement statement = connection.createStatement()) {
                 statement.execute(CREATE_META);
+                statement.execute(CREATE_BEAMS);
             }
 
             int heldLevel = settleHeldLevel(connection, lowestStoredLevel, dropGraceMillis, file);
@@ -113,6 +122,9 @@ public final class SqliteCellStore implements CellStore {
         selectDictionary = connection.prepareStatement(SELECT_DICTIONARY);
         insertColumn = connection.prepareStatement(INSERT_COLUMN);
         selectColumns = connection.prepareStatement(SELECT_COLUMNS);
+        upsertBeam = connection.prepareStatement(UPSERT_BEAM);
+        deleteBeam = connection.prepareStatement(DELETE_BEAM);
+        selectBeams = connection.prepareStatement(SELECT_BEAMS);
     }
 
     public int heldLevel() {
@@ -210,6 +222,38 @@ public final class SqliteCellStore implements CellStore {
     }
 
     @Override
+    public synchronized void putBeam(long pos, byte[] sections) {
+        try {
+            upsertBeam.setLong(1, pos);
+            upsertBeam.setBytes(2, sections);
+            upsertBeam.executeUpdate();
+        } catch (SQLException failure) {
+            throw new StoreException("Could not write the beam at " + pos + " to " + file, failure);
+        }
+    }
+
+    @Override
+    public synchronized void deleteBeam(long pos) {
+        try {
+            deleteBeam.setLong(1, pos);
+            deleteBeam.executeUpdate();
+        } catch (SQLException failure) {
+            throw new StoreException("Could not delete the beam at " + pos + " from " + file, failure);
+        }
+    }
+
+    @Override
+    public synchronized void readBeams(Rows into) {
+        try (ResultSet rows = selectBeams.executeQuery()) {
+            while (rows.next()) {
+                into.row(rows.getLong(1), rows.getBytes(2));
+            }
+        } catch (SQLException failure) {
+            throw new StoreException("Could not read the beams from " + file, failure);
+        }
+    }
+
+    @Override
     public synchronized void close() {
         if (closed) {
             return;
@@ -228,6 +272,9 @@ public final class SqliteCellStore implements CellStore {
             selectDictionary.close();
             insertColumn.close();
             selectColumns.close();
+            upsertBeam.close();
+            deleteBeam.close();
+            selectBeams.close();
             vacuumWhenSparse(connection);
             connection.close();
         } catch (SQLException failure) {

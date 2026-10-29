@@ -74,6 +74,18 @@ public final class FakeCellStore implements CellStore {
     }
 
     @Override
+    public void putBeam(long pos, byte[] sections) {
+    }
+
+    @Override
+    public void deleteBeam(long pos) {
+    }
+
+    @Override
+    public void readBeams(Rows into) {
+    }
+
+    @Override
     public void close() {
     }
 
