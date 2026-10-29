@@ -15,6 +15,7 @@ import com.eminus.beam.BeamSet;
 import com.eminus.beam.BeamSnapshot;
 import com.eminus.beam.BeamTexels;
 import com.eminus.client.frame.GameFrame;
+import com.eminus.client.render.far.FarFrame;
 import com.eminus.client.render.far.FarTarget;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
@@ -60,10 +61,11 @@ public final class BeamPass implements AutoCloseable {
     private static final double BLOCK_CENTER = 0.5;
 
     private static final Location SHADER = new Location(Eminus.MODID, "core/far_beams");
+    private static final Location PACK_SHADER = new Location(Eminus.MODID, "core/far_pack_beams");
     private static final Location PIPELINE = new Location(Eminus.MODID, "far_beams");
     private static final String LABEL = "eminus-far-beams";
     private static final String RECORDS_LABEL = "eminus-beam-records";
-    private static final String RECORDS = "BeamRecords";
+    private static final String RECORDS = "EminusBeamRecords";
     private static final Set<BufferUsage> UNIFORM_USAGE = EnumSet.of(BufferUsage.UNIFORM, BufferUsage.COPY_DST);
     private static final Set<BufferUsage> RECORD_USAGE = EnumSet.of(BufferUsage.TEXEL, BufferUsage.COPY_DST);
     private static final long START_OF_BUFFER = 0L;
@@ -87,18 +89,32 @@ public final class BeamPass implements AutoCloseable {
 
     public static BeamPass create(Gpu gpu, DepthConvention depth) {
         gpu.assertRenderThread();
-        PipelineSpec.Builder builder = PipelineSpec.builder(PIPELINE, SHADER, SHADER)
-                .withBinding(Binding.uniform(BLOCK.name()))
-                .withBinding(Binding.texel(RECORDS, TEXEL_FORMAT))
+        PipelineSpec.Builder builder = prism(PipelineSpec.builder(PIPELINE, SHADER, SHADER)
+                .withBinding(Binding.uniform(BLOCK.name())))
+                .withColorTarget(FarTarget.COLOR_FORMAT, Blend.TRANSLUCENT, true)
+                .withDepthTest(depth.compare(), true);
+        return new BeamPass(gpu, gpu.pipeline(builder.build()), gpu.buffer(LABEL, UNIFORM_USAGE, SIZE));
+    }
+
+    public static PipelineSpec.Builder packPipeline(Location location, boolean glow, DepthConvention depth) {
+        PipelineSpec.Builder builder = prism(PipelineSpec.builder(location, PACK_SHADER, PACK_SHADER)
+                .withBinding(Binding.uniform(FarFrame.BLOCK.name())));
+        return glow
+                ? builder.withColorTarget(FarTarget.COLOR_FORMAT, Blend.TRANSLUCENT, true)
+                        .withDepthTest(depth.compare(), false)
+                        .withDefine("BEAM_GLOW")
+                : builder.withColorTarget(FarTarget.COLOR_FORMAT, null, true)
+                        .withDepthTest(depth.compare(), true);
+    }
+
+    private static PipelineSpec.Builder prism(PipelineSpec.Builder builder) {
+        return builder.withBinding(Binding.texel(RECORDS, TEXEL_FORMAT))
                 .withDefine("BEAM_TEXELS", BeamTexels.TEXELS)
                 .withDefine("BEAM_PRISM_VERTICES", BeamTexels.VERTICES_PER_PRISM)
                 .withDefine("BEAM_SOLID_RADIUS", SOLID_RADIUS)
                 .withDefine("BEAM_GLOW_RADIUS", GLOW_RADIUS)
                 .withDefine("BEAM_SCALE_DISTANCE", SCALE_DISTANCE)
-                .withDefine("BEAM_GLOW_ALPHA", GLOW_ALPHA)
-                .withColorTarget(FarTarget.COLOR_FORMAT, Blend.TRANSLUCENT, true)
-                .withDepthTest(depth.compare(), true);
-        return new BeamPass(gpu, gpu.pipeline(builder.build()), gpu.buffer(LABEL, UNIFORM_USAGE, SIZE));
+                .withDefine("BEAM_GLOW_ALPHA", GLOW_ALPHA);
     }
 
     public Pipeline pipeline() {
@@ -191,6 +207,16 @@ public final class BeamPass implements AutoCloseable {
             pass.bind(RECORDS, Objects.requireNonNull(texels, "beams are drawn only once records hold them"));
             pass.draw(sections * PRISMS * BeamTexels.VERTICES_PER_PRISM);
         }
+    }
+
+    public void drawPack(Pass pass, Buffer frame) {
+        if (sections == 0) {
+            return;
+        }
+
+        pass.bind(FarFrame.BLOCK.name(), frame);
+        pass.bind(RECORDS, Objects.requireNonNull(texels, "beams are drawn only once records hold them"));
+        pass.draw(sections * BeamTexels.VERTICES_PER_PRISM);
     }
 
     @Override

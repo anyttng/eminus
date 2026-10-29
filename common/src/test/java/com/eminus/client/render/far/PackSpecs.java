@@ -28,7 +28,7 @@ public final class PackSpecs {
                     throw new UnsupportedOperationException(method.getName());
                 });
         FarDraw draw = new FarDraw(gpu, DepthConvention.of(false, false), VariantDraw.NEXT_INT, null, null, null,
-                null, null);
+                null, null, null);
         List<PipelineSpec> specs = new ArrayList<>();
         for (FarDraw.PackVertex vertex : FarDraw.PackVertex.values()) {
             for (boolean animated : new boolean[] {false, true}) {
@@ -43,6 +43,10 @@ public final class PackSpecs {
                             animated));
                 }
                 specs.add(draw.packDepthPipeline(location("depth" + suffix), vertex, animated));
+                for (boolean glow : new boolean[] {false, true}) {
+                    specs.add(draw.packBeamPipeline(location((glow ? "beam_glow" : "beam") + suffix), glow, vertex,
+                            animated));
+                }
             }
         }
         return specs;
