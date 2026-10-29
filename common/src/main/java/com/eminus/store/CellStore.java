@@ -1,12 +1,13 @@
 package com.eminus.store;
 
+import com.eminus.beam.BeamStore;
 import com.eminus.cell.Cell;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.Dictionary;
 
 import org.jspecify.annotations.Nullable;
 
-public interface CellStore extends AutoCloseable {
+public interface CellStore extends BeamStore, AutoCloseable {
     @Nullable Cell read(long key);
 
     void write(Cell cell);
