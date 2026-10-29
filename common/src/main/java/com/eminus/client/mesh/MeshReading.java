@@ -57,6 +57,10 @@ public final class MeshReading {
             throw new UncheckedIOException(failure);
         }
 
+        return row(mesh);
+    }
+
+    private static long[] row(CellMesh mesh) {
         long key = mesh.key();
         long[] row = new long[FIRST_GROUP + QuadGroups.COUNT];
         row[LEVEL] = CellKey.level(key);

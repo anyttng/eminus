@@ -7,7 +7,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import com.eminus.Eminus;
-import com.eminus.box.BoxRegistry;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.DetailLevel;
 import com.eminus.handoff.NearBox;
@@ -36,7 +35,6 @@ import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.render.backend.BackendSupport;
 import com.eminus.render.backend.DepthConvention;
 import com.eminus.client.render.backend.BackendCheck;
-import com.eminus.client.render.box.BoxPass;
 import com.eminus.render.far.CameraOrigin;
 import com.eminus.render.far.CompositeFog;
 import com.eminus.render.far.DrawCommands;
@@ -86,7 +84,7 @@ public final class FarRenderer implements AutoCloseable {
     private final OpaquePass opaque;
     private final TranslucentPass translucent;
     private final CompositePass composite;
-    private final BoxPass boxes;
+    private final FarOverlays overlays;
     private final DrawCommands commands = new DrawCommands(START_COMMANDS);
     private final MeshOrder order = new MeshOrder();
     private final FarProjection projection = new FarProjection();
@@ -120,7 +118,7 @@ public final class FarRenderer implements AutoCloseable {
     private FarRenderer(Gpu gpu, DepthConvention depth, DimensionRuntime runtime, ClientBakery baking,
             ModelPublisher models, GeometryArena arena, FarTarget target, FarFrame frame, NearMaskPass mask,
             NearSectionTable nearSections, OpaquePass opaque, TranslucentPass translucent, CompositePass composite,
-            BoxPass boxes, IndirectCommands indirect, int levelHeight, int nodeCapacity) {
+            FarOverlays overlays, IndirectCommands indirect, int levelHeight, int nodeCapacity) {
         this.gpu = gpu;
         this.levelHeight = levelHeight;
         this.runtime = runtime;
@@ -134,9 +132,10 @@ public final class FarRenderer implements AutoCloseable {
         this.opaque = opaque;
         this.translucent = translucent;
         this.composite = composite;
-        this.boxes = boxes;
+        this.overlays = overlays;
         this.indirect = indirect;
-        draw = new FarDraw(gpu, depth, baking.variantDraw(), arena, models, frame, nearSections, target);
+        draw = new FarDraw(gpu, depth, baking.variantDraw(), arena, models, frame, nearSections, target,
+                overlays.beams());
         shadow = FarShadow.create(gpu);
         tree = TreeManager.start(new FarBuilds(() -> meshes),
                 new TreeExtent(runtime.frame(), Math.ceilDiv(levelHeight, FarDistance.BLOCKS_PER_TOP_LEVEL_CELL),
@@ -164,39 +163,47 @@ public final class FarRenderer implements AutoCloseable {
         OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw());
         TranslucentPass translucent = TranslucentPass.create(gpu, support.depth(), baking.variantDraw());
         CompositePass composite = CompositePass.create(gpu, support.depth());
-        BoxPass boxes = BoxPass.create(gpu, support.depth());
-        String refusal = FarPrograms.refusal(mask, opaque, translucent, composite, boxes);
+        FarOverlays overlays = FarOverlays.create(gpu, support.depth());
+        String refusal = FarPrograms.refusal(mask, opaque, translucent, composite, overlays);
         if (refusal != null) {
-            Eminus.LOGGER.warn("Renderer disabled: {}", refusal);
-            baking.stop();
-            boxes.close();
-            composite.close();
-            mask.close();
-            arena.close();
-            gpu.close();
-            return FarStart.refused(refusal);
+            return refused(refusal, gpu, arena, baking, mask, composite, overlays);
         }
 
         FarRenderer renderer = new FarRenderer(gpu, support.depth(), runtime, baking,
                 ModelPublisher.start(gpu, baking.bakery(), atlasFirstMip(settings.lodQuality())), arena,
                 FarTarget.create(gpu, Objects.requireNonNull(support.depthFormat(), "an accepted backend names one"),
                         main.width(), main.height()), FarFrame.create(gpu),
-                mask, NearSectionTable.create(gpu), opaque, translucent, composite, boxes,
+                mask, NearSectionTable.create(gpu), opaque, translucent, composite, overlays,
                 IndirectCommands.create(gpu, START_COMMANDS), levelHeight, sizing.nodeCapacity());
+        wire(renderer, client, runtime, instance, baking);
+        return FarStart.started(renderer);
+    }
 
+    private static FarStart refused(String refusal, Gpu gpu, GeometryArena arena, ClientBakery baking,
+            NearMaskPass mask, CompositePass composite, FarOverlays overlays) {
+        Eminus.LOGGER.warn("Renderer disabled: {}", refusal);
+        baking.stop();
+        overlays.close();
+        composite.close();
+        mask.close();
+        arena.close();
+        gpu.close();
+        return FarStart.refused(refusal);
+    }
+
+    private static void wire(FarRenderer renderer, Minecraft client, DimensionRuntime runtime,
+            EminusInstance instance, ClientBakery baking) {
         renderer.meshes = MeshWiring.service(client, runtime, instance, baking, renderer.tree);
         runtime.listenTo(renderer.tree);
         Eminus.LOGGER.info("Far renderer started for {}", runtime.identity().dimension());
-
-        return FarStart.started(renderer);
     }
 
     public long arenaBytes() {
         return arena.committedBytes();
     }
 
-    public boolean cutoutLeaves() {
-        return baking.cutoutLeaves();
+    public boolean seeThroughLeaves() {
+        return baking.seeThroughLeaves();
     }
 
     public boolean drawsBlades() {
@@ -260,7 +267,7 @@ public final class FarRenderer implements AutoCloseable {
 
         Texture main = gpu.mainColor();
         Texture mainDepth = gpu.mainDepth();
-        if (farFrame && (terrainDrawn || boxes.drawsAny())) {
+        if (farFrame && (terrainDrawn || overlays.drawsAny())) {
             drawMask();
             Texture lightmap = gpu.lightmap();
             Sampler atlas = FarQuads.atlasSampler(game.terrainFilter());
@@ -271,10 +278,10 @@ public final class FarRenderer implements AutoCloseable {
                 translucent.draw(target, arena, models, lightmap, atlas, indirect.buffer(), commands.opaqueCount(),
                         commands.translucentCount(), frame.buffer(), nearSections.texels());
             }
-            boxes.drawFar(target, farViewProjection, game);
+            overlays.drawFar(target, farViewProjection, game);
             composite.draw(target, main, mainDepth, farViewProjection, gameViewProjection, fog, fogColor);
         }
-        boxes.drawNear(main, mainDepth, gameViewProjection, game, NearPlane.blocks(game.renderDistance()));
+        overlays.drawNear(main, mainDepth, gameViewProjection, game, NearPlane.blocks(game.renderDistance()));
     }
 
     public @Nullable FarDraw packFrame(Minecraft client) {
@@ -325,40 +332,68 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     private void stepFrame(Minecraft client) {
-        boxes.update(BoxRegistry.get(), runtime.identity().dimension());
+        uploadBatch();
+        Texture main = gpu.mainColor();
+        target.resize(main.width(), main.height());
+
+        GameFrame game = GameFrames.read(client);
+        this.game = game;
+        project(game, main);
+        Settings settings = SettingsService.get().settings();
+        postWalk(client, game, main, settings);
+
+        ClientLevel level = Objects.requireNonNull(client.level, "a far frame steps with a level");
+        overlays.update(runtime, level, game);
+        updateFog(game, level, settings);
+        if (fog.skip()) {
+            return;
+        }
+
+        farFrame = true;
+        order.update(renderList, runtime.frame(), game.eyeX(), game.eyeY(), game.eyeZ());
+        if (!writeCommands(game)) {
+            return;
+        }
+
+        fillNearSections(client, level, game);
+        writeFrame(game, settings);
+        terrainDrawn = true;
+    }
+
+    private void uploadBatch() {
         TreeBatch batch = tree.batches().peek();
         if (batch != null) {
             upload(batch);
         }
 
         models.publish();
+    }
 
-        Texture main = gpu.mainColor();
-        target.resize(main.width(), main.height());
-
-        GameFrame game = GameFrames.read(client);
-        this.game = game;
-        int renderDistance = game.renderDistance();
-        projection.projection(NearPlane.blocks(renderDistance), game.fov(), levelProjection.fold(), main.width(),
-                main.height(), farProjection);
+    private void project(GameFrame game, Texture main) {
+        projection.projection(NearPlane.blocks(game.renderDistance()), game.fov(), levelProjection.fold(),
+                main.width(), main.height(), farProjection);
         farViewProjection.set(farProjection).mul(game.viewRotation());
         FarProjection.gameViewProjection(levelProjection.projection(), game.viewRotation(), gameViewProjection);
+    }
 
+    private void postWalk(Minecraft client, GameFrame game, Texture main, Settings settings) {
         frames++;
         Quaternionf rotation = game.viewRotation().getNormalizedRotation(new Quaternionf());
         float margin = turnMargin.frame(rotation);
-        Matrix4f walkViewProjection = projection.walkViewProjection(NearPlane.blocks(renderDistance), game.fov(),
-                margin, levelProjection.fold(), game.viewRotation(), main.width(), main.height(), new Matrix4f());
+        Matrix4f walkViewProjection = projection.walkViewProjection(NearPlane.blocks(game.renderDistance()),
+                game.fov(), margin, levelProjection.fold(), game.viewRotation(), main.width(), main.height(),
+                new Matrix4f());
 
-        Settings settings = SettingsService.get().settings();
         tree.frame(new CameraFrame(game.eyeX(), game.eyeY(), game.eyeZ(), walkViewProjection,
                 FarProjection.focalPixels(client.options.fov().get(), main.height()),
                 FarProjection.focalPixels(game.fov(), main.height()), settings.farRenderCells(),
                 settings.detailDistance().pixels(), arena.pressure(), frames, rotation, margin));
+    }
 
+    private void updateFog(GameFrame game, ClientLevel level, Settings settings) {
         GameFog gameFog = game.fog();
+        int renderDistance = game.renderDistance();
         float nearBlocks = renderDistance * FarDistance.BLOCKS_PER_CHUNK;
-        ClientLevel level = Objects.requireNonNull(client.level, "a far frame steps with a level");
         int keptChunks = renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS;
         float reachBlocks = NearReach.blocks(keptChunks, game.eyeY(), level.getMinY(),
                 level.getMinY() + level.getHeight());
@@ -366,19 +401,17 @@ public final class FarRenderer implements AutoCloseable {
                 gameFog.environmentalEnd(), nearBlocks, reachBlocks, NearReach.horizontalBlocks(keptChunks),
                 settings.farRenderCells());
         fogColor = gameFog.color();
-        if (fog.skip()) {
-            return;
-        }
+    }
 
-        farFrame = true;
-        order.update(renderList, runtime.frame(), game.eyeX(), game.eyeY(), game.eyeZ());
+    private boolean writeCommands(GameFrame game) {
         commands.write(order.meshes(), order.translucent(), renderList::borderFaces, arena, runtime.frame(),
                 drawFrustum.set(farViewProjection),
                 NearBox.around(NearSections.section(Mth.floor(game.eyeX())),
-                        NearSections.section(Mth.floor(game.eyeZ())), renderDistance + ClientSession.CLIENT_EXTRA_CHUNKS),
+                        NearSections.section(Mth.floor(game.eyeZ())),
+                        game.renderDistance() + ClientSession.CLIENT_EXTRA_CHUNKS),
                 game.eyeX(), game.eyeY(), game.eyeZ());
         if (commands.count() == 0) {
-            return;
+            return false;
         }
 
         if (indirect.capacity() < commands.capacity()) {
@@ -387,15 +420,16 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         indirect.write(commands);
-        fillNearSections(client, level, game);
+        return true;
+    }
 
+    private void writeFrame(GameFrame game, Settings settings) {
         frame.write(farViewProjection, game.viewRotation(), runtime.frame().minBlockY(),
                 models.atlas(), nearSections.sections(), game.shade(), game.smoothLighting(), game.rgss(),
                 game.anisotropy(), CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
         draw.frame(indirect.buffer(), commands.opaqueCount(), commands.translucentCount(), gpu.lightmap(),
                 FarQuads.atlasSampler(game.terrainFilter()), farProjection, game.viewRotation(),
                 FarDistance.cellsToBlocks(settings.farRenderCells()));
-        terrainDrawn = true;
     }
 
     private void upload(TreeBatch batch) {
@@ -411,6 +445,10 @@ public final class FarRenderer implements AutoCloseable {
             return;
         }
 
+        takeRenderList(batch);
+    }
+
+    private void takeRenderList(TreeBatch batch) {
         RenderList walked = batch.renderList();
         if (walked != null) {
             renderList = walked;
@@ -450,7 +488,7 @@ public final class FarRenderer implements AutoCloseable {
             row[NodeRow.CELL_Z] = CellKey.z(key);
             row[NodeRow.SLOT_PRESENT] = slot == null ? 0 : 1;
             row[NodeRow.SLOT_QUADS] = slot == null ? 0 : slot.quads();
-            row[NodeRow.SLOT_BLOCK] = slot == null ? -1 : slot.block();
+            row[NodeRow.SLOT_SEGMENT] = slot == null ? -1 : slot.segment();
             rows.add(row);
         }
 
@@ -472,7 +510,7 @@ public final class FarRenderer implements AutoCloseable {
 
         indirect.close();
         shadow.close();
-        boxes.close();
+        overlays.close();
         composite.close();
         mask.close();
         nearSections.close();

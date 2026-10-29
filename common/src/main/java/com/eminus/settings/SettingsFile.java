@@ -140,6 +140,10 @@ public final class SettingsFile {
     }
 
     public static void save(Path file, Settings settings) {
+        write(file, entries(settings));
+    }
+
+    private static List<String> entries(Settings settings) {
         List<String> entries = new ArrayList<>();
         entries.add(entry(INGESTION_KEY, new JsonPrimitive(settings.ingestion()), null));
         LodQuality custom = settings.customLod();
@@ -164,7 +168,10 @@ public final class SettingsFile {
         entries.add(entry(SHADER_PACK_LOD_KEY, new JsonPrimitive(settings.shaderPackLod().key()),
                 SHADER_PACK_LOD_COMMENT));
         entries.add(entry(LOD_ANIMATIONS_KEY, new JsonPrimitive(settings.lodAnimations()), LOD_ANIMATIONS_COMMENT));
+        return entries;
+    }
 
+    private static void write(Path file, List<String> entries) {
         try {
             Path parent = file.getParent();
             if (parent != null) {

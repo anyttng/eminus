@@ -131,7 +131,10 @@ public final class ModelAtlas implements AutoCloseable {
         color = allocate(gpu, COLOR_LABEL, COLOR_FORMAT, grown, cellSide);
         tintMask = allocate(gpu, TINT_MASK_LABEL, TINT_MASK_FORMAT, grown, cellSide);
         cellsPerSide = grown;
+        return reupload(source);
+    }
 
+    private int reupload(ModelSource source) {
         int reuploaded = 0;
         for (int modelId = 0; modelId < source.modelCount(); modelId++) {
             if (!fits(modelId)) {
@@ -161,19 +164,25 @@ public final class ModelAtlas implements AutoCloseable {
     }
 
     private void writeFace(BakedModel model, int index, int slot) {
+        copyFace(model, index);
+        int[][] colorLevels = FaceMips.colorLevels(faceColor, BakedModel.FACE_SIDE, model.mips()[index],
+                ModelMetadata.has(model.metadata(), ModelMetadata.OPAQUE));
+        int[][] tintLevels = Mips.maskChain(faceTint, BakedModel.FACE_SIDE);
+        writeLevels(colorLevels, tintLevels, slot);
+    }
+
+    private void copyFace(BakedModel model, int index) {
         System.arraycopy(model.faces(), index * BakedModel.FACE_TEXELS, faceColor, 0, BakedModel.FACE_TEXELS);
         for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
             faceTint[texel] = (faceColor[texel] & ALPHA_MASK) | (model.tinted(index, texel) ? RGB_MASK : 0);
         }
 
         Solidify.apply(faceTint, BakedModel.FACE_SIDE, BakedModel.FACE_SIDE);
+    }
 
-        int[][] colorLevels = FaceMips.colorLevels(faceColor, BakedModel.FACE_SIDE, model.mips()[index],
-                ModelMetadata.has(model.metadata(), ModelMetadata.OPAQUE));
-        int[][] tintLevels = Mips.maskChain(faceTint, BakedModel.FACE_SIDE);
+    private void writeLevels(int[][] colorLevels, int[][] tintLevels, int slot) {
         int cellX = slot % cellsPerSide;
         int cellY = slot / cellsPerSide;
-
         for (int level = firstMip; level < colorLevels.length; level++) {
             int side = BakedModel.FACE_SIDE >> level;
             fillColor(colorLevels[level]);

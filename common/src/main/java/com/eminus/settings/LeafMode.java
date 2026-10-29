@@ -4,7 +4,7 @@ public enum LeafMode {
     SEE_THROUGH,
     OPAQUE;
 
-    public boolean cutout() {
+    public boolean seeThrough() {
         return this == SEE_THROUGH;
     }
 

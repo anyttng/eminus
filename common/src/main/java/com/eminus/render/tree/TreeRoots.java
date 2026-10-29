@@ -8,7 +8,7 @@ import it.unimi.dsi.fastutil.longs.LongComparator;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
-public final class TreeRing {
+public final class TreeRoots {
     public static final int MOVE_BLOCKS = 128;
     public static final int COLUMNS_PER_UPDATE = 64;
 

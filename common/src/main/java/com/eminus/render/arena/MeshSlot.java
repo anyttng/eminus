@@ -6,7 +6,7 @@ import com.eminus.cell.DetailLevel;
 import com.eminus.mesh.CellMesh;
 
 @SuppressWarnings("ArrayRecordComponent")
-public record MeshSlot(long key, int block, int quads, int occlusion, int colors, int[] groupStart,
+public record MeshSlot(long key, int segment, int quads, int occlusion, int colors, int[] groupStart,
         int[] groupCount, int[] groupSolid) {
     public static final int MIN_X = 0;
     public static final int MIN_Y = 1;
@@ -16,13 +16,13 @@ public record MeshSlot(long key, int block, int quads, int occlusion, int colors
     public static final int MAX_Z = 5;
     public static final int BOUNDS = 6;
 
-    public static MeshSlot of(CellMesh mesh, int block) {
-        return new MeshSlot(mesh.key(), block, mesh.quadCount(), mesh.occlusion().length, mesh.colors().length,
+    public static MeshSlot of(CellMesh mesh, int segment) {
+        return new MeshSlot(mesh.key(), segment, mesh.quadCount(), mesh.occlusion().length, mesh.colors().length,
                 mesh.groupStart(), mesh.groupCount(), mesh.groupSolid());
     }
 
-    public MeshSlot at(int block) {
-        return new MeshSlot(key, block, quads, occlusion, colors, groupStart, groupCount, groupSolid);
+    public MeshSlot at(int segment) {
+        return new MeshSlot(key, segment, quads, occlusion, colors, groupStart, groupCount, groupSolid);
     }
 
     public int slots() {
@@ -34,7 +34,7 @@ public record MeshSlot(long key, int block, int quads, int occlusion, int colors
     }
 
     public int baseQuad() {
-        return block * ArenaAllocator.QUADS_PER_BLOCK;
+        return segment * ArenaAllocator.QUADS_PER_SEGMENT;
     }
 
     public int groupStart(int group) {

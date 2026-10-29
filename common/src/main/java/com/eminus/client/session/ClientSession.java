@@ -6,7 +6,9 @@ import java.util.Objects;
 import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
+import com.eminus.beam.BeamSet;
 import com.eminus.box.BoxRegistry;
+import com.eminus.client.beam.BeamTriggers;
 import com.eminus.compat.iris.IrisShaderPack;
 import com.eminus.compat.iris.PackSlot;
 import com.eminus.compat.vitrail.VitrailShaderPack;
@@ -37,6 +39,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BeaconBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.LevelResource;
@@ -246,21 +249,7 @@ public final class ClientSession {
             swapLevel(current);
         }
 
-        if (renderer != null && minecraft.options.biomeBlendRadius().get() != renderedBiomeBlend) {
-            restartRenderer();
-        }
-
-        if (renderer != null && IrisShaderPack.packIds(renderedPackIds) != renderedPackIds) {
-            Eminus.LOGGER.info("Shader pack block ids changed: the far layer rebuilds");
-            restartRenderer();
-        }
-
-        if (renderer != null && !IrisShaderPack.movedIds().equals(renderedPackBlocks.moved())) {
-            Eminus.LOGGER.info("Shader pack's moved blocks changed to {}: the far layer rebuilds",
-                    IrisShaderPack.movedIds());
-            restartRenderer();
-        }
-
+        restartOnStaleInputs(minecraft);
         if (heldChunksPending) {
             submitHeldChunks();
         }
@@ -276,10 +265,33 @@ public final class ClientSession {
         }
     }
 
+    @SuppressWarnings("ReferenceEquality")
+    private static void restartOnStaleInputs(Minecraft minecraft) {
+        if (renderer != null && minecraft.options.biomeBlendRadius().get() != renderedBiomeBlend) {
+            restartRenderer();
+        }
+
+        if (renderer != null && IrisShaderPack.packIds(renderedPackIds) != renderedPackIds) {
+            Eminus.LOGGER.info("Shader pack block ids changed: the far layer rebuilds");
+            restartRenderer();
+        }
+
+        if (renderer != null && !IrisShaderPack.movedIds().equals(renderedPackBlocks.moved())) {
+            Eminus.LOGGER.info("Shader pack's moved blocks changed to {}: the far layer rebuilds",
+                    IrisShaderPack.movedIds());
+            restartRenderer();
+        }
+    }
+
     public static void submitChunk(LevelChunk chunk, IngestTrigger trigger) {
         IngestService ingest = ingestFor(chunk.getLevel());
         if (ingest != null) {
             ingest.submitChunk(chunk, trigger);
+        }
+
+        BeamSet beams = beamsFor(chunk.getLevel());
+        if (beams != null && (trigger == IngestTrigger.PACKET || trigger == IngestTrigger.HELD)) {
+            BeamTriggers.chunkArrived(beams, chunk);
         }
     }
 
@@ -287,6 +299,18 @@ public final class ClientSession {
         IngestService ingest = ingestFor(source);
         if (ingest != null) {
             ingest.markBlockChange(pos, System.currentTimeMillis());
+        }
+
+        BeamSet beams = beamsFor(source);
+        if (beams != null) {
+            BeamTriggers.blockChanged(beams, source, pos);
+        }
+    }
+
+    public static void beaconTicked(Level source, BlockPos pos, BeaconBlockEntity beacon) {
+        BeamSet beams = beamsFor(source);
+        if (beams != null) {
+            BeamTriggers.ticked(beams, source, pos, beacon);
         }
     }
 
@@ -312,6 +336,15 @@ public final class ClientSession {
         }
 
         return SettingsService.get().settings().ingestion() ? runtime.ingest() : null;
+    }
+
+    @SuppressWarnings("ReferenceEquality")
+    private static @Nullable BeamSet beamsFor(Level source) {
+        if (runtime == null || source != level) {
+            return null;
+        }
+
+        return SettingsService.get().settings().ingestion() ? runtime.beams() : null;
     }
 
     private static void swapLevel(@Nullable ClientLevel current) {
@@ -385,16 +418,22 @@ public final class ClientSession {
 
     private static void startRenderer(Gpu gpu, long replacedArenaBytes) {
         Minecraft minecraft = Minecraft.getInstance();
-        rendered = SettingsService.get().settings();
+        Settings settings = captureRenderedInputs(minecraft);
+        FarStart start = FarRenderer.start(minecraft, gpu, Objects.requireNonNull(instance, IN_SESSION),
+                Objects.requireNonNull(runtime, WITH_LEVEL), Objects.requireNonNull(level, WITH_LEVEL).getHeight(),
+                settings, replacedArenaBytes, renderedPackBlocks);
+        renderer = start.renderer();
+        refusal = start.refusal();
+    }
+
+    private static Settings captureRenderedInputs(Minecraft minecraft) {
+        Settings settings = SettingsService.get().settings();
+        rendered = settings;
         renderedBiomeBlend = minecraft.options.biomeBlendRadius().get();
         renderedPackIds = IrisShaderPack.packIds(renderedPackIds);
         renderedPackBlocks = renderedPackIds == null ? PackBlocks.NONE
                 : new PackBlocks(renderedPackIds, IrisShaderPack.movedIds());
-        FarStart start = FarRenderer.start(minecraft, gpu, Objects.requireNonNull(instance, IN_SESSION),
-                Objects.requireNonNull(runtime, WITH_LEVEL), Objects.requireNonNull(level, WITH_LEVEL).getHeight(),
-                rendered, replacedArenaBytes, renderedPackBlocks);
-        renderer = start.renderer();
-        refusal = start.refusal();
+        return settings;
     }
 
     private static void stopRenderer() {

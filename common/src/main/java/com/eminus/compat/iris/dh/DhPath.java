@@ -86,7 +86,7 @@ public final class DhPath implements PackPath {
             case OPAQUE -> source(terrain);
             case TRANSLUCENT -> source(water);
             case SHADOW -> shadow == null ? null : source(shadow);
-            case SHADOW_TRANSLUCENT -> null;
+            case SHADOW_TRANSLUCENT, BEAM, BEAM_GLOW -> null;
         };
     }
 

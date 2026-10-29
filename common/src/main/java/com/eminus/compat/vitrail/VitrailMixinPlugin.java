@@ -19,6 +19,6 @@ public final class VitrailMixinPlugin extends ModPresenceGatePlugin {
     }
 
     public static boolean vitrailPresent() {
-        return VITRAIL.present();
+        return VITRAIL.admitted();
     }
 }

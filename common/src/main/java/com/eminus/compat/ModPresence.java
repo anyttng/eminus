@@ -36,7 +36,7 @@ public final class ModPresence {
 
     private @Nullable MixinConfig mixinConfig;
     private boolean probed;
-    private boolean present;
+    private boolean admitted;
 
     public static Builder gate(Logger logger, String gateLabel) {
         return new Builder(logger, gateLabel);
@@ -71,7 +71,7 @@ public final class ModPresence {
     }
 
     public boolean admits(String mixinClassName) {
-        return present() && !withheld(mixinClassName.substring(mixinPackage().length() + 1));
+        return admitted() && !withheld(mixinClassName.substring(mixinPackage().length() + 1));
     }
 
     private boolean withheld(String mixin) {
@@ -79,13 +79,13 @@ public final class ModPresence {
         return condition != null && condition.getAsBoolean();
     }
 
-    public synchronized boolean present() {
+    public synchronized boolean admitted() {
         if (!this.probed) {
-            this.present = resolve();
+            this.admitted = resolve();
             this.probed = true;
         }
 
-        return this.present;
+        return this.admitted;
     }
 
     private boolean resolve() {
@@ -96,7 +96,10 @@ public final class ModPresence {
             }
         }
 
-        List<String> covered = coveredMixins();
+        return admits(coveredMixins());
+    }
+
+    private boolean admits(List<String> covered) {
         Map<String, String> bodySourcesByClass = new HashMap<>();
         this.bodySources.forEach((mixin, owner) -> bodySourcesByClass.put(mixinPackage() + "." + mixin, owner));
         MixinTargetCheck check = new MixinTargetCheck(this.classLoader, bodySourcesByClass);

@@ -77,6 +77,13 @@ final class QuadPainter {
 
     void paint(ModelQuad quad, Vector3fc normal, Vector3fc uAxis, Vector3fc vAxis, float[] frame, int[] faces,
             long[] tintMask, int offset, QuadTexels texels) {
+        project(quad, normal, uAxis, vAxis, frame);
+        for (int[] triangle : TRIANGLES) {
+            fill(quad, triangle, faces, tintMask, offset, texels);
+        }
+    }
+
+    private void project(ModelQuad quad, Vector3fc normal, Vector3fc uAxis, Vector3fc vAxis, float[] frame) {
         for (int vertex = 0; vertex < ModelQuad.CORNERS; vertex++) {
             Vector3fc position = quad.corner(vertex);
             cornerU[vertex] = (CENTER + along(position, uAxis) - frame[FRAME_U_FROM]) / frame[FRAME_U_SPAN]
@@ -87,10 +94,6 @@ final class QuadPainter {
 
             textureU[vertex] = quad.u(vertex);
             textureV[vertex] = quad.v(vertex);
-        }
-
-        for (int[] triangle : TRIANGLES) {
-            fill(quad, triangle, faces, tintMask, offset, texels);
         }
     }
 

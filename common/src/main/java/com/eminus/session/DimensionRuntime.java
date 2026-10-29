@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
 import com.eminus.Eminus;
+import com.eminus.beam.BeamSet;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.Dictionary;
@@ -45,6 +46,7 @@ public final class DimensionRuntime {
     private Dictionary<String> biomes;
     private CellMerger merger;
     private IngestService ingest;
+    private BeamSet beams;
     private int references;
     private long idleSince;
     private boolean closed;
@@ -94,6 +96,10 @@ public final class DimensionRuntime {
 
     public IngestService ingest() {
         return ingest;
+    }
+
+    public BeamSet beams() {
+        return beams;
     }
 
     public boolean closed() {
@@ -146,6 +152,20 @@ public final class DimensionRuntime {
         Changes forwarded = new Changes();
         merger = new CellMerger(cells, frame, ingestLevel, forwarded);
         ingest = new IngestService(ingestService, states, biomes, merger, coverage, forwarded);
+        beams = openBeams(saveService);
+    }
+
+    private BeamSet openBeams(WorkService<Void> saveService) {
+        BeamSet opened = new BeamSet(store, write -> saveService.enqueue(scratch -> write.run()));
+
+        try {
+            store.readBeams(opened::load);
+        } catch (RuntimeException failure) {
+            Eminus.LOGGER.error("Could not read the beams in {}; {} starts with none.", folder,
+                    identity.dimension(), failure);
+        }
+
+        return opened;
     }
 
     private ColumnCoverage openCoverage() {
@@ -201,6 +221,7 @@ public final class DimensionRuntime {
         ingest.stop();
         saves.flush();
         cells.flush();
+        beams.flush();
         closeStore();
     }
 

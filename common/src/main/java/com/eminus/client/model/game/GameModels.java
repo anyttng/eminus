@@ -16,9 +16,9 @@ import net.minecraft.world.level.biome.BiomeSpecialEffects;
 import org.jspecify.annotations.Nullable;
 
 public record GameModels(BlockModels blocks, BlockTints tints, FluidModels fluids, List<TintBiome> biomes) {
-    public static GameModels of(Minecraft client, boolean cutoutLeaves) {
+    public static GameModels of(Minecraft client, boolean seeThroughLeaves) {
         ModelManager manager = client.getModelManager();
-        return new GameModels(new GameBlockModels(manager.getBlockStateModelSet(), cutoutLeaves),
+        return new GameModels(new GameBlockModels(manager.getBlockStateModelSet(), seeThroughLeaves),
                 new GameTints(client.getBlockColors()), new GameFluids(manager.getFluidStateModelSet()),
                 biomes(client.level));
     }

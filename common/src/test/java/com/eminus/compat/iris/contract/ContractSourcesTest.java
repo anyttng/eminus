@@ -48,7 +48,7 @@ class ContractSourcesTest {
                 "/world-1/eminus_translucent.glsl", "/eminus_shadow.glsl", "/world-1/eminus_shadow.glsl",
                 "/eminus_shadow_translucent.glsl", "/world-1/eminus_shadow_translucent.glsl",
                 "/eminus_shadow_vertex.glsl", "/world-1/eminus_shadow_vertex.glsl", "/eminus_vertex.glsl",
-                "/world-1/eminus_vertex.glsl"),
+                "/world-1/eminus_vertex.glsl", "/eminus_beaconbeam.glsl", "/world-1/eminus_beaconbeam.glsl"),
                 PackContract.paths(List.of(NETHER)));
     }
 
@@ -111,6 +111,22 @@ class ContractSourcesTest {
         assertTrue(spliced.endsWith(ContractSources.MAIN), spliced);
         assertTrue(ContractSources.MAIN.contains(PackContract.FUNCTION + "(eminus_fragment())"),
                 ContractSources.MAIN);
+    }
+
+    @Test
+    void theBeamMainCallsThePackBeamFunctionAfterThePackCode() {
+        String pack = """
+                #version 330 compatibility
+                void eminus_emitBeam(EminusBeam beam) {
+                }
+                """;
+        String spliced = ContractSources.spliceBeam(pack, HEADER);
+
+        assertTrue(spliced.indexOf(HEADER) < spliced.indexOf("void eminus_emitBeam"), spliced);
+        assertTrue(spliced.endsWith(ContractSources.BEAM_MAIN), spliced);
+        assertTrue(ContractSources.BEAM_MAIN.contains(PackContract.BEAM_FUNCTION + "(eminus_beam())"),
+                ContractSources.BEAM_MAIN);
+        assertFalse(spliced.contains(PackContract.FUNCTION), spliced);
     }
 
     @Test

@@ -20,21 +20,28 @@ public final class CellRecord {
     private static final int MAX_PLAIN_BYTES = PALETTE_SIZE_BYTES + Cell.MAX_PALETTE * Long.BYTES + INDEX_BYTES;
 
     public static byte[] encode(Cell cell) {
+        return compressed(plain(cell));
+    }
+
+    private static byte[] plain(Cell cell) {
         long[] palette = cell.copyPalette();
         short[] indices = cell.indices();
 
-        int plainLength = PALETTE_SIZE_BYTES + palette.length * Long.BYTES + INDEX_BYTES;
-        ByteBuffer plain = ByteBuffer.allocate(plainLength);
+        ByteBuffer plain = ByteBuffer.allocate(PALETTE_SIZE_BYTES + palette.length * Long.BYTES + INDEX_BYTES);
         plain.putInt(palette.length);
         for (long entry : palette) {
             plain.putLong(entry);
         }
         plain.asShortBuffer().put(indices);
+        return plain.array();
+    }
 
+    private static byte[] compressed(byte[] plain) {
+        int plainLength = plain.length;
         ZstdCompressor compressor = new ZstdCompressor();
         byte[] record = new byte[HEADER_BYTES + compressor.maxCompressedLength(plainLength)];
         int packedLength = compressor.compress(
-                plain.array(), 0, plainLength, record, HEADER_BYTES, record.length - HEADER_BYTES);
+                plain, 0, plainLength, record, HEADER_BYTES, record.length - HEADER_BYTES);
 
         ByteBuffer header = ByteBuffer.wrap(record);
         header.put((byte) StoreFormat.RECORD_VERSION);

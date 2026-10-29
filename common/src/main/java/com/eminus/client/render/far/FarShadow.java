@@ -50,26 +50,34 @@ public final class FarShadow implements AutoCloseable {
     boolean write(List<MeshSummary> meshes, List<MeshSummary> translucent, Long2IntFunction borderFaces,
             MeshSlots slots, CellFrame cells, GameFrame game, ModelAtlas atlas, NearSections near,
             Matrix4fc cameraViewProjection, Matrix4fc shadowView, Matrix4fc shadowProjection) {
-        view.set(shadowView);
-        projection.set(shadowProjection);
-        projection.mul(view, viewProjection);
-        frustum.set(viewProjection);
-        casters.set(cameraViewProjection, view.positiveZ(lightTravel).negate());
+        project(cameraViewProjection, shadowView, shadowProjection);
         commands.writeShadow(meshes, translucent, borderFaces, slots, cells, frustum, casters, game.eyeX(),
                 game.eyeY(), game.eyeZ());
         if (commands.count() == 0) {
             return false;
         }
 
+        writeIndirect();
+        frame.write(viewProjection, view, cells.minBlockY(), atlas, near, game.shade(), game.smoothLighting(),
+                game.rgss(), game.anisotropy(), CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
+        return true;
+    }
+
+    private void project(Matrix4fc cameraViewProjection, Matrix4fc shadowView, Matrix4fc shadowProjection) {
+        view.set(shadowView);
+        projection.set(shadowProjection);
+        projection.mul(view, viewProjection);
+        frustum.set(viewProjection);
+        casters.set(cameraViewProjection, view.positiveZ(lightTravel).negate());
+    }
+
+    private void writeIndirect() {
         if (indirect.capacity() < commands.capacity()) {
             indirect.close();
             indirect = IndirectCommands.create(gpu, commands.capacity());
         }
 
         indirect.write(commands);
-        frame.write(viewProjection, view, cells.minBlockY(), atlas, near, game.shade(), game.smoothLighting(),
-                game.rgss(), game.anisotropy(), CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
-        return true;
     }
 
     public Matrix4fc view() {

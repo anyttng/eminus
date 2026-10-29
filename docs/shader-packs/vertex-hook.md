@@ -21,6 +21,8 @@ and no `main`. Since version 4. Eminus calls it once per LOD vertex in every pro
 | `level` | `int` | The LOD cell's detail level: a voxel spans `2^level` blocks along each axis. |
 | `shadow` | `bool` | `true` in both shadow programs. |
 
+On a beacon beam's vertices ([Beacon beams](beacon-beams.md)) the hook gets `blockId` `-1`, `level` `0`, and `top`, `blade` and `shadow` `false`.
+
 Eminus compiles this file as you wrote it, in the core profile of its `#version`. Iris does not patch it, so the renames Iris applies to your `gbuffers` programs (`gl_ProjectionMatrix`, `gl_ModelViewMatrix`, `texture2D`, `attribute`) do not happen here. Your uniforms and custom uniforms are available; build the position with `eminus_project`.
 
 `vec4 eminus_project(vec3 playerPos)` takes a position to the clip space the LOD is drawn in:

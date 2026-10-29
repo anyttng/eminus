@@ -7,11 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 class ArenaPagesTest {
-    private static final int BLOCKS_PER_PAGE = 4;
-    private static final int BLOCKS = 16;
+    private static final int SEGMENTS_PER_PAGE = 4;
+    private static final int SEGMENTS = 16;
 
     private static ArenaPages pages() {
-        return new ArenaPages(BLOCKS, BLOCKS_PER_PAGE);
+        return new ArenaPages(SEGMENTS, SEGMENTS_PER_PAGE);
     }
 
     @Test
@@ -41,7 +41,7 @@ class ArenaPagesTest {
     }
 
     @Test
-    void freeingTheLastBlockOfAPageDecommitsIt() {
+    void freeingTheLastSegmentOfAPageDecommitsIt() {
         ArenaPages pages = pages();
         pages.place(8, 2);
 
@@ -50,7 +50,7 @@ class ArenaPagesTest {
     }
 
     @Test
-    void freeingBlocksOfAPageThatStillHoldsOthersDecommitsNothing() {
+    void freeingSegmentsOfAPageThatStillHoldsOthersDecommitsNothing() {
         ArenaPages pages = pages();
         pages.place(8, 1);
         pages.place(9, 3);
@@ -72,14 +72,14 @@ class ArenaPagesTest {
 
     @Test
     void theLastPageMayBeShorterThanTheOthers() {
-        ArenaPages pages = new ArenaPages(BLOCKS + 1, BLOCKS_PER_PAGE);
+        ArenaPages pages = new ArenaPages(SEGMENTS + 1, SEGMENTS_PER_PAGE);
 
         assertEquals(5, pages.pages());
-        assertEquals(new ArenaPages.PageRun(4, 1), pages.place(BLOCKS, 1));
+        assertEquals(new ArenaPages.PageRun(4, 1), pages.place(SEGMENTS, 1));
     }
 
     @Test
-    void freeingABlockThatWasNeverPlacedIsRefused() {
+    void freeingASegmentThatWasNeverPlacedIsRefused() {
         ArenaPages pages = pages();
 
         assertThrows(IllegalStateException.class, () -> pages.free(0, 1));

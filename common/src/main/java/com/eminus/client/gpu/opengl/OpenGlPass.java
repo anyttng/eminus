@@ -55,7 +55,11 @@ final class OpenGlPass implements Pass {
         GameHandles.viewport(0, 0, color.width(), color.height());
         GameHandles.scissor(0, 0, color.width(), color.height());
         GL20C.glDrawBuffers(GL30C.GL_COLOR_ATTACHMENT0);
+        clear(spec, depth);
+        return new OpenGlPass(gpu, ONE_TARGET);
+    }
 
+    private static void clear(PassSpec spec, @Nullable OpenGlTexture depth) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             if (spec.clearColor() != null) {
                 GameHandles.colorMask(COLOR_INDEX, WRITE_ALL);
@@ -69,8 +73,6 @@ final class OpenGlPass implements Pass {
                         stack.floats((float) spec.clearDepth().getAsDouble()));
             }
         }
-
-        return new OpenGlPass(gpu, ONE_TARGET);
     }
 
     @Override
@@ -81,14 +83,20 @@ final class OpenGlPass implements Pass {
         GL30C.glBindVertexArray(gpu.vertexArray());
 
         PipelineSpec spec = own.spec();
-        PipelineSpec.DepthTest depth = spec.depth();
+        setDepth(spec.depth());
+        setColor(spec.color());
+        GameHandles.fillBothFaces();
+    }
+
+    private static void setDepth(PipelineSpec.@Nullable DepthTest depth) {
         if (depth == null) {
             GameHandles.noDepthTest();
         } else {
             GameHandles.depthTest(OpenGlTypes.depthFunction(depth.compare()), depth.writes());
         }
+    }
 
-        PipelineSpec.ColorTarget color = spec.color();
+    private void setColor(PipelineSpec.ColorTarget color) {
         for (int index = COLOR_INDEX; index < colorTargets; index++) {
             GameHandles.colorMask(index, color.writes() ? WRITE_ALL : WRITE_NONE);
             if (color.blend() == null) {
@@ -99,7 +107,6 @@ final class OpenGlPass implements Pass {
                         factors.destinationAlpha());
             }
         }
-        GameHandles.fillBothFaces();
     }
 
     @Override

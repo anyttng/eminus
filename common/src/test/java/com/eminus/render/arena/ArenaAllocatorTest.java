@@ -5,85 +5,85 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
 class ArenaAllocatorTest {
-    private static final int ARENA_BLOCKS = 8;
-    private static final int ONE_BLOCK = ArenaAllocator.QUADS_PER_BLOCK;
-    private static final int TWO_BLOCKS = 2 * ArenaAllocator.QUADS_PER_BLOCK;
-    private static final int THREE_BLOCKS = 3 * ArenaAllocator.QUADS_PER_BLOCK;
+    private static final int ARENA_SEGMENTS = 8;
+    private static final int ONE_SEGMENT = ArenaAllocator.QUADS_PER_SEGMENT;
+    private static final int TWO_SEGMENTS = 2 * ArenaAllocator.QUADS_PER_SEGMENT;
+    private static final int THREE_SEGMENTS = 3 * ArenaAllocator.QUADS_PER_SEGMENT;
 
-    private final ArenaAllocator allocator = new ArenaAllocator(ARENA_BLOCKS);
+    private final ArenaAllocator allocator = new ArenaAllocator(ARENA_SEGMENTS);
 
     @Test
-    void aSingleQuadTakesAWholeBlock() {
+    void aSingleQuadTakesAWholeSegment() {
         assertEquals(0, allocator.allocate(1));
-        assertEquals(1, allocator.usedBlocks());
+        assertEquals(1, allocator.usedSegments());
     }
 
     @Test
-    void aGrownArenaMergesItsNewBlocksWithTheFreeTail() {
-        allocator.allocate(THREE_BLOCKS);
-        allocator.allocate(THREE_BLOCKS);
+    void aGrownArenaMergesItsNewSegmentsWithTheFreeTail() {
+        allocator.allocate(THREE_SEGMENTS);
+        allocator.allocate(THREE_SEGMENTS);
 
-        allocator.grow(ARENA_BLOCKS + 4);
+        allocator.grow(ARENA_SEGMENTS + 4);
 
         assertEquals(1, allocator.freeRuns());
         assertEquals(6, allocator.largestFreeRun());
-        assertEquals(6, allocator.allocate(6 * ONE_BLOCK));
+        assertEquals(6, allocator.allocate(6 * ONE_SEGMENT));
     }
 
     @Test
-    void aFullArenaGrownKeepsItsBlocksAndPlacesPastThem() {
-        for (int index = 0; index < ARENA_BLOCKS; index++) {
-            allocator.allocate(ONE_BLOCK);
+    void aFullArenaGrownKeepsItsSegmentsAndPlacesPastThem() {
+        for (int index = 0; index < ARENA_SEGMENTS; index++) {
+            allocator.allocate(ONE_SEGMENT);
         }
 
-        allocator.grow(ARENA_BLOCKS + 2);
+        allocator.grow(ARENA_SEGMENTS + 2);
 
-        assertEquals(ARENA_BLOCKS, allocator.allocate(TWO_BLOCKS));
-        assertEquals(ARENA_BLOCKS + 2, allocator.usedBlocks());
+        assertEquals(ARENA_SEGMENTS, allocator.allocate(TWO_SEGMENTS));
+        assertEquals(ARENA_SEGMENTS + 2, allocator.usedSegments());
     }
 
     @Test
     void aFreshArenaPlacesRangesBackToBack() {
         ArenaAllocator packing = new ArenaAllocator(6);
 
-        assertEquals(0, packing.allocate(TWO_BLOCKS));
-        assertEquals(2, packing.allocate(ONE_BLOCK));
-        assertEquals(3, packing.allocate(THREE_BLOCKS));
-        assertEquals(0, packing.freeBlocks());
+        assertEquals(0, packing.allocate(TWO_SEGMENTS));
+        assertEquals(2, packing.allocate(ONE_SEGMENT));
+        assertEquals(3, packing.allocate(THREE_SEGMENTS));
+        assertEquals(0, packing.freeSegments());
     }
 
     @Test
     void anAllocationTakesTheEarliestRangeThatHoldsIt() {
-        allocator.allocate(ONE_BLOCK);
-        int middle = allocator.allocate(TWO_BLOCKS);
-        allocator.allocate(ONE_BLOCK);
-        allocator.free(middle, TWO_BLOCKS);
+        allocator.allocate(ONE_SEGMENT);
+        int middle = allocator.allocate(TWO_SEGMENTS);
+        allocator.allocate(ONE_SEGMENT);
+        allocator.free(middle, TWO_SEGMENTS);
 
-        assertEquals(middle, allocator.allocate(ONE_BLOCK));
+        assertEquals(middle, allocator.allocate(ONE_SEGMENT));
     }
 
     @Test
     void adjacentFreedRangesMergeIntoOne() {
-        int first = allocator.allocate(ONE_BLOCK);
-        int second = allocator.allocate(TWO_BLOCKS);
-        allocator.allocate(ONE_BLOCK);
+        int first = allocator.allocate(ONE_SEGMENT);
+        int second = allocator.allocate(TWO_SEGMENTS);
+        allocator.allocate(ONE_SEGMENT);
 
-        allocator.free(second, TWO_BLOCKS);
-        allocator.free(first, ONE_BLOCK);
+        allocator.free(second, TWO_SEGMENTS);
+        allocator.free(first, ONE_SEGMENT);
 
-        assertEquals(first, allocator.allocate(THREE_BLOCKS));
+        assertEquals(first, allocator.allocate(THREE_SEGMENTS));
     }
 
     @Test
     void freeingBothNeighborsOfARangeLeavesOneRun() {
-        int[] blocks = new int[ARENA_BLOCKS];
-        for (int index = 0; index < ARENA_BLOCKS; index++) {
-            blocks[index] = allocator.allocate(ONE_BLOCK);
+        int[] segments = new int[ARENA_SEGMENTS];
+        for (int index = 0; index < ARENA_SEGMENTS; index++) {
+            segments[index] = allocator.allocate(ONE_SEGMENT);
         }
 
-        allocator.free(blocks[0], ONE_BLOCK);
-        allocator.free(blocks[2], ONE_BLOCK);
-        allocator.free(blocks[1], ONE_BLOCK);
+        allocator.free(segments[0], ONE_SEGMENT);
+        allocator.free(segments[2], ONE_SEGMENT);
+        allocator.free(segments[1], ONE_SEGMENT);
 
         assertEquals(1, allocator.freeRuns());
         assertEquals(3, allocator.largestFreeRun());
@@ -91,30 +91,31 @@ class ArenaAllocatorTest {
 
     @Test
     void freeSpaceScatteredAcrossRunsHoldsNothingLargerThanARun() {
-        int[] blocks = new int[ARENA_BLOCKS];
-        for (int index = 0; index < ARENA_BLOCKS; index++) {
-            blocks[index] = allocator.allocate(ONE_BLOCK);
+        int[] segments = new int[ARENA_SEGMENTS];
+        for (int index = 0; index < ARENA_SEGMENTS; index++) {
+            segments[index] = allocator.allocate(ONE_SEGMENT);
         }
 
-        for (int index = 0; index < ARENA_BLOCKS; index += 2) {
-            allocator.free(blocks[index], ONE_BLOCK);
+        for (int index = 0; index < ARENA_SEGMENTS; index += 2) {
+            allocator.free(segments[index], ONE_SEGMENT);
         }
 
-        assertEquals(4, allocator.freeBlocks());
+        assertEquals(4, allocator.freeSegments());
         assertEquals(1, allocator.largestFreeRun());
-        assertEquals(ArenaAllocator.NO_BLOCK, allocator.allocate(TWO_BLOCKS));
+        assertEquals(ArenaAllocator.NO_SEGMENT, allocator.allocate(TWO_SEGMENTS));
     }
 
     @Test
     void aMeshLargerThanTheArenaIsRefusedAndConsumesNothing() {
-        assertEquals(ArenaAllocator.NO_BLOCK, allocator.allocate((ARENA_BLOCKS + 1) * ArenaAllocator.QUADS_PER_BLOCK));
-        assertEquals(0, allocator.usedBlocks());
+        assertEquals(ArenaAllocator.NO_SEGMENT,
+                allocator.allocate((ARENA_SEGMENTS + 1) * ArenaAllocator.QUADS_PER_SEGMENT));
+        assertEquals(0, allocator.usedSegments());
         assertEquals(1, allocator.freeRuns());
     }
 
     @Test
     void anEmptyMeshIsRefusedWithoutTouchingTheArena() {
-        assertEquals(ArenaAllocator.NO_BLOCK, allocator.allocate(0));
-        assertEquals(ARENA_BLOCKS, allocator.freeBlocks());
+        assertEquals(ArenaAllocator.NO_SEGMENT, allocator.allocate(0));
+        assertEquals(ARENA_SEGMENTS, allocator.freeSegments());
     }
 }

@@ -95,58 +95,13 @@ public final class MeshService {
     void build(MeshTask task, MeshScratch scratch) {
         CellHandle[] handles = new CellHandle[1 + NEIGHBORS.length];
         CellHandle held = task.held();
-        int radius = TintBlend.columns(blendRadius, task.level());
-        boolean corners = task.level() == FluidCorners.LEVEL;
-        int x = CellKey.x(task.key());
-        int y = CellKey.y(task.key());
-        int z = CellKey.z(task.key());
 
         try {
             handles[0] = held == null ? cells.open(task.key()) : held;
             long[] grandchildren = new long[1];
-            int occupancy = handles[0].withCell(cell -> {
-                scratch.voxels().load(cell);
-                grandchildren[0] = cell.grandchildOccupancy();
-                return cell.occupancy();
-            });
-
-            scratch.voxels().loadCoverage(coverage, task.key());
-
-            CellVoxels voxels = scratch.voxels();
-            for (int at = 0; at < NEIGHBORS.length; at++) {
-                int[] step = NEIGHBORS[at];
-                int stepX = step[0];
-                int stepY = step[1];
-                int stepZ = step[2];
-                if (!reads(voxels, stepX, stepY, stepZ, radius, corners)) {
-                    continue;
-                }
-
-                CellHandle handle = cells.open(CellKey.pack(task.level(), x + stepX, y + stepY, z + stepZ));
-                handles[at + 1] = handle;
-                handle.withCell(cell -> {
-                    voxels.loadRegion(stepX, stepY, stepZ, cell);
-                    if (stepX == 0 && stepY < 0 && stepZ == 0 && edgeFluidReachesBottom(voxels)) {
-                        voxels.loadBelow(cell);
-                    }
-
-                    if (radius > 0 && stepY == 0) {
-                        voxels.loadBiomes(cell, stepX, stepZ, radius);
-                    }
-
-                    return null;
-                });
-            }
-
-            scratch.begin(frame, task.key(), tints, blendRadius);
-
-            AtomicBoolean retried = new AtomicBoolean();
-            CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy, opacity.at(task.level()),
-                    occlusion.at(task.level()), () -> {
-                if (retried.compareAndSet(false, true)) {
-                    submit(task.retry());
-                }
-            });
+            int occupancy = loadCell(handles[0], scratch, task.key(), grandchildren);
+            loadNeighbors(task, handles, scratch.voxels());
+            CellMesh mesh = mesh(task, scratch, occupancy);
             if (mesh != null) {
                 CellMesh masked = mesh.withGrandchildren(grandchildren[0])
                         .readingBelow(scratch.voxels().belowLoaded());
@@ -162,6 +117,62 @@ public final class MeshService {
             release(handles);
             releaseCarried(held, task.references());
         }
+    }
+
+    private int loadCell(CellHandle handle, MeshScratch scratch, long key, long[] grandchildren) {
+        int occupancy = handle.withCell(cell -> {
+            scratch.voxels().load(cell);
+            grandchildren[0] = cell.grandchildOccupancy();
+            return cell.occupancy();
+        });
+
+        scratch.voxels().loadCoverage(coverage, key);
+        return occupancy;
+    }
+
+    private void loadNeighbors(MeshTask task, CellHandle[] handles, CellVoxels voxels) {
+        int radius = TintBlend.columns(blendRadius, task.level());
+        boolean corners = task.level() == FluidCorners.LEVEL;
+        int x = CellKey.x(task.key());
+        int y = CellKey.y(task.key());
+        int z = CellKey.z(task.key());
+
+        for (int at = 0; at < NEIGHBORS.length; at++) {
+            int[] step = NEIGHBORS[at];
+            int stepX = step[0];
+            int stepY = step[1];
+            int stepZ = step[2];
+            if (!reads(voxels, stepX, stepY, stepZ, radius, corners)) {
+                continue;
+            }
+
+            CellHandle handle = cells.open(CellKey.pack(task.level(), x + stepX, y + stepY, z + stepZ));
+            handles[at + 1] = handle;
+            handle.withCell(cell -> {
+                voxels.loadRegion(stepX, stepY, stepZ, cell);
+                if (stepX == 0 && stepY < 0 && stepZ == 0 && edgeFluidReachesBottom(voxels)) {
+                    voxels.loadBelow(cell);
+                }
+
+                if (radius > 0 && stepY == 0) {
+                    voxels.loadBiomes(cell, stepX, stepZ, radius);
+                }
+
+                return null;
+            });
+        }
+    }
+
+    private @Nullable CellMesh mesh(MeshTask task, MeshScratch scratch, int occupancy) {
+        scratch.begin(frame, task.key(), tints, blendRadius);
+
+        AtomicBoolean retried = new AtomicBoolean();
+        return new CellMesher(scratch, models).mesh(task.key(), occupancy, opacity.at(task.level()),
+                occlusion.at(task.level()), () -> {
+            if (retried.compareAndSet(false, true)) {
+                submit(task.retry());
+            }
+        });
     }
 
     private static int[][] neighbors() {

@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 class ArenaPressureTest {
-    private static final int BLOCKS = 1000;
+    private static final int SEGMENTS = 1000;
     private static final int HIGH = 850;
     private static final int BETWEEN = 800;
     private static final int LOW = 750;
@@ -16,55 +16,55 @@ class ArenaPressureTest {
 
     @Test
     void theHighWaterMarkStartsTheHold() {
-        pressure.update(HIGH - 1, BLOCKS, false);
+        pressure.update(HIGH - 1, SEGMENTS, false);
         assertFalse(pressure.holding());
 
-        pressure.update(HIGH, BLOCKS, false);
+        pressure.update(HIGH, SEGMENTS, false);
         assertTrue(pressure.holding());
     }
 
     @Test
     void aRefusalStartsTheHoldBelowTheMark() {
-        pressure.update(BETWEEN, BLOCKS, true);
+        pressure.update(BETWEEN, SEGMENTS, true);
 
         assertTrue(pressure.holding());
     }
 
     @Test
     void theHoldLastsUntilTheArenaFallsBelowTheLowWaterMark() {
-        pressure.update(HIGH, BLOCKS, false);
+        pressure.update(HIGH, SEGMENTS, false);
 
-        pressure.update(BETWEEN, BLOCKS, false);
+        pressure.update(BETWEEN, SEGMENTS, false);
         assertTrue(pressure.holding());
 
-        pressure.update(LOW, BLOCKS, false);
+        pressure.update(LOW, SEGMENTS, false);
         assertTrue(pressure.holding());
 
-        pressure.update(BELOW_LOW, BLOCKS, false);
+        pressure.update(BELOW_LOW, SEGMENTS, false);
         assertFalse(pressure.holding());
     }
 
     @Test
     void betweenTheMarksAnArenaThatWasNotHoldingStaysFree() {
-        pressure.update(BETWEEN, BLOCKS, false);
+        pressure.update(BETWEEN, SEGMENTS, false);
 
         assertFalse(pressure.holding());
     }
 
     @Test
     void onlyTheUpdateThatStartsTheHoldReportsIt() {
-        assertFalse(pressure.update(HIGH - 1, BLOCKS, false));
+        assertFalse(pressure.update(HIGH - 1, SEGMENTS, false));
 
-        assertTrue(pressure.update(HIGH, BLOCKS, false));
-        assertFalse(pressure.update(HIGH, BLOCKS, false));
-        assertFalse(pressure.update(BETWEEN, BLOCKS, false));
+        assertTrue(pressure.update(HIGH, SEGMENTS, false));
+        assertFalse(pressure.update(HIGH, SEGMENTS, false));
+        assertFalse(pressure.update(BETWEEN, SEGMENTS, false));
     }
 
     @Test
     void aHoldStartedAgainAfterTheArenaFreedUpReportsItAgain() {
-        pressure.update(HIGH, BLOCKS, false);
-        pressure.update(BELOW_LOW, BLOCKS, false);
+        pressure.update(HIGH, SEGMENTS, false);
+        pressure.update(BELOW_LOW, SEGMENTS, false);
 
-        assertTrue(pressure.update(HIGH, BLOCKS, false));
+        assertTrue(pressure.update(HIGH, SEGMENTS, false));
     }
 }

@@ -104,41 +104,16 @@ public final class IngestService {
 
     private void ingestChunk(LevelChunk chunk, IngestTrigger trigger) {
         LevelLightEngine light = chunk.getLevel().getLightEngine();
-        ChunkPos chunkPos = chunk.getPos();
-        LevelChunkSection[] sections = chunk.getSections();
-
-        if (!lightOn(light, chunkPos.x(), chunkPos.z())) {
-            Eminus.LOGGER.debug("Chunk {} has no light applied yet; it waits for its light trigger.", chunkPos);
+        if (!ready(chunk, light)) {
             return;
         }
 
-        if (!hasLightData(light, chunk, sections.length)) {
-            Eminus.LOGGER.debug("Chunk {} carries no light data; it is skipped.", chunkPos);
-            return;
-        }
-
-        int chunkX = chunkPos.x();
-        int chunkZ = chunkPos.z();
-        if (!neighborsLoaded(chunk.getLevel(), chunkX, chunkZ)) {
-            deferred.add(column(chunkX, chunkZ));
-            return;
-        }
-
-        boolean[] submitted = new boolean[sections.length];
-        int count = 0;
-        for (int index = 0; index < sections.length; index++) {
-            submitted[index] = submits(light, chunk, index);
-            if (submitted[index]) {
-                count++;
-            }
-        }
-
+        int chunkX = chunk.getPos().x();
+        int chunkZ = chunk.getPos().z();
+        boolean[] submitted = new boolean[chunk.getSections().length];
+        int count = pickSections(chunk, light, submitted);
         if (trigger != IngestTrigger.UNLOAD && coverage.covers(chunkX, chunkZ)) {
-            for (int index = 0; index < sections.length; index++) {
-                if (!submitted[index] && sections[index].hasOnlyAir()) {
-                    probeSkipped(chunkX, chunk.getSectionYFromSectionIndex(index), chunkZ);
-                }
-            }
+            probeSkippedSections(chunk, submitted);
         }
 
         if (count == 0) {
@@ -147,9 +122,50 @@ public final class IngestService {
         }
 
         AtomicInteger remaining = new AtomicInteger(count);
-        for (int index = 0; index < sections.length; index++) {
+        for (int index = 0; index < submitted.length; index++) {
             if (submitted[index]) {
                 submit(light, chunk, index, remaining, trigger);
+            }
+        }
+    }
+
+    private boolean ready(LevelChunk chunk, LevelLightEngine light) {
+        ChunkPos chunkPos = chunk.getPos();
+        if (!lightOn(light, chunkPos.x(), chunkPos.z())) {
+            Eminus.LOGGER.debug("Chunk {} has no light applied yet; it waits for its light trigger.", chunkPos);
+            return false;
+        }
+
+        if (!hasLightData(light, chunk, chunk.getSections().length)) {
+            Eminus.LOGGER.debug("Chunk {} carries no light data; it is skipped.", chunkPos);
+            return false;
+        }
+
+        if (!neighborsLoaded(chunk.getLevel(), chunkPos.x(), chunkPos.z())) {
+            deferred.add(column(chunkPos.x(), chunkPos.z()));
+            return false;
+        }
+
+        return true;
+    }
+
+    private int pickSections(LevelChunk chunk, LevelLightEngine light, boolean[] submitted) {
+        int count = 0;
+        for (int index = 0; index < submitted.length; index++) {
+            submitted[index] = submits(light, chunk, index);
+            if (submitted[index]) {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private void probeSkippedSections(LevelChunk chunk, boolean[] submitted) {
+        LevelChunkSection[] sections = chunk.getSections();
+        for (int index = 0; index < sections.length; index++) {
+            if (!submitted[index] && sections[index].hasOnlyAir()) {
+                probeSkipped(chunk.getPos().x(), chunk.getSectionYFromSectionIndex(index), chunk.getPos().z());
             }
         }
     }

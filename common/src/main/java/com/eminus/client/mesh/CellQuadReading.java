@@ -31,7 +31,7 @@ public final class CellQuadReading {
     public static final int SEE_THROUGH_QUADS = 5;
     public static final int PACK_QUADS = 6;
     public static final int PACK_MERGED_QUADS = 7;
-    public static final int RENDERED_CUTOUT = 8;
+    public static final int RENDERED_SEE_THROUGH = 8;
     public static final int SEE_THROUGH_TWINNED_QUADS = 9;
 
     private static final int TIMEOUT_SECONDS = 120;
@@ -48,11 +48,11 @@ public final class CellQuadReading {
 
         long[] keys = square(runtime.frame().keyAt(level, blockX, blockY, blockZ), ring);
         PackBlocks pack = ClientSession.packBlocks();
-        boolean renderedCutout = renderer.cutoutLeaves();
+        boolean renderedSeeThrough = renderer.seeThroughLeaves();
         ClientBakery opaqueBaking = ClientBakery.start(client, false);
         ClientBakery seeThroughBaking = ClientBakery.start(client, true);
-        ClientBakery packBaking = ClientBakery.start(client, renderedCutout, pack);
-        ClientBakery packMergedBaking = ClientBakery.start(client, renderedCutout,
+        ClientBakery packBaking = ClientBakery.start(client, renderedSeeThrough, pack);
+        ClientBakery packMergedBaking = ClientBakery.start(client, renderedSeeThrough,
                 new PackBlocks(pack.ids(), IntSet.of()));
         CompletableFuture<Map<Long, CellMesh>> opaque = CellMeshing.mesh(runtime, instance, opaqueBaking, keys,
                 TIMEOUT_SECONDS);
@@ -65,7 +65,7 @@ public final class CellQuadReading {
 
         return CompletableFuture.allOf(opaque, seeThrough, packed, packMerged)
                 .thenApply(meshed -> rows(keys, opaque.join(), seeThrough.join(), packed.join(), packMerged.join(),
-                        renderedCutout, seeThroughBaking.bakery()))
+                        renderedSeeThrough, seeThroughBaking.bakery()))
                 .whenComplete((rows, failure) -> {
                     opaqueBaking.stop();
                     seeThroughBaking.stop();
@@ -90,14 +90,14 @@ public final class CellQuadReading {
     }
 
     private static List<int[]> rows(long[] keys, Map<Long, CellMesh> opaque, Map<Long, CellMesh> seeThrough,
-            Map<Long, CellMesh> packed, Map<Long, CellMesh> packMerged, boolean renderedCutout,
+            Map<Long, CellMesh> packed, Map<Long, CellMesh> packMerged, boolean renderedSeeThrough,
             ModelBakery seeThroughBakery) {
         List<int[]> rows = new ArrayList<>(keys.length);
         for (long key : keys) {
             rows.add(new int[] {CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key),
                     CellMeshing.meshOf(opaque, key).quadCount(), CellMeshing.meshOf(seeThrough, key).quadCount(),
                     CellMeshing.meshOf(packed, key).quadCount(), CellMeshing.meshOf(packMerged, key).quadCount(),
-                    renderedCutout ? 1 : 0, twinnedQuads(CellMeshing.meshOf(seeThrough, key), seeThroughBakery)});
+                    renderedSeeThrough ? 1 : 0, twinnedQuads(CellMeshing.meshOf(seeThrough, key), seeThroughBakery)});
         }
 
         return rows;

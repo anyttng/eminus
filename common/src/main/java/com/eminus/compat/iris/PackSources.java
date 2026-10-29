@@ -31,6 +31,15 @@ public final class PackSources {
 
     public static String insert(String packSource, String header, String main) {
         String[] lines = packSource.split(LINE, -1);
+        int insertAt = afterDirectives(lines);
+        if (insertAt < 0) {
+            throw new IllegalArgumentException("No " + VERSION + " directive opens the pack file");
+        }
+
+        return splice(lines, insertAt, header) + main;
+    }
+
+    private static int afterDirectives(String[] lines) {
         int insertAt = -1;
         for (int index = 0; index < lines.length; index++) {
             String line = lines[index].strip();
@@ -40,10 +49,11 @@ public final class PackSources {
                 break;
             }
         }
-        if (insertAt < 0) {
-            throw new IllegalArgumentException("No " + VERSION + " directive opens the pack file");
-        }
 
+        return insertAt;
+    }
+
+    private static String splice(String[] lines, int insertAt, String header) {
         StringBuilder spliced = new StringBuilder();
         for (int index = 0; index < lines.length; index++) {
             if (index == insertAt) {
@@ -54,7 +64,7 @@ public final class PackSources {
         if (insertAt == lines.length) {
             spliced.append(header);
         }
-        return spliced.append(main).toString();
+        return spliced.toString();
     }
 
     public static String spliceFragmentProgram(String packSource, String header) {
