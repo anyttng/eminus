@@ -23,7 +23,8 @@ public final class NodeRow {
     public static final int LAST_SEEN = 14;
     public static final int WALKS = 15;
     public static final int MISSING_COLUMNS = 16;
-    public static final int WIDTH = 17;
+    public static final int STALE = 17;
+    public static final int WIDTH = 18;
 
     private NodeRow() {
     }
@@ -43,6 +44,7 @@ public final class NodeRow {
             row[LAST_SEEN] = node == null ? 0 : node.lastSeen();
             row[WALKS] = walks;
             row[MISSING_COLUMNS] = mesh != null && mesh.missingColumns() ? 1 : 0;
+            row[STALE] = node != null && node.stale() ? 1 : 0;
         }
 
         return rows;
