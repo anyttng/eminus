@@ -308,8 +308,14 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             dispatch.settle(node);
         }
 
-        node.buildFailed();
-        failed.add(node, System.nanoTime());
+        if (failed.add(node, node.buildFailed(), System.nanoTime()) || node.mesh() != null) {
+            return;
+        }
+
+        CellMesh empty = CellMesh.empty(key);
+        node.meshed(empty.summary());
+        batch.add(empty);
+        treeChanged = true;
     }
 
     private void retryFailed() {
