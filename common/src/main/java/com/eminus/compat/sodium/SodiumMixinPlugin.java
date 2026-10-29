@@ -19,6 +19,6 @@ public final class SodiumMixinPlugin extends ModPresenceGatePlugin {
     }
 
     public static boolean sodiumPresent() {
-        return SODIUM.present();
+        return SODIUM.admitted();
     }
 }
