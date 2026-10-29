@@ -29,7 +29,7 @@ class ModPresenceTest {
         assertTrue(ModPresence.gate(LOGGER, "[test-compat] gate holding_present")
                 .probing(SHIPPED_CLASS)
                 .checking(CONFIG, mixin -> !mixin.equals(MIXIN_PREFIX + SHADOW_MISSING))
-                .build().present(), "every mixin the gate covers names only members its target has");
+                .build().admitted(), "every mixin the gate covers names only members its target has");
     }
 
     @Test
@@ -37,7 +37,7 @@ class ModPresenceTest {
         assertFalse(ModPresence.gate(LOGGER, "[test-compat] gate one_moved_present")
                 .probing(SHIPPED_CLASS)
                 .checking(CONFIG)
-                .build().present(), "one covered mixin shadows a field its target no longer declares");
+                .build().admitted(), "one covered mixin shadows a field its target no longer declares");
     }
 
     @Test
@@ -45,7 +45,7 @@ class ModPresenceTest {
         assertTrue(ModPresence.gate(LOGGER, "[test-compat] gate narrowed_present")
                 .probing(SHIPPED_CLASS)
                 .checking(CONFIG, (MIXIN_PREFIX + WRAP_PRESENT)::equals)
-                .build().present(), "the refused mixin belongs to another gate's set");
+                .build().admitted(), "the refused mixin belongs to another gate's set");
     }
 
     @Test
@@ -53,22 +53,22 @@ class ModPresenceTest {
         assertFalse(ModPresence.gate(LOGGER, "[test-compat] gate uninstalled_present")
                 .probing(ABSENT_CLASS)
                 .checking(ABSENT_CONFIG)
-                .build().present(), "an absent mod closes the gate before its config is opened");
+                .build().admitted(), "an absent mod closes the gate before its config is opened");
     }
 
     @Test
     void aGateClosesWhenAnyOfItsResourcesIsAbsent() {
         assertFalse(ModPresence.gate(LOGGER, "[test-compat] gate half_installed_present")
                 .probing(SHIPPED_CLASS, ABSENT_CLASS)
-                .build().present(), "a gate standing on two mods needs both");
+                .build().admitted(), "a gate standing on two mods needs both");
     }
 
     @Test
     void aGateWithoutAConfigIsTheBareProbe() {
         assertTrue(ModPresence.gate(LOGGER, "[test-compat] gate shipped_present").probing(SHIPPED_CLASS).build()
-                .present(), "the mod's own class file resolves through the loader the builder picks");
+                .admitted(), "the mod's own class file resolves through the loader the builder picks");
         assertFalse(ModPresence.gate(LOGGER, "[test-compat] gate absent_present").probing(ABSENT_CLASS).build()
-                .present(), "no jar on the classpath carries that class file");
+                .admitted(), "no jar on the classpath carries that class file");
     }
 
     @Test
@@ -85,6 +85,19 @@ class ModPresenceTest {
     }
 
     @Test
+    void aWithheldMixinIsNeitherCheckedNorApplied() {
+        ModPresence gate = ModPresence.gate(LOGGER, "[test-compat] gate withheld_present")
+                .probing(SHIPPED_CLASS)
+                .checking(CONFIG)
+                .withholding(MIXIN_PREFIX + SHADOW_MISSING, () -> true)
+                .build();
+
+        assertTrue(gate.admitted(), "the one mixin naming a missing member is withheld, so the rest opens the gate");
+        assertFalse(gate.admits(FIXTURES + SHADOW_MISSING), "a withheld mixin is never applied");
+        assertTrue(gate.admits(FIXTURES + WRAP_PRESENT), "the mixins beside it apply");
+    }
+
+    @Test
     void theBareProbeAnswersTheSameAsAGate() {
         assertTrue(ModPresence.probe(SHIPPED_CLASS), "the bare probe resolves the shipped class through the same loader");
         assertFalse(ModPresence.probe(ABSENT_CLASS), "the bare probe reads an absent class as absent");
@@ -96,10 +109,10 @@ class ModPresenceTest {
         ModPresence gate = ModPresence.gate(LOGGER, "[test-compat] gate once_present").probing(SHIPPED_CLASS)
                 .build(loader);
 
-        assertTrue(gate.present());
-        assertTrue(gate.present());
+        assertTrue(gate.admitted());
+        assertTrue(gate.admitted());
 
-        assertEquals(1, loader.lookups, "the second present() answers from the value the first one probed");
+        assertEquals(1, loader.lookups, "the second admitted() answers from the value the first one probed");
         assertEquals(SHIPPED_CLASS, loader.asked, "the probe asks for the resource its gate names");
     }
 

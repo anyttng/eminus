@@ -19,6 +19,6 @@ public final class IrisMixinPlugin extends ModPresenceGatePlugin {
     }
 
     public static boolean irisPresent() {
-        return IRIS.present();
+        return IRIS.admitted();
     }
 }
