@@ -3,6 +3,7 @@ package com.eminus.compat.iris.contract;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
@@ -37,6 +38,8 @@ public final class ContractPath implements PackPath {
     private static final String TRANSLUCENT_PROGRAM = "eminus_translucent";
     private static final String SHADOW_PROGRAM = "eminus_shadow";
     private static final String SHADOW_TRANSLUCENT_PROGRAM = "eminus_shadow_translucent";
+    private static final String BEAM_PROGRAM = "eminus_beaconbeam";
+    private static final String BEAM_GLOW_PROGRAM = "eminus_beaconbeam_glow";
     private static final String PACK_PROGRAM_SUFFIX = "_eminus";
     private static final String FILE_ROOT = "/";
     private static final String CHOSEN = "shadowSource picks only a source that is there";
@@ -47,6 +50,7 @@ public final class ContractPath implements PackPath {
     private final @Nullable PackFile shadowTranslucent;
     private final @Nullable PackFile shadowVertex;
     private final @Nullable PackFile vertex;
+    private final @Nullable PackFile beam;
     private final @Nullable ProgramSource packShadow;
     private final IntSet movedIds;
 
@@ -55,13 +59,14 @@ public final class ContractPath implements PackPath {
 
     private ContractPath(PackFile opaque, @Nullable PackFile translucent, @Nullable PackFile shadow,
             @Nullable PackFile shadowTranslucent, @Nullable PackFile shadowVertex, @Nullable PackFile vertex,
-            @Nullable ProgramSource packShadow, IntSet movedIds) {
+            @Nullable PackFile beam, @Nullable ProgramSource packShadow, IntSet movedIds) {
         this.opaque = opaque;
         this.translucent = translucent;
         this.shadow = shadow;
         this.shadowTranslucent = shadowTranslucent;
         this.shadowVertex = shadowVertex;
         this.vertex = vertex;
+        this.beam = beam;
         this.packShadow = packShadow;
         this.movedIds = movedIds;
     }
@@ -75,6 +80,7 @@ public final class ContractPath implements PackPath {
                 read(sources, PackContract.TRANSLUCENT_FILE, folder), read(sources, PackContract.SHADOW_FILE, folder),
                 read(sources, PackContract.SHADOW_TRANSLUCENT_FILE, folder),
                 read(sources, PackContract.SHADOW_VERTEX_FILE, folder), read(sources, PackContract.VERTEX_FILE, folder),
+                read(sources, PackContract.BEAM_FILE, folder),
                 new ProgramFallbackResolver(programSet).resolveNullable(ProgramId.ShadowCutout),
                 ((MovedBlockIds) pack).eminus$movedBlockIds());
     }
@@ -119,6 +125,10 @@ public final class ContractPath implements PackPath {
             };
             case SHADOW_TRANSLUCENT -> shadowTranslucent == null ? null
                     : shadowSource(SHADOW_TRANSLUCENT_PROGRAM, shadowTranslucent);
+            case BEAM -> beam == null ? null
+                    : source(BEAM_PROGRAM, beam, vertex, stage, ContractSources::spliceBeam);
+            case BEAM_GLOW -> beam == null ? null
+                    : source(BEAM_GLOW_PROGRAM, beam, vertex, stage, ContractSources::spliceBeam);
         };
     }
 
@@ -148,8 +158,13 @@ public final class ContractPath implements PackPath {
 
     private static Source source(String programName, PackFile file, @Nullable PackFile vertexFile,
             FarDraw.PackVertex stage) {
+        return source(programName, file, vertexFile, stage, ContractSources::splice);
+    }
+
+    private static Source source(String programName, PackFile file, @Nullable PackFile vertexFile,
+            FarDraw.PackVertex stage, BinaryOperator<String> splice) {
         return new Source(programName, file.path(),
-                ours -> ContractSources.splice(file.source(), PackPath.header(ours)),
+                ours -> splice.apply(file.source(), PackPath.header(ours)),
                 vertexFile == null ? null
                         : ours -> ContractSources.spliceVertex(vertexFile.source(), PackPath.header(ours)),
                 stage);

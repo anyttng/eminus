@@ -19,6 +19,7 @@ import com.eminus.gpu.Location;
 import com.eminus.gpu.ShaderSources;
 import com.eminus.gpu.pass.Pass;
 import com.eminus.gpu.pipeline.Pipeline;
+import com.eminus.gpu.pipeline.PipelineSpec;
 import com.eminus.gpu.texture.Texture;
 
 import com.google.common.primitives.Ints;
@@ -97,7 +98,9 @@ public final class PackProgram {
         OPAQUE,
         TRANSLUCENT,
         SHADOW,
-        SHADOW_TRANSLUCENT;
+        SHADOW_TRANSLUCENT,
+        BEAM,
+        BEAM_GLOW;
 
         boolean shadow() {
             return this == SHADOW || this == SHADOW_TRANSLUCENT;
@@ -133,13 +136,16 @@ public final class PackProgram {
                 LOCATION_PREFIX + source.file() + (depthOnly ? DEPTH_SUFFIX : NO_SUFFIX));
         ProgramSource[] built = new ProgramSource[1];
         boolean animated = IrisShaderPack.lodAnimationsChosen();
-        Pipeline pipeline = foreign.pipeline(
-                kind.shadow()
-                        ? draw.shadowPipeline(location, kind == Kind.SHADOW_TRANSLUCENT, source.vertexStage(),
-                                animated)
-                        : depthOnly ? draw.packDepthPipeline(location, source.vertexStage(), animated)
-                                : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertexStage(),
-                                        animated, programSet.getPackDirectives().shouldUseSeparateAo()),
+        PipelineSpec spec = switch (kind) {
+            case SHADOW, SHADOW_TRANSLUCENT -> draw.shadowPipeline(location, kind == Kind.SHADOW_TRANSLUCENT,
+                    source.vertexStage(), animated);
+            case BEAM, BEAM_GLOW -> draw.packBeamPipeline(location, kind == Kind.BEAM_GLOW, source.vertexStage(),
+                    animated);
+            case OPAQUE, TRANSLUCENT -> depthOnly ? draw.packDepthPipeline(location, source.vertexStage(), animated)
+                    : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertexStage(), animated,
+                            programSet.getPackDirectives().shouldUseSeparateAo());
+        };
+        Pipeline pipeline = foreign.pipeline(spec,
                 FIRST_UNIT,
                 ours -> {
                     String spliced = source.fragment().apply(ours.fragment());
@@ -173,8 +179,8 @@ public final class PackProgram {
             customUniforms.assignTo(uniforms);
             BuiltinReplacementUniforms.addBuiltinReplacementUniforms(uniforms);
             irisPipeline.addGbufferOrShadowSamplers(samplers, images, switch (kind) {
-                case OPAQUE -> irisPipeline::getFlippedAfterPrepare;
-                case TRANSLUCENT -> irisPipeline::getFlippedAfterTranslucent;
+                case OPAQUE, BEAM -> irisPipeline::getFlippedAfterPrepare;
+                case TRANSLUCENT, BEAM_GLOW -> irisPipeline::getFlippedAfterTranslucent;
                 case SHADOW, SHADOW_TRANSLUCENT -> irisPipeline::getFlippedBeforeShadow;
             }, kind.shadow(), false, true, false);
             Object pass = new Object();
@@ -208,6 +214,16 @@ public final class PackProgram {
             } else {
                 draw.drawOpaque(farPass);
             }
+        } finally {
+            restore();
+        }
+    }
+
+    void drawBeams(FarDraw draw, GlFramebuffer framebuffer) {
+        FarTarget target = draw.target();
+        try (Pass farPass = open(framebuffer, target.width(), target.height())) {
+            use(farPass, draw.view(), draw.projection(), draw.lightmap());
+            draw.drawBeams(farPass);
         } finally {
             restore();
         }
