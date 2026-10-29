@@ -71,7 +71,6 @@ final class InjectionPoints {
                 reason);
     }
 
-    // A foreign mixin's call to its own shadow names the mixin as owner until Mixin merges it into its target.
     private static String merged(String owner, Selection selection, MemberRef wanted) {
         return owner.equals(selection.owner()) && wanted.owner() != null
                 && selection.selfTargets().contains(wanted.owner())
