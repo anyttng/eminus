@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 
 import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.client.render.backend.BackendCheck;
+import com.eminus.client.render.beam.BeamPass;
 import com.eminus.client.render.box.BoxPass;
 import com.eminus.client.render.far.CompositePass;
 import com.eminus.client.render.far.FarFrame;
@@ -51,6 +52,11 @@ class UniformBlockTest {
     @Test
     void theBoxBlockMatchesItsInclude() throws IOException {
         assertMatches(BoxPass.BLOCK, "include/far_boxes.glsl");
+    }
+
+    @Test
+    void theBeamBlockMatchesItsInclude() throws IOException {
+        assertMatches(BeamPass.BLOCK, "include/far_beams.glsl");
     }
 
     @Test

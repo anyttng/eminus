@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.eminus.client.handoff.NearMaskPass;
-import com.eminus.client.render.box.BoxPass;
 import com.eminus.gpu.Location;
 import com.eminus.gpu.pipeline.Pipeline;
 
@@ -17,12 +16,12 @@ final class FarPrograms {
     }
 
     static @Nullable String refusal(NearMaskPass mask, OpaquePass opaque, TranslucentPass translucent,
-            CompositePass composite, BoxPass boxes) {
+            CompositePass composite, FarOverlays overlays) {
         List<Pipeline> pipelines = new ArrayList<>(List.of(mask.pipeline()));
         pipelines.addAll(opaque.pipelines());
         pipelines.addAll(translucent.pipelines());
         pipelines.add(composite.pipeline());
-        pipelines.addAll(boxes.pipelines());
+        pipelines.addAll(overlays.pipelines());
         Location refused = refused(pipelines);
         return refused == null ? null : PROGRAM_REFUSED.formatted(refused);
     }
