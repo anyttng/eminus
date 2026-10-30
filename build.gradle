@@ -113,6 +113,14 @@ def shellMetadata = tasks.register('shellMetadata') {
     inputs.property('neoforgePath', neoforgePath)
     inputs.property('fabricPath', fabricPath)
     inputs.property('libraries', libraries)
+    def neoforgeRange = "[${neo_version},)"
+    def minecraftRange = minecraft_version_range
+    def fabricLoaderRange = ">=${fabric_loader_version}"
+    def minecraftVersion = minecraft_version
+    inputs.property('neoforgeRange', neoforgeRange)
+    inputs.property('minecraftRange', minecraftRange)
+    inputs.property('fabricLoaderRange', fabricLoaderRange)
+    inputs.property('minecraftVersion', minecraftVersion)
     outputs.dir(outputDir)
 
     doLast {
@@ -130,6 +138,20 @@ modId="${shellId}"
 version="${shellVersion}"
 displayName="Eminus (NeoForge and Fabric)"
 description='''Carries the NeoForge and Fabric builds of Eminus; each loader loads its own.'''
+
+[[dependencies.${shellId}]]
+    modId="neoforge"
+    type="required"
+    versionRange="${neoforgeRange}"
+    ordering="NONE"
+    side="CLIENT"
+
+[[dependencies.${shellId}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraftRange}"
+    ordering="NONE"
+    side="CLIENT"
 """
 
         def nestedJars = [[
@@ -156,6 +178,7 @@ description='''Carries the NeoForge and Fabric builds of Eminus; each loader loa
                 description  : 'Carries the NeoForge and Fabric builds of Eminus; each loader loads its own.',
                 license      : modLicense,
                 environment  : 'client',
+                depends      : [fabricloader: fabricLoaderRange, minecraft: minecraftVersion],
                 jars         : [[file: fabricPath]] + libraries.collect { [file: it.path] }]))
     }
 }
