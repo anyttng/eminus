@@ -20,6 +20,8 @@ public interface MeshModels {
 
     int opaqueModelId(int modelId);
 
+    int[] pieceIds(int modelId);
+
     int oneSidedModelId(int modelId);
 
     int inwardModelId(int seabedModelId, int fluidModelId);

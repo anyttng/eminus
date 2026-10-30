@@ -31,6 +31,7 @@ public final class ModelBakery implements ModelSource {
 
     private static final int THREAD_PRIORITY = Thread.NORM_PRIORITY - 1;
     private static final long LOW_WORD = 0xFFFF_FFFFL;
+    private static final int[] NO_PIECES = new int[0];
 
     private record Request(BlockState state, @Nullable List<Object> parts) {
     }
@@ -52,6 +53,7 @@ public final class ModelBakery implements ModelSource {
     private final IdTable opaqueIds = new IdTable(0, MISSING);
     private final Map<Integer, Integer> oneSidedIds = new ConcurrentHashMap<>();
     private final Map<Long, Integer> inwardIds = new ConcurrentHashMap<>();
+    private final Map<Integer, int[]> piecesByModel = new ConcurrentHashMap<>();
     private final BlockingQueue<Request> requests = new LinkedBlockingQueue<>();
     private final Map<Request, List<Runnable>> waiting = new HashMap<>();
     private final ThreadLocal<Picker> pickers = ThreadLocal.withInitial(Picker::new);
@@ -100,6 +102,11 @@ public final class ModelBakery implements ModelSource {
     public int opaqueModelId(int modelId) {
         int twin = opaqueIds.get(modelId);
         return twin == MISSING ? modelId : twin;
+    }
+
+    public int[] pieceIds(int modelId) {
+        int[] ids = piecesByModel.get(modelId);
+        return ids == null ? NO_PIECES : ids;
     }
 
     public int oneSidedModelId(int modelId) {
@@ -239,10 +246,10 @@ public final class ModelBakery implements ModelSource {
 
     private void publishParts(Request request, List<Object> parts) {
         int packId = packBlocks.ids().applyAsInt(request.state());
-        int partsId = models.register(stamped(bakeParts(request.state(), parts), packId));
+        int partsId = register(bakeParts(request.state(), parts), packId);
         BakedModel twin = bakeOpaqueTwinParts(request.state(), parts);
         if (twin != null) {
-            opaqueIds.put(partsId, models.register(stamped(twin, packId)));
+            opaqueIds.put(partsId, register(twin, packId));
         }
 
         idByParts.put(request, partsId);
@@ -273,8 +280,21 @@ public final class ModelBakery implements ModelSource {
     }
 
     private int registerBlock(BakedState baked, int packId) {
-        return baked.variants().isEmpty() ? models.register(stamped(baked.block(), packId))
-                : registerVariants(baked, packId);
+        return baked.variants().isEmpty() ? register(baked.block(), packId) : registerVariants(baked, packId);
+    }
+
+    private int register(BakedModel model, int packId) {
+        int modelId = models.register(stamped(model, packId));
+        if (!model.pieces().isEmpty() && !piecesByModel.containsKey(modelId)) {
+            int[] ids = new int[model.pieces().size()];
+            for (int piece = 0; piece < ids.length; piece++) {
+                ids[piece] = models.register(stamped(model.pieces().get(piece), packId));
+            }
+
+            piecesByModel.put(modelId, ids);
+        }
+
+        return modelId;
     }
 
     private int registerVariants(BakedState baked, int packId) {

@@ -24,6 +24,7 @@ class ShapeDivergenceTest {
     private static final float HALF = 0.5F;
     private static final float BLADE_FROM = 0.8F * SIXTEENTH;
     private static final float BLADE_TO = 15.2F * SIXTEENTH;
+    private static final int LOOSE_STEM_QUADS = 4;
     private static final QuadTexels OPAQUE_WHITE = (quad, u, v) -> 0xFFFF_FFFF;
     private static final ShapeDivergence.SpriteColumns SIXTEEN_COLUMNS =
             (quad, uSpan) -> uSpan * BakedModel.FACE_SIDE;
@@ -101,6 +102,37 @@ class ShapeDivergenceTest {
         assertTrue(divergence.bladed());
         assertEquals(2, divergence.blades());
         assertEquals(ShapeDivergence.NO_BLADES, divergence.bladeScale(), EPSILON);
+    }
+
+    @Test
+    void aFlowerBedBakedAsOneBoxFlattensItsPetalsAndLeavesItsStemsLoose() {
+        List<ModelQuad> bed = FlowerBedQuads.bed();
+
+        ShapeDivergence divergence = measure(bed, bake(bed));
+
+        assertEquals(FlowerBedQuads.TOP_PETALS - FlowerBedQuads.LOW_PETALS,
+                divergence.depth()[Direction.UP.get3DDataValue()], EPSILON);
+        assertEquals(LOOSE_STEM_QUADS, divergence.looseBlades());
+    }
+
+    @Test
+    void aFlowerBedBakedInPiecesMatchesTheGameModel() {
+        List<ModelQuad> bed = FlowerBedQuads.bed();
+        List<List<ModelQuad>> pieces = GroundCoverPieces.split(bed);
+        List<BakedModel> rest = new ArrayList<>();
+        for (List<ModelQuad> piece : pieces.subList(1, pieces.size())) {
+            rest.add(bake(piece));
+        }
+
+        ShapeDivergence divergence = measure(bed, bake(pieces.getFirst()).withPieces(rest));
+
+        assertEquals(0.0F, divergence.deepest(), EPSILON);
+        assertEquals(FaceMask.NONE, divergence.lostFaces());
+        assertEquals(0, divergence.looseBlades());
+        assertEquals(0.0F, divergence.bladeOffset(), EPSILON);
+        for (float axis : divergence.bounds()) {
+            assertEquals(0.0F, axis, EPSILON);
+        }
     }
 
     @Test

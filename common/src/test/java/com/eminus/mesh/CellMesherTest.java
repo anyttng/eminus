@@ -83,6 +83,11 @@ class CellMesherTest {
     private static final int MOVED_LEAVES = 44;
     private static final int MOVED_LEAVES_MODEL = 45;
     private static final int CUTOUT_LEAVES_TWIN_MODEL = 46;
+    private static final int FLOWER_BED = 47;
+    private static final int FLOWER_BED_MODEL = 48;
+    private static final int LOW_PETALS_MODEL = 49;
+    private static final int STEM_MODEL = 50;
+    private static final int FLAT_FACES = 2;
     private static final int GROUND_LEVEL = 2;
     private static final int SEA_FLUID = 2;
     private static final int SEABED_Y = 10;
@@ -509,6 +514,29 @@ class CellMesherTest {
         assertTrue(has(mesh, Direction.WEST, 5, 6, 7, HEADED_MODEL));
         for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
             assertTrue(hasBlade(mesh, blade, 5, 6, 7, HEADED_MODEL), "blade " + blade);
+        }
+    }
+
+    @Test
+    void aVoxelWithPiecesEmitsEachPieceBesideItsOwnFaces() {
+        defineBlocks();
+        int flat = ModelMetadata.pack(FaceMask.DOWN | FaceMask.UP, FaceMask.NONE, FaceMask.NONE, 0, 0);
+        models.define(FLOWER_BED, FLOWER_BED_MODEL, flat);
+        models.describe(LOW_PETALS_MODEL, flat);
+        models.describe(STEM_MODEL,
+                ModelMetadata.pack(FaceMask.NONE, FaceMask.NONE, FaceMask.NONE, 0, ModelMetadata.BLADED));
+        models.pieces(FLOWER_BED_MODEL, LOW_PETALS_MODEL, STEM_MODEL);
+        Cell cell = blank();
+        cell.set(5, 6, 7, block(FLOWER_BED));
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        assertEquals(FLAT_FACES * 2 + Quad.BLADE_COUNT, mesh.quadCount());
+        assertTrue(has(mesh, Direction.UP, 5, 6, 7, FLOWER_BED_MODEL));
+        assertTrue(has(mesh, Direction.UP, 5, 6, 7, LOW_PETALS_MODEL));
+        assertTrue(has(mesh, Direction.DOWN, 5, 6, 7, LOW_PETALS_MODEL));
+        for (int blade = 0; blade < Quad.BLADE_COUNT; blade++) {
+            assertTrue(hasBlade(mesh, blade, 5, 6, 7, STEM_MODEL), "blade " + blade);
         }
     }
 

@@ -74,6 +74,30 @@ class ModelBakeryTest {
     }
 
     @Test
+    void twoStatesWithOneMainModelAndDifferentPiecesTakeTwoIdsEachWithItsOwnPieces() throws InterruptedException {
+        BakedModel main = BakedModel.solid(WHITE);
+        BakedModel blue = BakedModel.solid(BLUE);
+        ModelBakery bakery = ModelBakery.start(state -> new BakedState(state.equals(stone)
+                ? main.withPieces(List.of(blue))
+                : main.withPieces(List.of(blue, BakedModel.solid(GREEN))), null));
+
+        try {
+            awaitBake(bakery, stone);
+            awaitBake(bakery, dirt);
+            int[] stonePieces = bakery.pieceIds(bakery.modelId(stone));
+            int[] dirtPieces = bakery.pieceIds(bakery.modelId(dirt));
+
+            assertNotEquals(bakery.modelId(stone), bakery.modelId(dirt));
+            assertEquals(1, stonePieces.length);
+            assertEquals(BOTH_MODELS, dirtPieces.length);
+            assertEquals(stonePieces[0], dirtPieces[0]);
+            assertEquals(GREEN, bakery.model(dirtPieces[1]).argb(0, 0));
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
     void aRequestForAnUnbakedStateIsAnsweredOnceItIsServed() throws InterruptedException {
         ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null));
 

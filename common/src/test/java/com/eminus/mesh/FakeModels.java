@@ -27,6 +27,7 @@ final class FakeModels implements MeshModels {
     private final Map<Integer, Integer> fluidIds = new HashMap<>();
     private final Map<Integer, Integer> submergedIds = new HashMap<>();
     private final Map<Integer, Integer> opaqueIds = new HashMap<>();
+    private final Map<Integer, int[]> pieceIds = new HashMap<>();
     private final Map<Integer, Integer> words = new HashMap<>();
     private final Map<Integer, Integer> solidFaces = new HashMap<>();
     private final Map<Integer, Integer> tintRows = new HashMap<>();
@@ -87,6 +88,10 @@ final class FakeModels implements MeshModels {
     void opaqueTwin(int modelId, int twinModelId, int metadata) {
         opaqueIds.put(modelId, twinModelId);
         words.put(twinModelId, metadata);
+    }
+
+    void pieces(int modelId, int... ids) {
+        pieceIds.put(modelId, ids);
     }
 
     void holds(int stateId, int fluid, float height) {
@@ -192,6 +197,11 @@ final class FakeModels implements MeshModels {
     @Override
     public int opaqueModelId(int modelId) {
         return opaqueIds.getOrDefault(modelId, modelId);
+    }
+
+    @Override
+    public int[] pieceIds(int modelId) {
+        return pieceIds.getOrDefault(modelId, new int[0]);
     }
 
     @Override
