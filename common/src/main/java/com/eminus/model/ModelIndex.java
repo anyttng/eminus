@@ -48,6 +48,10 @@ public final class ModelIndex {
         return bakery.opaqueModelId(modelId);
     }
 
+    public int[] pieceIds(int modelId) {
+        return bakery.pieceIds(modelId);
+    }
+
     public int oneSidedModelId(int modelId) {
         return bakery.oneSidedModelId(modelId);
     }
