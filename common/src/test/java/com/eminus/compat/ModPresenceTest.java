@@ -5,10 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URL;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 
+import com.eminus.compat.fixture.scan.FixtureCaller;
+import com.eminus.compat.fixture.scan.FixtureScanPlugin;
 import com.mojang.logging.LogUtils;
 
 class ModPresenceTest {
@@ -114,6 +117,53 @@ class ModPresenceTest {
 
         assertEquals(1, loader.lookups, "the second admitted() answers from the value the first one probed");
         assertEquals(SHIPPED_CLASS, loader.asked, "the probe asks for the resource its gate names");
+    }
+
+    @Test
+    void aGateWhoseCompatClassesReachOnlyWhatTheModHasOpens() {
+        assertTrue(scanGate(ScanFixtures.SCAN_CONFIG).build(ScanFixtures.current()).admitted(),
+                "every class of the gate's package reaches only members the mod has");
+    }
+
+    @Test
+    void aCompatClassReachingAMemberTheModLacksClosesTheGate() {
+        assertFalse(scanGate(ScanFixtures.SCAN_CONFIG).build(ScanFixtures.older()).admitted(),
+                "a class outside the mixins calls a method the older mod lacks");
+    }
+
+    @Test
+    void aDeclaredOptionalHolderAndANestedGatesPackageAreNotRead() {
+        ModPresence gate = scanGate(ScanFixtures.SCAN_CONFIG).optional(ScanFixtures.OPTIONAL_HOLDER)
+                .build(ScanFixtures.withoutLater());
+
+        assertTrue(gate.admitted(), "only the optional holder and the nested gate's class name the missing class");
+        assertEquals(List.of(FixtureScanPlugin.class.getName(), FixtureCaller.class.getName()),
+                gate.scannedClasses(), "the gate reads its own package and leaves the nested one to its gate");
+    }
+
+    @Test
+    void anUndeclaredHolderOfAMissingClassClosesTheGate() {
+        assertFalse(scanGate(ScanFixtures.SCAN_CONFIG).build(ScanFixtures.withoutLater()).admitted(),
+                "the holder is read like every other class of the package");
+    }
+
+    @Test
+    void aNestedGateReadsItsOwnPackage() {
+        assertFalse(scanGate(ScanFixtures.NESTED_CONFIG).build(ScanFixtures.withoutLater()).admitted(),
+                "the nested gate's caller names the class the mod lacks");
+    }
+
+    @Test
+    void aGateCheckingTheModsPackagesClosesWithoutTheClassIndex() {
+        assertFalse(scanGate(ScanFixtures.SCAN_CONFIG).build(ScanFixtures.withoutIndex()).admitted(),
+                "a build without the index cannot say which classes the gate stands for");
+    }
+
+    private static ModPresence.Builder scanGate(String config) {
+        return ModPresence.gate(LOGGER, "[test-compat] gate scan_present")
+                .probing(SHIPPED_CLASS)
+                .checking(config)
+                .modPackages(ScanFixtures.MOD_PACKAGE);
     }
 
     private static final class CountingLoader extends ClassLoader {

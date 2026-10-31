@@ -91,6 +91,31 @@ dependencies {
     testImplementation 'org.junit.platform:junit-platform-launcher'
 }
 
+def compatIndexDir = layout.buildDirectory.dir('generated/compat-index')
+def compatIndex = tasks.register('compatIndex') {
+    def classesDir = sourceSets.main.java.classesDirectory
+    def outputDir = compatIndexDir
+    inputs.dir(classesDir)
+    outputs.dir(outputDir)
+    doLast {
+        def root = classesDir.get().asFile.toPath()
+        def compat = root.resolve('com/eminus/compat')
+        def names = []
+        if (java.nio.file.Files.isDirectory(compat)) {
+            java.nio.file.Files.walk(compat).withCloseable { files ->
+                files.filter { it.toString().endsWith('.class') }.forEach { file ->
+                    def relative = root.relativize(file).toString().replace('\\', '/')
+                    names << relative.substring(0, relative.length() - '.class'.length())
+                }
+            }
+        }
+        def index = outputDir.get().file('eminus.compat.classes.txt').asFile.toPath()
+        java.nio.file.Files.createDirectories(index.parent)
+        java.nio.file.Files.writeString(index, names.sort().collect { it + '\n' }.join(''))
+    }
+}
+sourceSets.main.output.dir(compatIndexDir.get().asFile, builtBy: compatIndex)
+
 test {
     useJUnitPlatform()
     filter {

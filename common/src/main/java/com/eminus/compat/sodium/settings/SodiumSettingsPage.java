@@ -1,4 +1,4 @@
-package com.eminus.compat.sodium;
+package com.eminus.compat.sodium.settings;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +51,10 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
 
     @Override
     public void registerConfigLate(ConfigBuilder builder) {
+        if (!SodiumSettingsMixinPlugin.settingsPresent()) {
+            return;
+        }
+
         Settings defaults = Settings.defaults();
         OptionGroupBuilder general = general(builder, defaults);
         OptionGroupBuilder appearance = appearance(builder, defaults);

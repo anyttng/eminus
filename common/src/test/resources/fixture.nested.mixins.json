@@ -1,0 +1,5 @@
+{
+  "package": "com.eminus.compat.fixture.scan.nested.mixin",
+  "plugin": "com.eminus.compat.fixture.scan.nested.FixtureNestedPlugin",
+  "client": []
+}
