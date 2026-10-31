@@ -52,14 +52,14 @@ public final class ContractPath implements PackPath {
     private final @Nullable PackFile vertex;
     private final @Nullable PackFile beam;
     private final @Nullable ProgramSource packShadow;
-    private final IntSet movedIds;
+    private final ContractDeclarations declarations;
 
     private record PackFile(String path, String source) {
     }
 
     private ContractPath(PackFile opaque, @Nullable PackFile translucent, @Nullable PackFile shadow,
             @Nullable PackFile shadowTranslucent, @Nullable PackFile shadowVertex, @Nullable PackFile vertex,
-            @Nullable PackFile beam, @Nullable ProgramSource packShadow, IntSet movedIds) {
+            @Nullable PackFile beam, @Nullable ProgramSource packShadow, ContractDeclarations declarations) {
         this.opaque = opaque;
         this.translucent = translucent;
         this.shadow = shadow;
@@ -68,7 +68,7 @@ public final class ContractPath implements PackPath {
         this.vertex = vertex;
         this.beam = beam;
         this.packShadow = packShadow;
-        this.movedIds = movedIds;
+        this.declarations = declarations;
     }
 
     public static @Nullable ContractPath detect(ShaderPack pack, NamespacedId dimension, ProgramSet programSet) {
@@ -82,7 +82,7 @@ public final class ContractPath implements PackPath {
                 read(sources, PackContract.SHADOW_VERTEX_FILE, folder), read(sources, PackContract.VERTEX_FILE, folder),
                 read(sources, PackContract.BEAM_FILE, folder),
                 new ProgramFallbackResolver(programSet).resolveNullable(ProgramId.ShadowCutout),
-                ((MovedBlockIds) pack).eminus$movedBlockIds());
+                ((DeclaredContract) pack).eminus$contractDeclarations());
     }
 
     @Override
@@ -109,7 +109,7 @@ public final class ContractPath implements PackPath {
 
     @Override
     public IntSet movedIds() {
-        return movedIds;
+        return declarations.moved();
     }
 
     @Override
@@ -144,7 +144,7 @@ public final class ContractPath implements PackPath {
                         PackPath.header(ours)),
                 ours -> ContractSources.spliceShadowVertex(stage(program, program.getVertexSource()),
                         PackPath.header(ours)),
-                FarDraw.PackVertex.SHADOW_PROGRAM);
+                FarDraw.PackVertex.SHADOW_PROGRAM, Cutout.PACK);
     }
 
     private static String stage(ProgramSource program, Optional<String> stage) {
@@ -156,18 +156,18 @@ public final class ContractPath implements PackPath {
         return stage.orElseThrow();
     }
 
-    private static Source source(String programName, PackFile file, @Nullable PackFile vertexFile,
+    private Source source(String programName, PackFile file, @Nullable PackFile vertexFile,
             FarDraw.PackVertex stage) {
         return source(programName, file, vertexFile, stage, ContractSources::splice);
     }
 
-    private static Source source(String programName, PackFile file, @Nullable PackFile vertexFile,
+    private Source source(String programName, PackFile file, @Nullable PackFile vertexFile,
             FarDraw.PackVertex stage, BinaryOperator<String> splice) {
         return new Source(programName, file.path(),
                 ours -> splice.apply(file.source(), PackPath.header(ours)),
                 vertexFile == null ? null
                         : ours -> ContractSources.spliceVertex(vertexFile.source(), PackPath.header(ours)),
-                stage);
+                stage, declarations.packCuts() ? Cutout.PACK : Cutout.IRIS);
     }
 
     private static String folder(Map<NamespacedId, String> dimensions, ShaderPackAccessor access,

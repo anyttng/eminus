@@ -35,14 +35,17 @@ public final class PackSpecs {
                 String suffix = "_" + vertex.name().toLowerCase(Locale.ROOT) + (animated ? "_animated" : "_still");
                 for (boolean translucent : new boolean[] {false, true}) {
                     String kind = translucent ? "translucent" : "opaque";
+                    AlphaCut cut = AlphaCut.atLeast(translucent ? TranslucentPass.ALPHA_CUTOUT
+                            : OpaquePass.ALPHA_CUTOUT);
                     for (boolean separateAo : new boolean[] {false, true}) {
                         specs.add(draw.packPipeline(location(kind + (separateAo ? "_separate_ao" : "") + suffix),
-                                translucent, vertex, animated, separateAo));
+                                translucent, vertex, animated, separateAo, cut, false));
                     }
                     specs.add(draw.shadowPipeline(location("shadow_" + kind + suffix), translucent, vertex,
-                            animated));
+                            animated, cut, false));
                 }
-                specs.add(draw.packDepthPipeline(location("depth" + suffix), vertex, animated));
+                specs.add(draw.packDepthPipeline(location("depth" + suffix), vertex, animated,
+                        AlphaCut.atLeast(TranslucentPass.ALPHA_CUTOUT)));
                 for (boolean glow : new boolean[] {false, true}) {
                     specs.add(draw.packBeamPipeline(location((glow ? "beam_glow" : "beam") + suffix), glow, vertex,
                             animated));

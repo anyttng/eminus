@@ -13,17 +13,19 @@ class MovedBlocksTest {
 
     @Test
     void idsSeparatedByAnyWhitespaceAreRead() {
-        assertEquals(IntSet.of(WATER, SMALL_PLANTS, LEAVES), MovedBlocks.declared("moved =  10001  10002\t10005 \n"));
+        assertEquals(IntSet.of(WATER, SMALL_PLANTS, LEAVES),
+                ContractDeclarations.of("moved =  10001  10002\t10005 \n").moved());
     }
 
     @Test
     void aListContinuedOverTheBlankLinesOfDroppedIfdefsReadsWhole() {
-        assertEquals(IntSet.of(WATER, LEAVES), MovedBlocks.declared("moved = \\\n\n10001 \\\n\n\n10005 \\\n"));
+        assertEquals(IntSet.of(WATER, LEAVES),
+                ContractDeclarations.of("moved = \\\n\n10001 \\\n\n\n10005 \\\n").moved());
     }
 
     @Test
     void aFileWithoutTheKeyMovesNothing() {
-        assertEquals(IntSet.of(), MovedBlocks.declared("other = 10001\n"));
+        assertEquals(IntSet.of(), ContractDeclarations.of("other = 10001\n").moved());
     }
 
     @Test

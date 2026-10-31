@@ -128,6 +128,24 @@ public final class PackProgram {
         dhPosition = GL20C.glGetAttribLocation(program, DH_POSITION);
     }
 
+    private static PipelineSpec spec(FarDraw draw, ProgramSet programSet, PackPath.Source source, Kind kind,
+            boolean depthOnly, Location location) {
+        boolean animated = IrisShaderPack.lodAnimationsChosen();
+        boolean packCuts = source.cutout() == PackPath.Cutout.PACK;
+        return switch (kind) {
+            case SHADOW, SHADOW_TRANSLUCENT -> draw.shadowPipeline(location, kind == Kind.SHADOW_TRANSLUCENT,
+                    source.vertexStage(), animated, PackAlphaTest.cut(programSet, kind, source.cutout()), packCuts);
+            case BEAM, BEAM_GLOW -> draw.packBeamPipeline(location, kind == Kind.BEAM_GLOW, source.vertexStage(),
+                    animated);
+            case OPAQUE, TRANSLUCENT -> depthOnly
+                    ? draw.packDepthPipeline(location, source.vertexStage(), animated,
+                            PackAlphaTest.cut(programSet, kind, source.cutout()))
+                    : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertexStage(), animated,
+                            programSet.getPackDirectives().shouldUseSeparateAo(),
+                            PackAlphaTest.cut(programSet, kind, source.cutout()), packCuts);
+        };
+    }
+
     static @Nullable PackProgram build(FarDraw draw, Foreign foreign, IrisRenderingPipeline irisPipeline,
             ProgramSet programSet, ShaderProperties properties, PackPath.Source source, Kind kind,
             boolean depthOnly) {
@@ -135,16 +153,7 @@ public final class PackProgram {
         Location location = new Location(Eminus.MODID,
                 LOCATION_PREFIX + source.file() + (depthOnly ? DEPTH_SUFFIX : NO_SUFFIX));
         ProgramSource[] built = new ProgramSource[1];
-        boolean animated = IrisShaderPack.lodAnimationsChosen();
-        PipelineSpec spec = switch (kind) {
-            case SHADOW, SHADOW_TRANSLUCENT -> draw.shadowPipeline(location, kind == Kind.SHADOW_TRANSLUCENT,
-                    source.vertexStage(), animated);
-            case BEAM, BEAM_GLOW -> draw.packBeamPipeline(location, kind == Kind.BEAM_GLOW, source.vertexStage(),
-                    animated);
-            case OPAQUE, TRANSLUCENT -> depthOnly ? draw.packDepthPipeline(location, source.vertexStage(), animated)
-                    : draw.packPipeline(location, kind == Kind.TRANSLUCENT, source.vertexStage(), animated,
-                            programSet.getPackDirectives().shouldUseSeparateAo());
-        };
+        PipelineSpec spec = spec(draw, programSet, source, kind, depthOnly, location);
         Pipeline pipeline = foreign.pipeline(spec,
                 FIRST_UNIT,
                 ours -> {

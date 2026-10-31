@@ -55,6 +55,26 @@ struct EminusFragment {
 ivec2 eminus_cell;
 #endif
 
+#ifdef ALPHA_TEST
+bool eminus_alpha_kept(float alpha) {
+#if ALPHA_TEST == ALPHA_LESS
+    return alpha < ALPHA_CUTOUT;
+#elif ALPHA_TEST == ALPHA_EQUAL
+    return alpha == ALPHA_CUTOUT;
+#elif ALPHA_TEST == ALPHA_LEQUAL
+    return alpha <= ALPHA_CUTOUT;
+#elif ALPHA_TEST == ALPHA_GREATER
+    return alpha > ALPHA_CUTOUT;
+#elif ALPHA_TEST == ALPHA_NOTEQUAL
+    return alpha != ALPHA_CUTOUT;
+#elif ALPHA_TEST == ALPHA_GEQUAL
+    return alpha >= ALPHA_CUTOUT;
+#else
+    return false;
+#endif
+}
+#endif
+
 EminusFragment eminus_fragment() {
 #ifndef DH_PROGRAM
     vec2 occlusionFootprint = fwidth(eminus_occlusionPoint);
@@ -77,9 +97,11 @@ EminusFragment eminus_fragment() {
 #endif
 
     vec4 color = eminus_surface(cell, eminus_faceUV, eminus_tint);
-    if (color.a < ALPHA_CUTOUT) {
+#ifdef ALPHA_TEST
+    if (!eminus_alpha_kept(color.a)) {
         discard;
     }
+#endif
 
     float atlasCell = 1.0 / float(EminusAtlasCells);
     float margin = 0.5 / float(EminusAtlasCellSide);
