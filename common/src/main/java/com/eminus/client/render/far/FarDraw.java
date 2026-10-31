@@ -24,6 +24,7 @@ import org.jspecify.annotations.Nullable;
 
 public final class FarDraw {
     private static final Location PACK_SHADER = new Location(Eminus.MODID, "core/far_pack");
+    private static final float NO_CUTOUT = 0.0F;
 
     private final Gpu gpu;
     private final DepthConvention depth;
@@ -113,44 +114,53 @@ public final class FarDraw {
     }
 
     public PipelineSpec packPipeline(Location location, boolean translucent, PackVertex vertex, boolean animated,
-            boolean separateAo) {
+            boolean separateAo, @Nullable AlphaCut cut, boolean packCuts) {
         PipelineSpec.Builder builder = translucent
-                ? pack(location, TranslucentPass.ALPHA_CUTOUT, Blend.TRANSLUCENT, true, false, vertex, animated)
+                ? pack(location, cut, Blend.TRANSLUCENT, true, false, vertex, animated)
                         .withDefine("TRANSLUCENT_PASS")
-                : pack(location, OpaquePass.ALPHA_CUTOUT, null, true, true, vertex, animated)
-                        .withDefine("FULL_COVERAGE");
+                : coverage(pack(location, cut, null, true, true, vertex, animated), packCuts);
         return separateAo ? builder.withDefine("SEPARATE_AO").build() : builder.build();
     }
 
-    public PipelineSpec packDepthPipeline(Location location, PackVertex vertex, boolean animated) {
-        return pack(location, TranslucentPass.ALPHA_CUTOUT, null, false, true, vertex, animated)
-                .withDefine("TRANSLUCENT_PASS").build();
+    public PipelineSpec packDepthPipeline(Location location, PackVertex vertex, boolean animated,
+            @Nullable AlphaCut cut) {
+        return pack(location, cut, null, false, true, vertex, animated).withDefine("TRANSLUCENT_PASS").build();
     }
 
     public PipelineSpec packBeamPipeline(Location location, boolean glow, PackVertex vertex, boolean animated) {
         return withVertex(BeamPass.packPipeline(location, glow, depth), vertex, animated).build();
     }
 
-    private PipelineSpec.Builder pack(Location location, float alphaCutout, @Nullable Blend blend,
+    private PipelineSpec.Builder pack(Location location, @Nullable AlphaCut cut, @Nullable Blend blend,
             boolean writesColor, boolean writesDepth, PackVertex vertex, boolean animated) {
-        return withVertex(FarQuads.pipeline(location, PACK_SHADER, alphaCutout, gpu.capabilities(), variantDraw)
+        return withVertex(packShader(location, cut)
                 .withColorTarget(FarTarget.COLOR_FORMAT, blend, writesColor)
                 .withDepthTest(depth.compare(), writesDepth), vertex, animated);
     }
 
     // Under a pack Iris clears the shadow depth to 1.0 and draws it forward, whatever the game's own direction.
-    public PipelineSpec shadowPipeline(Location location, boolean translucent, PackVertex vertex, boolean animated) {
-        PipelineSpec.Builder builder = withVertex(FarQuads.pipeline(location, PACK_SHADER,
-                        translucent ? TranslucentPass.ALPHA_CUTOUT : OpaquePass.ALPHA_CUTOUT, gpu.capabilities(),
-                        variantDraw)
+    public PipelineSpec shadowPipeline(Location location, boolean translucent, PackVertex vertex, boolean animated,
+            @Nullable AlphaCut cut, boolean packCuts) {
+        PipelineSpec.Builder builder = packShader(location, cut)
                 .withColorTarget(FarTarget.COLOR_FORMAT, null, true)
                 .withDepthTest(DepthConvention.of(depth.zeroToOne(), false).compare(), true)
-                .withDefine(translucent ? "TRANSLUCENT_PASS" : "FULL_COVERAGE")
-                .withDefine("SHADOW_PASS"), vertex, animated);
+                .withDefine("SHADOW_PASS");
+        builder = withVertex(translucent ? builder.withDefine("TRANSLUCENT_PASS") : coverage(builder, packCuts),
+                vertex, animated);
         if (vertex.hook() && depth.zeroToOne()) {
             builder.withDefine("SHADOW_ZERO_TO_ONE");
         }
         return builder.build();
+    }
+
+    private PipelineSpec.Builder packShader(Location location, @Nullable AlphaCut cut) {
+        PipelineSpec.Builder builder = FarQuads.pipeline(location, PACK_SHADER,
+                cut == null ? NO_CUTOUT : cut.reference(), gpu.capabilities(), variantDraw);
+        return cut == null ? builder : cut.define(builder);
+    }
+
+    private static PipelineSpec.Builder coverage(PipelineSpec.Builder builder, boolean packCuts) {
+        return packCuts ? builder : builder.withDefine("FULL_COVERAGE");
     }
 
     private static PipelineSpec.Builder withVertex(PipelineSpec.Builder builder, PackVertex vertex, boolean animated) {

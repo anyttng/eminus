@@ -95,6 +95,7 @@ public final class DhPath implements PackPath {
         String fragment = program.getFragmentSource().orElseThrow();
         return new Source(PROGRAM_PREFIX + program.getName(), FILE_ROOT + program.getName(),
                 ours -> PackSources.spliceFragmentProgram(fragment, PackPath.header(ours)),
-                ours -> PackSources.spliceVertexProgram(vertex, PackPath.header(ours)), FarDraw.PackVertex.PROGRAM);
+                ours -> PackSources.spliceVertexProgram(vertex, PackPath.header(ours)), FarDraw.PackVertex.PROGRAM,
+                Cutout.OURS);
     }
 }

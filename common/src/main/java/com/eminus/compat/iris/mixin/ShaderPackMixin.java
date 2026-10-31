@@ -17,15 +17,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.eminus.compat.iris.IrisShaderPack;
 import com.eminus.compat.iris.PackContract;
-import com.eminus.compat.iris.contract.MovedBlockFile;
-import com.eminus.compat.iris.contract.MovedBlockIds;
+import com.eminus.compat.iris.contract.ContractDeclarations;
+import com.eminus.compat.iris.contract.ContractFile;
+import com.eminus.compat.iris.contract.DeclaredContract;
 import com.eminus.compat.iris.dh.DhPackFiles;
 import com.eminus.compat.iris.dh.DistantHorizonsPack;
 
 import com.google.common.collect.ImmutableList;
 import com.llamalad7.mixinextras.sugar.Local;
-
-import it.unimi.dsi.fastutil.ints.IntSet;
 
 import net.irisshaders.iris.helpers.StringPair;
 import net.irisshaders.iris.platform.IrisPlatformHelpers;
@@ -34,7 +33,7 @@ import net.irisshaders.iris.shaderpack.include.AbsolutePackPath;
 import net.irisshaders.iris.shaderpack.option.ShaderPackOptions;
 
 @Mixin(ShaderPack.class)
-public abstract class ShaderPackMixin implements DistantHorizonsPack, MovedBlockIds {
+public abstract class ShaderPackMixin implements DistantHorizonsPack, DeclaredContract {
     private static final String CONSTRUCTOR =
             "<init>(Ljava/nio/file/Path;Ljava/util/Map;Lcom/google/common/collect/ImmutableList;Z)V";
     private static final String INCLUDE_GRAPH = "Lnet/irisshaders/iris/shaderpack/include/IncludeGraph;<init>("
@@ -55,7 +54,7 @@ public abstract class ShaderPackMixin implements DistantHorizonsPack, MovedBlock
     private boolean eminus$distantHorizons;
 
     @Unique
-    private IntSet eminus$movedBlockIds;
+    private ContractDeclarations eminus$contractDeclarations;
 
     @ModifyVariable(method = CONSTRUCTOR, at = @At(value = "STORE", ordinal = 0), argsOnly = true)
     private ImmutableList<StringPair> eminus$defineDistantHorizons(ImmutableList<StringPair> defines,
@@ -88,14 +87,14 @@ public abstract class ShaderPackMixin implements DistantHorizonsPack, MovedBlock
 
     // The defines are the ones the constructor last stored, which Iris's IdMap reads block.properties with.
     @Inject(method = CONSTRUCTOR, at = @At("RETURN"))
-    private void eminus$readMovedBlocks(Path root, Map<String, String> changedConfigs,
+    private void eminus$readContractFile(Path root, Map<String, String> changedConfigs,
             ImmutableList<StringPair> environmentDefines, boolean isZip, CallbackInfo info) {
-        eminus$movedBlockIds = MovedBlockFile.read(root, shaderPackOptions, environmentDefines);
+        eminus$contractDeclarations = ContractFile.read(root, shaderPackOptions, environmentDefines);
     }
 
     @Unique
     @Override
-    public IntSet eminus$movedBlockIds() {
-        return eminus$movedBlockIds;
+    public ContractDeclarations eminus$contractDeclarations() {
+        return eminus$contractDeclarations;
     }
 }
