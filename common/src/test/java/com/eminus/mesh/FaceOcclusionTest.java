@@ -63,6 +63,23 @@ class FaceOcclusionTest {
     private static final BakedQuad.MaterialInfo MATERIAL = new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID,
             null, -1, true, 0);
 
+    private static final int AIR = 0;
+    private static final double LOW_LEFT_ON_THE_WALL = 0.8;
+    private static final double INNER_CORNER_ON_THE_WALL = 0.4;
+    private static final double UPPER_RIGHT_ON_THE_WALL = 0.6;
+    private static final Map<Direction, Direction.Axis> FIRST_PAIR_AXIS = Map.of(Direction.DOWN, Direction.Axis.X,
+            Direction.UP, Direction.Axis.X, Direction.NORTH, Direction.Axis.Y, Direction.SOUTH, Direction.Axis.X,
+            Direction.WEST, Direction.Axis.Y, Direction.EAST, Direction.Axis.Y);
+    private static final int[][] SLOPE_WALL_SOLIDS = {
+            {-1, -2, -2}, {0, -2, -2}, {1, -2, -2}, {2, -2, -2}, {0, -2, -1}, {1, -2, -1}, {2, -2, -1}, {0, -2, 0},
+            {1, -2, 0}, {2, -2, 0}, {0, -2, 1}, {1, -2, 1}, {2, -2, 1}, {0, -2, 2}, {1, -2, 2}, {2, -2, 2},
+            {0, -1, -2}, {1, -1, -2}, {2, -1, -2}, {0, -1, -1}, {1, -1, -1}, {2, -1, -1}, {0, -1, 0}, {1, -1, 0},
+            {2, -1, 0}, {0, -1, 1}, {1, -1, 1}, {2, -1, 1}, {0, -1, 2}, {1, -1, 2}, {2, -1, 2}, {0, 0, -2},
+            {1, 0, -2}, {2, 0, -2}, {0, 0, -1}, {1, 0, -1}, {2, 0, -1}, {0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {1, 0, 1},
+            {2, 0, 1}, {1, 0, 2}, {2, 0, 2}, {1, 1, -2}, {2, 1, -2}, {1, 1, -1}, {2, 1, -1}, {1, 1, 0}, {2, 1, 0},
+            {1, 1, 1}, {2, 1, 1}, {1, 1, 2}, {2, 1, 2}, {1, 2, -2}, {2, 2, -2}, {1, 2, -1}, {2, 2, -1}, {1, 2, 0},
+            {2, 2, 0}, {1, 2, 1}, {2, 2, 1}, {1, 2, 2}, {2, 2, 2}};
+
     private static List<BlockState> palette;
 
     private final FakeModels models = new FakeModels();
@@ -112,6 +129,104 @@ class FaceOcclusionTest {
         }
     }
 
+    @Test
+    void aSlopeWallAboveALedgeMatchesTheGame() {
+        BlockPos center = new BlockPos(INSIDE, INSIDE, INSIDE);
+        Map<BlockPos, Integer> world = new HashMap<>();
+        for (int dy = -REACH; dy <= REACH; dy++) {
+            for (int dz = -REACH; dz <= REACH; dz++) {
+                for (int dx = -REACH; dx <= REACH; dx++) {
+                    world.put(center.offset(dx, dy, dz), AIR);
+                }
+            }
+        }
+        for (int[] solid : SLOPE_WALL_SOLIDS) {
+            world.put(center.offset(solid[0], solid[1], solid[2]), STONE);
+        }
+
+        assertMatches(world, center, Direction.SOUTH, FULL, NO_INSET, 0);
+    }
+
+    @Test
+    void aSlopeWallAboveALedgeTakesItsOwnSideUnderTheEnhancedRule() {
+        BlockPos center = new BlockPos(INSIDE, INSIDE, INSIDE);
+        Map<BlockPos, Integer> world = new HashMap<>();
+        for (int dy = -REACH; dy <= REACH; dy++) {
+            for (int dz = -REACH; dz <= REACH; dz++) {
+                for (int dx = -REACH; dx <= REACH; dx++) {
+                    world.put(center.offset(dx, dy, dz), AIR);
+                }
+            }
+        }
+        for (int[] solid : SLOPE_WALL_SOLIDS) {
+            world.put(center.offset(solid[0], solid[1], solid[2]), STONE);
+        }
+
+        int word = ownSideWord(world, center, Direction.SOUTH);
+        assertEquals(LIT, value(word, false, true), ONE_STEP);
+        assertEquals(LOW_LEFT_ON_THE_WALL, value(word, false, false), ONE_STEP);
+        assertEquals(INNER_CORNER_ON_THE_WALL, value(word, true, false), ONE_STEP);
+        assertEquals(UPPER_RIGHT_ON_THE_WALL, value(word, true, true), ONE_STEP);
+    }
+
+    @Test
+    void aFullFaceTakesEachCornersOwnSideUnderTheEnhancedRule() {
+        Random random = new Random(SEED + 3);
+        for (int trial = 0; trial < TRIALS; trial++) {
+            BlockPos center = new BlockPos(INSIDE, INSIDE, INSIDE);
+            Map<BlockPos, Integer> world = around(random, center, STONE);
+            for (Direction face : Direction.values()) {
+                int word = ownSideWord(world, center, face);
+                for (boolean highU : new boolean[] {false, true}) {
+                    for (boolean highV : new boolean[] {false, true}) {
+                        assertEquals(ownSideVertex(world, center, face, highU, highV), value(word, highU, highV),
+                                ONE_STEP, "trial " + trial + ", " + face + " face, high u " + highU + ", high v "
+                                        + highV + ", word " + word);
+                    }
+                }
+            }
+        }
+    }
+
+    private int ownSideWord(Map<BlockPos, Integer> world, BlockPos center, Direction face) {
+        for (int id = 1; id < palette.size(); id++) {
+            models.shadeAs(id, StateShade.of(palette.get(id)));
+        }
+
+        return new FaceOcclusion(voxels(world), models, DetailLevel.MIN, CornerRule.OWN_SIDE)
+                .face(face, center.getX(), center.getY(), center.getZ(), world.get(center), ModelMetadata.SMOOTH,
+                        NO_INSET);
+    }
+
+    private static double ownSideVertex(Map<BlockPos, Integer> world, BlockPos center, Direction face, boolean highU,
+            boolean highV) {
+        Direction.Axis width = PlaneAxes.width(face.getAxis());
+        Direction.Axis height = PlaneAxes.height(face.getAxis());
+        BlockPos front = center.relative(face);
+        BlockPos sideU = front.relative(Direction.get(positive(highU), width));
+        BlockPos sideV = front.relative(Direction.get(positive(highV), height));
+        BlockPos corner = sideU.relative(Direction.get(positive(highV), height));
+        double cornerShade = !lets(world, sideU) && !lets(world, sideV)
+                ? shadeOf(world, FIRST_PAIR_AXIS.get(face) == width ? sideU : sideV)
+                : shadeOf(world, corner);
+        return (shadeOf(world, sideU) + shadeOf(world, sideV) + cornerShade + shadeOf(world, front))
+                / BLOCKS_AROUND_VERTEX;
+    }
+
+    private static Direction.AxisDirection positive(boolean high) {
+        return high ? Direction.AxisDirection.POSITIVE : Direction.AxisDirection.NEGATIVE;
+    }
+
+    private static boolean lets(Map<BlockPos, Integer> world, BlockPos pos) {
+        int id = world.getOrDefault(pos, AIR);
+        return id == AIR || StateShade.has(StateShade.of(palette.get(id)), StateShade.PERMEABLE);
+    }
+
+    private static double shadeOf(Map<BlockPos, Integer> world, BlockPos pos) {
+        int id = world.getOrDefault(pos, AIR);
+        return id != AIR && StateShade.has(StateShade.of(palette.get(id)), StateShade.DARK) ? DARK : LIT;
+    }
+
     private Map<BlockPos, Integer> around(Random random, BlockPos center, int stateId) {
         Map<BlockPos, Integer> world = new HashMap<>();
         for (int dy = -REACH; dy <= REACH; dy++) {
@@ -133,7 +248,7 @@ class FaceOcclusionTest {
         }
 
         int stateId = world.get(center);
-        int word = new FaceOcclusion(voxels(world), models, DetailLevel.MIN, true)
+        int word = new FaceOcclusion(voxels(world), models, DetailLevel.MIN, CornerRule.VANILLA)
                 .face(face, center.getX(), center.getY(), center.getZ(), stateId, ModelMetadata.SMOOTH,
                         face == Direction.UP ? inset : NO_INSET);
 

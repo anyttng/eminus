@@ -6,6 +6,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.loading.FMLPaths;
+import net.neoforged.neoforge.client.config.NeoForgeClientConfig;
 import net.neoforged.neoforge.common.NeoForgeVersion;
 
 public final class NeoForgePlatform implements Platform {
@@ -38,5 +39,10 @@ public final class NeoForgePlatform implements Platform {
     @Override
     public Path configDir() {
         return FMLPaths.CONFIGDIR.get();
+    }
+
+    @Override
+    public boolean enhancedBlockLighting() {
+        return NeoForgeClientConfig.INSTANCE.enhancedLighting.getAsBoolean();
     }
 }

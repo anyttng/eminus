@@ -12,4 +12,6 @@ public interface Platform {
     String loaderVersion();
 
     Path configDir();
+
+    boolean enhancedBlockLighting();
 }

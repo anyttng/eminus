@@ -35,6 +35,11 @@ public final class FabricPlatform implements Platform {
         return FabricLoader.getInstance().getConfigDir();
     }
 
+    @Override
+    public boolean enhancedBlockLighting() {
+        return false;
+    }
+
     private static String versionOf(String modId) {
         return FabricLoader.getInstance().getModContainer(modId).orElseThrow()
                 .getMetadata().getVersion().getFriendlyString();
