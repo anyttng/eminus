@@ -1,0 +1,8 @@
+{
+  "package": "com.eminus.compat.fixture.shared.mixin",
+  "plugin": "com.eminus.compat.fixture.shared.FixtureSharedPlugin",
+  "mixins": [
+    "FixtureSharedFirstMixin",
+    "FixtureSharedSecondMixin"
+  ]
+}
