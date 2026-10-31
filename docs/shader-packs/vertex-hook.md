@@ -68,6 +68,7 @@ moved = \
 
 - Eminus reads the file through Iris's properties preprocessor with your options applied, as Iris reads your `block.properties`. Wrap each id in the `#ifdef` your vertex code moves it under, and a player who turns the option off gets those faces joined again.
 - Ids are separated by spaces; anything that is not a block id is skipped with one line in the log.
+- A list that ends in `\` takes in the next line that is not blank, so write every other key, `cutout` included, above `moved`.
 - The faces of the named blocks stay one block wide and tall at `level` 0, the only level where your hook moves them. Past `level` 0, and everywhere while the player has LOD Animations off, they are joined as before.
 - The price is quads: every face of a named block at `level` 0 is one quad, where its neighbors of the same look would have shared one. Name only what your hook moves.
 - Without the file, every face is joined as before.

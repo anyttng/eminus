@@ -163,8 +163,12 @@ bool eminus_front_only(int flags, int face) {
     // A light sees the faces the camera's plane test drops.
     return false;
 #else
+    if ((flags & TRANSLUCENT_FLAG) == 0) {
+        // A face whose model lacks the opposite face stands for both of the game's faces.
+        return (flags >> PRESENT_SHIFT & 1 << (face ^ 1)) != 0;
+    }
     // The game draws a fluid's top and sides from both sides and its bottom from the front alone.
-    return (flags & TRANSLUCENT_FLAG) != 0 && ((flags & FLUID_FLAG) == 0 || face == 0);
+    return (flags & FLUID_FLAG) == 0 || face == 0;
 #endif
 }
 

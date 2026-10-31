@@ -18,7 +18,7 @@
       "com.eminus.client.EminusModMenu"
     ],
     "sodium:config_api_user": [
-      "com.eminus.compat.sodium.SodiumSettingsPage"
+      "com.eminus.compat.sodium.settings.SodiumSettingsPage"
     ]
   },
   "mixins": [

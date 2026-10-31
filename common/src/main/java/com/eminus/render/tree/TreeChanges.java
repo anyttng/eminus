@@ -119,6 +119,7 @@ final class TreeChanges {
     }
 
     private void requestBuild(TreeNode node, @Nullable CameraFrame camera) {
+        node.clearFailures();
         if (node.building()) {
             node.markRebuild();
             return;

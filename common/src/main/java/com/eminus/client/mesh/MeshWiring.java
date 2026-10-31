@@ -1,13 +1,16 @@
 package com.eminus.client.mesh;
 
 import com.eminus.client.model.ClientBakery;
+import com.eminus.compat.sodium.SodiumMixinPlugin;
 import com.eminus.mesh.BakeryModels;
 import com.eminus.mesh.BakeryTints;
+import com.eminus.mesh.CornerRule;
 import com.eminus.mesh.MeshListener;
 import com.eminus.mesh.MeshModels;
 import com.eminus.mesh.MeshOcclusion;
 import com.eminus.mesh.MeshService;
 import com.eminus.model.ModelIndex;
+import com.eminus.platform.Platforms;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
 import com.eminus.settings.CornerOcclusion;
@@ -30,11 +33,18 @@ public final class MeshWiring {
     }
 
     public static MeshOcclusion occlusion(CornerOcclusion occlusion) {
-        return switch (occlusion) {
+        MeshOcclusion levels = switch (occlusion) {
             case EVERY_LEVEL -> MeshOcclusion.EVERY_LEVEL;
             case FINEST_LEVEL -> MeshOcclusion.FINEST_LEVEL;
             case OFF -> MeshOcclusion.NONE;
         };
+        return levels.withRule(cornerRule());
+    }
+
+    public static CornerRule cornerRule() {
+        return SodiumMixinPlugin.sodiumPresent() || Platforms.get().enhancedBlockLighting()
+                ? CornerRule.OWN_SIDE
+                : CornerRule.VANILLA;
     }
 
     private MeshWiring() {

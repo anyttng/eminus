@@ -55,7 +55,7 @@ public final class FacePasses {
     private boolean shaped;
     private int shape;
 
-    public FacePasses(MeshScratch scratch, StateOpacity opacity, MeshModels models, int level, boolean occluded,
+    public FacePasses(MeshScratch scratch, StateOpacity opacity, MeshModels models, int level, CornerRule cornerRule,
             Runnable whenBaked, Sink sink) {
         this.scratch = scratch;
         this.opacity = opacity;
@@ -64,7 +64,7 @@ public final class FacePasses {
         this.whenBaked = whenBaked;
         this.sink = sink;
         corners = level == FluidCorners.LEVEL ? new FluidCorners(scratch.voxels(), models) : null;
-        occlusion = new FaceOcclusion(scratch.voxels(), models, level, occluded);
+        occlusion = new FaceOcclusion(scratch.voxels(), models, level, cornerRule);
         voxelBlocks = DetailLevel.blocksPerVoxel(level);
     }
 

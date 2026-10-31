@@ -132,7 +132,7 @@ class CellMesherOcclusionTest {
 
         long key = CellKey.pack(level, 0, 0, 0);
         scratch.begin(FRAME, key, tints, NO_BLEND);
-        CellMesh mesh = new CellMesher(scratch, models).mesh(key, cell.occupancy(), OPACITY, occlusion.at(level),
+        CellMesh mesh = new CellMesher(scratch, models).mesh(key, cell.occupancy(), OPACITY, occlusion.corners(level),
                 () -> { });
         assertNotNull(mesh);
         return mesh;

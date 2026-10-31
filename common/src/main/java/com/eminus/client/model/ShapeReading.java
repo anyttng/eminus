@@ -61,7 +61,7 @@ public final class ShapeReading {
 
     private static final String STATE_HEADER = "block,state,class,model,positional,quads,planes,tilted,blades,"
             + "lost_faces,depth_down,depth_up,depth_north,depth_south,depth_west,depth_east,"
-            + "bounds_x,bounds_y,bounds_z,bladed,blade_scale,fluid_height,fluid_top";
+            + "bounds_x,bounds_y,bounds_z,bladed,blade_scale,fluid_height,fluid_top,loose_blades,blade_offset";
     private static final String CLASS_HEADER = "class,states,depth,depth_state,bounds_x,bounds_y,bounds_z,"
             + "planes,tilted_states,lost_states,bladed_states,blade_scale,undrawn_states,fluid_off";
 
@@ -156,7 +156,8 @@ public final class ShapeReading {
         summary[STATES]++;
         boolean flattened = divergence.deepest() >= EPSILON;
         boolean boundsOff = boundsOff(divergence);
-        boolean bladeOff = divergence.blades() > 0 && divergence.bladeDrift() >= EPSILON;
+        boolean bladeOff = divergence.blades() > 0 && (divergence.bladeDrift() >= EPSILON
+                || divergence.looseBlades() > 0 || divergence.bladeOffset() >= EPSILON);
 
         if (divergence.quads() > 0) {
             summary[DRAWN]++;
@@ -218,6 +219,8 @@ public final class ShapeReading {
         row.add(number(divergence.bladeScale()));
         row.add(fluidHeight == NO_FLUID ? ABSENT : number(fluidHeight));
         row.add(fluidTop == NO_FLUID ? ABSENT : number(fluidTop));
+        row.add(Integer.toString(divergence.looseBlades()));
+        row.add(number(divergence.bladeOffset()));
         writer.write(row.toString());
         writer.newLine();
     }

@@ -17,6 +17,7 @@ public final class FaceOcclusion {
     private final MeshModels models;
     private final boolean finest;
     private final boolean drawn;
+    private final boolean ownSide;
 
     private int baseX;
     private int baseY;
@@ -31,11 +32,12 @@ public final class FaceOcclusion {
     private int vY;
     private int vZ;
 
-    public FaceOcclusion(CellVoxels voxels, MeshModels models, int level, boolean drawn) {
+    public FaceOcclusion(CellVoxels voxels, MeshModels models, int level, CornerRule corners) {
         this.voxels = voxels;
         this.models = models;
         finest = level == DetailLevel.MIN;
-        this.drawn = drawn;
+        drawn = corners != CornerRule.NONE;
+        ownSide = corners == CornerRule.OWN_SIDE;
     }
 
     public int face(Direction face, int x, int y, int z, int stateId, int metadata, float inset) {
@@ -85,7 +87,8 @@ public final class FaceOcclusion {
         boolean lowV = dark(0, LOW);
         boolean highV = dark(0, HIGH);
         Direction first = FIRST_CORNER[face.get3DDataValue()];
-        boolean firstDark = first.getAxis() == width
+        boolean firstOnWidth = first.getAxis() == width;
+        boolean firstDark = firstOnWidth
                 ? first.getAxisDirection() == Direction.AxisDirection.POSITIVE ? highU : lowU
                 : first.getAxisDirection() == Direction.AxisDirection.POSITIVE ? highV : lowV;
 
@@ -94,13 +97,20 @@ public final class FaceOcclusion {
                 | (highU ? OcclusionWord.HIGH_U : 0)
                 | (lowV ? OcclusionWord.LOW_V : 0)
                 | (highV ? OcclusionWord.HIGH_V : 0)
-                | (corner(LOW, LOW, firstDark) ? OcclusionWord.LOW_U_LOW_V : 0)
-                | (corner(HIGH, LOW, firstDark) ? OcclusionWord.HIGH_U_LOW_V : 0)
-                | (corner(LOW, HIGH, firstDark) ? OcclusionWord.LOW_U_HIGH_V : 0)
-                | (corner(HIGH, HIGH, firstDark) ? OcclusionWord.HIGH_U_HIGH_V : 0);
+                | (corner(LOW, LOW, firstDark, firstOnWidth) ? OcclusionWord.LOW_U_LOW_V : 0)
+                | (corner(HIGH, LOW, firstDark, firstOnWidth) ? OcclusionWord.HIGH_U_LOW_V : 0)
+                | (corner(LOW, HIGH, firstDark, firstOnWidth) ? OcclusionWord.LOW_U_HIGH_V : 0)
+                | (corner(HIGH, HIGH, firstDark, firstOnWidth) ? OcclusionWord.HIGH_U_HIGH_V : 0);
     }
 
-    private boolean corner(int alongU, int alongV, boolean firstDark) {
+    private boolean corner(int alongU, int alongV, boolean firstDark, boolean firstOnWidth) {
+        if (ownSide) {
+            if (!permeableBeside(alongU, 0) && !permeableBeside(0, alongV)) {
+                return firstOnWidth ? dark(alongU, 0) : dark(0, alongV);
+            }
+            return dark(alongU, alongV);
+        }
+
         if (!permeable(alongU, 0) && !permeable(0, alongV)) {
             return firstDark;
         }
@@ -115,8 +125,16 @@ public final class FaceOcclusion {
     }
 
     private boolean permeable(int alongU, int alongV) {
-        long entry = voxels.entry(baseX + reachX + uX * alongU + vX * alongV,
-                baseY + reachY + uY * alongU + vY * alongV, baseZ + reachZ + uZ * alongU + vZ * alongV);
+        return lets(voxels.entry(baseX + reachX + uX * alongU + vX * alongV,
+                baseY + reachY + uY * alongU + vY * alongV, baseZ + reachZ + uZ * alongU + vZ * alongV));
+    }
+
+    private boolean permeableBeside(int alongU, int alongV) {
+        return lets(voxels.entry(baseX + uX * alongU + vX * alongV, baseY + uY * alongU + vY * alongV,
+                baseZ + uZ * alongU + vZ * alongV));
+    }
+
+    private boolean lets(long entry) {
         return !whole(entry) || StateShade.has(models.shade(VoxelEntry.state(entry)), StateShade.PERMEABLE);
     }
 
