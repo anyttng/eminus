@@ -44,6 +44,7 @@ public final class ModPresence {
     private final Map<String, BooleanSupplier> withheld;
     private final List<String> modPackages;
     private final Set<String> optional;
+    private final @Nullable Predicate<String> scanning;
 
     private @Nullable MixinConfig mixinConfig;
     private boolean probed;
@@ -72,6 +73,7 @@ public final class ModPresence {
         this.withheld = Map.copyOf(builder.withheld);
         this.modPackages = List.copyOf(builder.modPackages);
         this.optional = Set.copyOf(builder.optional);
+        this.scanning = builder.scanning;
     }
 
     public boolean covers(String mixinClassName) {
@@ -156,8 +158,33 @@ public final class ModPresence {
         String root = this.modPackages.isEmpty() ? "" : packageOf(pluginOf(this.config));
         return ownedClasses(classFiles, refusals).stream()
                 .filter(owned -> !this.optional.contains(owned.substring(root.length())))
+                .filter(owned -> !withheldMixin(className(outerOf(owned))))
                 .map(ModPresence::className)
                 .toList();
+    }
+
+    private boolean withheldMixin(String outerClass) {
+        String prefix = mixinPackage() + ".";
+        return outerClass.startsWith(prefix) && withheld(outerClass.substring(prefix.length()));
+    }
+
+    private boolean claims(String root, String listed) {
+        Predicate<String> scanned = this.scanning;
+        if (scanned == null) {
+            return true;
+        }
+
+        String outerClass = className(outerOf(listed));
+        if (outerClass.startsWith(mixinPackage() + ".")) {
+            return covers(outerClass);
+        }
+
+        return scanned.test(outerClass.substring(root.length()));
+    }
+
+    private static String outerOf(String internalName) {
+        int nested = internalName.indexOf('$', internalName.lastIndexOf(PACKAGE_SEPARATOR) + 1);
+        return nested < 0 ? internalName : internalName.substring(0, nested);
     }
 
     private static String className(String internalName) {
@@ -191,7 +218,8 @@ public final class ModPresence {
 
         List<String> owned = new ArrayList<>();
         for (String listed : index) {
-            if (listed.startsWith(root) && nestedRoots.stream().noneMatch(listed::startsWith)) {
+            if (listed.startsWith(root) && nestedRoots.stream().noneMatch(listed::startsWith)
+                    && claims(root, listed)) {
                 owned.add(listed);
             }
         }
@@ -296,6 +324,7 @@ public final class ModPresence {
         private final Set<String> optional = new HashSet<>();
 
         private @Nullable String config;
+        private @Nullable Predicate<String> scanning;
         private Predicate<String> covering = mixin -> true;
 
         private Builder(Logger logger, String gateLabel) {
@@ -335,6 +364,11 @@ public final class ModPresence {
 
         public Builder optional(String holder) {
             this.optional.add(holder);
+            return this;
+        }
+
+        public Builder scanning(Predicate<String> scanned) {
+            this.scanning = scanned;
             return this;
         }
 

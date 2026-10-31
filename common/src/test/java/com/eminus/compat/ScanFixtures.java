@@ -19,16 +19,27 @@ import com.eminus.compat.fixture.scan.FixtureOptionalHolder;
 import com.eminus.compat.fixture.scan.FixtureScanPlugin;
 import com.eminus.compat.fixture.scan.nested.FixtureNestedCaller;
 import com.eminus.compat.fixture.scan.nested.FixtureNestedPlugin;
+import com.eminus.compat.fixture.shared.FixtureSharedFirst;
+import com.eminus.compat.fixture.shared.FixtureSharedPlugin;
+import com.eminus.compat.fixture.shared.FixtureSharedSecond;
+import com.eminus.compat.fixture.shared.mixin.FixtureSharedFirstMixin;
+import com.eminus.compat.fixture.shared.mixin.FixtureSharedSecondMixin;
 
 final class ScanFixtures {
     static final String MOD_PACKAGE = internalName(FixtureModApi.class.getPackageName()) + "/";
     static final String SCAN_CONFIG = "fixture.scan.mixins.json";
     static final String NESTED_CONFIG = "fixture.nested.mixins.json";
+    static final String SHARED_CONFIG = "fixture.shared.mixins.json";
     static final String OPTIONAL_HOLDER = FixtureOptionalHolder.class.getSimpleName();
+    static final String SHARED_FIRST = FixtureSharedFirst.class.getSimpleName();
+    static final String SHARED_FIRST_MIXIN = FixtureSharedFirstMixin.class.getSimpleName();
+    static final String SHARED_SECOND_MIXIN = FixtureSharedSecondMixin.class.getSimpleName();
 
     private static final String CLASS_SUFFIX = ".class";
     private static final List<Class<?>> LISTED = List.of(FixtureScanPlugin.class, FixtureCaller.class,
-            FixtureOptionalHolder.class, FixtureNestedPlugin.class, FixtureNestedCaller.class);
+            FixtureOptionalHolder.class, FixtureNestedPlugin.class, FixtureNestedCaller.class,
+            FixtureSharedPlugin.class, FixtureSharedFirst.class, FixtureSharedSecond.class,
+            FixtureSharedFirstMixin.class, FixtureSharedSecondMixin.class);
 
     private ScanFixtures() {
     }

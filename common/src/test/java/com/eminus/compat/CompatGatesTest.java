@@ -14,6 +14,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -71,40 +73,44 @@ class CompatGatesTest {
     }
 
     @Test
-    void theClassIndexListsEveryCompiledCompatClass() throws Exception {
-        assertEquals(compiledCompatClasses(), indexedClasses(),
-                "the jar's class index and the compiled compat package hold the same classes");
+    void theClassIndexListsEveryCompiledClassOfAPluginPackage() throws Exception {
+        assertEquals(compiledPluginClasses(), indexedClasses(),
+                "the jar's class index and the compiled packages of the compat plugins hold the same classes");
     }
 
     @Test
     void everyClassOfAGatePackageBelongsToExactlyOneGate() throws Exception {
-        List<ModPresence> gates = new ArrayList<>();
+        List<Set<String>> owned = new ArrayList<>();
         for (Path config : configs()) {
-            gates.addAll(pluginOf(read(config)).gates());
+            for (ModPresence gate : pluginOf(read(config)).gates()) {
+                owned.add(Set.copyOf(gate.ownedClasses()));
+            }
         }
 
         for (String listed : indexedClasses()) {
-            if (listed.substring(COMPAT_PACKAGE.length()).indexOf('/') < 0) {
-                continue;
-            }
-
             String className = listed.replace('/', '.');
-            long owners = gates.stream().filter(gate -> gate.ownedClasses().contains(className)).count();
+            long owners = owned.stream().filter(classes -> classes.contains(className)).count();
             assertEquals(1, owners, className + " belongs to " + owners + " gates");
         }
     }
 
-    private static List<String> compiledCompatClasses() throws Exception {
+    private static List<String> compiledPluginClasses() throws Exception {
         Path compat = Path.of(Objects.requireNonNull(ModPresence.class.getResource(SHIPPED_CLASS)).toURI())
                 .getParent();
         Path root = classesRoot(compat);
-        try (Stream<Path> files = Files.walk(compat)) {
-            return files.map(file -> root.relativize(file).toString().replace('\\', '/'))
-                    .filter(name -> name.endsWith(CLASS_SUFFIX))
-                    .map(name -> name.substring(0, name.length() - CLASS_SUFFIX.length()))
-                    .sorted()
-                    .toList();
+        Set<String> classes = new TreeSet<>();
+        for (Path config : configs()) {
+            String plugin = read(config).get(PLUGIN_KEY).getAsString();
+            Path pluginPackage = root.resolve(plugin.substring(0, plugin.lastIndexOf('.')).replace('.', '/'));
+            try (Stream<Path> files = Files.walk(pluginPackage)) {
+                files.map(file -> root.relativize(file).toString().replace('\\', '/'))
+                        .filter(name -> name.endsWith(CLASS_SUFFIX))
+                        .map(name -> name.substring(0, name.length() - CLASS_SUFFIX.length()))
+                        .forEach(classes::add);
+            }
         }
+
+        return List.copyOf(classes);
     }
 
     private static Path classesRoot(Path compat) {
