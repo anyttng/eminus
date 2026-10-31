@@ -8,10 +8,14 @@ import com.mojang.logging.LogUtils;
 
 public final class IrisMixinPlugin extends ModPresenceGatePlugin {
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final String IRIS_PACKAGE = "net/irisshaders/";
+    private static final String SHADOW_CALLBACK_HOLDER = "IrisShaderPack$ShadowCallback";
 
     private static final ModPresence IRIS = ModPresence.gate(LOGGER, "[eminus/compat] gate iris_present")
             .probing("net/irisshaders/iris/pipeline/IrisRenderingPipeline.class")
             .checking("eminus.compat.iris.mixins.json")
+            .modPackages(IRIS_PACKAGE)
+            .optional(SHADOW_CALLBACK_HOLDER)
             .build();
 
     public IrisMixinPlugin() {
