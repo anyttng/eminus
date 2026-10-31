@@ -6,11 +6,11 @@ Part of the [Eminus shader-pack contract](../shader-pack-contract.md).
 void eminus_emitFragment(EminusFragment fragment);
 ```
 
-Eminus calls it once per LOD pixel that survives its own tests, after those tests have run. Pixels the near field draws are already discarded, and so are pixels whose texture alpha falls under the cutout (`0.5` in the opaque program, `0.1` in the translucent one). Your function never sees a pixel the near field owns.
+Eminus calls it once per LOD pixel that survives its own tests, after those tests have run. Pixels the near field draws are already discarded, and so are pixels that fail the alpha test ([Cutout](#cutout)). Your function never sees a pixel the near field owns.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `color` | `vec4` | The block's texture at this pixel, filtered across the tiles of the LOD face and tinted (grass, foliage, water). Alpha is `1.0` in the opaque program. |
+| `color` | `vec4` | The block's texture at this pixel, filtered across the tiles of the LOD face and tinted (grass, foliage, water). Alpha is `1.0` in the opaque program, and the texture's own alpha where your pack declares `cutout = pack`. |
 | `texcoord` | `vec2` | Position in Eminus's own block atlas, not the game's atlas, so not a coordinate for `gtexture`. |
 | `texcoordDx` | `vec2` | Screen-space x derivative of `texcoord`. |
 | `texcoordDy` | `vec2` | Screen-space y derivative of `texcoord`. |
@@ -28,6 +28,31 @@ Eminus calls it once per LOD pixel that survives its own tests, after those test
 `blockId` follows Iris's own rules: a block takes the id of its state, and a fluid, the water in a waterlogged block included, takes the id of the fluid's own block. A pack that tells blocks apart by `mc_Entity.x` in its terrain fragment code therefore reads `fragment.blockId` in the same place; code that needs version 2 tests `#if EMINUS_CONTRACT_VERSION >= 2`.
 
 The LOD's geometry is built for one mapping. Loading a pack with this contract, leaving it, or switching to one whose `block.properties` maps differently rebuilds the LOD once, as Iris rebuilds the near terrain on the same switch.
+
+## Cutout
+
+Each contract program discards the pixels that fail the alpha test Iris gives the matching game program. Since version 8.
+
+| Contract file | Game program |
+| --- | --- |
+| `eminus_opaque.glsl` | `gbuffers_terrain` (cutout) |
+| `eminus_translucent.glsl` | `gbuffers_water` |
+| `eminus_shadow.glsl` | `shadow_cutout` |
+| `eminus_shadow_translucent.glsl` | `shadow_water` |
+
+The test is your `alphaTest.` key for that program in `shaders.properties`, or Iris's own default where you set none. A test you set to `off` leaves the cut to your code, so tell Eminus where that code runs:
+
+- With `cutout = pack` in `shaders/eminus.properties`, Eminus cuts nothing more, and `fragment.color` carries the texture's alpha. Keep your terrain's cutout line in `eminus_emitFragment`, in each contract file whose game program sets the test to `off`.
+- Without the key, Eminus cuts at `0.5` in the opaque programs and `0.1` in the translucent ones.
+
+```glsl
+void eminus_emitFragment(EminusFragment fragment) {
+    if (fragment.color.a < 0.1) {
+        discard;
+    }
+    color = shadeTerrain(fragment.color, fragment.lmcoord);
+}
+```
 
 ## When it is drawn
 

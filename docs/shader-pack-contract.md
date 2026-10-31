@@ -1,4 +1,4 @@
-# Eminus shader-pack contract, version 7
+# Eminus shader-pack contract, version 8
 
 Eminus draws the terrain past the render distance as a level-of-detail layer (LOD). Under an Iris shader pack that does not know Eminus, the LOD is drawn over the pack's finished frame in Eminus's own shading ([A pack without the contract](shader-packs/without-contract.md)). A pack that ships the contract below shades the LOD itself. Eminus runs the geometry, your code colors each pixel and writes it into your own buffers, so your lighting, fog and post-processing apply to the LOD the way they apply to near terrain.
 
@@ -48,6 +48,8 @@ Your terrain fragment code then runs in two programs: `gbuffers_terrain` for the
    ```
 
    `fragment.color` takes the place of the texture color times `glcolor`: it is already tinted and past the cutout, so pass it where `gbuffers_terrain` passes that product, and never multiply it by `fragment.glcolor` again. Every other input is the field named after the varying it replaces (`texcoord`, `lmcoord`, `glcolor`, `normal`, `viewPos`), and `fragment.blockId` replaces `mc_Entity.x`.
+
+   Eminus cuts the LOD with the alpha test Iris gives your `gbuffers_terrain`. If your `shaders.properties` sets `alphaTest.gbuffers_terrain = off` because your code cuts, declare `cutout = pack` and keep that cutout line in `eminus_emitFragment` ([Cutout](shader-packs/fragment.md#cutout)).
 4. Reload shaders with Iris's Reload Shaders key (F3 + R by default). The log line `Shader pack carries the Eminus contract: the far layer draws inside the pack` confirms it took.
 
 Without an include, copy your terrain fragment code into `eminus_emitFragment` instead, reading the field of `fragment` wherever the code reads a varying and taking the texture color from `fragment.color` rather than sampling `gtexture`. The copy then has to follow every later change to your terrain code by hand.

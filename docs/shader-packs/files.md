@@ -13,7 +13,7 @@ Part of the [Eminus shader-pack contract](../shader-pack-contract.md).
 | `eminus_vertex.glsl` | no | The vertex stage's hook of every program built from your contract files: your vertex animation, your jitter, your render scale, your shadow-map distortion. Since version 4. Your own shadow program runs its own vertex stage instead. Without it, LOD positions reach your buffers as Eminus projects them. |
 | `eminus_shadow_vertex.glsl` | no | The version 3 form of the shadow program's vertex hook: your shadow-map distortion. Read only while `eminus_vertex.glsl` is absent. |
 | `eminus_beaconbeam.glsl` | no | Beacon beams past the render distance ([Beacon beams](beacon-beams.md)). Since version 7. Without it, no beam is drawn past the render distance inside your pack. |
-| `eminus.properties` | no | Not a program: the blocks your vertex hook moves ([Blocks your hook moves](vertex-hook.md#blocks-your-hook-moves)). Since version 6. Read from `shaders/` itself, never from a dimension folder. |
+| `eminus.properties` | no | Not a program: the blocks your vertex hook moves ([Blocks your hook moves](vertex-hook.md#blocks-your-hook-moves)), since version 6, and `cutout = pack` where your own code cuts the LOD ([Cutout](fragment.md#cutout)), since version 8. Read from `shaders/` itself, never from a dimension folder. |
 
 A `.glsl` file is looked up in the folder Iris uses for the current dimension (`world0`, `world-1`, `world1`, or the folder `dimension.properties` maps it to) and, when that folder does not carry it, in `shaders/` itself. One file at the root therefore serves every dimension; a copy in a dimension folder overrides it for that dimension alone.
 
