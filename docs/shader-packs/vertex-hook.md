@@ -71,6 +71,7 @@ moved = \
 - A list that ends in `\` takes in the next line that is not blank, so write every other key, `cutout` included, above `moved`.
 - The faces of the named blocks stay one block wide and tall at `level` 0, the only level where your hook moves them. Past `level` 0, and everywhere while the player has LOD Animations off, they are joined as before.
 - The price is quads: every face of a named block at `level` 0 is one quad, where its neighbors of the same look would have shared one. Name only what your hook moves.
+- A block your hook moves without being named can also leave a hole in the LOD behind it, because Eminus skips the LOD hidden behind the faces of unnamed blocks.
 - Without the file, every face is joined as before.
 
 Each pack load logs the list as `Shader pack declares moved blocks … in eminus.properties`. Changing the list (a pack switch, a changed option, LOD Animations turned on or off) rebuilds the LOD once.

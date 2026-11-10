@@ -14,6 +14,8 @@ import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 
 final class OcclusionReads implements AutoCloseable {
+    static final int OWN_DEPTH_GUARD_PIXELS = 0;
+    static final int OCCLUDER_GUARD_PIXELS = 1;
     private static final long MAX_AGE_FRAMES = 3L;
     private static final double MAX_EYE_SHIFT_BLOCKS = 2.0;
     private static final String LABEL = "eminus-occlusion-read";
@@ -21,7 +23,7 @@ final class OcclusionReads implements AutoCloseable {
     private static final int ORIGIN = 0;
 
     private record Requested(long sequence, long frame, Matrix4f viewProjection, double eyeX, double eyeY,
-            double eyeZ, int pixelWidth, int pixelHeight) {
+            double eyeZ, int pixelWidth, int pixelHeight, int guardPixels) {
     }
 
     private final Gpu gpu;
@@ -36,8 +38,8 @@ final class OcclusionReads implements AutoCloseable {
         this.test = new OcclusionTest(depth, OcclusionPyramid.READ_BLOCK);
     }
 
-    void request(Texture level, int pixelWidth, int pixelHeight, Matrix4fc viewProjection, double eyeX,
-            double eyeY, double eyeZ, long frame) {
+    void request(Texture level, int pixelWidth, int pixelHeight, int guardPixels, Matrix4fc viewProjection,
+            double eyeX, double eyeY, double eyeZ, long frame) {
         int bytes = level.width() * level.height() * level.format().bytesPerTexel();
         Readback slots = readback;
         if (slots == null || bytes > readbackBytes) {
@@ -53,7 +55,7 @@ final class OcclusionReads implements AutoCloseable {
         long sequence = slots.request(level, BASE_MIP, ORIGIN, ORIGIN, level.width(), level.height());
         if (sequence != Readback.REFUSED) {
             requested.addLast(new Requested(sequence, frame, new Matrix4f(viewProjection), eyeX, eyeY, eyeZ,
-                    pixelWidth, pixelHeight));
+                    pixelWidth, pixelHeight, guardPixels));
         }
     }
 
@@ -77,7 +79,7 @@ final class OcclusionReads implements AutoCloseable {
 
         if (match != null) {
             test.load(read.texels(), read.width(), read.height(), match.pixelWidth(), match.pixelHeight(),
-                    match.viewProjection(), match.eyeX(), match.eyeY(), match.eyeZ(), match.frame());
+                    match.guardPixels(), match.viewProjection(), match.eyeX(), match.eyeY(), match.eyeZ(), match.frame());
             loaded = true;
         }
     }

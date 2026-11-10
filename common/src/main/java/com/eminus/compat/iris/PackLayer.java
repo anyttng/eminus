@@ -392,6 +392,8 @@ final class PackLayer {
         opaque.drawOpaque(draw, opaqueFramebuffer);
         if (opaqueVertex == FarDraw.PackVertex.OURS) {
             renderer.buildOcclusion();
+        } else if (opaqueVertex == FarDraw.PackVertex.HOOK) {
+            renderer.buildOccluderOcclusion();
         }
         if (beam != null && beamFramebuffer != null && draw.beamsDrawn()) {
             beamAttached = attach(beamFramebuffer, beamAttached, depth);
