@@ -28,6 +28,11 @@ class OcclusionTestTest {
     private static final double EYE_X = 100.5;
     private static final double EYE_Y = 64.0;
     private static final double EYE_Z = -30.25;
+    private static final float NEAR_FACE = 50.0F;
+    private static final float FAR_FACE = 60.0F;
+    private static final int OPEN_COLUMN = 5;
+    private static final float HALF_PIXEL = 0.5F;
+    private static final int GUARD_PIXELS = 1;
 
     private record Scene(DepthConvention depth, Matrix4f viewProjection) {
         static Scene of(boolean reversed) {
@@ -43,13 +48,17 @@ class OcclusionTestTest {
         }
 
         OcclusionTest test(float[] texels) {
+            return test(texels, 0);
+        }
+
+        OcclusionTest test(float[] texels, int guardPixels) {
             ByteBuffer bytes = ByteBuffer.allocate(texels.length * Float.BYTES).order(ByteOrder.nativeOrder());
             for (float texel : texels) {
                 bytes.putFloat(texel);
             }
             OcclusionTest test = new OcclusionTest(depth, BLOCK);
-            test.load(bytes.flip(), TEXEL_WIDTH, TEXEL_HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT, viewProjection, EYE_X,
-                    EYE_Y, EYE_Z, 0L);
+            test.load(bytes.flip(), TEXEL_WIDTH, TEXEL_HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT, guardPixels, viewProjection,
+                    EYE_X, EYE_Y, EYE_Z, 0L);
             return test;
         }
 
@@ -57,6 +66,25 @@ class OcclusionTestTest {
             float[] texels = new float[TEXEL_WIDTH * TEXEL_HEIGHT];
             Arrays.fill(texels, depthAt(distance));
             return texels;
+        }
+
+        float[] wallOpenAtColumn(int column) {
+            float[] texels = wall(WALL);
+            for (int row = 0; row < TEXEL_HEIGHT; row++) {
+                texels[row * TEXEL_WIDTH + column] = (float) depth.farthest();
+            }
+            return texels;
+        }
+
+        float[] boxInsideColumn(int column, float insetPixels) {
+            float scale = viewProjection.m00();
+            float left = ndcX(column * BLOCK + insetPixels);
+            float right = ndcX((column + 1) * BLOCK - insetPixels);
+            return box(left * FAR_FACE / scale, -2.0, -FAR_FACE, right * NEAR_FACE / scale, 2.0, -NEAR_FACE);
+        }
+
+        private static float ndcX(float pixel) {
+            return pixel / PIXEL_WIDTH * 2.0F - 1.0F;
         }
     }
 
@@ -125,6 +153,17 @@ class OcclusionTestTest {
         Arrays.fill(texels, reversed ? Math.nextUp(face) : Math.nextDown(face));
 
         assertFalse(scene.test(texels).hidden(BEHIND));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void theGuardKeepsABoxHalfAPixelFromAnOpenTexel(boolean reversed) {
+        Scene scene = Scene.of(reversed);
+        float[] texels = scene.wallOpenAtColumn(OPEN_COLUMN);
+        float[] box = scene.boxInsideColumn(OPEN_COLUMN + 1, HALF_PIXEL);
+
+        assertTrue(scene.test(texels).hidden(box));
+        assertFalse(scene.test(texels, GUARD_PIXELS).hidden(box));
     }
 
     @ParameterizedTest
