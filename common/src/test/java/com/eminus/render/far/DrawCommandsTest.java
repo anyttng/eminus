@@ -2,8 +2,8 @@ package com.eminus.render.far;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.util.List;
 
@@ -15,7 +15,7 @@ import com.eminus.mesh.MeshSummary;
 import com.eminus.mesh.QuadGroups;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.MeshSlot;
-import com.eminus.render.arena.MeshSlots;
+import com.eminus.render.arena.MeshSlots;
 import com.eminus.render.backend.DepthConvention;
 import com.eminus.render.tree.RenderList;
 
@@ -442,8 +442,8 @@ class DrawCommandsTest {
     private static OcclusionTest occlusion(float texel) {
         OcclusionTest test = new OcclusionTest(DepthConvention.of(true, false), OCCLUSION_BLOCK);
         ByteBuffer bytes = ByteBuffer.allocate(Float.BYTES).order(ByteOrder.nativeOrder()).putFloat(texel);
-        test.load(bytes.flip(), 1, 1, OCCLUSION_BLOCK, OCCLUSION_BLOCK, new Matrix4f().scaling(SHRINK), 0.0, 0.0,
-                0.0, 0L);
+        test.load(bytes.flip(), 1, 1, OCCLUSION_BLOCK, OCCLUSION_BLOCK, 0, new Matrix4f().scaling(SHRINK), 0.0,
+                0.0, 0.0, 0L);
         return test;
     }
 
