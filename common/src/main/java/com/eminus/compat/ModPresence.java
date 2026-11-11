@@ -14,9 +14,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
+import org.spongepowered.asm.mixin.MixinEnvironment.Side;
 
 import com.eminus.compat.MixinTargetCheck.Reason;
 import com.eminus.compat.MixinTargetCheck.Refusal;
@@ -30,9 +32,15 @@ public final class ModPresence {
 
     private static final String PACKAGE_KEY = "package";
     private static final String PLUGIN_KEY = "plugin";
-    private static final List<String> MIXIN_LIST_KEYS = List.of("mixins", "client", "server");
+    private static final String COMMON_MIXINS_KEY = "mixins";
+    private static final String CLIENT_MIXINS_KEY = "client";
+    private static final String SERVER_MIXINS_KEY = "server";
+    private static final List<String> MIXIN_LIST_KEYS = List.of(COMMON_MIXINS_KEY, CLIENT_MIXINS_KEY,
+            SERVER_MIXINS_KEY);
     private static final String GATE_PLUGIN = ModPresenceGatePlugin.class.getName().replace('.', '/');
     private static final char PACKAGE_SEPARATOR = '/';
+
+    private static volatile @Nullable Side runningSide;
 
     private final Logger logger;
     private final ClassLoader classLoader;
@@ -45,6 +53,7 @@ public final class ModPresence {
     private final List<String> modPackages;
     private final Set<String> optional;
     private final @Nullable Predicate<String> scanning;
+    private final Supplier<@Nullable Side> side;
 
     private @Nullable MixinConfig mixinConfig;
     private boolean probed;
@@ -52,6 +61,10 @@ public final class ModPresence {
 
     public static Builder gate(Logger logger, String gateLabel) {
         return new Builder(logger, gateLabel);
+    }
+
+    public static void runningSide(Side side) {
+        runningSide = side;
     }
 
     public static boolean probe(String resource) {
@@ -62,7 +75,7 @@ public final class ModPresence {
         return classLoader.getResource(resource) != null;
     }
 
-    private ModPresence(Builder builder, ClassLoader classLoader) {
+    private ModPresence(Builder builder, ClassLoader classLoader, Supplier<@Nullable Side> side) {
         this.logger = builder.logger;
         this.classLoader = classLoader;
         this.gateLabel = builder.gateLabel;
@@ -74,6 +87,7 @@ public final class ModPresence {
         this.modPackages = List.copyOf(builder.modPackages);
         this.optional = Set.copyOf(builder.optional);
         this.scanning = builder.scanning;
+        this.side = side;
     }
 
     public boolean covers(String mixinClassName) {
@@ -156,11 +170,45 @@ public final class ModPresence {
 
     private List<String> scannedClasses(ClassFiles classFiles, List<Refusal> refusals) {
         String root = this.modPackages.isEmpty() ? "" : packageOf(pluginOf(this.config));
+        Set<String> unapplied = unappliedMixins();
         return ownedClasses(classFiles, refusals).stream()
                 .filter(owned -> !this.optional.contains(owned.substring(root.length())))
                 .filter(owned -> !withheldMixin(className(outerOf(owned))))
+                .filter(owned -> !unapplied.contains(className(outerOf(owned))))
                 .map(ModPresence::className)
                 .toList();
+    }
+
+    private Set<String> unappliedMixins() {
+        if (this.config == null) {
+            return Set.of();
+        }
+
+        List<String> applied = appliedKeys();
+        List<String> skipped = MIXIN_LIST_KEYS.stream().filter(key -> !applied.contains(key)).toList();
+        Set<String> unapplied = new HashSet<>();
+        for (String mixin : mixinConfig().mixins(skipped)) {
+            unapplied.add(mixinPackage() + "." + mixin);
+        }
+
+        for (String mixin : mixinConfig().mixins(applied)) {
+            unapplied.remove(mixinPackage() + "." + mixin);
+        }
+
+        return unapplied;
+    }
+
+    private List<String> appliedKeys() {
+        Side current = this.side.get();
+        if (current == null) {
+            return MIXIN_LIST_KEYS;
+        }
+
+        return switch (current) {
+            case CLIENT -> List.of(COMMON_MIXINS_KEY, CLIENT_MIXINS_KEY);
+            case SERVER -> List.of(COMMON_MIXINS_KEY, SERVER_MIXINS_KEY);
+            default -> List.of(COMMON_MIXINS_KEY);
+        };
     }
 
     private boolean withheldMixin(String outerClass) {
@@ -259,7 +307,7 @@ public final class ModPresence {
         }
 
         List<String> covered = new ArrayList<>();
-        for (String mixin : configMixins()) {
+        for (String mixin : mixinConfig().mixins(appliedKeys())) {
             if (this.covering.test(mixin) && !withheld(mixin)) {
                 covered.add(mixinPackage() + "." + mixin);
             }
@@ -270,10 +318,6 @@ public final class ModPresence {
 
     private String mixinPackage() {
         return mixinConfig().mixinPackage();
-    }
-
-    private List<String> configMixins() {
-        return mixinConfig().mixins();
     }
 
     private synchronized MixinConfig mixinConfig() {
@@ -294,24 +338,35 @@ public final class ModPresence {
 
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
-                List<String> mixins = new ArrayList<>();
+                Map<String, List<String>> blocks = new HashMap<>();
                 for (String key : MIXIN_LIST_KEYS) {
+                    List<String> mixins = new ArrayList<>();
                     if (json.get(key) instanceof JsonArray list) {
                         for (JsonElement mixin : list) {
                             mixins.add(mixin.getAsString());
                         }
                     }
+
+                    blocks.put(key, List.copyOf(mixins));
                 }
 
                 String plugin = json.has(PLUGIN_KEY) ? json.get(PLUGIN_KEY).getAsString() : null;
-                return new MixinConfig(json.get(PACKAGE_KEY).getAsString(), plugin, List.copyOf(mixins));
+                return new MixinConfig(json.get(PACKAGE_KEY).getAsString(), plugin, Map.copyOf(blocks));
             }
         } catch (IOException unreadable) {
             throw new IllegalStateException("mixin config " + config + " cannot be read", unreadable);
         }
     }
 
-    private record MixinConfig(String mixinPackage, @Nullable String plugin, List<String> mixins) {
+    private record MixinConfig(String mixinPackage, @Nullable String plugin, Map<String, List<String>> blocks) {
+        List<String> mixins(List<String> keys) {
+            List<String> mixins = new ArrayList<>();
+            for (String key : keys) {
+                mixins.addAll(this.blocks.get(key));
+            }
+
+            return mixins;
+        }
     }
 
     public static final class Builder {
@@ -377,7 +432,11 @@ public final class ModPresence {
         }
 
         ModPresence build(ClassLoader classLoader) {
-            return new ModPresence(this, classLoader);
+            return build(classLoader, () -> runningSide);
+        }
+
+        ModPresence build(ClassLoader classLoader, Supplier<@Nullable Side> side) {
+            return new ModPresence(this, classLoader, side);
         }
     }
 }
