@@ -2,8 +2,10 @@ package com.eminus.ingest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -40,6 +42,7 @@ class CellMergerTest {
     private static final int STORED_BIOME = 7;
     private static final int SHADE = 7;
     private static final int COARSE_LOWEST_STORED_LEVEL = 1;
+    private static final String LEVELS_FIELD = "levels";
 
     private static final int[] OPACITY = {0, 15};
     private static final StateOpacity OPACITIES = state -> OPACITY[state];
@@ -241,6 +244,19 @@ class CellMergerTest {
         assertFalse(probe(coarse, 1, 0, 0));
     }
 
+    @Test
+    void aWriteThatThrowsLeavesNoCellHeld() throws ReflectiveOperationException {
+        buildFrom(entry(STONE));
+        Field levels = SectionPyramid.class.getDeclaredField(LEVELS_FIELD);
+        levels.setAccessible(true);
+        ((long[][]) levels.get(pyramid))[LOWEST_STORED_LEVEL] = new long[0];
+
+        assertThrows(ArrayIndexOutOfBoundsException.class, () -> harness.run(() -> merger.merge(pyramid, 0, 0, 0)));
+
+        assertEquals(0, cells.live());
+        assertTrue(changes.isEmpty());
+    }
+
     private boolean probe(CellMerger with, int sectionX, int sectionY, int sectionZ) {
         AtomicBoolean answer = new AtomicBoolean();
         harness.run(() -> answer.set(with.storesBeyondOpenSky(sectionX, sectionY, sectionZ)));
@@ -306,6 +322,10 @@ class CellMergerTest {
 
         private int opens() {
             return opens.get();
+        }
+
+        private int live() {
+            return cache.liveCount();
         }
     }
 }

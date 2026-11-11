@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
@@ -290,6 +291,40 @@ class TreeManagerTest {
         assertSame(handle, released.handle());
         assertEquals(1, released.references());
         assertTrue(builds.idle());
+    }
+
+    @Test
+    void aStoppedTreeReleasesEveryReferenceItsNodesAndItsQueueHold() {
+        settleRing();
+        int live = cache.liveCount();
+
+        change(open(KEY), FaceMask.NONE, EdgeMask.NONE);
+        FakeBuilds.Call building = builds.take();
+        change(open(KEY), FaceMask.NONE, EdgeMask.NONE);
+        change(open(KEY), FaceMask.NONE, EdgeMask.NONE);
+        manager.stop();
+
+        harness.run(() -> {
+            cache.release(Objects.requireNonNull(building.handle()));
+            for (FakeBuilds.Release release : builds.drainReleases()) {
+                for (int reference = 0; reference < release.references(); reference++) {
+                    cache.release(release.handle());
+                }
+            }
+        });
+        assertEquals(live, cache.liveCount());
+    }
+
+    @Test
+    void aChangeArrivingAfterTheStopIsReleased() {
+        manager.stop();
+
+        CellHandle handle = open(KEY);
+        change(handle, FaceMask.NONE, EdgeMask.NONE);
+
+        FakeBuilds.Release released = builds.takeRelease();
+        assertSame(handle, released.handle());
+        assertEquals(1, released.references());
     }
 
     @Test

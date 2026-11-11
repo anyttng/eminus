@@ -90,12 +90,18 @@ public final class CellMerger {
         int originZ = CellFrame.voxelZ(blockZ, level);
 
         long[] written = new long[WRITTEN_FIELDS];
-        long reach = handle.withCell(cell -> {
-            long changed = writeLevel(cell, source, side, originX, originY, originZ);
-            written[OCCUPANCY] = cell.occupancy();
-            written[SEQUENCE] = SEQUENCES.incrementAndGet();
-            return changed;
-        });
+        long reach;
+        try {
+            reach = handle.withCell(cell -> {
+                long changed = writeLevel(cell, source, side, originX, originY, originZ);
+                written[OCCUPANCY] = cell.occupancy();
+                written[SEQUENCE] = SEQUENCES.incrementAndGet();
+                return changed;
+            });
+        } catch (RuntimeException failure) {
+            cells.release(handle);
+            throw failure;
+        }
 
         if (reach == UNCHANGED) {
             cells.release(handle);

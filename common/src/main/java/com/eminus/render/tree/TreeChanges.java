@@ -61,6 +61,10 @@ final class TreeChanges {
 
     void defer(TreeNode node) {
         node.markStale();
+        release(node);
+    }
+
+    void release(TreeNode node) {
         CellHandle pending = node.pending();
         if (pending != null) {
             builds.release(pending, node.pendingReferences());

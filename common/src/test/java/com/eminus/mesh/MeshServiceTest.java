@@ -41,6 +41,7 @@ import org.junit.jupiter.api.Timeout;
 class MeshServiceTest {
     private static final int WORKER_THREADS = 2;
     private static final int NO_WORKERS = 0;
+    private static final int ONE_WORKER = 1;
     private static final long AWAIT_MILLIS = 10_000L;
     private static final int CUBE_AT = 8;
     private static final String MESH_SERVICE = "mesh";
@@ -298,6 +299,38 @@ class MeshServiceTest {
 
         service.release(handle, 2);
 
+        awaitNoLiveCells();
+        assertEquals(1, cache.parkedCount());
+    }
+
+    @Test
+    void aDroppedQueueReleasesEveryReferenceItsTasksCarry() {
+        WorkerPool idle = WorkerPool.start(NO_WORKERS);
+        WorkService<MeshScratch> queued = idle.register(QUEUED_SERVICE, 1, WorkService.UNLIMITED, MeshScratch::new);
+        MeshService waiting = new MeshService(queued, cache, ColumnCoverage.everything(), FRAME, models,
+                new FakeTints(), NO_BLEND, level -> opacity, MeshOcclusion.EVERY_LEVEL, MeshBlades.BOTH, (mesh, request) -> delivered.set(mesh), URGENT_WEIGHT);
+        CellHandle handle = harness.call(() -> {
+            CellHandle opened = cache.open(KEY);
+            cache.open(KEY);
+            return opened;
+        });
+
+        try {
+            waiting.request(KEY, handle, 2, MeshTask.NO_REQUEST, MeshTask.LOWEST_PRIORITY, true);
+            waiting.drop();
+            idle.resize(ONE_WORKER);
+
+            awaitNoLiveCells();
+            assertEquals(0, waiting.backlog());
+            assertNull(delivered.get());
+            assertEquals(1, cache.parkedCount());
+        } finally {
+            queued.stop(ShutdownMode.DISCARD);
+            idle.shutdown();
+        }
+    }
+
+    private void awaitNoLiveCells() {
         long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(AWAIT_MILLIS);
         while (cache.liveCount() > 0) {
             if (System.nanoTime() >= deadline) {
@@ -306,8 +339,6 @@ class MeshServiceTest {
 
             Thread.onSpinWait();
         }
-
-        assertEquals(1, cache.parkedCount());
     }
 
     private void seedCube() {

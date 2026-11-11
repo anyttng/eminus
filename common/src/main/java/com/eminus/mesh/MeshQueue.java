@@ -44,8 +44,4 @@ public final class MeshQueue {
     public synchronized int size() {
         return waiting.size();
     }
-
-    public synchronized void clear() {
-        waiting.clear();
-    }
 }
