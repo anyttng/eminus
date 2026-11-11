@@ -23,8 +23,11 @@ public final class SqliteCellStore implements CellStore {
     public static final String FILE_NAME = "cells.db";
 
     private static final int VACUUM_FREE_PAGES = 4096;
+    private static final int PAGE_SIZE_BYTES = 1024;
 
     private static final String URL_PREFIX = "jdbc:sqlite:";
+    private static final String SET_PAGE_SIZE = "PRAGMA page_size = " + PAGE_SIZE_BYTES;
+    private static final String USE_WAL = "PRAGMA journal_mode = WAL";
     private static final String RAISE_LOWEST = "UPDATE columns SET lowest = ? WHERE lowest < ?";
     private static final String READ_FREE_PAGES = "PRAGMA freelist_count";
     private static final String READ_SQLITE_VERSION = "SELECT sqlite_version()";
@@ -78,7 +81,6 @@ public final class SqliteCellStore implements CellStore {
     public static SqliteCellStore open(Path folder, int lowestStoredLevel, long dropGraceMillis, LongSupplier clock) {
         Path file = folder.resolve(FILE_NAME);
         SQLiteConfig config = new SQLiteConfig();
-        config.setJournalMode(SQLiteConfig.JournalMode.WAL);
         config.setSynchronous(SQLiteConfig.SynchronousMode.NORMAL);
 
         SQLiteDataSource source = new SQLiteDataSource(config);
@@ -87,6 +89,11 @@ public final class SqliteCellStore implements CellStore {
         Connection connection = null;
         try {
             connection = source.getConnection();
+            try (Statement statement = connection.createStatement()) {
+                statement.execute(SET_PAGE_SIZE);
+                statement.execute(USE_WAL);
+            }
+
             boolean upgraded = StoreSchema.prepare(connection, file);
             try (Statement statement = connection.createStatement()) {
                 statement.execute(CREATE_META);
