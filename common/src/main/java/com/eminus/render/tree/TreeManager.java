@@ -29,6 +29,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private static final float MATRIX_EPSILON = 1.0e-6F;
     private static final String PRESSURE_ON = "on";
     private static final String PRESSURE_OFF = "off";
+    private static final int ONE_REFERENCE = 1;
 
     private final TreeBuilds builds;
     private final TreeExtent extent;
@@ -94,6 +95,9 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     @Override
     public void changed(CellHandle handle, int faceMask, int edgeMask, int occupancy, long sequence) {
         messages.add(new TreeMessage.CellChanged(handle, faceMask, edgeMask, occupancy, sequence));
+        if (!running) {
+            drainUnapplied();
+        }
     }
 
     @Override
@@ -166,12 +170,17 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             builds.urgent(false);
         }
 
-        refuseUnanswered();
+        drainUnapplied();
+        for (TreeNode node : nodes.all()) {
+            changes.release(node);
+        }
     }
 
-    private void refuseUnanswered() {
-        for (TreeMessage left : messages) {
+    private void drainUnapplied() {
+        TreeMessage left;
+        while ((left = messages.poll()) != null) {
             switch (left) {
+                case TreeMessage.CellChanged changed -> builds.release(changed.handle(), ONE_REFERENCE);
                 case TreeMessage.Snapshot snapshot -> snapshot.answer().completeExceptionally(stopped());
                 case TreeMessage.Describe describe -> describe.answer().completeExceptionally(stopped());
                 case TreeMessage.Churn churned -> churned.answer().completeExceptionally(stopped());

@@ -80,7 +80,13 @@ public final class MeshService {
     }
 
     public void drop() {
-        queue.clear();
+        MeshTask task;
+        while ((task = queue.poll()) != null) {
+            CellHandle held = task.held();
+            if (held != null) {
+                release(held, task.references());
+            }
+        }
     }
 
     private void submit(MeshTask task) {
