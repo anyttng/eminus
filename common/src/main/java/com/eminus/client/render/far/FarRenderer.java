@@ -407,7 +407,8 @@ public final class FarRenderer implements AutoCloseable {
     private void writeFrame(GameFrame game, Settings settings) {
         frame.write(farViewProjection, game.viewRotation(), runtime.frame().minBlockY(),
                 models.atlas(), nearSections.sections(), game.shade(), game.smoothLighting(), game.rgss(),
-                game.anisotropy(), CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()));
+                game.anisotropy(), CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()), target.width(),
+                target.height());
         draw.frame(indirect.buffer(), commands.opaqueCount(), commands.translucentCount(), gpu.lightmap(),
                 FarQuads.atlasSampler(game.terrainFilter()), farProjection, game.viewRotation(),
                 FarDistance.cellsToBlocks(settings.farRenderCells()));

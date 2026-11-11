@@ -22,6 +22,8 @@ layout(std140) uniform EminusFrame {
     int EminusSmoothLighting;
     int EminusRgss;
     int EminusAnisotropy;
+    float EminusPixelX;
+    float EminusPixelY;
 };
 
 #endif

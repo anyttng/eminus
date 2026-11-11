@@ -18,6 +18,7 @@ import org.lwjgl.system.MemoryStack;
 
 public final class FarFrame implements AutoCloseable {
     public static final Std140.Block BLOCK = Std140.block("EminusFrame");
+    public static final int NO_TARGET = 0;
 
     private static final Std140.Member PROJ_VIEW = BLOCK.add(Std140.Type.MAT4, "EminusProjView");
     private static final Std140.Member VIEW = BLOCK.add(Std140.Type.MAT4, "EminusView");
@@ -39,7 +40,10 @@ public final class FarFrame implements AutoCloseable {
     private static final Std140.Member SMOOTH_LIGHTING = BLOCK.add(Std140.Type.INT, "EminusSmoothLighting");
     private static final Std140.Member RGSS = BLOCK.add(Std140.Type.INT, "EminusRgss");
     private static final Std140.Member ANISOTROPY = BLOCK.add(Std140.Type.INT, "EminusAnisotropy");
+    private static final Std140.Member PIXEL_X = BLOCK.add(Std140.Type.FLOAT, "EminusPixelX");
+    private static final Std140.Member PIXEL_Y = BLOCK.add(Std140.Type.FLOAT, "EminusPixelY");
     private static final int SIZE = BLOCK.size();
+    private static final float NDC_SPAN = 2.0F;
 
     private static final String LABEL = "eminus-far-frame";
     private static final Set<BufferUsage> USAGE = EnumSet.of(BufferUsage.UNIFORM, BufferUsage.COPY_DST);
@@ -65,7 +69,8 @@ public final class FarFrame implements AutoCloseable {
     }
 
     public void write(Matrix4fc viewProjection, Matrix4fc view, int minBlockY, ModelAtlas atlas, NearSections near,
-            FaceShade shade, boolean smoothLighting, boolean rgss, int anisotropy, CameraOrigin camera) {
+            FaceShade shade, boolean smoothLighting, boolean rgss, int anisotropy, CameraOrigin camera,
+            int targetWidth, int targetHeight) {
         gpu.assertRenderThread();
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -90,9 +95,15 @@ public final class FarFrame implements AutoCloseable {
                     .putInt(SMOOTH_LIGHTING, smoothLighting ? ON : OFF)
                     .putInt(RGSS, rgss ? ON : OFF)
                     .putInt(ANISOTROPY, anisotropy)
+                    .putFloat(PIXEL_X, pixel(targetWidth))
+                    .putFloat(PIXEL_Y, pixel(targetHeight))
                     .get();
             gpu.write(buffer, START_OF_BUFFER, written);
         }
+    }
+
+    private static float pixel(int pixels) {
+        return pixels == NO_TARGET ? 0.0F : NDC_SPAN / pixels;
     }
 
     @Override
