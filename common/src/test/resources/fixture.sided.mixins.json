@@ -1,0 +1,9 @@
+{
+  "package": "com.eminus.compat.fixture",
+  "mixins": [
+    "MixinFixtures$WrapOperationPresent"
+  ],
+  "client": [
+    "MixinFixtures$ShadowFieldMissing"
+  ]
+}
