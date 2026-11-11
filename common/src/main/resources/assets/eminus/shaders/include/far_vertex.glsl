@@ -26,6 +26,9 @@ struct EminusQuadVertex {
 const int EMINUS_CORNERS_PER_QUAD = 4;
 const int EMINUS_WORD_BITS = 32;
 const float EMINUS_HALF_VOXEL = 0.5;
+const float EMINUS_OVERLAP_PIXELS = 0.0625;
+const float EMINUS_MAX_OVERLAP_VOXELS = 0.5;
+const float EMINUS_MIN_OVERLAP_AREA = 1.0e-6;
 
 uint eminus_field(uint value, int shift, int bits) {
     return (value >> uint(shift)) & ((1u << uint(bits)) - 1u);
@@ -237,6 +240,54 @@ bool eminus_corner_behind(EminusFace f, vec3 voxelBase, vec3 planeNormal, vec2 u
     return dot(planeNormal, corner) >= 0.0;
 }
 
+vec3 eminus_placed_corner(EminusFace f, vec3 voxelBase, vec2 unit) {
+    vec2 extent;
+    vec2 occlusionPoint;
+    float occlusionInner;
+    return voxelBase + eminus_face_corner(f, unit, extent, occlusionPoint, occlusionInner) * f.blocks;
+}
+
+vec2 eminus_pixels(vec4 clip) {
+    return clip.xy / clip.w / vec2(EminusPixelX, EminusPixelY);
+}
+
+// A merged face's corner can sit on a larger face's edge, and the rasterizer leaves a crack along that edge unless
+// every edge reaches a fraction of a pixel past its neighbor's.
+vec2 eminus_overlap_unit(EminusFace f, vec3 voxelBase, vec2 unit) {
+    if (EminusPixelX == 0.0) {
+        return unit;
+    }
+
+    vec3 corner = eminus_placed_corner(f, voxelBase, unit);
+    vec3 alongWidth = eminus_placed_corner(f, voxelBase, vec2(1.0 - unit.x, unit.y)) - corner;
+    vec3 alongHeight = eminus_placed_corner(f, voxelBase, vec2(unit.x, 1.0 - unit.y)) - corner;
+    float widthBlocks = length(alongWidth);
+    float heightBlocks = length(alongHeight);
+    if (widthBlocks == 0.0 || heightBlocks == 0.0) {
+        return unit;
+    }
+
+    vec4 here = EminusProjView * vec4(corner, 1.0);
+    vec4 widthStep = EminusProjView * vec4(corner + alongWidth / widthBlocks * f.blocks, 1.0);
+    vec4 heightStep = EminusProjView * vec4(corner + alongHeight / heightBlocks * f.blocks, 1.0);
+    if (here.w <= 0.0 || widthStep.w <= 0.0 || heightStep.w <= 0.0) {
+        return unit;
+    }
+
+    vec2 screen = eminus_pixels(here);
+    vec2 widthPixels = eminus_pixels(widthStep) - screen;
+    vec2 heightPixels = eminus_pixels(heightStep) - screen;
+    float area = abs(widthPixels.x * heightPixels.y - widthPixels.y * heightPixels.x);
+    if (area < EMINUS_MIN_OVERLAP_AREA) {
+        return unit;
+    }
+
+    vec2 voxels = min(EMINUS_OVERLAP_PIXELS * vec2(length(heightPixels), length(widthPixels)) / area,
+                      vec2(EMINUS_MAX_OVERLAP_VOXELS));
+    vec2 outward = vec2(unit.x > EMINUS_HALF_VOXEL ? 1.0 : -1.0, unit.y > EMINUS_HALF_VOXEL ? 1.0 : -1.0);
+    return unit + outward * voxels * f.blocks / vec2(widthBlocks, heightBlocks);
+}
+
 EminusQuadVertex eminus_quad_vertex(int vertexId) {
     EminusQuadVertex vertex;
 
@@ -348,7 +399,9 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
         EminusFace shape = EminusFace(face, width, height, boundsMin, boundsMax, slope,
                 eminus_inset(first, second, face), drawnBottom, drawnTop, lowGap, highGap, blocks, fluid, inward,
                 fluid ? eminus_fluid_corners(corners, boundsMax.y) : vec4(0.0));
-        local += eminus_face_corner(shape, unit, extent, vertex.occlusionPoint, vertex.occlusionInner);
+        vec3 voxelBase = vec3(origin - EminusCameraBlockPos) + EminusCameraOffset + (vec3(voxel) + offset) * blocks;
+        vec2 placedUnit = (flags & TRANSLUCENT_FLAG) == 0 ? eminus_overlap_unit(shape, voxelBase, unit) : unit;
+        local += eminus_face_corner(shape, placedUnit, extent, vertex.occlusionPoint, vertex.occlusionInner);
         vertex.occlusionSize = vec2(width, height) * blocks;
 
         // The plane's own normal, not the axis: the corners of a sloped face lie at different depths along the axis.
@@ -366,7 +419,6 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
         planeNormal = (face & 1) == 1 ? planeNormal : -planeNormal;
 
         if (eminus_front_only(flags, face)) {
-            vec3 voxelBase = vec3(origin - EminusCameraBlockPos) + EminusCameraOffset + (vec3(voxel) + offset) * blocks;
             // One verdict per quad: a corner culled alone stretches the quad toward the cull point across the screen.
             vertex.culled = eminus_corner_behind(shape, voxelBase, planeNormal, vec2(0.0));
             if (fluid && face == 1) {
