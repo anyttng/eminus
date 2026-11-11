@@ -44,6 +44,9 @@ class SqliteCellStoreTest {
     private static final long STONE = VoxelEntry.pack(17, 4, VoxelEntry.light(0, 0));
     private static final int LOWEST_LEVEL = 0;
     private static final int SPARSE_PAGE_SIZE = 512;
+    private static final int FRESH_PAGE_SIZE = 1024;
+    private static final int OLDER_PAGE_SIZE = 4096;
+    private static final String READ_PAGE_SIZE = "PRAGMA page_size";
     private static final int SPARSE_CELLS = 12;
     private static final long SPARSE_GROWN_BYTES = 1024L * 1024L;
     private static final long SPARSE_VACUUMED_BYTES = 256L * 1024L;
@@ -169,6 +172,26 @@ class SqliteCellStoreTest {
     void theStoreRunsInWalMode() throws SQLException {
         open(LOWEST_LEVEL).close();
 
+        assertEquals("wal", readString("PRAGMA journal_mode"));
+    }
+
+    @Test
+    void aFreshStoreTakesOneKibPages() throws SQLException {
+        open(LOWEST_LEVEL).close();
+
+        assertEquals(FRESH_PAGE_SIZE, readInt(READ_PAGE_SIZE));
+    }
+
+    @Test
+    void aStoreOfLargerPagesKeepsThemAcrossReopens() throws SQLException {
+        givenThePageSize(OLDER_PAGE_SIZE);
+
+        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
+            store.write(Cell.blank(CellKey.pack(1, 2, 3, 4)));
+        }
+        open(LOWEST_LEVEL).close();
+
+        assertEquals(OLDER_PAGE_SIZE, readInt(READ_PAGE_SIZE));
         assertEquals("wal", readString("PRAGMA journal_mode"));
     }
 
