@@ -36,7 +36,6 @@ import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
 
 final class PackLayer {
-    private static final int NO_TEXTURE = 0;
     private static final int NO_REACH = 0;
 
     private static @Nullable PackLayer current;
@@ -62,10 +61,6 @@ final class PackLayer {
     private @Nullable GlFramebuffer shadowFramebuffer;
     private @Nullable GlFramebuffer beamFramebuffer;
     private @Nullable GlFramebuffer beamGlowFramebuffer;
-    private int opaqueAttached = NO_TEXTURE;
-    private int translucentAttached = NO_TEXTURE;
-    private int beamAttached = NO_TEXTURE;
-    private int beamGlowAttached = NO_TEXTURE;
     private @Nullable FarDraw drawn;
     private @Nullable FarShadow shadowDrawn;
     private FarDraw.@Nullable PackVertex opaqueVertex;
@@ -209,10 +204,6 @@ final class PackLayer {
             current.beamGlow = null;
             current.drawn = null;
             current.shadowDrawn = null;
-            current.opaqueAttached = NO_TEXTURE;
-            current.translucentAttached = NO_TEXTURE;
-            current.beamAttached = NO_TEXTURE;
-            current.beamGlowAttached = NO_TEXTURE;
         }
     }
 
@@ -388,7 +379,7 @@ final class PackLayer {
         int depth = foreign.texture(target.depth());
         IrisFarState.write(depth, foreign.texture(target.opaqueDepth()), draw.projection(),
                 draw.previousProjection(), draw.farBlocks(), path.distantHorizons());
-        opaqueAttached = attach(opaqueFramebuffer, opaqueAttached, depth);
+        opaqueFramebuffer.addDepthAttachmentBypass(depth);
         opaque.drawOpaque(draw, opaqueFramebuffer);
         if (opaqueVertex == FarDraw.PackVertex.OURS) {
             renderer.buildOcclusion();
@@ -396,7 +387,7 @@ final class PackLayer {
             renderer.buildOccluderOcclusion();
         }
         if (beam != null && beamFramebuffer != null && draw.beamsDrawn()) {
-            beamAttached = attach(beamFramebuffer, beamAttached, depth);
+            beamFramebuffer.addDepthAttachmentBypass(depth);
             beam.drawBeams(draw, beamFramebuffer);
         }
         foreign.copyDepth(target.color(), target.depth(), target.opaqueDepth());
@@ -416,32 +407,25 @@ final class PackLayer {
         FarTarget target = draw.target();
         int depth = foreign.texture(target.depth());
         if (beamGlow != null && beamGlowFramebuffer != null && draw.beamsDrawn()) {
-            beamGlowAttached = attach(beamGlowFramebuffer, beamGlowAttached, depth);
+            beamGlowFramebuffer.addDepthAttachmentBypass(depth);
             beamGlow.drawBeams(draw, beamGlowFramebuffer);
         }
         int frontDepth = foreign.texture(target.frontDepth());
         int secondDepth = foreign.texture(target.secondDepth());
         draw.clearFrontDepth();
-        translucentAttached = attach(translucentFramebuffer, translucentAttached, frontDepth);
+        translucentFramebuffer.addDepthAttachmentBypass(frontDepth);
         translucentFrontDepth.drawTranslucent(draw, translucentFramebuffer, draw::bindOpaqueDepth);
         // A second depth sampler would take the pack program past the texture units the game tracks.
         foreign.copyDepth(target.color(), target.depth(), target.secondDepth());
-        translucentAttached = attach(translucentFramebuffer, translucentAttached, secondDepth);
+        translucentFramebuffer.addDepthAttachmentBypass(secondDepth);
         translucentSecondDepth.drawTranslucent(draw, translucentFramebuffer, draw::bindFrontDepth);
-        translucentAttached = attach(translucentFramebuffer, translucentAttached, depth);
+        translucentFramebuffer.addDepthAttachmentBypass(depth);
         translucentBehind.drawTranslucent(draw, translucentFramebuffer, draw::bindSecondDepth);
-        translucentAttached = attach(translucentFramebuffer, translucentAttached, secondDepth);
+        translucentFramebuffer.addDepthAttachmentBypass(secondDepth);
         translucent.drawTranslucent(draw, translucentFramebuffer, pass -> { });
-        translucentAttached = attach(translucentFramebuffer, translucentAttached, frontDepth);
+        translucentFramebuffer.addDepthAttachmentBypass(frontDepth);
         translucent.drawTranslucent(draw, translucentFramebuffer, pass -> { });
-        translucentAttached = attach(translucentFramebuffer, translucentAttached, depth);
+        translucentFramebuffer.addDepthAttachmentBypass(depth);
         translucentDepth.drawTranslucent(draw, translucentFramebuffer, pass -> { });
-    }
-
-    private static int attach(GlFramebuffer framebuffer, int attached, int depth) {
-        if (attached != depth) {
-            framebuffer.addDepthAttachmentBypass(depth);
-        }
-        return depth;
     }
 }
