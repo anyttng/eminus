@@ -1,5 +1,7 @@
 package com.eminus.render.tree;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -58,6 +60,12 @@ final class FakeBuilds implements TreeBuilds {
 
     Release takeRelease() {
         return await(releases, "release");
+    }
+
+    List<Release> drainReleases() {
+        List<Release> drained = new ArrayList<>();
+        releases.drainTo(drained);
+        return drained;
     }
 
     boolean idle() {
