@@ -6,6 +6,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 
 import com.eminus.cell.CellKey;
@@ -18,8 +19,13 @@ import com.eminus.mesh.MeshModels;
 import com.eminus.mesh.ObjWriter;
 import com.eminus.mesh.Quad;
 import com.eminus.mesh.QuadGroups;
+import com.eminus.model.BakedModel;
+import com.eminus.model.ModelSource;
 import com.eminus.session.DimensionRuntime;
 import com.eminus.session.EminusInstance;
+
+import it.unimi.dsi.fastutil.ints.IntRBTreeSet;
+import it.unimi.dsi.fastutil.ints.IntSortedSet;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
@@ -39,6 +45,9 @@ public final class MeshReading {
 
     private static final int TIMEOUT_SECONDS = 60;
     private static final String LEGEND_PREFIX = "# m";
+    private static final String QUAD_PREFIX = "# q ";
+    private static final String RECORD_PREFIX = "# r ";
+    private static final String FLOAT_SEPARATOR = ",";
 
     public static @Nullable CompletableFuture<long[]> start(int level, int blockX, int blockY, int blockZ) {
         Minecraft client = Minecraft.getInstance();
@@ -54,19 +63,54 @@ public final class MeshReading {
 
         return CellMeshing.mesh(runtime, instance, baking, new long[] {key}, TIMEOUT_SECONDS)
                 .thenApply(meshes -> write(CellMeshing.meshOf(meshes, key), MeshWiring.models(runtime, baking),
-                        runtime.states(), file))
+                        baking.bakery(), runtime.states(), file))
                 .whenComplete((row, failure) -> baking.stop());
     }
 
-    private static long[] write(CellMesh mesh, MeshModels models, StateTable states, Path file) {
+    private static long[] write(CellMesh mesh, MeshModels models, ModelSource source, StateTable states,
+            Path file) {
         try {
             ObjWriter.write(mesh, models, file);
             legend(models, states, file);
+            raw(mesh, source, file);
         } catch (IOException failure) {
             throw new UncheckedIOException(failure);
         }
 
         return row(mesh);
+    }
+
+    private static void raw(CellMesh mesh, ModelSource source, Path file) throws IOException {
+        IntSortedSet modelIds = new IntRBTreeSet();
+        try (BufferedWriter out = Files.newBufferedWriter(file, StandardOpenOption.APPEND)) {
+            for (int group = 0; group < QuadGroups.COUNT; group++) {
+                int start = mesh.groupStart(group);
+                for (int index = start; index < start + mesh.groupCount(group); index++) {
+                    long quad = mesh.quad(index);
+                    out.write(QUAD_PREFIX + group + " " + quad + " " + mesh.placement(quad));
+                    out.newLine();
+                    modelIds.add(Quad.modelId(quad));
+                }
+            }
+
+            for (int modelId : modelIds) {
+                BakedModel model = source.model(modelId);
+                if (model == null) {
+                    continue;
+                }
+                out.write(RECORD_PREFIX + modelId + " " + model.metadata() + " " + floats(model.insets()) + " "
+                        + floats(model.bounds()) + " " + floats(model.slopes()));
+                out.newLine();
+            }
+        }
+    }
+
+    private static String floats(float[] values) {
+        StringJoiner joined = new StringJoiner(FLOAT_SEPARATOR);
+        for (float value : values) {
+            joined.add(Float.toString(value));
+        }
+        return joined.toString();
     }
 
     private static void legend(MeshModels models, StateTable states, Path file) throws IOException {
