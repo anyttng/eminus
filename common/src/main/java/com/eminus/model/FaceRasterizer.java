@@ -314,6 +314,7 @@ public final class FaceRasterizer {
 
     private BakedModel model(List<ModelQuad> quads, int[] faces, long[] tintMask, float[] insets, float[] slopes,
             float[] bounds, IntFunction<Tint> tints, int extraFlags) {
+        padPastBounds(faces, tintMask, bounds);
         int tintLayer = tintLayer(quads);
         Tint tint = tintLayer == ModelQuad.NO_TINT ? null : tints.apply(tintLayer);
         int tintRow = BiomeColors.NO_ROW;
@@ -328,6 +329,14 @@ public final class FaceRasterizer {
                 BakedModel.packShades(shades));
         return Arrays.stream(overlayMips).anyMatch(Objects::nonNull)
                 ? model.withOverlays(new FaceOverlays(under.clone(), overlayMips.clone())) : model;
+    }
+
+    private void padPastBounds(int[] faces, long[] tintMask, float[] bounds) {
+        for (int face = 0; face < BakedModel.FACE_COUNT; face++) {
+            if ((present & bit(face)) != 0) {
+                FacePadding.pad(face, U_AXES[face], V_AXES[face], bounds, faces, tintMask, under);
+            }
+        }
     }
 
     public static boolean bladed(List<ModelQuad> quads) {

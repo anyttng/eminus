@@ -27,7 +27,11 @@ class FaceRasterizerTest {
     private static final int GREEN = 0xFF00_FF00;
     private static final int YELLOW = 0xFFFF_FF00;
     private static final int TRANSPARENT = 0x0000_0000;
+    private static final int OPAQUE = 0xFF00_0000;
     private static final float BAND_TOP = 0.5F;
+    private static final float SNOW_TOP = 2.0F / 16.0F;
+    private static final float HOLE_FROM = 0.25F;
+    private static final float HOLE_TO = 0.75F;
     private static final float CENTER = 0.5F;
     private static final float HEAD_PLANE = 9.6F / 16.0F;
     private static final float HEAD_BOTTOM = -1.0F / 16.0F;
@@ -117,11 +121,66 @@ class FaceRasterizerTest {
         assertArrayEquals(new float[] {0.0F, 0.0F, 0.0F, 1.0F, BAND_TOP, 1.0F}, model.bounds());
 
         int face = Direction.SOUTH.get3DDataValue();
-        for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
-            int expected = row < BAND_ROWS ? WHITE : TRANSPARENT;
-            for (int column = 0; column < BakedModel.FACE_SIDE; column++) {
-                assertEquals(expected, model.argb(face, row * BakedModel.FACE_SIDE + column), "row " + row);
+        for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
+            assertEquals(WHITE, model.argb(face, texel), "texel " + texel);
+        }
+    }
+
+    @Test
+    void aThinModelsSidesArePaddedPastItsBoundsAndStaySolidOnEveryLevel() {
+        for (float top : new float[] {SNOW_TOP, BAND_TOP}) {
+            BakedModel model = rasterizer.rasterize(bottomBox(top), OPAQUE_WHITE, FaceRasterizerTest::noTints);
+
+            for (Direction side : Direction.Plane.HORIZONTAL) {
+                int face = side.get3DDataValue();
+                assertTrue((model.solidFaces() & 1 << face) != 0, side + " under a top of " + top);
+                int[] texels = new int[BakedModel.FACE_TEXELS];
+                System.arraycopy(model.faces(), face * BakedModel.FACE_TEXELS, texels, 0, BakedModel.FACE_TEXELS);
+                int[][] levels = FaceMips.colorLevels(texels, BakedModel.FACE_SIDE, model.mips()[face], false);
+                for (int level = 0; level < levels.length; level++) {
+                    for (int argb : levels[level]) {
+                        assertEquals(OPAQUE, argb & OPAQUE, side + " level " + level + " under a top of " + top);
+                    }
+                }
             }
+        }
+    }
+
+    @Test
+    void aHoleInsideTheBoundsStaysAHoleAndKeepsTheFaceOutOfTheSolidOnes() {
+        List<ModelQuad> quads = new ArrayList<>(bottomBox(BAND_TOP));
+        quads.removeIf(quad -> quad.face() == Direction.SOUTH);
+        quads.add(quad(Direction.SOUTH, new float[] {
+            0, 0, 1, HOLE_FROM, 0, 1, HOLE_FROM, BAND_TOP, 1, 0, BAND_TOP, 1}, NO_UV));
+        quads.add(quad(Direction.SOUTH, new float[] {
+            HOLE_TO, 0, 1, 1, 0, 1, 1, BAND_TOP, 1, HOLE_TO, BAND_TOP, 1}, NO_UV));
+
+        BakedModel model = rasterizer.rasterize(quads, OPAQUE_WHITE, FaceRasterizerTest::noTints);
+
+        int face = Direction.SOUTH.get3DDataValue();
+        int holeColumn = BakedModel.FACE_SIDE / 2;
+        for (int row = 0; row < BakedModel.FACE_SIDE; row++) {
+            assertEquals(TRANSPARENT, model.argb(face, row * BakedModel.FACE_SIDE + holeColumn), "row " + row);
+            assertEquals(WHITE, model.argb(face, row * BakedModel.FACE_SIDE), "row " + row);
+        }
+        assertEquals(0, model.solidFaces() & 1 << face);
+    }
+
+    @Test
+    void aTintedOverlayIsPaddedWithItsTintAndTheLayerUnderIt() {
+        Sprite base = new LayerSprite(MipStrategy.MEAN);
+        Sprite overlay = new LayerSprite(MipStrategy.CUTOUT);
+        float[] south = {0, 0, 1, 1, 0, 1, 1, BAND_TOP, 1, 0, BAND_TOP, 1};
+        List<ModelQuad> quads = List.of(layer(south, base, ModelQuad.NO_TINT), layer(south, overlay, TINT_LAYER));
+        QuadTexels texels = (quad, u, v) -> base.equals(quad.sprite()) ? YELLOW : WHITE;
+
+        BakedModel model = rasterizer.rasterize(quads, texels, FaceRasterizerTest::noTints);
+
+        int face = Direction.SOUTH.get3DDataValue();
+        for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
+            assertEquals(WHITE, model.argb(face, texel), "texel " + texel);
+            assertEquals(YELLOW, model.overlays().under(face, texel), "texel " + texel);
+            assertTrue(model.tinted(face, texel), "texel " + texel);
         }
     }
 
@@ -483,7 +542,10 @@ class FaceRasterizerTest {
     }
 
     private static List<ModelQuad> bottomSlab() {
-        float top = BAND_TOP;
+        return bottomBox(BAND_TOP);
+    }
+
+    private static List<ModelQuad> bottomBox(float top) {
         return List.of(
                 quad(Direction.DOWN, new float[] {0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1}, NO_UV),
                 quad(Direction.UP, new float[] {0, top, 1, 1, top, 1, 1, top, 0, 0, top, 0}, NO_UV),
