@@ -149,6 +149,10 @@ public final class IngestService {
 
     private boolean ready(LevelChunk chunk, LevelLightEngine light) {
         ChunkPos chunkPos = chunk.getPos();
+        if (ChunkRefusals.refuses(chunk.getLevel(), chunkPos.x(), chunkPos.z())) {
+            return false;
+        }
+
         if (!lightOn(light, chunkPos.x(), chunkPos.z())) {
             Eminus.LOGGER.debug("Chunk {} has no light applied yet; it waits for its light trigger.", chunkPos);
             return false;
@@ -261,7 +265,8 @@ public final class IngestService {
         int sectionZ = SectionPos.z(sectionNode);
         int index = chunk.getSectionIndexFromSectionY(SectionPos.y(sectionNode));
         LevelLightEngine light = chunk.getLevel().getLightEngine();
-        if (index < 0 || index >= chunk.getSections().length || !lightOn(light, sectionX, sectionZ)) {
+        if (index < 0 || index >= chunk.getSections().length || !lightOn(light, sectionX, sectionZ)
+                || ChunkRefusals.refuses(chunk.getLevel(), sectionX, sectionZ)) {
             return;
         }
 
