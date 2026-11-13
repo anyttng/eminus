@@ -209,6 +209,9 @@ public final class ClientSession {
         boolean inUse = IrisShaderPack.inUse();
         boolean inside = inUse && renderer != null && IrisShaderPack.packPathReady(renderer);
         boolean dhPrograms = inside && IrisShaderPack.throughDhPrograms();
+        if (renderer != null) {
+            renderer.cutWith(inUse && !inside ? IrisShaderPack.overFrameCuts() : renderer.ownCuts());
+        }
         if (inUse != overShaderPack || inside != inShaderPack || dhPrograms != throughDhPrograms) {
             overShaderPack = inUse;
             inShaderPack = inside;

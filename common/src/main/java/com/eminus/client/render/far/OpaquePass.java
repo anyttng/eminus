@@ -49,12 +49,12 @@ public final class OpaquePass implements AutoCloseable {
         this.pyramid = pyramid;
     }
 
-    public static OpaquePass create(Gpu gpu, DepthConvention depth, VariantDraw variantDraw, float leafCutout) {
+    public static OpaquePass create(Gpu gpu, DepthConvention depth, VariantDraw variantDraw) {
         gpu.assertRenderThread();
         Capabilities capabilities = gpu.capabilities();
         return new OpaquePass(gpu,
                 gpu.pipeline(target(FarQuads.solidPipeline(SOLID_PIPELINE, capabilities, variantDraw), depth)),
-                gpu.pipeline(target(FarQuads.pipeline(PIPELINE, leafCutout, capabilities, variantDraw)
+                gpu.pipeline(target(FarQuads.pipeline(PIPELINE, capabilities, variantDraw)
                         .withDefine("NEAR_SECTIONS"), depth)),
                 gpu.pipeline(FarQuads.solidPipeline(OCCLUDER_PIPELINE, capabilities, variantDraw)
                         .withDefine("DEPTH_ONLY")

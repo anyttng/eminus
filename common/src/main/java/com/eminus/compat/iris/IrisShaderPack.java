@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
+import com.eminus.client.render.far.AlphaCuts;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.settings.Settings;
 import com.eminus.settings.SettingsService;
@@ -72,6 +73,10 @@ public final class IrisShaderPack {
 
     public static IntSet movedIds() {
         return IRIS_PRESENT && lodAnimations() ? PackLayer.movedIds() : IntSet.of();
+    }
+
+    public static AlphaCuts overFrameCuts() {
+        return IRIS_PRESENT ? PackLayer.overFrameCuts() : AlphaCuts.OWN;
     }
 
     public static boolean packPathReady(FarRenderer renderer) {

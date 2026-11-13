@@ -3,7 +3,6 @@ package com.eminus.client.render.far;
 import java.util.Objects;
 
 import com.eminus.Eminus;
-import com.eminus.client.frame.GameFrames;
 import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.client.handoff.NearSectionTable;
 import com.eminus.client.model.ClientBakery;
@@ -42,7 +41,7 @@ public record FarStart(@Nullable FarRenderer renderer, @Nullable String refusal)
         ClientBakery baking = ClientBakery.start(client, packBlocks);
         NearMaskPass mask = NearMaskPass.create(gpu, FarTarget.COLOR_FORMAT, support.depth(),
                 CompositePass.DEPTH_BIAS);
-        OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw(), GameFrames.leafCutout());
+        OpaquePass opaque = OpaquePass.create(gpu, support.depth(), baking.variantDraw());
         TranslucentPass translucent = TranslucentPass.create(gpu, support.depth(), baking.variantDraw());
         CompositePass composite = CompositePass.create(gpu, support.depth());
         FarOverlays overlays = FarOverlays.create(gpu, support.depth());
