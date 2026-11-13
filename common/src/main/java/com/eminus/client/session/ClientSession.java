@@ -21,6 +21,7 @@ import com.eminus.client.frame.GameFrame;
 import com.eminus.client.frame.GameFrames;
 import com.eminus.client.gpu.Gpus;
 import com.eminus.client.model.ClientBakery;
+import com.eminus.client.render.far.AlphaCuts;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.client.render.far.FarStart;
 import com.eminus.gpu.Gpu;
@@ -212,6 +213,9 @@ public final class ClientSession {
         boolean inUse = irisInUse || VitrailShaderPack.inUse();
         boolean inside = irisInUse && renderer != null && IrisShaderPack.packPathReady(renderer);
         boolean dhPrograms = inside && IrisShaderPack.throughDhPrograms();
+        if (renderer != null) {
+            renderer.cutWith(irisInUse && !inside ? IrisShaderPack.overFrameCuts() : AlphaCuts.OWN);
+        }
         if (inUse != overShaderPack || inside != inShaderPack || dhPrograms != throughDhPrograms) {
             overShaderPack = inUse;
             inShaderPack = inside;

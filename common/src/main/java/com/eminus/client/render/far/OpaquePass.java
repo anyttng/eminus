@@ -54,7 +54,7 @@ public final class OpaquePass implements AutoCloseable {
         Capabilities capabilities = gpu.capabilities();
         return new OpaquePass(gpu,
                 gpu.pipeline(target(FarQuads.solidPipeline(SOLID_PIPELINE, capabilities, variantDraw), depth)),
-                gpu.pipeline(target(FarQuads.pipeline(PIPELINE, ALPHA_CUTOUT, capabilities, variantDraw)
+                gpu.pipeline(target(FarQuads.pipeline(PIPELINE, capabilities, variantDraw)
                         .withDefine("NEAR_SECTIONS"), depth)),
                 gpu.pipeline(FarQuads.solidPipeline(OCCLUDER_PIPELINE, capabilities, variantDraw)
                         .withDefine("DEPTH_ONLY")

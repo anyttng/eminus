@@ -42,6 +42,13 @@ public final class FarFrame implements AutoCloseable {
     private static final Std140.Member ANISOTROPY = BLOCK.add(Std140.Type.INT, "EminusAnisotropy");
     private static final Std140.Member PIXEL_X = BLOCK.add(Std140.Type.FLOAT, "EminusPixelX");
     private static final Std140.Member PIXEL_Y = BLOCK.add(Std140.Type.FLOAT, "EminusPixelY");
+    private static final Std140.Member OPAQUE_ALPHA_COMPARE = BLOCK.add(Std140.Type.INT, "EminusOpaqueAlphaCompare");
+    private static final Std140.Member OPAQUE_ALPHA_REFERENCE =
+            BLOCK.add(Std140.Type.FLOAT, "EminusOpaqueAlphaReference");
+    private static final Std140.Member TRANSLUCENT_ALPHA_COMPARE =
+            BLOCK.add(Std140.Type.INT, "EminusTranslucentAlphaCompare");
+    private static final Std140.Member TRANSLUCENT_ALPHA_REFERENCE =
+            BLOCK.add(Std140.Type.FLOAT, "EminusTranslucentAlphaReference");
     private static final int SIZE = BLOCK.size();
     private static final float NDC_SPAN = 2.0F;
 
@@ -70,7 +77,7 @@ public final class FarFrame implements AutoCloseable {
 
     public void write(Matrix4fc viewProjection, Matrix4fc view, int minBlockY, ModelAtlas atlas, NearSections near,
             FaceShade shade, boolean smoothLighting, boolean rgss, int anisotropy, CameraOrigin camera,
-            int targetWidth, int targetHeight) {
+            int targetWidth, int targetHeight, AlphaCuts cuts) {
         gpu.assertRenderThread();
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -97,6 +104,10 @@ public final class FarFrame implements AutoCloseable {
                     .putInt(ANISOTROPY, anisotropy)
                     .putFloat(PIXEL_X, pixel(targetWidth))
                     .putFloat(PIXEL_Y, pixel(targetHeight))
+                    .putInt(OPAQUE_ALPHA_COMPARE, cuts.opaque().code())
+                    .putFloat(OPAQUE_ALPHA_REFERENCE, cuts.opaque().reference())
+                    .putInt(TRANSLUCENT_ALPHA_COMPARE, cuts.translucent().code())
+                    .putFloat(TRANSLUCENT_ALPHA_REFERENCE, cuts.translucent().reference())
                     .get();
             gpu.write(buffer, START_OF_BUFFER, written);
         }
