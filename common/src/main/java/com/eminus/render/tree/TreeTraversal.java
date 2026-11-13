@@ -21,6 +21,9 @@ import org.jspecify.annotations.Nullable;
 final class TreeTraversal {
     private static final Comparator<Candidate> LARGEST_FIRST =
             (first, second) -> Float.compare(second.size(), first.size());
+    private static final Comparator<Candidate> NEAREST_COLUMN_FIRST =
+            ((Comparator<Candidate>) (first, second) -> Float.compare(second.columnSize(), first.columnSize()))
+                    .thenComparing(LARGEST_FIRST);
     private static final Comparator<Candidate> CENTER_FIRST =
             Comparator.comparingDouble(Candidate::angle).thenComparing(LARGEST_FIRST);
     private static final float SCREEN_CENTER = 0.5F;
@@ -61,7 +64,7 @@ final class TreeTraversal {
     private int hiddenUnder;
     private int hiddenUnderOutOfView;
 
-    private record Candidate(TreeNode node, float size, float angle) {
+    private record Candidate(TreeNode node, float size, float angle, float columnSize) {
     }
 
     TreeTraversal(NodeTable nodes, TreeExtent extent, TreeHorizon horizon) {
@@ -247,9 +250,10 @@ final class TreeTraversal {
 
         float size = ProjectedSize.of(box, camera.inViewPixelsPerBlock());
         float angle = camera.zoomed() && size != ProjectedSize.CONTAINS_CAMERA ? (float) box.angleFrom(axis) : 0.0F;
+        float columnSize = ProjectedSize.ofColumn(box, camera.inViewPixelsPerBlock());
         if (refines(node, size, camera)) {
             if (node.missingOctants() != OccupancyMask.EMPTY) {
-                candidates.add(new Candidate(node, size, angle));
+                candidates.add(new Candidate(node, size, angle, columnSize));
             }
 
             keepChildren(node, walk);
@@ -262,7 +266,7 @@ final class TreeTraversal {
             }
         } else if (prefetches(node, size, camera, farBlocks)) {
             if (node.missingOctants() != OccupancyMask.EMPTY) {
-                candidates.add(new Candidate(node, size, angle));
+                candidates.add(new Candidate(node, size, angle, columnSize));
             }
 
             keepChildren(node, walk);
@@ -365,7 +369,7 @@ final class TreeTraversal {
         }
 
         if (node.missingOctants() != OccupancyMask.EMPTY) {
-            candidates.add(new Candidate(node, size, 0.0F));
+            candidates.add(new Candidate(node, size, 0.0F, size));
         }
 
         for (int octant = 0; octant < OccupancyMask.OCTANTS; octant++) {
@@ -378,7 +382,7 @@ final class TreeTraversal {
 
     private int hand(List<Candidate> from, int budget, List<TreeNode> into, FloatArrayList sizes, CameraFrame camera,
             float pixelsPerBlock, boolean centerFirst) {
-        from.sort(centerFirst ? CENTER_FIRST : LARGEST_FIRST);
+        from.sort(centerFirst ? CENTER_FIRST : NEAREST_COLUMN_FIRST);
         int left = budget;
 
         for (Candidate candidate : from) {

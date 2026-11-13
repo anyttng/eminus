@@ -10,7 +10,14 @@ final class ProjectedSize {
     private static final double OFF_AXIS_FLOOR_RADIANS = 1.0e-4;
 
     static float of(CellBox box, float pixelsPerBlock) {
-        double distance = box.distance();
+        return over(box, box.distance(), pixelsPerBlock);
+    }
+
+    static float ofColumn(CellBox box, float pixelsPerBlock) {
+        return over(box, box.horizontalDistance(), pixelsPerBlock);
+    }
+
+    private static float over(CellBox box, double distance, float pixelsPerBlock) {
         if (distance < INSIDE_DISTANCE) {
             return CONTAINS_CAMERA;
         }
