@@ -9,6 +9,7 @@ public interface MeshModels {
     int NO_FLUID = ModelBakery.NO_FLUID;
     int AIR = -3;
     int POSITIONAL = ModelBakery.POSITIONAL;
+    int NO_OVERLAY = ModelBakery.NO_OVERLAY;
 
     int modelId(int stateId, Runnable whenBaked);
 
@@ -21,6 +22,8 @@ public interface MeshModels {
     int opaqueModelId(int modelId);
 
     int[] pieceIds(int modelId);
+
+    int overlayModelId(int modelId);
 
     int oneSidedModelId(int modelId);
 

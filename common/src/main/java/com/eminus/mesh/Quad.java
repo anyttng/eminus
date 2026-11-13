@@ -48,6 +48,10 @@ public final class Quad {
                 | (((height - 1) & SIDE_MASK) << HEIGHT_SHIFT);
     }
 
+    public static long withModelId(long quad, int modelId) {
+        return (quad & ~(MODEL_MASK << MODEL_SHIFT)) | ((modelId & MODEL_MASK) << MODEL_SHIFT);
+    }
+
     public static int bladeFace(int blade) {
         return FIRST_BLADE_FACE + blade;
     }

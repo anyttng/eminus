@@ -390,6 +390,53 @@ class ModelBakeryTest {
     }
 
     @Test
+    void aModelWithAnOverlayAnswersItsLayerAndAModelWithoutAnswersNone() throws InterruptedException {
+        BakedModel layer = sideLayer(GREEN);
+        ModelBakery bakery = ModelBakery.start(state -> new BakedState(state.equals(stone)
+                ? BakedModel.solid(WHITE).withOverlay(layer) : BakedModel.solid(WHITE), null));
+
+        try {
+            awaitBake(bakery, stone);
+            awaitBake(bakery, dirt);
+
+            int overlayId = bakery.overlayModelId(bakery.modelId(stone));
+            assertNotEquals(ModelBakery.NO_OVERLAY, overlayId);
+            assertEquals(layer, bakery.model(overlayId));
+            assertTrue(bakery.model(overlayId).layer());
+            assertEquals(ModelBakery.NO_OVERLAY, bakery.overlayModelId(bakery.modelId(dirt)));
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void aWeightedStateWithAnOverlayPicksItsLayerByTheSameWeights() throws InterruptedException {
+        BakedModel layer = sideLayer(GREEN);
+        BakedModel bare = BakedModel.solid(BLUE);
+        ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null, null,
+                List.of(new WeightedModel(BakedModel.solid(WHITE).withOverlay(layer), LIGHT_WEIGHT),
+                        new WeightedModel(bare, HEAVY_WEIGHT)),
+                false));
+
+        try {
+            awaitBake(bakery, stone);
+
+            int overlayId = bakery.overlayModelId(bakery.modelId(stone));
+            BakedModel overlay = bakery.model(overlayId);
+            int[] table = overlay.variants();
+            assertTrue(overlay.layer());
+            assertEquals(ModelMetadata.present(layer.metadata()), ModelMetadata.present(overlay.metadata()));
+            assertEquals(FaceMask.NONE, overlay.solidFaces());
+            assertEquals(LIGHT_WEIGHT, table[0]);
+            assertEquals(layer, bakery.model(table[1]));
+            assertEquals(LIGHT_WEIGHT + HEAVY_WEIGHT, table[2]);
+            assertEquals(BakedModel.emptyLayer(bare), bakery.model(table[3]));
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
     void aWeightedStateIsSolidOnlyOnTheFacesEveryVariantHoldsSolid() throws InterruptedException {
         ModelBakery bakery = ModelBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null, null,
                 List.of(new WeightedModel(BakedModel.solid(BLUE), LIGHT_WEIGHT),
@@ -541,6 +588,11 @@ class ModelBakeryTest {
         public @Nullable BakedModel bakeOpaqueTwinParts(BlockState state, List<Object> picked) {
             return twinned ? BakedModel.solid(BLUE) : null;
         }
+    }
+
+    private static BakedModel sideLayer(int argb) {
+        BakedModel solid = BakedModel.solid(argb);
+        return solid.withMetadata(ModelMetadata.pack(FaceMask.NORTH, FaceMask.NONE, FaceMask.NONE, 0, 0)).asLayer();
     }
 
     private static boolean moved(ModelBakery bakery, int modelId) {

@@ -18,6 +18,7 @@ public final class ModelRecords implements AutoCloseable {
     public static final int TEXELS = 8;
     public static final int PACK_ID_TEXEL = 7;
     public static final int SHADES_TEXEL = PACK_ID_TEXEL;
+    public static final int LAYER_TEXEL = PACK_ID_TEXEL;
     public static final int BYTES = TEXELS * 4 * Float.BYTES;
     public static final Format TEXEL_FORMAT = Format.RGBA32_FLOAT;
 
@@ -70,7 +71,8 @@ public final class ModelRecords implements AutoCloseable {
             scratch.putFloat(slope);
         }
         scratch.putFloat(model.packId())
-                .putFloat(model.shades());
+                .putFloat(model.shades())
+                .putFloat(model.layer() ? 1.0F : 0.0F);
         while (scratch.hasRemaining()) {
             scratch.putFloat(0.0F);
         }

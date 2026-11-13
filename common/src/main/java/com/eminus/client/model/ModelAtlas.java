@@ -12,7 +12,6 @@ import com.eminus.gpu.texture.Texture;
 import com.eminus.gpu.texture.TextureUsage;
 import com.eminus.model.BakedModel;
 import com.eminus.model.FaceMips;
-import com.eminus.model.FaceOverlays;
 import com.eminus.model.Mips;
 import com.eminus.model.ModelMetadata;
 import com.eminus.model.ModelSource;
@@ -167,32 +166,9 @@ public final class ModelAtlas implements AutoCloseable {
     private void writeFace(BakedModel model, int index, int slot) {
         copyFace(model, index);
         boolean opaque = ModelMetadata.has(model.metadata(), ModelMetadata.OPAQUE);
-        FaceOverlays overlays = model.overlays();
-        if (overlays.layered(index)) {
-            writeLayered(model, index, slot, opaque, overlays);
-            return;
-        }
-
         int[][] colorLevels = FaceMips.colorLevels(faceColor, BakedModel.FACE_SIDE, model.mips()[index], opaque);
         int[][] tintLevels = Mips.maskChain(faceTint, BakedModel.FACE_SIDE);
         writeLevels(colorLevels, tintLevels, slot);
-    }
-
-    private void writeLayered(BakedModel model, int index, int slot, boolean opaque, FaceOverlays overlays) {
-        int[] base = faceColor.clone();
-        int[] overlay = new int[BakedModel.FACE_TEXELS];
-        for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
-            int below = overlays.under(index, texel);
-            if (below != 0) {
-                base[texel] = below;
-                overlay[texel] = faceColor[texel];
-                faceTint[texel] &= ALPHA_MASK;
-            }
-        }
-
-        FaceMips.Layered levels = FaceMips.layeredLevels(base, faceTint, overlay, BakedModel.FACE_SIDE,
-                model.mips()[index], overlays.mip(index), opaque);
-        writeLevels(levels.color(), levels.tint(), slot);
     }
 
     private void copyFace(BakedModel model, int index) {

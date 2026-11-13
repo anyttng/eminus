@@ -135,7 +135,9 @@ void eminus_vertex() {
 #endif
 
 #ifdef DH_PROGRAM
-    eminus_culled = vertex.culled;
+    bool layer = texelFetch(EminusModelRecords, vertex.modelId * MODEL_TEXELS + LAYER_TEXEL).z > 0.0;
+    eminus_culled = vertex.culled
+            || (layer && texelFetch(EminusAtlas, vertex.atlasCell, EminusAtlasMeanLevel).a < LAYER_KEPT_ALPHA);
     _vert_position = vertex.position;
     _vert_normal = normal;
     _vert_tex_light_coord = lmcoord;

@@ -27,6 +27,7 @@ public final class ModelBakery implements ModelSource {
     public static final int MISSING = Dictionary.MISSING;
     public static final int NO_FLUID = -2;
     public static final int POSITIONAL = -4;
+    public static final int NO_OVERLAY = -5;
     public static final int PLACEHOLDER_COLOR = 0xFFFF_00FF;
 
     private static final int THREAD_PRIORITY = Thread.NORM_PRIORITY - 1;
@@ -52,6 +53,7 @@ public final class ModelBakery implements ModelSource {
     private final Map<Request, Integer> idByParts = new ConcurrentHashMap<>();
     private final IdTable submergedIds = new IdTable(0, MISSING);
     private final IdTable opaqueIds = new IdTable(0, MISSING);
+    private final IdTable overlayIds = new IdTable(0, NO_OVERLAY);
     private final Map<Integer, Integer> oneSidedIds = new ConcurrentHashMap<>();
     private final Map<Long, Integer> inwardIds = new ConcurrentHashMap<>();
     private final Map<Integer, int[]> piecesByModel = new ConcurrentHashMap<>();
@@ -112,6 +114,10 @@ public final class ModelBakery implements ModelSource {
     public int[] pieceIds(int modelId) {
         int[] ids = piecesByModel.get(modelId);
         return ids == null ? NO_PIECES : ids;
+    }
+
+    public int overlayModelId(int modelId) {
+        return overlayIds.get(modelId);
     }
 
     public int oneSidedModelId(int modelId) {
@@ -303,24 +309,48 @@ public final class ModelBakery implements ModelSource {
             piecesByModel.put(modelId, ids);
         }
 
+        BakedModel overlay = model.overlay();
+        if (overlay != null && overlayIds.get(modelId) == NO_OVERLAY) {
+            overlayIds.put(modelId, models.register(stamped(overlay, packId)));
+        }
+
         return modelId;
     }
 
     private int registerVariants(BakedState baked, int packId) {
         List<WeightedModel> variants = baked.variants();
         int[] table = new int[variants.size() * BakedModel.VARIANT_WORDS];
+        int[] overlayTable = new int[table.length];
         int upperBound = 0;
         int solid = FaceMask.ALL;
+        int layered = FaceMask.NONE;
 
         for (int entry = 0; entry < variants.size(); entry++) {
             WeightedModel variant = variants.get(entry);
+            BakedModel model = variant.model();
+            BakedModel overlay = model.overlay();
             upperBound += variant.weight();
-            solid &= variant.model().solidFaces();
+            solid &= model.solidFaces();
             table[entry * BakedModel.VARIANT_WORDS] = upperBound;
-            table[entry * BakedModel.VARIANT_WORDS + 1] = models.register(stamped(variant.model(), packId));
+            table[entry * BakedModel.VARIANT_WORDS + 1] = models.register(stamped(model, packId));
+            overlayTable[entry * BakedModel.VARIANT_WORDS] = upperBound;
+            overlayTable[entry * BakedModel.VARIANT_WORDS + 1] = models.register(stamped(
+                    overlay == null ? BakedModel.emptyLayer(model) : overlay, packId));
+            layered |= overlay == null ? FaceMask.NONE : ModelMetadata.present(overlay.metadata());
         }
 
-        return models.register(stamped(variants.getFirst().model().withVariants(table, solid), packId));
+        BakedModel first = variants.getFirst().model();
+        int weightedId = models.register(stamped(first.withVariants(table, solid), packId));
+        if (layered != FaceMask.NONE && overlayIds.get(weightedId) == NO_OVERLAY) {
+            BakedModel overlay = first.overlay() == null ? BakedModel.emptyLayer(first) : first.overlay();
+            int metadata = overlay.metadata();
+            int word = ModelMetadata.pack(layered, FaceMask.NONE, FaceMask.NONE, ModelMetadata.emission(metadata),
+                    metadata & ModelMetadata.FLAGS);
+            overlayIds.put(weightedId, models.register(stamped(
+                    overlay.withMetadata(word).withVariants(overlayTable, FaceMask.NONE), packId)));
+        }
+
+        return weightedId;
     }
 
     private BakedModel stamped(BakedModel model, int packId) {
