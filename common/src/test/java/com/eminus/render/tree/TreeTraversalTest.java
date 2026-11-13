@@ -37,6 +37,7 @@ class TreeTraversalTest {
     private static final int LOWEST_IS_TOP = DetailLevel.MAX;
     private static final int TINY_TABLE = 1;
     private static final int NEXT_CELL = 1;
+    private static final int EYE_CELL_Y = 2;
     private static final int EAST_OCTANTS = 0b1010;
     private static final int NO_OUT_OF_VIEW = 0;
     private static final double PAST_THE_EDGE = 32.0;
@@ -251,6 +252,23 @@ class TreeTraversalTest {
         }
 
         assertTrue(traversal.starved());
+    }
+
+    @Test
+    void theBudgetGoesToTheColumnUnderTheCameraBeforeANodeLargerOnScreenBesideIt() {
+        TreeNode beside = meshedRoot(CellKey.pack(DetailLevel.MAX, NEXT_CELL, EYE_CELL_Y, 0), ALL_OCTANTS);
+        TreeNode deep = meshedRoot(rootKey, ALL_OCTANTS);
+        CameraFrame above = FakeCameras.everything(INSIDE, EYE_CELL_Y * CELL + INSIDE, INSIDE, FAR_CELLS,
+                FakeCameras.CLOSE_PIXELS_PER_BLOCK);
+
+        traversal.walk(nodes.roots(), above, OccupancyMask.OCTANTS, NO_OUT_OF_VIEW, WALK);
+
+        assertEquals(OccupancyMask.OCTANTS, traversal.requested().size());
+        for (TreeNode requested : traversal.requested()) {
+            assertSame(deep, requested.parent());
+        }
+
+        assertFalse(beside.missingOctants() == OccupancyMask.EMPTY);
     }
 
     @Test
