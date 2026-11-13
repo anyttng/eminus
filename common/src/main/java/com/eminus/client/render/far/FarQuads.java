@@ -51,25 +51,24 @@ final class FarQuads {
     private static final String OPAQUE_DEPTH = "EminusOpaqueDepth";
     private static final String NEXT_LONG_MODULO = "VARIANT_NEXT_LONG_MODULO";
 
-    static PipelineSpec.Builder pipeline(Location location, float alphaCutout, Capabilities capabilities,
-            VariantDraw variantDraw) {
-        return pipeline(location, SHADER, alphaCutout, capabilities, variantDraw, true)
+    static PipelineSpec.Builder pipeline(Location location, Capabilities capabilities, VariantDraw variantDraw) {
+        return pipeline(location, SHADER, capabilities, variantDraw, true)
                 .withBinding(Binding.sampled(LIGHTMAP));
     }
 
     static PipelineSpec.Builder pipeline(Location location, Location shader, float alphaCutout,
             Capabilities capabilities, VariantDraw variantDraw) {
-        return pipeline(location, shader, alphaCutout, capabilities, variantDraw, true);
+        return pipeline(location, shader, capabilities, variantDraw, true).withDefine("ALPHA_CUTOUT", alphaCutout);
     }
 
     static PipelineSpec.Builder solidPipeline(Location location, Capabilities capabilities, VariantDraw variantDraw) {
-        return pipeline(location, SHADER, OpaquePass.ALPHA_CUTOUT, capabilities, variantDraw, false)
+        return pipeline(location, SHADER, capabilities, variantDraw, false)
                 .withBinding(Binding.sampled(LIGHTMAP))
                 .withDefine("SOLID");
     }
 
-    private static PipelineSpec.Builder pipeline(Location location, Location shader, float alphaCutout,
-            Capabilities capabilities, VariantDraw variantDraw, boolean nearSections) {
+    private static PipelineSpec.Builder pipeline(Location location, Location shader, Capabilities capabilities,
+            VariantDraw variantDraw, boolean nearSections) {
         PipelineSpec.Builder builder = PipelineSpec.builder(location, shader, shader)
                 .withBinding(Binding.uniform(FarFrame.BLOCK.name()))
                 .withBinding(Binding.texel(QUADS, GeometryArena.QUAD_FORMAT))
@@ -98,7 +97,6 @@ final class FarQuads {
                 .withDefine("MAX_EMISSION", ModelMetadata.MAX_EMISSION)
                 .withDefine("CORNER_STEPS", FluidCorners.STEPS)
                 .withDefine("MAX_VARIANT_REJECTIONS", BakedModel.MAX_VARIANT_REJECTIONS)
-                .withDefine("ALPHA_CUTOUT", alphaCutout)
                 .withDefine("SHADE_BITS", BakedModel.SHADE_BITS)
                 .withDefine("MAX_SAMPLES", MAX_SAMPLES)
                 .withDefine("NEAR_SECTION_BLOCKS", NearSections.SECTION_BLOCKS)
@@ -109,6 +107,7 @@ final class FarQuads {
                 .withDefine("SHADES_TEXEL", ModelRecords.SHADES_TEXEL)
                 .withDefine("LAYER_TEXEL", ModelRecords.LAYER_TEXEL)
                 .withDefine("LAYER_KEPT_ALPHA", OpaquePass.ALPHA_CUTOUT);
+        AlphaCut.compares(builder);
         cellKeyLayout(builder);
         quadLayout(builder);
         placementLayout(builder);

@@ -107,6 +107,7 @@ public final class FarRenderer implements AutoCloseable {
     private RenderList renderList = RenderList.EMPTY;
     private @Nullable TreeBatch uploading;
     private @Nullable GameFrame game;
+    private AlphaCuts cuts = AlphaCuts.OWN;
     private int uploaded;
     private long frames;
     private boolean framePending = true;
@@ -291,6 +292,10 @@ public final class FarRenderer implements AutoCloseable {
         framePending = true;
     }
 
+    public void cutWith(AlphaCuts drawn) {
+        cuts = drawn;
+    }
+
     private void drawMask() {
         mask.draw(target.depth(), target.color(), gpu.mainDepth(), farViewProjection, gameViewProjection);
     }
@@ -408,7 +413,7 @@ public final class FarRenderer implements AutoCloseable {
         frame.write(farViewProjection, game.viewRotation(), runtime.frame().minBlockY(),
                 models.atlas(), nearSections.sections(), game.shade(), game.smoothLighting(), game.rgss(),
                 game.anisotropy(), CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()), target.width(),
-                target.height());
+                target.height(), cuts);
         draw.frame(indirect.buffer(), commands.opaqueCount(), commands.translucentCount(), gpu.lightmap(),
                 FarQuads.atlasSampler(game.terrainFilter()), farProjection, game.viewRotation(),
                 FarDistance.cellsToBlocks(settings.farRenderCells()));

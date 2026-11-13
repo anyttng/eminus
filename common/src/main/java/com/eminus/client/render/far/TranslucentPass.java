@@ -127,7 +127,8 @@ public final class TranslucentPass {
 
     private static PipelineSpec.Builder pipeline(Location location, DepthConvention depth, Capabilities capabilities,
             VariantDraw variantDraw) {
-        return depth.define(FarQuads.pipeline(location, ALPHA_CUTOUT, capabilities, variantDraw)
-                .withDefine("NEAR_SECTIONS"));
+        return depth.define(FarQuads.pipeline(location, capabilities, variantDraw)
+                .withDefine("NEAR_SECTIONS")
+                .withDefine("TRANSLUCENT_PASS"));
     }
 }
