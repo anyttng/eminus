@@ -109,7 +109,9 @@ final class FarQuads {
                 .withDefine("MODEL_TEXELS", ModelRecords.TEXELS)
                 .withDefine("PACK_ID_TEXEL", ModelRecords.PACK_ID_TEXEL)
                 .withDefine("SHADES_TEXEL", ModelRecords.SHADES_TEXEL)
-                .withDefine("UNMIPPED_TEXEL", ModelRecords.UNMIPPED_TEXEL);
+                .withDefine("UNMIPPED_TEXEL", ModelRecords.UNMIPPED_TEXEL)
+                .withDefine("LAYER_TEXEL", ModelRecords.LAYER_TEXEL)
+                .withDefine("LAYER_KEPT_ALPHA", OpaquePass.ALPHA_CUTOUT);
         cellKeyLayout(builder);
         quadLayout(builder);
         placementLayout(builder);

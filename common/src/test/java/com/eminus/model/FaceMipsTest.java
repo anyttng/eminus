@@ -84,22 +84,4 @@ class FaceMipsTest {
         assertArrayEquals(new int[] {WHITE, WHITE, WHITE, WHITE}, levels[0]);
         assertArrayEquals(new int[] {Argb.opaque(DRAWN_HALF_GRAY)}, levels[1]);
     }
-
-    @Test
-    void aLayeredFaceKeepsItsOverlayWholeOrDropsItAtEveryLevel() {
-        int side = 4;
-        int[] base = new int[side * side];
-        Arrays.fill(base, BLACK);
-        int[] overlay = new int[side * side];
-        Arrays.fill(overlay, 0, 2 * side, WHITE);
-        int[] untinted = new int[side * side];
-        Arrays.fill(untinted, BLACK);
-
-        FaceMips.Layered levels = FaceMips.layeredLevels(base, untinted, overlay, side, MEAN, CUTOUT, true, VANILLA);
-
-        assertArrayEquals(new int[] {WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE,
-            BLACK, BLACK, BLACK, BLACK, BLACK, BLACK, BLACK, BLACK}, levels.color()[0]);
-        assertArrayEquals(new int[] {WHITE, WHITE, BLACK, BLACK}, levels.color()[1]);
-        assertArrayEquals(new int[] {WHITE, WHITE, BLACK, BLACK}, levels.tint()[1]);
-    }
 }
