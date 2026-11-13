@@ -21,6 +21,7 @@ struct EminusQuadVertex {
     vec2 occlusionPoint;
     vec2 occlusionSize;
     float occlusionInner;
+    vec3 bladeNormal;
 };
 
 const int EMINUS_CORNERS_PER_QUAD = 4;
@@ -446,7 +447,9 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
         vec2 span = vec2(boundsMax.x - boundsMin.x, boundsMax.z - boundsMin.z);
         vec3 painted = vec3(span.y, 0.0, face == FIRST_BLADE_FACE ? -span.x : span.x);
         vertex.faceUV = vec2(dot(vertex.position, painted) > 0.0 ? 1.0 - extent.x : extent.x, extent.y);
+        vertex.bladeNormal = normalize(painted);
     } else {
+        vertex.bladeNormal = vec3(0.0);
         vertex.faceUV = vec2(face == 2 || face == 5 ? float(width) - extent.x : extent.x,
                              face == 1 ? float(height) - extent.y : extent.y);
     }
