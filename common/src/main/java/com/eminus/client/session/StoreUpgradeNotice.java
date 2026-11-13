@@ -27,7 +27,7 @@ final class StoreUpgradeNotice {
         }
 
         pending = false;
-        minecraft.gui.hud.getChat().addClientSystemMessage(Component.translatable(MESSAGE_KEY));
+        minecraft.gui.hud.getChat().addClientSystemMessage(ChatPrefix.prefixed(Component.translatable(MESSAGE_KEY)));
     }
 
     static void forget() {
