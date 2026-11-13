@@ -4,8 +4,6 @@ import com.eminus.model.port.MipStrategy;
 
 public final class FaceMips {
     private static final int ALPHA_MASK = 0xFF00_0000;
-    private static final int RGB_MASK = 0x00FF_FFFF;
-    private static final float KEPT_OVERLAY_ALPHA = 0.5F;
     private static final int RED_SHIFT = 16;
     private static final int GREEN_SHIFT = 8;
     private static final int CHANNEL_MASK = 0xFF;
@@ -20,32 +18,6 @@ public final class FaceMips {
     private static final int SCALE_STEPS = 5;
     private static final float MAX_ALPHA_SCALE = 4.0F;
     private static final float ALPHA_LIFT = 0.025F;
-
-    @SuppressWarnings("ArrayRecordComponent")
-    public record Layered(int[][] color, int[][] tint) {
-    }
-
-    public static Layered layeredLevels(int[] base, int[] baseTint, int[] overlay, int side, FaceMip baseMip,
-            FaceMip overlayMip, boolean opaque) {
-        int[][] baseLevels = colorLevels(base.clone(), side, baseMip, opaque);
-        int[][] overlayLevels = colorLevels(overlay.clone(), side, overlayMip, false);
-        int[][] tintLevels = Mips.maskChain(baseTint.clone(), side);
-        int[][] color = new int[baseLevels.length][];
-        int[][] tint = new int[baseLevels.length][];
-        for (int level = 0; level < baseLevels.length; level++) {
-            color[level] = baseLevels[level].clone();
-            tint[level] = tintLevels[level].clone();
-            for (int texel = 0; texel < color[level].length; texel++) {
-                int painted = overlayLevels[level][texel];
-                if (Argb.alphaFloat(painted) >= KEPT_OVERLAY_ALPHA) {
-                    color[level][texel] = (color[level][texel] & ALPHA_MASK) | (painted & RGB_MASK);
-                    tint[level][texel] = (tint[level][texel] & ALPHA_MASK) | RGB_MASK;
-                }
-            }
-        }
-
-        return new Layered(color, tint);
-    }
 
     public static int[][] colorLevels(int[] face, int side, FaceMip mip, boolean opaque) {
         // A face is stored bottom-up; the game's float sums run over the sprite's rows top-down.

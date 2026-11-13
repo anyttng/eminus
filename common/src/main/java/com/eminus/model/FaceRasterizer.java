@@ -3,7 +3,6 @@ package com.eminus.model;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.IntFunction;
 
 import com.eminus.cell.FaceMask;
@@ -323,12 +322,47 @@ public final class FaceRasterizer {
             tintRow = tint.row();
         }
 
-        int metadata = ModelMetadata.pack(present, occluding, occludable, emission(quads),
-                flags(quads, tintRow) | extraFlags | (forceOpaque ? ModelMetadata.OPAQUE : 0));
+        int emission = emission(quads);
+        int flags = flags(quads, tintRow) | extraFlags | (forceOpaque ? ModelMetadata.OPAQUE : 0);
+        BakedModel overlay = splitOverlay(faces, tintMask, insets, slopes, bounds, emission, flags, tintRow);
+        int metadata = ModelMetadata.pack(present, occluding, occludable, emission, flags);
         BakedModel model = new BakedModel(faces, tintMask, insets, slopes, bounds, metadata, tintRow, mips.clone(),
                 BakedModel.packShades(shades));
-        return Arrays.stream(overlayMips).anyMatch(Objects::nonNull)
-                ? model.withOverlays(new FaceOverlays(under.clone(), overlayMips.clone())) : model;
+        return overlay == null ? model : model.withOverlay(overlay);
+    }
+
+    private @Nullable BakedModel splitOverlay(int[] faces, long[] tintMask, float[] insets, float[] slopes,
+            float[] bounds, int emission, int flags, int tintRow) {
+        int layered = FaceMask.NONE;
+        int[] overlayFaces = new int[faces.length];
+        long[] overlayTint = BakedModel.untintedMask();
+        FaceMip[] layerMips = mips.clone();
+
+        for (int face = 0; face < BakedModel.FACE_COUNT; face++) {
+            FaceMip mip = overlayMips[face];
+            if (mip == null) {
+                continue;
+            }
+
+            layered |= bit(face);
+            layerMips[face] = mip;
+            for (int index = face * BakedModel.FACE_TEXELS; index < (face + 1) * BakedModel.FACE_TEXELS; index++) {
+                if (under[index] != 0) {
+                    overlayFaces[index] = faces[index];
+                    BakedModel.mark(overlayTint, index, BakedModel.tinted(tintMask, index));
+                    faces[index] = under[index];
+                    BakedModel.mark(tintMask, index, false);
+                }
+            }
+        }
+
+        if (layered == FaceMask.NONE) {
+            return null;
+        }
+
+        int metadata = ModelMetadata.pack(layered, FaceMask.NONE, FaceMask.NONE, emission, flags);
+        return new BakedModel(overlayFaces, overlayTint, insets.clone(), slopes.clone(), bounds.clone(), metadata,
+                tintRow, layerMips, BakedModel.packShades(shades)).asLayer();
     }
 
     private void padPastBounds(int[] faces, long[] tintMask, float[] bounds) {

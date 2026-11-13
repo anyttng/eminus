@@ -89,6 +89,8 @@ class CellMesherTest {
     private static final int STEM_MODEL = 50;
     private static final int LAYERED_ICE = 51;
     private static final int ICE_MODEL = 52;
+    private static final int STONE_OVERLAY_MODEL = 53;
+    private static final int OVERLAID_ROW = 3;
     private static final int ICE_LEVEL = 2;
     private static final int ICE_BLOCKS = 1;
     private static final int FLAT_FACES = 2;
@@ -198,6 +200,40 @@ class CellMesherTest {
             assertEquals(STONE_MODEL, Quad.modelId(mesh.quad(mesh.groupStart(group))));
             assertEquals(GLASS_MODEL, Quad.modelId(mesh.quad(mesh.groupStart(group) + 1)));
         }
+    }
+
+    @Test
+    void aLayeredFaceMeshesIntoItsMergedBaseQuadAndAnOverlayQuadOfTheSameCornersAfterIt() {
+        defineBlocks();
+        models.solidFaces(STONE_MODEL, FaceMask.ALL);
+        int sides = FaceMask.NORTH | FaceMask.SOUTH | FaceMask.WEST | FaceMask.EAST;
+        models.overlay(STONE_MODEL, STONE_OVERLAY_MODEL,
+                ModelMetadata.pack(sides, FaceMask.NONE, FaceMask.NONE, 0, 0));
+        Cell cell = blank();
+        for (int x = 0; x < OVERLAID_ROW; x++) {
+            cell.set(10 + x, 10, 10, block(STONE));
+        }
+
+        CellMesh mesh = mesh(cell, airAround(), 0);
+
+        for (Direction direction : Direction.values()) {
+            int group = direction.get3DDataValue();
+            int start = mesh.groupStart(group);
+            boolean side = (sides & FaceMask.bit(direction)) != 0;
+            assertEquals(side ? 2 : 1, mesh.groupCount(group), direction.toString());
+            assertEquals(1, mesh.groupSolid(group), direction.toString());
+            assertEquals(STONE_MODEL, Quad.modelId(mesh.quad(start)), direction.toString());
+            if (side) {
+                long base = mesh.quad(start);
+                long overlay = mesh.quad(start + 1);
+                assertEquals(STONE_OVERLAY_MODEL, Quad.modelId(overlay), direction.toString());
+                assertEquals(base, Quad.withModelId(overlay, STONE_MODEL), direction.toString());
+                assertEquals(mesh.occlusion(start), mesh.occlusion(start + 1), direction.toString());
+            }
+        }
+
+        long north = mesh.quad(mesh.groupStart(Direction.NORTH.get3DDataValue()));
+        assertEquals(OVERLAID_ROW, Quad.width(north));
     }
 
     @Test
