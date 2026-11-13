@@ -62,3 +62,6 @@ config="eminus.compat.sodium.settings.mixins.json"
 
 [[mixins]]
 config="eminus.compat.iris.mixins.json"
+
+[[mixins]]
+config="eminus.compat.sable.mixins.json"

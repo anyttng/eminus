@@ -25,7 +25,8 @@
     "eminus.mixins.json",
     "eminus.compat.sodium.mixins.json",
     "eminus.compat.sodium.settings.mixins.json",
-    "eminus.compat.iris.mixins.json"
+    "eminus.compat.iris.mixins.json",
+    "eminus.compat.sable.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.20.1",

@@ -3,6 +3,7 @@ package com.eminus;
 import com.eminus.client.NeoForgeSessionHooks;
 import com.eminus.client.model.game.GameModels;
 import com.eminus.client.model.game.NeoForgeModels;
+import com.eminus.compat.sable.SablePlots;
 import com.eminus.platform.NeoForgePlatform;
 import com.eminus.platform.Platforms;
 import com.eminus.settings.SettingsService;
@@ -21,6 +22,7 @@ public class EminusNeoForge {
         Platforms.set(new NeoForgePlatform(modContainer));
         SettingsService.set(SettingsService.load(Platforms.get().configDir()));
         GameModels.useLoader(new NeoForgeModels());
+        SablePlots.register();
         modContainer.registerExtensionPoint(IConfigScreenFactory.class,
                 (container, modListScreen) -> new SettingsScreen(modListScreen));
         NeoForgeSessionHooks.register(NeoForge.EVENT_BUS);

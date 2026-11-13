@@ -1,0 +1,11 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.eminus.compat.sable.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "plugin": "com.eminus.compat.sable.SableMixinPlugin",
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

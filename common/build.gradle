@@ -71,6 +71,9 @@ dependencies {
     compileOnly("maven.modrinth:iris:${iris_version}") {
         transitive = false
     }
+    compileOnly("maven.modrinth:sable:${sable_version}") {
+        transitive = false
+    }
     compileOnly "com.uber.nullaway:nullaway-annotations:${nullaway_version}"
 }
 
@@ -91,9 +94,11 @@ dependencies {
     testCompileOnly "net.fabricmc:sponge-mixin:${mixin_version}"
     testCompileOnly "io.github.llamalad7:mixinextras-common:${mixinextras_version}"
     testCompileOnly "com.github.bawnorton.mixinsquared:mixinsquared-common:${mixinsquared_version}"
-    // CompatGatesTest checks both gates against the Sodium and Iris builds this module compiles against.
     testRuntimeOnly files(sodiumModJars).asFileTree.matching { include '*.jar' }
     testRuntimeOnly("maven.modrinth:iris:${iris_version}") {
+        transitive = false
+    }
+    testRuntimeOnly("maven.modrinth:sable:${sable_version}") {
         transitive = false
     }
     testImplementation platform("org.junit:junit-bom:${junit_version}")
