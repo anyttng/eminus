@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class PackContract {
-    public static final int VERSION = 8;
+    public static final int VERSION = 9;
     public static final String OPAQUE_FILE = "eminus_opaque.glsl";
     public static final String TRANSLUCENT_FILE = "eminus_translucent.glsl";
     public static final String SHADOW_FILE = "eminus_shadow.glsl";

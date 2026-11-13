@@ -1,5 +1,7 @@
 package com.eminus.compat.iris;
 
+import java.util.Optional;
+
 import com.eminus.client.render.far.AlphaCut;
 import com.eminus.client.render.far.OpaquePass;
 import com.eminus.client.render.far.TranslucentPass;
@@ -9,6 +11,7 @@ import net.irisshaders.iris.gl.blending.AlphaTestFunction;
 import net.irisshaders.iris.pipeline.programs.ShaderKey;
 import net.irisshaders.iris.shaderpack.programs.ProgramFallbackResolver;
 import net.irisshaders.iris.shaderpack.programs.ProgramSet;
+import net.irisshaders.iris.shaderpack.programs.ProgramSource;
 
 import org.jspecify.annotations.Nullable;
 
@@ -22,9 +25,11 @@ final class PackAlphaTest {
         }
 
         ShaderKey game = gameKey(kind);
-        AlphaTest test = new ProgramFallbackResolver(programSet).resolve(game.getProgram())
-                .flatMap(source -> source.getDirectives().getAlphaTestOverride())
-                .orElse(game.getAlphaTest());
+        Optional<ProgramSource> program = new ProgramFallbackResolver(programSet).resolve(game.getProgram());
+        boolean irisTests = program.flatMap(ProgramSource::getFragmentSource).map(IrisAlphaTestRule::applies)
+                .orElse(true);
+        AlphaTest test = irisTests ? program.flatMap(source -> source.getDirectives().getAlphaTestOverride())
+                .orElse(game.getAlphaTest()) : AlphaTest.ALWAYS;
         if (test.function() == AlphaTestFunction.ALWAYS) {
             return cutout == PackPath.Cutout.PACK ? null : ours;
         }

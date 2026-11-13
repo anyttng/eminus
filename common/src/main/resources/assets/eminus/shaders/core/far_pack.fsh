@@ -69,9 +69,9 @@ struct EminusFragment {
 
 #ifdef PACK_SHADOW_PROGRAM
 #moj_import <eminus:far_pack_inputs.glsl>
+#endif
 
 ivec2 eminus_cell;
-#endif
 
 #ifdef ALPHA_TEST
 bool eminus_alpha_kept(float alpha) {
@@ -120,9 +120,7 @@ EminusFragment eminus_fragment() {
                 eminus_cellOrigin + (voxel << eminus_variantInfo.w)) * MODEL_FACES + eminus_variantInfo.z;
         cell = ivec2(slot % EminusAtlasCells, slot / EminusAtlasCells);
     }
-#ifdef PACK_SHADOW_PROGRAM
     eminus_cell = cell;
-#endif
 
     vec4 color = eminus_surface(cell, eminus_faceUV, eminus_tint);
 #ifdef ALPHA_TEST
@@ -154,7 +152,12 @@ EminusFragment eminus_fragment() {
     fragment.glcolor = vec4(eminus_tint * occlusion, 1.0);
 #endif
 #endif
+#ifdef DH_PROGRAM
     fragment.normal = eminus_normal;
+#else
+    bool bladeBack = eminus_face >= FIRST_BLADE_FACE && dot(eminus_normal, eminus_viewPos) > 0.0;
+    fragment.normal = bladeBack ? -eminus_normal : eminus_normal;
+#endif
     fragment.face = eminus_face;
     fragment.viewPos = eminus_viewPos;
     fragment.playerPos = eminus_playerPos;
@@ -169,7 +172,6 @@ EminusFragment eminus_fragment() {
     return fragment;
 }
 
-#ifdef PACK_SHADOW_PROGRAM
 vec2 eminus_albedoUV(vec2 faceUV) {
     float margin = 0.5 / float(EminusAtlasCellSide);
     return (vec2(eminus_cell) + clamp(fract(faceUV), margin, 1.0 - margin)) / float(EminusAtlasCells);
@@ -180,6 +182,7 @@ vec4 eminus_albedoTinted(vec4 color, float mask) {
     return color;
 }
 
+#ifdef PACK_SHADOW_PROGRAM
 vec4 eminus_albedo(sampler2D packTexture, vec2 faceUV) {
     return eminus_surface(eminus_cell, faceUV, eminus_tint);
 }
@@ -187,6 +190,7 @@ vec4 eminus_albedo(sampler2D packTexture, vec2 faceUV) {
 vec4 eminus_albedo(sampler2D packTexture, vec2 faceUV, float bias) {
     return eminus_surface(eminus_cell, faceUV, eminus_tint);
 }
+#endif
 
 vec4 eminus_texelNearest(sampler2D source, vec2 uv, int level) {
     ivec2 size = textureSize(source, level);
@@ -211,6 +215,11 @@ vec4 eminus_albedoNearest(vec2 faceUV, float lod) {
             eminus_nearestMipped(EminusTintMask, uv, lod).r);
 }
 
+vec4 eminus_colorLod(float lod) {
+    return eminus_albedoNearest(eminus_faceUV, lod);
+}
+
+#ifdef PACK_SHADOW_PROGRAM
 vec4 eminus_albedoLod(sampler2D packTexture, vec2 faceUV, float lod) {
     return eminus_albedoNearest(faceUV, lod);
 }

@@ -118,7 +118,11 @@ void eminus_vertex() {
     eminus_playerPos = position;
     eminus_tint = vertex.tint;
     vec3 normal = vertex.face < FIRST_BLADE_FACE ? eminus_face_normal(vertex.face) : EMINUS_BLADE_NORMAL;
+#ifdef DH_PROGRAM
     eminus_normal = mat3(EminusView) * normal;
+#else
+    eminus_normal = mat3(EminusView) * (vertex.face < FIRST_BLADE_FACE ? normal : vertex.bladeNormal);
+#endif
     eminus_atlasCell = vertex.atlasCell;
     eminus_variantInfo = ivec4(vertex.variantStart, vertex.variantCount, vertex.faceSlot, vertex.level);
     eminus_cellOrigin = vertex.cellOrigin;
