@@ -905,6 +905,24 @@ class CellMesherTest {
     }
 
     @Test
+    void aFullBlockBesideSnowOverTheGroundKeepsItsSideAndTheSnowHidesItsOwn() {
+        defineSnow();
+        for (int level : new int[] {COARSE_LEVEL, GROUND_LEVEL}) {
+            Cell cell = blank();
+            cell.set(3, 4, 4, block(SNOW));
+            cell.set(4, 4, 4, block(SNOW));
+            cell.set(5, 4, 4, block(STONE));
+
+            CellMesh mesh = mesh(cell, airAround(), level);
+
+            assertTrue(has(mesh, Direction.WEST, 5, 4, 4, STONE_MODEL), "level " + level);
+            assertTrue(absent(mesh, Direction.EAST, 4, 4, 4), "level " + level);
+            assertTrue(absent(mesh, Direction.WEST, 4, 4, 4), "level " + level);
+            assertTrue(absent(mesh, Direction.EAST, 3, 4, 4), "level " + level);
+        }
+    }
+
+    @Test
     void aVoxelOverAShorterOneShowsItsBottomAndTheShorterItsTop() {
         defineBlocks();
         Cell cell = blank();
