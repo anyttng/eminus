@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 
 public final class Eminus {
     public static final String MODID = "eminus";
+    public static final String NAME = "Eminus";
     public static final Logger LOGGER = LogUtils.getLogger();
 
     private Eminus() {
