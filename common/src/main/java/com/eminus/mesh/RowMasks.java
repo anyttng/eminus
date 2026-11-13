@@ -26,6 +26,7 @@ public final class RowMasks {
             int u = row % SIDE;
             long occupiedBits = 0L;
             long opaqueBits = 0L;
+            long coverBits = 0L;
 
             for (int at = -1; at <= SIDE; at++) {
                 long entry = entryAt(voxels, axis, u, v, at);
@@ -36,18 +37,26 @@ public final class RowMasks {
                 long bit = 1L << (at + FIRST_VOXEL_BIT);
                 occupiedBits |= bit;
                 int state = VoxelEntry.state(entry);
-                if (VoxelEntry.gaps(entry) == VoxelEntry.NO_GAPS
-                        && models.layerBlocks(state) == StateLayers.NOT_LAYERED
-                        && (opacity.opacity(state) >= StateTable.FULL_OPACITY
-                                || opacity.coversGround(entry, voxelBlocks))) {
+                if (VoxelEntry.gaps(entry) != VoxelEntry.NO_GAPS
+                        || models.layerBlocks(state) != StateLayers.NOT_LAYERED) {
+                    continue;
+                }
+
+                if (opacity.opacity(state) >= StateTable.FULL_OPACITY) {
                     opaqueBits |= bit;
+                } else if (opacity.coversGround(entry, voxelBlocks)) {
+                    opaqueBits |= bit;
+                    if (axis != Direction.Axis.Y) {
+                        coverBits |= bit;
+                    }
                 }
             }
 
+            long wholeBits = opaqueBits & ~coverBits;
             nonAir[row] = occupiedBits;
             opaque[row] = opaqueBits;
-            positive[row] = opaqueBits & ~(opaqueBits >>> 1);
-            negative[row] = opaqueBits & ~(opaqueBits << 1);
+            positive[row] = (wholeBits & ~(wholeBits >>> 1)) | (coverBits & ~(opaqueBits >>> 1));
+            negative[row] = (wholeBits & ~(wholeBits << 1)) | (coverBits & ~(opaqueBits << 1));
         }
     }
 
