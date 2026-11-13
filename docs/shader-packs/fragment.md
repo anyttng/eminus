@@ -16,7 +16,7 @@ Eminus calls it once per LOD pixel that survives its own tests, after those test
 | `texcoordDy` | `vec2` | Screen-space y derivative of `texcoord`. |
 | `lmcoord` | `vec2` | Block light in `x`, sky light in `y`, in the range `gbuffers_terrain` gets: `(level + 0.5) / 16`. |
 | `glcolor` | `vec4` | The tint times the corner occlusion the game's Smooth Lighting draws, alpha `1.0`; where the pack declares `separateAo=true`, the tint alone with the occlusion in alpha, as Iris hands both to the game's terrain. It carries no face shading. |
-| `normal` | `vec3` | Face normal in view space. Plant blades report straight up. |
+| `normal` | `vec3` | Face normal in view space. A plant blade reports the normal of its own plane, turned toward the viewer, as `gbuffers_terrain` gets it for a plant. Before version 9 a blade reported straight up. |
 | `face` | `int` | `0` down, `1` up, `2` north, `3` south, `4` west, `5` east; `6` and above are plant blades. |
 | `viewPos` | `vec3` | Position in view space. |
 | `playerPos` | `vec3` | Position relative to the camera on the world axes, as `gbufferModelViewInverse * viewPos` gives it. |
@@ -29,6 +29,14 @@ Eminus calls it once per LOD pixel that survives its own tests, after those test
 
 The LOD's geometry is built for one mapping. Loading a pack with this contract, leaving it, or switching to one whose `block.properties` maps differently rebuilds the LOD once, as Iris rebuilds the near terrain on the same switch.
 
+## The texture at a chosen level
+
+```glsl
+vec4 eminus_colorLod(float lod);
+```
+
+`fragment.color` is filtered for the size of the pixel it lands on. `eminus_colorLod` returns the same texture read at mip level `lod`, nearest texel, with the same tint. Call it where your game program reads its texture at a fixed level, as a `shadow` program does with `textureLod(tex, texcoord, 0.0)`. Since version 9.
+
 ## Cutout
 
 Each contract program discards the pixels that fail the alpha test Iris gives the matching game program. Since version 8.
@@ -40,7 +48,7 @@ Each contract program discards the pixels that fail the alpha test Iris gives th
 | `eminus_shadow.glsl` | `shadow_cutout` |
 | `eminus_shadow_translucent.glsl` | `shadow_water` |
 
-The test is your `alphaTest.` key for that program in `shaders.properties`, or Iris's own default where you set none. A test you set to `off` leaves the cut to your code, so tell Eminus where that code runs:
+The test is your `alphaTest.` key for that program in `shaders.properties`, or Iris's own default where you set none. Iris tests only a game program that writes `gl_FragData[0]` or `gl_FragColor` and is not in the core profile. A game program with its own declared outputs gets no test from Iris, and since version 9 Eminus counts that as a test set to `off`. A test that is `off` leaves the cut to your code, so tell Eminus where that code runs:
 
 - With `cutout = pack` in `shaders/eminus.properties`, Eminus cuts nothing more, and `fragment.color` carries the texture's alpha. Keep your terrain's cutout line in `eminus_emitFragment`, in each contract file whose game program sets the test to `off`.
 - Without the key, Eminus cuts at `0.5` in the opaque programs and `0.1` in the translucent ones.

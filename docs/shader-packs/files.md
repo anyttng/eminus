@@ -33,7 +33,7 @@ Defined in every program of the pack while Eminus is installed:
 | Macro | Value |
 | --- | --- |
 | `EMINUS` | defined, empty |
-| `EMINUS_CONTRACT_VERSION` | `7` |
+| `EMINUS_CONTRACT_VERSION` | `9` |
 
 ## Inside the contract files
 
