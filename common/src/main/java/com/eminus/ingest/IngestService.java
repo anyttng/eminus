@@ -77,6 +77,9 @@ public final class IngestService {
 
         retryDeferred(chunk.getLevel(), chunkPos.x(), chunkPos.z());
         ingestChunk(chunk, trigger);
+        if (trigger == IngestTrigger.UNLOAD) {
+            digests.forgetColumn(chunkPos.x(), chunkPos.z(), chunk.getMinSectionY(), chunk.getMaxSectionY());
+        }
     }
 
     public void submitBiomeChange(Level level, Collection<ChunkPos> changed) {
