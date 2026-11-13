@@ -1,4 +1,4 @@
-# Eminus shader-pack contract, version 8
+# Eminus shader-pack contract, version 9
 
 Eminus draws the terrain past the render distance as a level-of-detail layer (LOD). Under an Iris shader pack that does not know Eminus, the LOD is drawn over the pack's finished frame in Eminus's own shading ([A pack without the contract](shader-packs/without-contract.md)). A pack that ships the contract below shades the LOD itself. Eminus runs the geometry, your code colors each pixel and writes it into your own buffers, so your lighting, fog and post-processing apply to the LOD the way they apply to near terrain.
 
