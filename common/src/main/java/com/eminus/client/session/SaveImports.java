@@ -1,6 +1,7 @@
 package com.eminus.client.session;
 
 import com.eminus.ingest.saved.SaveImport;
+import com.eminus.ingest.saved.SavedChunk;
 import com.eminus.ingest.saved.ServerSave;
 import com.eminus.mixin.BiomeManagerAccessor;
 import com.eminus.session.DimensionRuntime;
@@ -13,6 +14,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 
@@ -30,10 +32,15 @@ public final class SaveImports {
     }
 
     @SuppressWarnings("ReferenceEquality")
-    public static void chunkSaved(ServerLevel level, int chunkX, int chunkZ) {
+    public static void chunkSaved(ServerLevel level, CompoundTag snapshot) {
         SaveImport running = current;
-        if (running != null && level == savedLevel) {
-            running.saved(chunkX, chunkZ);
+        if (running == null || level != savedLevel) {
+            return;
+        }
+
+        SavedChunk chunk = SavedChunk.of(level, snapshot, false);
+        if (chunk != null) {
+            running.saved(chunk);
         }
     }
 

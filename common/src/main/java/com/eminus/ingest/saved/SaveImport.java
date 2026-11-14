@@ -14,6 +14,7 @@ import com.eminus.ingest.IngestService;
 import com.eminus.ingest.SectionPyramid;
 import com.eminus.work.WorkService;
 
+import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
@@ -31,6 +32,9 @@ public final class SaveImport {
     private static final int READ_CHUNKS = SIDE_CHUNKS * SIDE_CHUNKS;
     private static final long[] NO_TILES = new long[0];
     private static final long DIRTY_DELAY_NANOS = TimeUnit.SECONDS.toNanos(10);
+    private static final long WAITING_NANOS = TimeUnit.SECONDS.toNanos(3);
+    private static final int NEIGHBORS_KEPT = 4096;
+    private static final int WAITING_KEPT = 256;
 
     private final SaveSource source;
     private final IngestService ingest;
@@ -49,7 +53,11 @@ public final class SaveImport {
 
     private final LongSet regions = new LongOpenHashSet();
     private final LongSet dirty = new LongOpenHashSet();
+    private final Long2ObjectLinkedOpenHashMap<SavedChunk> neighbors = new Long2ObjectLinkedOpenHashMap<>();
+    private final Long2ObjectLinkedOpenHashMap<Waiting> waiting = new Long2ObjectLinkedOpenHashMap<>();
+    private final LongSet refused = new LongOpenHashSet();
     private long dirtySinceNanos;
+    private boolean dirtyOverdue;
     private long[] pending = NO_TILES;
     private int next;
     private int tiles;
@@ -73,6 +81,9 @@ public final class SaveImport {
         this.biomeZoomSeed = biomeZoomSeed;
     }
 
+    private record Waiting(SavedChunk chunk, long sinceNanos) {
+    }
+
     public record Tally(int tiles, int imported, int notSaved, int notFull, int unlit, int noNeighbors, int upgraded,
             int failed) {
     }
@@ -91,6 +102,7 @@ public final class SaveImport {
             return;
         }
 
+        expireWaiting();
         if (planned && region == plannedRegion && radiusChunks == plannedRadiusChunks) {
             replayDirty(radiusChunks);
             return;
@@ -103,33 +115,117 @@ public final class SaveImport {
         service.enqueue(pyramid -> plan(playerChunkX, playerChunkZ, radiusChunks));
     }
 
-    public void saved(int chunkX, int chunkZ) {
-        if (coverage.covers(chunkX, chunkZ)) {
-            return;
-        }
-
+    public void saved(SavedChunk chunk) {
+        int chunkX = chunk.chunkX();
+        int chunkZ = chunk.chunkZ();
+        boolean importable = chunk.full() && chunk.lit() && !coverage.covers(chunkX, chunkZ);
+        List<SavedColumn> ready = new ArrayList<>();
         synchronized (this) {
             if (!running) {
                 return;
             }
 
-            if (dirty.isEmpty()) {
-                dirtySinceNanos = System.nanoTime();
+            regions.add(ImportTiles.regionOfChunk(chunkX, chunkZ));
+            if (chunk.hasBiomes()) {
+                neighbors.putAndMoveToLast(ChunkPos.asLong(chunkX, chunkZ), chunk.asNeighbor());
+                if (neighbors.size() > NEIGHBORS_KEPT) {
+                    neighbors.removeFirst();
+                }
             }
 
-            regions.add(ImportTiles.regionOfChunk(chunkX, chunkZ));
-            for (long tile : ImportTiles.tilesReading(chunkX, chunkZ)) {
-                dirty.add(tile);
+            if (importable && !inView(chunkX, chunkZ)) {
+                waiting.putAndMoveToLast(ChunkPos.asLong(chunkX, chunkZ), new Waiting(chunk, System.nanoTime()));
+                if (waiting.size() > WAITING_KEPT) {
+                    markDirty(waiting.removeFirst().chunk());
+                }
             }
+
+            for (int dz = -BORDER_CHUNKS; dz <= BORDER_CHUNKS; dz++) {
+                for (int dx = -BORDER_CHUNKS; dx <= BORDER_CHUNKS; dx++) {
+                    long near = ChunkPos.asLong(chunkX + dx, chunkZ + dz);
+                    SavedColumn column = whole(near);
+                    if (column != null) {
+                        ready.add(column);
+                    }
+
+                    if (refused.contains(near)) {
+                        markDirty(chunkX + dx, chunkZ + dz);
+                    }
+                }
+            }
+        }
+
+        for (SavedColumn column : ready) {
+            service.enqueue(pyramid -> {
+                try {
+                    if (ingest.ingestColumn(column, pyramid)) {
+                        imported.incrementAndGet();
+                    }
+                } catch (RuntimeException failure) {
+                    failed(failure);
+                }
+            });
+        }
+    }
+
+    private boolean inView(int chunkX, int chunkZ) {
+        return Math.max(Math.abs(chunkX - centerChunkX), Math.abs(chunkZ - centerChunkZ)) <= viewChunks;
+    }
+
+    private @Nullable SavedColumn whole(long position) {
+        Waiting held = waiting.get(position);
+        if (held == null) {
+            return null;
+        }
+
+        SavedChunk center = held.chunk();
+        SavedChunk[] around = new SavedChunk[SavedColumn.NEIGHBOR_SIDE * SavedColumn.NEIGHBOR_SIDE];
+        for (int dz = -BORDER_CHUNKS; dz <= BORDER_CHUNKS; dz++) {
+            for (int dx = -BORDER_CHUNKS; dx <= BORDER_CHUNKS; dx++) {
+                SavedChunk neighbor = dx == 0 && dz == 0 ? center
+                        : neighbors.get(ChunkPos.asLong(center.chunkX() + dx, center.chunkZ() + dz));
+                if (neighbor == null) {
+                    return null;
+                }
+
+                around[SavedColumn.neighborIndex(dx, dz)] = neighbor;
+            }
+        }
+
+        waiting.remove(position);
+        return new SavedColumn(center, around, source.hasSky(), biomeZoomSeed);
+    }
+
+    private void markDirty(SavedChunk chunk) {
+        markDirty(chunk.chunkX(), chunk.chunkZ());
+    }
+
+    private void markDirty(int chunkX, int chunkZ) {
+        if (dirty.isEmpty()) {
+            dirtySinceNanos = System.nanoTime();
+        }
+
+        for (long tile : ImportTiles.tilesReading(chunkX, chunkZ)) {
+            dirty.add(tile);
+        }
+    }
+
+    private void expireWaiting() {
+        long now = System.nanoTime();
+        while (!waiting.isEmpty() && now - waiting.get(waiting.firstLongKey()).sinceNanos() >= WAITING_NANOS) {
+            markDirty(waiting.removeFirst().chunk());
+            dirtyOverdue = true;
         }
     }
 
     private void replayDirty(int radiusChunks) {
         boolean idle = !planning && !scanning && current == null && next >= pending.length;
-        if (dirty.isEmpty() || !idle || System.nanoTime() - dirtySinceNanos < DIRTY_DELAY_NANOS) {
+        boolean due = dirtyOverdue || System.nanoTime() - dirtySinceNanos >= DIRTY_DELAY_NANOS;
+        if (dirty.isEmpty() || !idle || !due) {
             return;
         }
 
+        dirtyOverdue = false;
         finished.removeAll(dirty);
         pending = ImportTiles.nearestFirst(dirty, centerChunkX, centerChunkZ, radiusChunks);
         next = 0;
@@ -411,7 +507,17 @@ public final class SaveImport {
             }
 
             SavedChunk center = around[SavedColumn.neighborIndex(0, 0)];
-            switch (SavedColumn.judge(around)) {
+            SavedColumn.Verdict verdict = SavedColumn.judge(around);
+            long position = ChunkPos.asLong(minChunkX + x, minChunkZ + z);
+            synchronized (SaveImport.this) {
+                if (verdict == SavedColumn.Verdict.NO_NEIGHBORS) {
+                    refused.add(position);
+                } else {
+                    refused.remove(position);
+                }
+            }
+
+            switch (verdict) {
                 case NOT_SAVED -> notSaved.incrementAndGet();
                 case NOT_FULL -> notFull.incrementAndGet();
                 case UNLIT -> unlit.incrementAndGet();

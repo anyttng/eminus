@@ -20,12 +20,16 @@ public final class IngestColumns {
     private static final int SECTIONS = 3;
     private static final int LIGHT_SECTIONS = SECTIONS + 2;
 
-    public static SavedColumn stone(int chunkX, int chunkZ, int minSectionY, long biomeZoomSeed) {
+    public static SavedChunk stoneChunk(int chunkX, int chunkZ, int minSectionY) {
         LevelChunkSection[] sections = new LevelChunkSection[SECTIONS];
         sections[BOTTOM] = section(Blocks.STONE.defaultBlockState());
         sections[TOP] = section(Blocks.STONE.defaultBlockState());
-        SavedChunk center = new SavedChunk(chunkX, chunkZ, minSectionY, sections, new DataLayer[LIGHT_SECTIONS],
+        return new SavedChunk(chunkX, chunkZ, minSectionY, sections, new DataLayer[LIGHT_SECTIONS],
                 new DataLayer[LIGHT_SECTIONS], true, true, true, false);
+    }
+
+    public static SavedColumn stone(int chunkX, int chunkZ, int minSectionY, long biomeZoomSeed) {
+        SavedChunk center = stoneChunk(chunkX, chunkZ, minSectionY);
         SavedChunk[] around = new SavedChunk[SavedColumn.NEIGHBOR_SIDE * SavedColumn.NEIGHBOR_SIDE];
         around[SavedColumn.neighborIndex(0, 0)] = center;
         return new SavedColumn(center, around, false, biomeZoomSeed);

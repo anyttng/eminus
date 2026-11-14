@@ -1,17 +1,16 @@
 package com.eminus.mixin;
 
 import com.eminus.client.session.SaveImports;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.chunk.ChunkAccess;
 
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ChunkMap.class)
 public class ChunkMapMixin {
@@ -19,10 +18,12 @@ public class ChunkMapMixin {
     @Final
     ServerLevel level;
 
-    @Inject(method = "save", at = @At("RETURN"))
-    private void eminus$importSavedChunk(ChunkAccess chunk, CallbackInfoReturnable<Boolean> callback) {
-        if (callback.getReturnValue()) {
-            SaveImports.chunkSaved(level, chunk.getPos().x, chunk.getPos().z);
-        }
+    @ModifyExpressionValue(method = "save", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/level/chunk/storage/ChunkSerializer;write("
+                    + "Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/chunk/ChunkAccess;)"
+                    + "Lnet/minecraft/nbt/CompoundTag;"))
+    private CompoundTag eminus$importSavedChunk(CompoundTag snapshot) {
+        SaveImports.chunkSaved(level, snapshot);
+        return snapshot;
     }
 }
