@@ -33,7 +33,7 @@ Every setting has a hint on the screen. The same values live in `config/eminus.j
 
 ## Before you download
 
-LOD appears only where you have already been. There is no import of existing worlds and no pregeneration.
+In singleplayer LOD covers every chunk your world has already generated, visited or not. On a server it appears only where you have been. Eminus generates no terrain of its own.
 
 Eminus is made for PC. Android launchers like Pojav or FCL aren't supported.
 
