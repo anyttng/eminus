@@ -100,6 +100,7 @@ public final class ClientSession {
         }
 
         stopRenderer();
+        SaveImports.stop();
         level = null;
         runtime = null;
         instance.shutdown();
@@ -262,6 +263,7 @@ public final class ClientSession {
 
         restartOnStaleInputs(minecraft);
         StoreUpgradeNotice.post(minecraft);
+        SaveImports.tick(minecraft, instance, runtime, level);
         if (heldChunksPending) {
             submitHeldChunks();
         }
