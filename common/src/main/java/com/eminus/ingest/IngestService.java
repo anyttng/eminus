@@ -43,8 +43,10 @@ public final class IngestService {
     private final LongOpenHashSet lightOnly = new LongOpenHashSet();
     private final LightDigests digests = new LightDigests();
     private final Queue<Long> stale = new ConcurrentLinkedQueue<>();
+    private final Object flight = new Object();
 
     private volatile boolean running = true;
+    private int inFlight;
 
     public IngestService(WorkService<SectionPyramid> service, StateTable states, Dictionary<String> biomes,
             CellMerger merger, ColumnCoverage coverage, CellChangeListener listener) {
@@ -143,7 +145,7 @@ public final class IngestService {
         }
 
         if (count == 0) {
-            service.enqueue(pyramid -> cover(chunkX, chunkZ));
+            service.enqueue(pyramid -> whileRunning(() -> cover(chunkX, chunkZ)));
             return;
         }
 
@@ -198,11 +200,11 @@ public final class IngestService {
     }
 
     private void probeSkipped(int sectionX, int sectionY, int sectionZ) {
-        service.enqueue(pyramid -> {
-            if (running && merger.storesBeyondOpenSky(sectionX, sectionY, sectionZ)) {
+        service.enqueue(pyramid -> whileRunning(() -> {
+            if (merger.storesBeyondOpenSky(sectionX, sectionY, sectionZ)) {
                 stale.add(SectionPos.asLong(sectionX, sectionY, sectionZ));
             }
-        });
+        }));
     }
 
     public void markBlockChange(BlockPos pos, long now) {
@@ -248,9 +250,55 @@ public final class IngestService {
     }
 
     public void stop() {
-        running = false;
+        boolean interrupted = false;
+        synchronized (flight) {
+            running = false;
+            while (inFlight > 0) {
+                try {
+                    flight.wait();
+                } catch (InterruptedException shutdown) {
+                    interrupted = true;
+                }
+            }
+        }
+
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
+
         digests.clear();
         stale.clear();
+    }
+
+    private void whileRunning(Runnable work) {
+        if (!enter()) {
+            return;
+        }
+
+        try {
+            work.run();
+        } finally {
+            exit();
+        }
+    }
+
+    private boolean enter() {
+        synchronized (flight) {
+            if (running) {
+                inFlight++;
+            }
+
+            return running;
+        }
+    }
+
+    private void exit() {
+        synchronized (flight) {
+            inFlight--;
+            if (inFlight == 0) {
+                flight.notifyAll();
+            }
+        }
     }
 
     private void submitMarked(ClientLevel level, long sectionNode) {
@@ -319,11 +367,7 @@ public final class IngestService {
         BiomeWindow window = column.biomeWindow(index);
         boolean everyLevel = !coverage.covers(sectionX, sectionZ);
 
-        service.enqueue(pyramid -> {
-            if (!running) {
-                return;
-            }
-
+        service.enqueue(pyramid -> whileRunning(() -> {
             boolean merged = false;
             try {
                 SectionConverter.convert(section, window, skyLight, blockLight, states, biomes, pyramid);
@@ -341,10 +385,22 @@ public final class IngestService {
                     cover(sectionX, sectionZ);
                 }
             }
-        });
+        }));
     }
 
     public boolean ingestColumn(IngestColumn column, SectionPyramid pyramid) {
+        if (!enter()) {
+            return false;
+        }
+
+        try {
+            return mergeColumn(column, pyramid);
+        } finally {
+            exit();
+        }
+    }
+
+    private boolean mergeColumn(IngestColumn column, SectionPyramid pyramid) {
         if (coverage.covers(column.chunkX(), column.chunkZ())) {
             return false;
         }
@@ -367,7 +423,7 @@ public final class IngestService {
     }
 
     private void cover(int chunkX, int chunkZ) {
-        if (running && coverage.cover(chunkX, chunkZ)) {
+        if (coverage.cover(chunkX, chunkZ)) {
             try {
                 coverage.persist(chunkX, chunkZ);
             } catch (RuntimeException failure) {
