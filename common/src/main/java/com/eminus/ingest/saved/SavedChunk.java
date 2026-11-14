@@ -1,5 +1,7 @@
 package com.eminus.ingest.saved;
 
+import java.util.BitSet;
+
 import com.eminus.ingest.BiomeWindow;
 
 import net.minecraft.core.Holder;
@@ -9,6 +11,7 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.PalettedContainerRO;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.chunk.storage.SerializableChunkData;
 
@@ -25,6 +28,8 @@ public final class SavedChunk {
     private final @Nullable LevelChunkSection[] sections;
     private final @Nullable DataLayer[] skyLight;
     private final @Nullable DataLayer[] blockLight;
+    private final @Nullable PalettedContainerRO<Holder<Biome>>[] biomes;
+    private final BitSet occupied;
     private final boolean full;
     private final boolean hasBiomes;
     private final boolean lit;
@@ -39,10 +44,47 @@ public final class SavedChunk {
         this.sections = sections;
         this.skyLight = skyLight;
         this.blockLight = blockLight;
+        this.biomes = biomesOf(sections);
+        this.occupied = new BitSet(sections.length);
+        for (int index = 0; index < sections.length; index++) {
+            LevelChunkSection section = sections[index];
+            occupied.set(index, section != null && !section.hasOnlyAir());
+        }
+
         this.full = full;
         this.hasBiomes = hasBiomes;
         this.lit = lit;
         this.upgraded = upgraded;
+    }
+
+    private SavedChunk(SavedChunk whole) {
+        this.chunkX = whole.chunkX;
+        this.chunkZ = whole.chunkZ;
+        this.minSectionY = whole.minSectionY;
+        this.sections = new LevelChunkSection[whole.sections.length];
+        this.skyLight = new DataLayer[0];
+        this.blockLight = new DataLayer[0];
+        this.biomes = whole.biomes;
+        this.occupied = whole.occupied;
+        this.full = false;
+        this.hasBiomes = whole.hasBiomes;
+        this.lit = false;
+        this.upgraded = whole.upgraded;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static @Nullable PalettedContainerRO<Holder<Biome>>[] biomesOf(@Nullable LevelChunkSection[] sections) {
+        PalettedContainerRO<Holder<Biome>>[] biomes = new PalettedContainerRO[sections.length];
+        for (int index = 0; index < sections.length; index++) {
+            LevelChunkSection section = sections[index];
+            biomes[index] = section == null ? null : section.getBiomes();
+        }
+
+        return biomes;
+    }
+
+    public SavedChunk asNeighbor() {
+        return new SavedChunk(this);
     }
 
     public static SavedChunk of(SerializableChunkData data, int sectionCount, boolean upgraded) {
@@ -115,8 +157,7 @@ public final class SavedChunk {
             return false;
         }
 
-        LevelChunkSection section = sections[index];
-        return section != null && !section.hasOnlyAir();
+        return occupied.get(index);
     }
 
     public @Nullable DataLayer layer(LightLayer layer, int sectionY) {
@@ -132,8 +173,8 @@ public final class SavedChunk {
         int quartMinY = QuartPos.fromSection(minSectionY);
         int quartMaxY = quartMinY + QuartPos.fromSection(sections.length) - 1;
         int clampedQuartY = Mth.clamp(quartY, quartMinY, quartMaxY);
-        LevelChunkSection section = sections[QuartPos.toSection(clampedQuartY) - minSectionY];
-        return section == null ? null : section.getNoiseBiome(quartX & QUART_IN_SECTION_MASK,
+        PalettedContainerRO<Holder<Biome>> section = biomes[QuartPos.toSection(clampedQuartY) - minSectionY];
+        return section == null ? null : section.get(quartX & QUART_IN_SECTION_MASK,
                 clampedQuartY & QUART_IN_SECTION_MASK, quartZ & QUART_IN_SECTION_MASK);
     }
 }
