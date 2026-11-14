@@ -4,7 +4,6 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.eminus.Eminus;
 import com.eminus.cell.ColumnCoverage;
@@ -125,12 +124,22 @@ public final class IngestService {
             return;
         }
 
-        int chunkX = chunk.getPos().x();
-        int chunkZ = chunk.getPos().z();
-        boolean[] submitted = new boolean[chunk.getSections().length];
-        int count = pickSections(column, submitted);
-        if (trigger != IngestTrigger.UNLOAD && coverage.holds(chunkX, chunkZ)) {
+        boolean[] submitted = pickSections(column);
+        if (trigger != IngestTrigger.UNLOAD && coverage.holds(column.chunkX(), column.chunkZ())) {
             probeSkippedSections(chunk, submitted);
+        }
+
+        ingestSections(column, submitted, trigger);
+    }
+
+    void ingestSections(IngestColumn column, boolean[] submitted, IngestTrigger trigger) {
+        int chunkX = column.chunkX();
+        int chunkZ = column.chunkZ();
+        int count = 0;
+        for (boolean picked : submitted) {
+            if (picked) {
+                count++;
+            }
         }
 
         if (count == 0) {
@@ -138,10 +147,10 @@ public final class IngestService {
             return;
         }
 
-        AtomicInteger remaining = new AtomicInteger(count);
+        WholeChunkIngest whole = new WholeChunkIngest(count);
         for (int index = 0; index < submitted.length; index++) {
             if (submitted[index]) {
-                submit(column, index, remaining, trigger);
+                submit(column, index, whole, trigger);
             }
         }
     }
@@ -170,16 +179,13 @@ public final class IngestService {
         return true;
     }
 
-    private int pickSections(LiveColumn column, boolean[] submitted) {
-        int count = 0;
+    static boolean[] pickSections(IngestColumn column) {
+        boolean[] submitted = new boolean[column.sectionCount()];
         for (int index = 0; index < submitted.length; index++) {
             submitted[index] = column.submits(index);
-            if (submitted[index]) {
-                count++;
-            }
         }
 
-        return count;
+        return submitted;
     }
 
     private void probeSkippedSections(LevelChunk chunk, boolean[] submitted) {
@@ -297,16 +303,15 @@ public final class IngestService {
         }
     }
 
-    private void submit(LiveColumn column, int index, @Nullable AtomicInteger remaining, IngestTrigger trigger) {
+    private void submit(IngestColumn column, int index, @Nullable WholeChunkIngest whole, IngestTrigger trigger) {
         LevelChunkSection section = column.section(index);
-        SectionPos sectionPos = column.sectionPos(index);
-        int sectionX = sectionPos.x();
-        int sectionY = sectionPos.y();
-        int sectionZ = sectionPos.z();
+        int sectionX = column.chunkX();
+        int sectionY = column.sectionY(index);
+        int sectionZ = column.chunkZ();
         DataLayer skyLight = column.skyLight(index);
         DataLayer blockLight = column.blockLight(index);
 
-        boolean differs = digests.record(sectionPos.asLong(), skyLight, blockLight);
+        boolean differs = digests.record(SectionPos.asLong(sectionX, sectionY, sectionZ), skyLight, blockLight);
         if (trigger == IngestTrigger.LIGHT && !differs) {
             return;
         }
@@ -319,6 +324,7 @@ public final class IngestService {
                 return;
             }
 
+            boolean merged = false;
             try {
                 SectionConverter.convert(section, window, skyLight, blockLight, states, biomes, pyramid);
 
@@ -328,8 +334,10 @@ public final class IngestService {
                 } else {
                     merger.merge(pyramid, sectionX, sectionY, sectionZ);
                 }
+
+                merged = true;
             } finally {
-                if (remaining != null && remaining.decrementAndGet() == 0) {
+                if (whole != null && whole.sectionDone(merged)) {
                     cover(sectionX, sectionZ);
                 }
             }
@@ -360,7 +368,13 @@ public final class IngestService {
 
     private void cover(int chunkX, int chunkZ) {
         if (running && coverage.cover(chunkX, chunkZ)) {
-            coverage.persist(chunkX, chunkZ);
+            try {
+                coverage.persist(chunkX, chunkZ);
+            } catch (RuntimeException failure) {
+                Eminus.LOGGER.error("Could not store column {}, {} as covered; it is ingested again after a restart.",
+                        chunkX, chunkZ, failure);
+            }
+
             listener.covered(chunkX, chunkZ);
         }
     }
