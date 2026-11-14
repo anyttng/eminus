@@ -1,6 +1,7 @@
 package com.eminus.cell.cache;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -160,6 +161,18 @@ class CellCacheTest {
         cache.sweep();
         assertEquals(0, cache.liveCount());
         assertEquals(1, cache.parkedCount());
+    }
+
+    @Test
+    void aFlushReportsACellTheStoreRefused() {
+        CellHandle handle = harness.call(() -> cache.open(KEY));
+        handle.markDirty();
+        store.refuseWrites(true);
+
+        assertFalse(cache.flush());
+
+        store.refuseWrites(false);
+        assertTrue(cache.flush());
     }
 
     @Test

@@ -1,9 +1,13 @@
 package com.eminus.session;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -33,6 +37,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
+import org.sqlite.SQLiteDataSource;
 
 @Timeout(30)
 class DimensionRuntimeTest {
@@ -44,6 +49,10 @@ class DimensionRuntimeTest {
     private static final int WORKER_THREADS = 1;
     private static final long NO_GRACE_MILLIS = 0L;
     private static final int RAISED_STORED_LEVEL = 1;
+    private static final int COARSER_LEVEL = 1;
+    private static final String REFUSE_CELL_WRITES = "CREATE TRIGGER refuse_cells BEFORE INSERT ON cells"
+            + " BEGIN SELECT RAISE(ABORT, 'refused'); END";
+    private static final String ACCEPT_CELL_WRITES = "DROP TRIGGER refuse_cells";
     private static final int CHUNK_X = 3;
     private static final int CHUNK_Z = -2;
     private static final long KEY = CellKey.pack(0, 7, 0, 9);
@@ -147,6 +156,65 @@ class DimensionRuntimeTest {
         assertNotNull(storedCell(coarsestCell()), "the coarsest level of the section in flight was not saved");
     }
 
+    @Test
+    void aStoreLeftOpenMergesEveryLevelOfItsColumnsAtTheNextIngest() {
+        WorkService<SectionPyramid> ingest = harness.register(INGEST_SERVICE, SectionPyramid::new);
+        openRuntime(LOWEST_STORED_LEVEL, ingest);
+        ingestTheColumn(ingest);
+        long coarser = sectionCell(COARSER_LEVEL);
+        runtime.close();
+
+        try (CellStore leftOpen = SqliteCellStore.open(folder, LOWEST_STORED_LEVEL, NO_GRACE_MILLIS, clock::get)) {
+            leftOpen.write(Cell.blank(coarser));
+
+            openRuntime(LOWEST_STORED_LEVEL, ingest);
+            ingestTheColumn(ingest);
+            runtime.close();
+        }
+
+        Cell stored = storedCell(coarser);
+        assertNotNull(stored);
+        assertFalse(stored.isEmpty(), "the coarser level stayed as the store left open had it");
+    }
+
+    @Test
+    void closingTheRuntimeWithACellTheStoreRefusedLeavesItsColumnsOutdated() throws SQLException {
+        openRuntime(LOWEST_STORED_LEVEL);
+        runtime.coverage().cover(CHUNK_X, CHUNK_Z);
+        runtime.coverage().persist(CHUNK_X, CHUNK_Z);
+        execute(REFUSE_CELL_WRITES);
+        harness.run(() -> {
+            CellHandle handle = runtime.cells().open(KEY);
+            handle.withCell(cell -> cell.set(1, 2, 3, ENTRY));
+            handle.markDirty();
+        });
+
+        runtime.close();
+        execute(ACCEPT_CELL_WRITES);
+
+        Map<Long, Boolean> current = new HashMap<>();
+        try (CellStore reopened = SqliteCellStore.open(folder, LOWEST_STORED_LEVEL, NO_GRACE_MILLIS, clock::get)) {
+            reopened.readColumns((chunk, lowestLevel, isCurrent) -> current.put(chunk, isCurrent));
+        }
+
+        assertEquals(Map.of(ColumnCoverage.pack(CHUNK_X, CHUNK_Z), false), current);
+    }
+
+    private void execute(String sql) throws SQLException {
+        SQLiteDataSource source = new SQLiteDataSource();
+        source.setUrl("jdbc:sqlite:" + folder.resolve(SqliteCellStore.FILE_NAME));
+        try (Connection connection = source.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute(sql);
+        }
+    }
+
+    private void ingestTheColumn(WorkService<SectionPyramid> ingest) {
+        IngestColumns.submit(runtime.ingest(), column());
+        CountDownLatch merged = new CountDownLatch(1);
+        ingest.enqueue(pyramid -> merged.countDown());
+        WorkerHarness.await(merged);
+    }
+
     private void openRuntime(int lowestStoredLevel) {
         openRuntime(lowestStoredLevel,
                 parked.register(INGEST_SERVICE, 1, WorkService.UNLIMITED, SectionPyramid::new));
@@ -193,7 +261,11 @@ class DimensionRuntimeTest {
     }
 
     private long coarsestCell() {
-        return runtime.frame().keyAt(DetailLevel.MAX, CHUNK_X * SectionPyramid.SECTION_SIDE,
+        return sectionCell(DetailLevel.MAX);
+    }
+
+    private long sectionCell(int level) {
+        return runtime.frame().keyAt(level, CHUNK_X * SectionPyramid.SECTION_SIDE,
                 (MIN_SECTION_Y + IngestColumns.BOTTOM) * SectionPyramid.SECTION_SIDE,
                 CHUNK_Z * SectionPyramid.SECTION_SIDE);
     }
