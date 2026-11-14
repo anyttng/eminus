@@ -16,25 +16,30 @@ class TreeBatchTest {
     private static final long FIRST = CellKey.pack(DetailLevel.MAX, 0, 0, 0);
     private static final long SECOND = CellKey.pack(DetailLevel.MAX, 1, 0, 0);
     private static final int ONE_KEY = 1;
+    private static final long OLDER_REQUEST = 1L;
+    private static final long OTHER_REQUEST = 2L;
+    private static final long NEWER_REQUEST = 3L;
 
     private final TreeBatch batch = new TreeBatch();
 
     @Test
-    void aNewerMeshOfAKeyReplacesTheOlderInPlace() {
+    void aNewerMeshOfAKeyReplacesTheOlderInPlaceWithItsRequest() {
         CellMesh older = TestMeshes.of(FIRST, OccupancyMask.EMPTY);
         CellMesh other = TestMeshes.of(SECOND, OccupancyMask.EMPTY);
         CellMesh newer = TestMeshes.of(FIRST, OccupancyMask.EMPTY);
 
-        batch.add(older);
-        batch.add(other);
-        batch.add(newer);
+        batch.add(older, OLDER_REQUEST);
+        batch.add(other, OTHER_REQUEST);
+        batch.add(newer, NEWER_REQUEST);
 
         assertEquals(List.of(newer, other), batch.meshes());
+        assertEquals(NEWER_REQUEST, batch.request(FIRST));
+        assertEquals(OTHER_REQUEST, batch.request(SECOND));
     }
 
     @Test
     void anEvictionDropsTheKeysMeshAndIsListedOnce() {
-        batch.add(TestMeshes.of(FIRST, OccupancyMask.EMPTY));
+        batch.add(TestMeshes.of(FIRST, OccupancyMask.EMPTY), OLDER_REQUEST);
         batch.evict(FIRST);
         batch.evict(FIRST);
 
@@ -47,7 +52,7 @@ class TreeBatchTest {
     void aMeshAddedAfterItsEvictionLiftsTheEviction() {
         CellMesh mesh = TestMeshes.of(FIRST, OccupancyMask.EMPTY);
         batch.evict(FIRST);
-        batch.add(mesh);
+        batch.add(mesh, OLDER_REQUEST);
 
         assertTrue(batch.evicted().isEmpty());
         assertEquals(List.of(mesh), batch.meshes());

@@ -427,7 +427,7 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         List<CellMesh> batchMeshes = batch.meshes();
-        uploaded = arena.accept(batchMeshes, uploaded);
+        uploaded = arena.accept(batchMeshes, uploaded, (key, kept) -> tree.refused(key, batch.request(key), kept));
         if (uploaded < batchMeshes.size()) {
             return;
         }
