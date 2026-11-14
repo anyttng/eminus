@@ -226,7 +226,10 @@ public final class DimensionRuntime {
         closed = true;
         ingest.stop();
         saves.flush();
-        cells.flush();
+        if (!cells.flush()) {
+            store.leaveUnclean();
+        }
+
         beams.flush();
         closeStore();
     }
