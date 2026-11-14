@@ -7,6 +7,7 @@ import com.eminus.client.handoff.NearMaskPass;
 import com.eminus.client.handoff.NearSectionTable;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.client.model.ModelPublisher;
+import com.eminus.client.model.game.SpriteMips;
 import com.eminus.client.render.arena.GeometryArena;
 import com.eminus.client.render.backend.BackendCheck;
 import com.eminus.gpu.Gpu;
@@ -51,7 +52,8 @@ public record FarStart(@Nullable FarRenderer renderer, @Nullable String refusal)
         }
 
         FarRenderer renderer = new FarRenderer(gpu, support.depth(), runtime, baking,
-                ModelPublisher.start(gpu, baking.bakery(), FarRenderer.atlasFirstMip(settings.lodQuality())), arena,
+                ModelPublisher.start(gpu, baking.bakery(), FarRenderer.atlasFirstMip(settings.lodQuality()),
+                        SpriteMips::blend), arena,
                 FarTarget.create(gpu, Objects.requireNonNull(support.depthFormat(), "an accepted backend names one"),
                         main.width(), main.height()), FarFrame.create(gpu),
                 mask, NearSectionTable.create(gpu), opaque, translucent, composite, overlays,

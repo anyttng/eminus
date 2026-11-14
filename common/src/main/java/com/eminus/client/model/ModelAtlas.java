@@ -6,7 +6,6 @@ import java.util.EnumSet;
 import java.util.Set;
 
 import com.eminus.Eminus;
-import com.eminus.client.model.game.SpriteMips;
 import com.eminus.gpu.Format;
 import com.eminus.gpu.Gpu;
 import com.eminus.gpu.texture.Texture;
@@ -15,8 +14,10 @@ import com.eminus.model.BakedModel;
 import com.eminus.model.FaceMips;
 import com.eminus.model.Mips;
 import com.eminus.model.ModelMetadata;
-import com.eminus.model.ModelSource;
 import com.eminus.model.Solidify;
+import com.eminus.model.port.MipBlend;
+
+import org.jspecify.annotations.Nullable;
 
 public final class ModelAtlas implements AutoCloseable {
     private static final String COLOR_LABEL = "eminus-model-atlas";
@@ -41,22 +42,25 @@ public final class ModelAtlas implements AutoCloseable {
             ByteBuffer.allocateDirect(BakedModel.FACE_TEXELS).order(ByteOrder.nativeOrder());
 
     private final int firstMip;
+    private final MipBlend blend;
     private final int cellSide;
 
-    private Texture color;
-    private Texture tintMask;
-    private int cellsPerSide;
+    private final Texture color;
+    private final Texture tintMask;
+    private final int cellsPerSide;
 
-    private ModelAtlas(Gpu gpu, int firstMip, Texture color, Texture tintMask, int cellsPerSide) {
+    private ModelAtlas(Gpu gpu, int firstMip, MipBlend blend, Texture color, Texture tintMask,
+            int cellsPerSide) {
         this.gpu = gpu;
         this.firstMip = firstMip;
+        this.blend = blend;
         this.cellSide = BakedModel.FACE_SIDE >> firstMip;
         this.color = color;
         this.tintMask = tintMask;
         this.cellsPerSide = cellsPerSide;
     }
 
-    public static ModelAtlas create(Gpu gpu, int cellsPerSide, int firstMip) {
+    public static ModelAtlas create(Gpu gpu, int cellsPerSide, int firstMip, MipBlend blend) {
         gpu.assertRenderThread();
         if (firstMip < 0 || firstMip >= FACE_LEVELS) {
             throw new IllegalArgumentException("The model atlas cannot start from mip " + firstMip + " of a "
@@ -64,7 +68,8 @@ public final class ModelAtlas implements AutoCloseable {
         }
 
         int cellSide = BakedModel.FACE_SIDE >> firstMip;
-        return new ModelAtlas(gpu, firstMip, allocate(gpu, COLOR_LABEL, COLOR_FORMAT, cellsPerSide, cellSide),
+        return new ModelAtlas(gpu, firstMip, blend,
+                allocate(gpu, COLOR_LABEL, COLOR_FORMAT, cellsPerSide, cellSide),
                 allocate(gpu, TINT_MASK_LABEL, TINT_MASK_FORMAT, cellsPerSide, cellSide), cellsPerSide);
     }
 
@@ -119,34 +124,20 @@ public final class ModelAtlas implements AutoCloseable {
         }
     }
 
-    public int grow(ModelSource source) {
+    public @Nullable ModelAtlas grown(int models) {
         gpu.assertRenderThread();
         int grown = cellsPerSide * GROWTH;
         int maxSide = gpu.maxTextureSide(COLOR_FORMAT);
         if (grown * cellSide > maxSide) {
             Eminus.LOGGER.error("The model atlas cannot grow past {} texels a side, the device limit.", maxSide);
-            return 0;
+            return null;
         }
 
-        release();
-        color = allocate(gpu, COLOR_LABEL, COLOR_FORMAT, grown, cellSide);
-        tintMask = allocate(gpu, TINT_MASK_LABEL, TINT_MASK_FORMAT, grown, cellSide);
-        cellsPerSide = grown;
-        return reupload(source);
-    }
-
-    private int reupload(ModelSource source) {
-        int reuploaded = 0;
-        for (int modelId = 0; modelId < source.modelCount(); modelId++) {
-            if (!fits(modelId)) {
-                break;
-            }
-
-            upload(modelId, source.model(modelId));
-            reuploaded++;
+        while ((long) models * BakedModel.FACE_COUNT > (long) grown * grown && grown * GROWTH * cellSide <= maxSide) {
+            grown *= GROWTH;
         }
 
-        return reuploaded;
+        return create(gpu, grown, firstMip, blend);
     }
 
     @Override
@@ -168,7 +159,7 @@ public final class ModelAtlas implements AutoCloseable {
         copyFace(model, index);
         boolean opaque = ModelMetadata.has(model.metadata(), ModelMetadata.OPAQUE);
         int[][] colorLevels = FaceMips.colorLevels(faceColor, BakedModel.FACE_SIDE, model.mips()[index], opaque,
-                SpriteMips::blend);
+                blend);
         int[][] tintLevels = Mips.maskChain(faceTint, BakedModel.FACE_SIDE);
         writeLevels(colorLevels, tintLevels, slot);
     }

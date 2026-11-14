@@ -6,10 +6,10 @@ import com.eminus.model.port.MipBlend;
 
 import net.minecraft.client.renderer.texture.MipmapGenerator;
 
-final class VanillaMipBlend {
+public final class VanillaMipBlend {
     private static final String GAME_BLEND = "alphaBlend";
 
-    static final MipBlend BLEND = vanilla();
+    public static final MipBlend BLEND = vanilla();
 
     private static MipBlend vanilla() {
         try {

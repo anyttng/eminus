@@ -11,6 +11,7 @@ import java.util.function.ToIntFunction;
 
 import com.eminus.client.gpu.Gpus;
 import com.eminus.client.model.game.ModelSheet;
+import com.eminus.client.model.game.SpriteMips;
 import com.eminus.gpu.Gpu;
 import com.eminus.model.BakedModel;
 import com.eminus.model.BiomeColors;
@@ -134,9 +135,9 @@ public final class ModelReading {
 
     private static void uploadFull(Gpu gpu, ModelBakery bakery, long[] summary) {
         try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery,
-                LodChoice.ULTRA.presetQuality().orElseThrow().atlasFirstMip())) {
+                LodChoice.ULTRA.presetQuality().orElseThrow().atlasFirstMip(), SpriteMips::blend)) {
             summary[CELLS_FROM] = publisher.atlas().cellsPerSide();
-            publisher.publish();
+            publisher.publishAll();
             summary[UPLOADED] = publisher.published();
             summary[GROWTHS] = publisher.growths();
             summary[REUPLOADED] = publisher.reuploaded();
@@ -149,8 +150,8 @@ public final class ModelReading {
 
     private static void uploadLow(Gpu gpu, ModelBakery bakery, long[] summary) {
         try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery,
-                LodChoice.LOW.presetQuality().orElseThrow().atlasFirstMip())) {
-            publisher.publish();
+                LodChoice.LOW.presetQuality().orElseThrow().atlasFirstMip(), SpriteMips::blend)) {
+            publisher.publishAll();
             summary[LOW_SIDE] = publisher.atlas().side();
             summary[LOW_CELL_SIDE] = publisher.atlas().cellSide();
             summary[LOW_BYTES] = publisher.atlas().bytes();
