@@ -169,6 +169,34 @@ class SqliteCellStoreTest {
     }
 
     @Test
+    void theColumnsOfAStoreLeftOpenComeBackOutdated() {
+        try (SqliteCellStore leftOpen = open(LOWEST_LEVEL)) {
+            leftOpen.putColumn(COLUMN_A, LOWEST_LEVEL);
+
+            assertEquals(Map.of(COLUMN_A, new Column(LOWEST_LEVEL, false)), columnStates(LOWEST_LEVEL));
+        }
+    }
+
+    @Test
+    void theColumnsOfAStoreClosedCleanlyComeBackCurrent() {
+        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
+            store.putColumn(COLUMN_A, LOWEST_LEVEL);
+        }
+
+        assertEquals(Map.of(COLUMN_A, new Column(LOWEST_LEVEL, true)), columnStates(LOWEST_LEVEL));
+    }
+
+    @Test
+    void theColumnsOfAStoreClosedUncleanComeBackOutdated() {
+        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
+            store.putColumn(COLUMN_A, LOWEST_LEVEL);
+            store.leaveUnclean();
+        }
+
+        assertEquals(Map.of(COLUMN_A, new Column(LOWEST_LEVEL, false)), columnStates(LOWEST_LEVEL));
+    }
+
+    @Test
     void theStoreRunsInWalMode() throws SQLException {
         open(LOWEST_LEVEL).close();
 

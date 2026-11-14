@@ -22,6 +22,8 @@ public interface CellStore extends BeamStore, AutoCloseable {
 
     void readColumns(ColumnCoverage.Loader into);
 
+    void leaveUnclean();
+
     @Override
     void close();
 }
