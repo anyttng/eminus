@@ -70,10 +70,6 @@ public final class LiveColumn implements IngestColumn {
         return layer(LightLayer.BLOCK, sectionY(index));
     }
 
-    public SectionPos sectionPos(int index) {
-        return SectionPos.of(chunk.getPos(), sectionY(index));
-    }
-
     public boolean lightOn() {
         return light.lightOnInSection(SectionPos.of(chunkX(), 0, chunkZ()));
     }
