@@ -239,6 +239,10 @@ public final class TreeNode {
         stale = false;
     }
 
+    void refused() {
+        mesh = null;
+    }
+
     int buildFailed() {
         building = false;
         stale = false;
