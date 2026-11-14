@@ -109,6 +109,16 @@ public final class SavedChunk {
         return sections[index];
     }
 
+    public boolean holdsBlocks(int sectionY) {
+        int index = sectionY - minSectionY;
+        if (index < 0 || index >= sections.length) {
+            return false;
+        }
+
+        LevelChunkSection section = sections[index];
+        return section != null && !section.hasOnlyAir();
+    }
+
     public @Nullable DataLayer layer(LightLayer layer, int sectionY) {
         int index = sectionY - minSectionY + LIGHT_SECTIONS_BELOW;
         if (index < 0 || index >= skyLight.length) {

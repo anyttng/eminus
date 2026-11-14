@@ -44,17 +44,11 @@ class SavedColumnTest {
     }
 
     @Test
-    void aSkyLayerTheSaveDroppedRepeatsTheBottomRowOfTheLayerAbove() {
-        DataLayer above = new DataLayer(SectionConverter.DEFAULT_SKY_LIGHT);
-        for (int z = 0; z < SIDE; z++) {
-            for (int x = 0; x < SIDE; x++) {
-                above.set(x, 0, z, SHADE);
-            }
-        }
-
+    void anAirSectionAmongAirReadsTheBottomRowOfTheLayerAbove() {
+        DataLayer above = shadedBottomRow();
         DataLayer[] sky = new DataLayer[LIGHT_SECTIONS];
         sky[UPPER + LIGHT_INDEX_OFFSET] = above;
-        SavedColumn column = column(chunk(stone(), stone(), sky), true);
+        SavedColumn column = column(chunk(air(), air(), sky), true);
 
         DataLayer inherited = column.skyLight(LOWER);
 
@@ -64,12 +58,26 @@ class SavedColumnTest {
     }
 
     @Test
+    void aSectionHoldingOrTouchingBlocksWithNoSavedLayerReadsZero() {
+        DataLayer[] sky = new DataLayer[LIGHT_SECTIONS];
+        sky[UPPER + LIGHT_INDEX_OFFSET] = shadedBottomRow();
+        SavedColumn holding = column(chunk(stone(), air(), sky), true);
+        SavedColumn touching = column(chunk(air(), stone(), new DataLayer[LIGHT_SECTIONS]), true);
+
+        assertEquals(0, holding.skyLight(LOWER).get(0, 0, 0));
+        assertEquals(0, holding.skyLight(LOWER).get(SIDE - 1, SIDE - 1, SIDE - 1));
+        assertEquals(0, touching.skyLight(LOWER).get(0, 0, 0));
+        assertTrue(touching.submits(LOWER));
+    }
+
+    @Test
     void aSectionWithNoLayerAboveReadsOpenSkyAndDarknessWithoutASky() {
         DataLayer[] none = new DataLayer[LIGHT_SECTIONS];
 
         assertEquals(SectionConverter.DEFAULT_SKY_LIGHT,
-                column(chunk(stone(), air(), none), true).skyLight(LOWER).get(0, 0, 0));
-        assertEquals(0, column(chunk(stone(), air(), none), false).skyLight(LOWER).get(0, 0, 0));
+                column(chunk(air(), air(), none), true).skyLight(LOWER).get(0, 0, 0));
+        assertEquals(0, column(chunk(air(), air(), none), false).skyLight(LOWER).get(0, 0, 0));
+        assertFalse(column(chunk(stone(), air(), none), false).submits(UPPER));
     }
 
     @Test
@@ -77,11 +85,23 @@ class SavedColumnTest {
         DataLayer[] sky = new DataLayer[LIGHT_SECTIONS];
         sky[UPPER + LIGHT_INDEX_OFFSET] = new DataLayer(SHADE);
         SavedColumn shaded = column(chunk(stone(), air(), sky), true);
-        SavedColumn open = column(chunk(stone(), air(), new DataLayer[LIGHT_SECTIONS]), true);
+        SavedColumn open = column(chunk(air(), air(), new DataLayer[LIGHT_SECTIONS]), true);
 
         assertTrue(shaded.submits(UPPER));
+        assertTrue(shaded.submits(LOWER));
         assertFalse(open.submits(UPPER));
-        assertTrue(open.submits(LOWER));
+        assertFalse(open.submits(LOWER));
+    }
+
+    private static DataLayer shadedBottomRow() {
+        DataLayer layer = new DataLayer(SectionConverter.DEFAULT_SKY_LIGHT);
+        for (int z = 0; z < SIDE; z++) {
+            for (int x = 0; x < SIDE; x++) {
+                layer.set(x, 0, z, SHADE);
+            }
+        }
+
+        return layer;
     }
 
     @Test
