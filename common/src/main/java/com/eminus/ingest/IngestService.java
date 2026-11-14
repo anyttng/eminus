@@ -342,6 +342,28 @@ public final class IngestService {
         });
     }
 
+    public boolean ingestColumn(IngestColumn column, SectionPyramid pyramid) {
+        if (coverage.covers(column.chunkX(), column.chunkZ())) {
+            return false;
+        }
+
+        for (int index = 0; index < column.sectionCount(); index++) {
+            if (!running) {
+                return false;
+            }
+
+            if (column.submits(index)) {
+                SectionConverter.convert(column.section(index), column.biomeWindow(index), column.skyLight(index),
+                        column.blockLight(index), states, biomes, pyramid);
+                PyramidDownsampler.build(pyramid, states, states);
+                merger.mergeEveryLevel(pyramid, column.chunkX(), column.sectionY(index), column.chunkZ());
+            }
+        }
+
+        cover(column.chunkX(), column.chunkZ());
+        return true;
+    }
+
     private void cover(int chunkX, int chunkZ) {
         if (running && coverage.cover(chunkX, chunkZ)) {
             coverage.persist(chunkX, chunkZ);
@@ -417,23 +439,13 @@ public final class IngestService {
     }
 
     private static @Nullable DataLayer sky(LevelLightEngine light, SectionPos sectionPos) {
-        DataLayer own = layer(light, LightLayer.SKY, sectionPos);
-        if (own != null || !hasSky(light)) {
-            return own;
-        }
-
-        for (int sectionY = sectionPos.y() + 1; sectionY < light.getMaxLightSection(); sectionY++) {
-            DataLayer above = layer(light, LightLayer.SKY, SectionPos.of(sectionPos.x(), sectionY, sectionPos.z()));
-            if (above != null) {
-                return SectionConverter.repeatBottomRow(above);
-            }
-        }
-
-        return null;
+        return ColumnLight.sky(
+                (layer, sectionY) -> layer(light, layer, SectionPos.of(sectionPos.x(), sectionY, sectionPos.z())),
+                hasSky(light), sectionPos.y(), light.getMaxLightSection());
     }
 
     private static DataLayer openSky(LevelLightEngine light) {
-        return hasSky(light) ? new DataLayer(SectionConverter.DEFAULT_SKY_LIGHT) : new DataLayer();
+        return ColumnLight.openSky(hasSky(light));
     }
 
     private static boolean lightOn(LevelLightEngine light, int chunkX, int chunkZ) {

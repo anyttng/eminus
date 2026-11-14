@@ -21,10 +21,12 @@ public final class EminusInstance {
     public static final String INGEST_SERVICE = "ingest";
     public static final String SAVE_SERVICE = "save";
     public static final String BUILD_SERVICE = "build";
+    public static final String IMPORT_SERVICE = "import";
 
     public static final int INGEST_WEIGHT = 60;
     public static final int SAVE_WEIGHT = 30;
     public static final int BUILD_WEIGHT = 10;
+    public static final int IMPORT_WEIGHT = 10;
     public static final int URGENT_BUILD_WEIGHT = INGEST_WEIGHT;
 
     private final Path storeBase;
@@ -34,6 +36,7 @@ public final class EminusInstance {
     private final WorkService<SectionPyramid> ingest;
     private final WorkService<Void> save;
     private final WorkService<MeshScratch> build;
+    private final WorkService<SectionPyramid> imports;
     private final Map<WorldIdentity, DimensionRuntime> runtimes = new HashMap<>();
     private final Set<WorldIdentity> closing = new HashSet<>();
     private final WorldCleaner cleaner = new WorldCleaner(this);
@@ -48,6 +51,7 @@ public final class EminusInstance {
         ingest = pool.register(INGEST_SERVICE, INGEST_WEIGHT, WorkService.UNLIMITED, SectionPyramid::new);
         save = pool.register(SAVE_SERVICE, SAVE_WEIGHT, WorkService.UNLIMITED, () -> null);
         build = pool.register(BUILD_SERVICE, BUILD_WEIGHT, WorkService.UNLIMITED, MeshScratch::new);
+        imports = pool.register(IMPORT_SERVICE, IMPORT_WEIGHT, WorkService.UNLIMITED, SectionPyramid::new);
     }
 
     public static EminusInstance start(Path storeBase, int threadCount, int lowestStoredLevel, LongSupplier clock) {
@@ -64,6 +68,10 @@ public final class EminusInstance {
 
     public WorkService<MeshScratch> build() {
         return build;
+    }
+
+    public WorkService<SectionPyramid> imports() {
+        return imports;
     }
 
     public int lowestStoredLevel() {
@@ -118,6 +126,7 @@ public final class EminusInstance {
 
         cleaner.stop();
         build.stop(ShutdownMode.DRAIN);
+        imports.stop(ShutdownMode.DISCARD);
         ingest.stop(ShutdownMode.DISCARD);
         save.stop(ShutdownMode.INLINE);
         closeRuntimes();
