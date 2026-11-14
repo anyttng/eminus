@@ -13,6 +13,7 @@ public final class ImportTiles {
     public static final int TILE_BITS = 4;
     public static final int TILE_CHUNKS = 1 << TILE_BITS;
     public static final int REGION_BITS = 5;
+    public static final int READ_BORDER_CHUNKS = SavedColumn.NEIGHBOR_REACH;
 
     private static final Pattern REGION_FILE = Pattern.compile("r\\.(-?\\d+)\\.(-?\\d+)\\.mca");
     private static final int REGION_X_GROUP = 1;
@@ -50,6 +51,51 @@ public final class ImportTiles {
             }
         }
 
+        return nearestFirst(tiles, centerChunkX, centerChunkZ);
+    }
+
+    public static long[] nearestFirst(LongSet tiles, int centerChunkX, int centerChunkZ, int radiusChunks) {
+        LongArrayList inReach = new LongArrayList();
+        for (long tile : tiles) {
+            int tileX = ChunkPos.getX(tile);
+            int tileZ = ChunkPos.getZ(tile);
+            if (tileX >= (centerChunkX - radiusChunks) >> TILE_BITS
+                    && tileX <= (centerChunkX + radiusChunks) >> TILE_BITS
+                    && tileZ >= (centerChunkZ - radiusChunks) >> TILE_BITS
+                    && tileZ <= (centerChunkZ + radiusChunks) >> TILE_BITS) {
+                inReach.add(tile);
+            }
+        }
+
+        inReach.sort(Long::compare);
+        return nearestFirst(inReach, centerChunkX, centerChunkZ);
+    }
+
+    public static long[] tilesReading(int chunkX, int chunkZ) {
+        int[] tilesX = tilesAlong(chunkX);
+        int[] tilesZ = tilesAlong(chunkZ);
+        long[] tiles = new long[tilesX.length * tilesZ.length];
+        int index = 0;
+        for (int tileZ : tilesZ) {
+            for (int tileX : tilesX) {
+                tiles[index++] = ChunkPos.pack(tileX, tileZ);
+            }
+        }
+
+        return tiles;
+    }
+
+    private static int[] tilesAlong(int chunk) {
+        int tile = chunk >> TILE_BITS;
+        int inTile = chunk & (TILE_CHUNKS - 1);
+        if (inTile < READ_BORDER_CHUNKS) {
+            return new int[] {tile, tile - 1};
+        }
+
+        return inTile >= TILE_CHUNKS - READ_BORDER_CHUNKS ? new int[] {tile, tile + 1} : new int[] {tile};
+    }
+
+    private static long[] nearestFirst(LongArrayList tiles, int centerChunkX, int centerChunkZ) {
         tiles.sort((first, second) -> Long.compare(distanceSquared(first, centerChunkX, centerChunkZ),
                 distanceSquared(second, centerChunkX, centerChunkZ)));
         return tiles.toLongArray();
