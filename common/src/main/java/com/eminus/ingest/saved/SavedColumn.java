@@ -121,7 +121,28 @@ public final class SavedColumn implements IngestColumn {
     }
 
     private @Nullable DataLayer sky(int index) {
-        return ColumnLight.sky(center::layer, hasSky, sectionY(index), center.maxLightSection());
+        return ColumnLight.sky(this::engineLayer, hasSky, sectionY(index), center.maxLightSection());
+    }
+
+    private @Nullable DataLayer engineLayer(LightLayer layer, int sectionY) {
+        DataLayer stored = center.layer(layer, sectionY);
+        if (stored != null || layer != LightLayer.SKY || !hasSky || !engineHeldLayer(sectionY)) {
+            return stored;
+        }
+
+        return new DataLayer();
+    }
+
+    private boolean engineHeldLayer(int sectionY) {
+        for (SavedChunk chunk : around) {
+            for (int dy = -NEIGHBOR_REACH; dy <= NEIGHBOR_REACH; dy++) {
+                if (chunk != null && chunk.holdsBlocks(sectionY + dy)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private @Nullable Holder<Biome> noiseBiome(int quartX, int quartY, int quartZ) {
