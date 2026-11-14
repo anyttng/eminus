@@ -23,6 +23,7 @@ public final class ModelVariants implements AutoCloseable {
     private final Buffer buffer;
     private final TexelView texels;
     private final int capacity;
+    private ByteBuffer scratch = ByteBuffer.allocateDirect(BYTES).order(ByteOrder.nativeOrder());
 
     private ModelVariants(Gpu gpu, Buffer buffer, int capacity) {
         this.gpu = gpu;
@@ -46,7 +47,12 @@ public final class ModelVariants implements AutoCloseable {
 
     public void write(int start, int[] table) {
         gpu.assertRenderThread();
-        ByteBuffer scratch = ByteBuffer.allocateDirect(table.length * Integer.BYTES).order(ByteOrder.nativeOrder());
+        int bytes = table.length * Integer.BYTES;
+        if (scratch.capacity() < bytes) {
+            scratch = ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder());
+        }
+
+        scratch.clear();
         for (int word : table) {
             scratch.putInt(word);
         }

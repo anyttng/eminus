@@ -106,6 +106,8 @@ public final class FarRenderer implements AutoCloseable {
     private volatile MeshService meshes;
     private RenderList renderList = RenderList.EMPTY;
     private @Nullable TreeBatch uploading;
+    private @Nullable TreeBatch awaited;
+    private int awaitedModels;
     private @Nullable GameFrame game;
     private AlphaCuts cuts = AlphaCuts.OWN;
     private int uploaded;
@@ -348,12 +350,21 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     private void uploadBatch() {
+        models.publish();
         TreeBatch batch = tree.batches().peek();
-        if (batch != null) {
-            upload(batch);
+        if (batch == null) {
+            awaited = null;
+            return;
         }
 
-        models.publish();
+        if (batch != awaited) {
+            awaited = batch;
+            awaitedModels = models.baked();
+        }
+
+        if (models.covers(awaitedModels)) {
+            upload(batch);
+        }
     }
 
     private void project(GameFrame game, Texture main) {
