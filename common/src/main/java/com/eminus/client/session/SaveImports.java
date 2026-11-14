@@ -21,11 +21,20 @@ import org.jspecify.annotations.Nullable;
 public final class SaveImports {
     public static final String OFF_PROPERTY = "eminus.import.off";
 
-    private static @Nullable SaveImport current;
+    private static volatile @Nullable SaveImport current;
+    private static volatile @Nullable ServerLevel savedLevel;
     private static @Nullable DimensionRuntime importedInto;
 
     public static @Nullable SaveImport current() {
         return current;
+    }
+
+    @SuppressWarnings("ReferenceEquality")
+    public static void chunkSaved(ServerLevel level, int chunkX, int chunkZ) {
+        SaveImport running = current;
+        if (running != null && level == savedLevel) {
+            running.saved(chunkX, chunkZ);
+        }
     }
 
     @SuppressWarnings("ReferenceEquality")
@@ -48,11 +57,13 @@ public final class SaveImports {
     }
 
     static void stop() {
-        if (current != null) {
-            current.stop();
+        SaveImport running = current;
+        if (running != null) {
+            running.stop();
         }
 
         current = null;
+        savedLevel = null;
         importedInto = null;
     }
 
@@ -65,6 +76,7 @@ public final class SaveImports {
         }
 
         long seed = ((BiomeManagerAccessor) level.getBiomeManager()).eminus$biomeZoomSeed();
+        savedLevel = saved;
         return new SaveImport(new ServerSave(saved), runtime.ingest(), runtime.coverage(), instance.imports(), seed);
     }
 

@@ -46,6 +46,25 @@ class ImportTilesTest {
     }
 
     @Test
+    void aSavedChunkReachesItsTileAndEveryTileWhoseBorderItLiesIn() {
+        assertArrayEquals(new long[] {ChunkPos.pack(0, 0)}, ImportTiles.tilesReading(PLAYER_CHUNK, PLAYER_CHUNK));
+        assertArrayEquals(new long[] {ChunkPos.pack(1, 0), ChunkPos.pack(0, 0)},
+                ImportTiles.tilesReading(ImportTiles.TILE_CHUNKS, PLAYER_CHUNK));
+        assertArrayEquals(new long[] {ChunkPos.pack(-1, -1), ChunkPos.pack(0, -1), ChunkPos.pack(-1, 0),
+                ChunkPos.pack(0, 0)}, ImportTiles.tilesReading(-1, -1));
+    }
+
+    @Test
+    void savedTilesInsideTheRadiusAreReplayedNearestFirst() {
+        LongSet saved = new LongOpenHashSet(new long[] {ChunkPos.pack(3, 0), ChunkPos.pack(0, 0),
+                ChunkPos.pack(40, 0), ChunkPos.pack(-1, 0)});
+
+        long[] tiles = ImportTiles.nearestFirst(saved, PLAYER_CHUNK, PLAYER_CHUNK, 4 * ImportTiles.TILE_CHUNKS);
+
+        assertArrayEquals(new long[] {ChunkPos.pack(0, 0), ChunkPos.pack(-1, 0), ChunkPos.pack(3, 0)}, tiles);
+    }
+
+    @Test
     void aTileOutsideTheRadiusIsNotPlanned() {
         LongSet regions = new LongOpenHashSet(new long[] {ChunkPos.pack(0, 0)});
 

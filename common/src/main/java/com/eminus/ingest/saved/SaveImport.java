@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -15,7 +16,6 @@ import com.eminus.work.WorkService;
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
-import it.unimi.dsi.fastutil.longs.LongSets;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.ChunkPos;
@@ -30,6 +30,7 @@ public final class SaveImport {
     private static final int SIDE_CHUNKS = ImportTiles.TILE_CHUNKS + 2 * BORDER_CHUNKS;
     private static final int READ_CHUNKS = SIDE_CHUNKS * SIDE_CHUNKS;
     private static final long[] NO_TILES = new long[0];
+    private static final long DIRTY_DELAY_NANOS = TimeUnit.SECONDS.toNanos(10);
 
     private final SaveSource source;
     private final IngestService ingest;
@@ -46,7 +47,9 @@ public final class SaveImport {
     private final AtomicInteger failed = new AtomicInteger();
     private final AtomicBoolean failureLogged = new AtomicBoolean();
 
-    private LongSet regions = LongSets.EMPTY_SET;
+    private final LongSet regions = new LongOpenHashSet();
+    private final LongSet dirty = new LongOpenHashSet();
+    private long dirtySinceNanos;
     private long[] pending = NO_TILES;
     private int next;
     private int tiles;
@@ -82,8 +85,12 @@ public final class SaveImport {
         centerChunkZ = playerChunkZ;
         viewChunks = clientViewChunks;
         long region = ImportTiles.regionOfChunk(playerChunkX, playerChunkZ);
-        boolean current = planned && region == plannedRegion && radiusChunks == plannedRadiusChunks;
-        if (!running || current) {
+        if (!running) {
+            return;
+        }
+
+        if (planned && region == plannedRegion && radiusChunks == plannedRadiusChunks) {
+            replayDirty(radiusChunks);
             return;
         }
 
@@ -91,6 +98,40 @@ public final class SaveImport {
         plannedRegion = region;
         plannedRadiusChunks = radiusChunks;
         service.enqueue(pyramid -> plan(playerChunkX, playerChunkZ, radiusChunks));
+    }
+
+    public void saved(int chunkX, int chunkZ) {
+        if (coverage.covers(chunkX, chunkZ)) {
+            return;
+        }
+
+        synchronized (this) {
+            if (!running) {
+                return;
+            }
+
+            if (dirty.isEmpty()) {
+                dirtySinceNanos = System.nanoTime();
+            }
+
+            regions.add(ImportTiles.regionOfChunk(chunkX, chunkZ));
+            for (long tile : ImportTiles.tilesReading(chunkX, chunkZ)) {
+                dirty.add(tile);
+            }
+        }
+    }
+
+    private void replayDirty(int radiusChunks) {
+        boolean idle = current == null && next >= pending.length;
+        if (dirty.isEmpty() || !idle || System.nanoTime() - dirtySinceNanos < DIRTY_DELAY_NANOS) {
+            return;
+        }
+
+        finished.removeAll(dirty);
+        pending = ImportTiles.nearestFirst(dirty, centerChunkX, centerChunkZ, radiusChunks);
+        next = 0;
+        dirty.clear();
+        service.enqueue(pyramid -> advance());
     }
 
     public synchronized void stop() {
@@ -103,10 +144,11 @@ public final class SaveImport {
 
     private void plan(int playerChunkX, int playerChunkZ, int radiusChunks) {
         LongSet listed = source.regions();
-        long[] planned = ImportTiles.plan(listed, playerChunkX, playerChunkZ, radiusChunks);
         synchronized (this) {
-            regions = listed;
-            pending = planned;
+            regions.addAll(listed);
+            finished.removeAll(dirty);
+            dirty.clear();
+            pending = ImportTiles.plan(regions, playerChunkX, playerChunkZ, radiusChunks);
             next = 0;
         }
 
