@@ -1,6 +1,7 @@
 package com.eminus.client.session;
 
 import com.eminus.ingest.saved.SaveImport;
+import com.eminus.ingest.saved.SavedChunk;
 import com.eminus.ingest.saved.ServerSave;
 import com.eminus.mixin.BiomeManagerAccessor;
 import com.eminus.session.DimensionRuntime;
@@ -15,6 +16,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.storage.SerializableChunkData;
 
 import org.jspecify.annotations.Nullable;
 
@@ -30,10 +32,10 @@ public final class SaveImports {
     }
 
     @SuppressWarnings("ReferenceEquality")
-    public static void chunkSaved(ServerLevel level, int chunkX, int chunkZ) {
+    public static void chunkSaved(ServerLevel level, SerializableChunkData snapshot) {
         SaveImport running = current;
         if (running != null && level == savedLevel) {
-            running.saved(chunkX, chunkZ);
+            running.saved(SavedChunk.of(snapshot, level.getSectionsCount(), false));
         }
     }
 
