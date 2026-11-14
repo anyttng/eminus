@@ -32,6 +32,7 @@ public final class SqliteCellStore implements CellStore {
     private static final String READ_FREE_PAGES = "PRAGMA freelist_count";
     private static final String READ_SQLITE_VERSION = "SELECT sqlite_version()";
     private static final String VACUUM = "VACUUM";
+    private static final String CHECKPOINT = "PRAGMA wal_checkpoint(FULL)";
     private static final String SELECT_CELL = "SELECT data FROM cells WHERE key = ?";
     private static final String UPSERT_CELL = "INSERT OR REPLACE INTO cells (key, occupancy, data) VALUES (?, ?, ?)";
     private static final String DELETE_CELL = "DELETE FROM cells WHERE key = ?";
@@ -56,6 +57,9 @@ public final class SqliteCellStore implements CellStore {
     private static final String SELECT_LOWEST_KEY = "SELECT min(key) FROM cells";
     private static final String RAISED_LEVEL_KEY = "raised_level";
     private static final String PLAYED_MILLIS_KEY = "raised_played_millis";
+    private static final String OPEN_KEY = "open";
+    private static final long OPEN = 1L;
+    private static final String OUTDATE_COLUMNS = "UPDATE columns SET format = " + StoreSchema.OLDER_COLUMN_FORMAT;
     private static final long MILLIS_PER_MINUTE = 60_000L;
 
     private final Path file;
@@ -77,6 +81,7 @@ public final class SqliteCellStore implements CellStore {
     private final PreparedStatement selectBeams;
 
     private boolean closed;
+    private boolean unclean;
 
     public static SqliteCellStore open(Path folder, int lowestStoredLevel, long dropGraceMillis, LongSupplier clock) {
         Path file = folder.resolve(FILE_NAME);
@@ -101,9 +106,15 @@ public final class SqliteCellStore implements CellStore {
             }
 
             int heldLevel = settleHeldLevel(connection, lowestStoredLevel, dropGraceMillis, file);
+            outdateColumnsLeftOpen(connection, file);
             vacuumWhenSparse(connection);
             SqliteCellStore store = new SqliteCellStore(file, heldLevel, heldLevel < lowestStoredLevel, upgraded,
                     clock, connection);
+            writeMeta(connection, OPEN_KEY, OPEN);
+            try (Statement statement = connection.createStatement()) {
+                statement.execute(CHECKPOINT);
+            }
+
             Eminus.LOGGER.info("Cell store opened at {} on SQLite {}", file, sqliteVersion(connection));
             return store;
         } catch (SQLException failure) {
@@ -268,6 +279,11 @@ public final class SqliteCellStore implements CellStore {
     }
 
     @Override
+    public synchronized void leaveUnclean() {
+        unclean = true;
+    }
+
+    @Override
     public synchronized void close() {
         if (closed) {
             return;
@@ -277,6 +293,10 @@ public final class SqliteCellStore implements CellStore {
         try {
             if (keepsCellsBelow) {
                 addMeta(connection, PLAYED_MILLIS_KEY, clock.getAsLong() - openedAt);
+            }
+
+            if (!unclean) {
+                deleteMeta(connection, OPEN_KEY);
             }
 
             selectCell.close();
@@ -335,6 +355,19 @@ public final class SqliteCellStore implements CellStore {
         deleteMeta(connection, PLAYED_MILLIS_KEY);
         dropBelowLevel(connection, lowestStoredLevel, file);
         return lowestStoredLevel;
+    }
+
+    private static void outdateColumnsLeftOpen(Connection connection, Path file) throws SQLException {
+        if (readMeta(connection, OPEN_KEY) == null) {
+            return;
+        }
+
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate(OUTDATE_COLUMNS);
+        }
+
+        Eminus.LOGGER.info("The cell store {} was not closed cleanly; its cells are kept and each column merges every "
+                + "level when it is ingested again", file);
     }
 
     private static int lowestLevelHeld(Connection connection, int lowestStoredLevel) throws SQLException {

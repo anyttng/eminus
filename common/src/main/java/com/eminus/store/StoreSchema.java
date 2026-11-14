@@ -13,7 +13,7 @@ import com.eminus.cell.DetailLevel;
 
 final class StoreSchema {
     private static final int FRESH_VERSION = 0;
-    private static final int OLDER_COLUMN_FORMAT = 0;
+    static final int OLDER_COLUMN_FORMAT = 0;
     private static final String LOWEST_FIELD = "lowest";
     private static final String FORMAT_FIELD = "format";
     private static final String FIELD_NAME = "name";
