@@ -14,8 +14,9 @@ import com.eminus.model.BakedModel;
 import com.eminus.model.FaceMips;
 import com.eminus.model.Mips;
 import com.eminus.model.ModelMetadata;
-import com.eminus.model.ModelSource;
 import com.eminus.model.Solidify;
+
+import org.jspecify.annotations.Nullable;
 
 public final class ModelAtlas implements AutoCloseable {
     private static final String COLOR_LABEL = "eminus-model-atlas";
@@ -42,9 +43,9 @@ public final class ModelAtlas implements AutoCloseable {
     private final int firstMip;
     private final int cellSide;
 
-    private Texture color;
-    private Texture tintMask;
-    private int cellsPerSide;
+    private final Texture color;
+    private final Texture tintMask;
+    private final int cellsPerSide;
 
     private ModelAtlas(Gpu gpu, int firstMip, Texture color, Texture tintMask, int cellsPerSide) {
         this.gpu = gpu;
@@ -118,34 +119,20 @@ public final class ModelAtlas implements AutoCloseable {
         }
     }
 
-    public int grow(ModelSource source) {
+    public @Nullable ModelAtlas grown(int models) {
         gpu.assertRenderThread();
         int grown = cellsPerSide * GROWTH;
         int maxSide = gpu.maxTextureSide(COLOR_FORMAT);
         if (grown * cellSide > maxSide) {
             Eminus.LOGGER.error("The model atlas cannot grow past {} texels a side, the device limit.", maxSide);
-            return 0;
+            return null;
         }
 
-        release();
-        color = allocate(gpu, COLOR_LABEL, COLOR_FORMAT, grown, cellSide);
-        tintMask = allocate(gpu, TINT_MASK_LABEL, TINT_MASK_FORMAT, grown, cellSide);
-        cellsPerSide = grown;
-        return reupload(source);
-    }
-
-    private int reupload(ModelSource source) {
-        int reuploaded = 0;
-        for (int modelId = 0; modelId < source.modelCount(); modelId++) {
-            if (!fits(modelId)) {
-                break;
-            }
-
-            upload(modelId, source.model(modelId));
-            reuploaded++;
+        while ((long) models * BakedModel.FACE_COUNT > (long) grown * grown && grown * GROWTH * cellSide <= maxSide) {
+            grown *= GROWTH;
         }
 
-        return reuploaded;
+        return create(gpu, grown, firstMip);
     }
 
     @Override

@@ -28,21 +28,27 @@ public final class ModelRecords implements AutoCloseable {
     private final Gpu gpu;
     private final Buffer buffer;
     private final TexelView texels;
+    private final int capacity;
     private final ByteBuffer scratch = ByteBuffer.allocateDirect(BYTES).order(ByteOrder.nativeOrder());
 
-    private ModelRecords(Gpu gpu, Buffer buffer) {
+    private ModelRecords(Gpu gpu, Buffer buffer, int capacity) {
         this.gpu = gpu;
         this.buffer = buffer;
+        this.capacity = capacity;
         texels = gpu.texelView(buffer, TEXEL_FORMAT);
     }
 
     public static ModelRecords create(Gpu gpu, int capacity) {
         gpu.assertRenderThread();
-        return new ModelRecords(gpu, gpu.buffer(LABEL, USAGE, (long) capacity * BYTES));
+        return new ModelRecords(gpu, gpu.buffer(LABEL, USAGE, (long) capacity * BYTES), capacity);
     }
 
     public TexelView texels() {
         return texels;
+    }
+
+    public int capacity() {
+        return capacity;
     }
 
     public void write(int modelId, BakedModel model, int variantStart) {
