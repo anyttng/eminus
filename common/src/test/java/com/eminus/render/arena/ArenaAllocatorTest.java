@@ -114,6 +114,47 @@ class ArenaAllocatorTest {
     }
 
     @Test
+    void aReplacementWithNoRoomKeepsTheOldRange() {
+        allocator.allocate(TWO_SEGMENTS);
+        int old = allocator.allocate(ONE_SEGMENT);
+        allocator.allocate(THREE_SEGMENTS);
+        allocator.allocate(TWO_SEGMENTS);
+
+        assertEquals(ArenaAllocator.NO_SEGMENT, allocator.replace(old, ONE_SEGMENT, TWO_SEGMENTS));
+        assertEquals(ARENA_SEGMENTS, allocator.usedSegments());
+        assertEquals(0, allocator.freeRuns());
+        assertEquals(ArenaAllocator.NO_SEGMENT, allocator.allocate(ONE_SEGMENT));
+    }
+
+    @Test
+    void aRefusedReplacementSplitsTheMergedRunBackAroundTheOldRange() {
+        int before = allocator.allocate(ONE_SEGMENT);
+        int old = allocator.allocate(TWO_SEGMENTS);
+        int after = allocator.allocate(ONE_SEGMENT);
+        allocator.allocate(4 * ONE_SEGMENT);
+        allocator.free(before, ONE_SEGMENT);
+        allocator.free(after, ONE_SEGMENT);
+
+        assertEquals(ArenaAllocator.NO_SEGMENT, allocator.replace(old, TWO_SEGMENTS, 5 * ONE_SEGMENT));
+        assertEquals(6, allocator.usedSegments());
+        assertEquals(2, allocator.freeRuns());
+        assertEquals(1, allocator.largestFreeRun());
+        assertEquals(ArenaAllocator.NO_SEGMENT, allocator.allocate(TWO_SEGMENTS));
+    }
+
+    @Test
+    void aReplacementTakesItsOwnFreedRangeMergedWithANeighbor() {
+        allocator.allocate(ONE_SEGMENT);
+        int old = allocator.allocate(TWO_SEGMENTS);
+        int after = allocator.allocate(ONE_SEGMENT);
+        allocator.allocate(4 * ONE_SEGMENT);
+        allocator.free(after, ONE_SEGMENT);
+
+        assertEquals(old, allocator.replace(old, TWO_SEGMENTS, THREE_SEGMENTS));
+        assertEquals(ARENA_SEGMENTS, allocator.usedSegments());
+    }
+
+    @Test
     void anEmptyMeshIsRefusedWithoutTouchingTheArena() {
         assertEquals(ArenaAllocator.NO_SEGMENT, allocator.allocate(0));
         assertEquals(ARENA_SEGMENTS, allocator.freeSegments());

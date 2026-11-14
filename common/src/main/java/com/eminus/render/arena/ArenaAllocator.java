@@ -94,6 +94,47 @@ public final class ArenaAllocator {
         return NO_SEGMENT;
     }
 
+    public int replace(int start, int oldQuads, int quads) {
+        free(start, oldQuads);
+        int placed = allocate(quads);
+        if (placed == NO_SEGMENT) {
+            claim(start, segmentsFor(oldQuads));
+        }
+
+        return placed;
+    }
+
+    private void claim(int start, int length) {
+        if (length == 0) {
+            return;
+        }
+
+        for (int index = 0; index < free.size(); index++) {
+            long run = free.getLong(index);
+            int runStart = start(run);
+            int runEnd = runStart + length(run);
+            if (runStart > start || start + length > runEnd) {
+                continue;
+            }
+
+            free.removeLong(index);
+            int insert = index;
+            if (start > runStart) {
+                free.add(insert++, range(runStart, start - runStart));
+            }
+
+            if (start + length < runEnd) {
+                free.add(insert, range(start + length, runEnd - start - length));
+            }
+
+            used += length;
+            return;
+        }
+
+        throw new IllegalStateException(
+                "Segment range " + start + ".." + (start + length) + " is not free to claim back.");
+    }
+
     public void free(int start, int quads) {
         int length = segmentsFor(quads);
         if (length == 0) {

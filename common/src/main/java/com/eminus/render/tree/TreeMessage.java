@@ -18,6 +18,9 @@ public sealed interface TreeMessage {
     record CellFailed(long key, long request) implements TreeMessage {
     }
 
+    record CellRefused(long key, long request, boolean kept) implements TreeMessage {
+    }
+
     record ColumnCovered(int chunkX, int chunkZ) implements TreeMessage {
     }
 

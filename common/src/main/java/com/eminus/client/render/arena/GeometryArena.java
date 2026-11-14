@@ -136,10 +136,10 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         return held.get(key);
     }
 
-    public int accept(List<CellMesh> meshes, int from) {
+    public int accept(List<CellMesh> meshes, int from, Refusals refusals) {
         gpu.assertRenderThread();
         refused = 0;
-        int index = upload(meshes, from);
+        int index = upload(meshes, from, refusals);
         if (refused > 0) {
             warnAboutRefusals();
         }
@@ -149,7 +149,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         return index;
     }
 
-    private int upload(List<CellMesh> meshes, int from) {
+    private int upload(List<CellMesh> meshes, int from, Refusals refusals) {
         int index = from;
 
         try (ArenaUploader.Step step = uploader.step()) {
@@ -166,10 +166,10 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
                     break;
                 }
 
-                release(mesh.key());
                 MeshSlot placed = place(mesh);
                 if (placed == null) {
                     refuse(mesh.quadCount());
+                    refusals.refused(mesh.key(), held.containsKey(mesh.key()));
                 } else {
                     step.copy(staged, quads, placed.segment() * ArenaSizing.SEGMENT_BYTES);
                 }
@@ -278,9 +278,16 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     }
 
     private @Nullable MeshSlot place(CellMesh mesh) {
-        int segment = allocator.allocate(mesh.slotCount());
+        MeshSlot previous = held.get(mesh.key());
+        int segment = previous == null
+                ? allocator.allocate(mesh.slotCount())
+                : allocator.replace(previous.segment(), previous.slots(), mesh.slotCount());
         if (segment == ArenaAllocator.NO_SEGMENT) {
             return null;
+        }
+
+        if (previous != null) {
+            unpage(previous);
         }
 
         MeshSlot placed = MeshSlot.of(mesh, segment);
@@ -310,8 +317,8 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         }
 
         lastWarning = now;
-        Eminus.LOGGER.warn("{} cells of up to {} quads do not fit the arena and are dropped: {} free segments, "
-                        + "largest free run {} segments, {} free runs",
+        Eminus.LOGGER.warn("{} cells of up to {} quads do not fit the arena and wait for its pressure to lift: {} free"
+                        + " segments, largest free run {} segments, {} free runs",
                 refusedSinceWarning, refusedQuadsMax, allocator.freeSegments(), allocator.largestFreeRun(),
                 allocator.freeRuns());
         refusedSinceWarning = 0;
@@ -325,6 +332,10 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         }
 
         allocator.free(released.segment(), released.slots());
+        unpage(released);
+    }
+
+    private void unpage(MeshSlot released) {
         if (pages != null && sparseQuads != null) {
             ArenaPages.PageRun run = pages.free(released.segment(), ArenaAllocator.segmentsFor(released.slots()));
             if (!run.isEmpty()) {
@@ -335,6 +346,11 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
 
     private static long pageBytes(ArenaPages pages, int count) {
         return (long) count * pages.segmentsPerPage() * ArenaSizing.SEGMENT_BYTES;
+    }
+
+    @FunctionalInterface
+    public interface Refusals {
+        void refused(long key, boolean kept);
     }
 
     @Override
