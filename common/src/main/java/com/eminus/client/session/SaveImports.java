@@ -19,6 +19,8 @@ import net.minecraft.world.level.ChunkPos;
 import org.jspecify.annotations.Nullable;
 
 public final class SaveImports {
+    public static final String OFF_PROPERTY = "eminus.import.off";
+
     private static @Nullable SaveImport current;
     private static @Nullable DimensionRuntime importedInto;
 
@@ -58,7 +60,7 @@ public final class SaveImports {
             ClientLevel level) {
         IntegratedServer server = minecraft.getSingleplayerServer();
         ServerLevel saved = server == null ? null : server.getLevel(level.dimension());
-        if (saved == null) {
+        if (saved == null || Boolean.getBoolean(OFF_PROPERTY)) {
             return null;
         }
 
