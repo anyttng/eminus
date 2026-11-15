@@ -54,12 +54,11 @@ public final class FarDraw {
     public enum PackVertex {
         OURS,
         HOOK,
-        SHADOW_HOOK,
         PROGRAM,
         SHADOW_PROGRAM;
 
         public boolean hook() {
-            return this == HOOK || this == SHADOW_HOOK;
+            return this == HOOK;
         }
     }
 
@@ -197,7 +196,6 @@ public final class FarDraw {
             case OURS -> builder;
             case HOOK -> animated ? builder.withDefine("PACK_VERTEX")
                     : builder.withDefine("PACK_VERTEX").withDefine("STILL");
-            case SHADOW_HOOK -> builder.withDefine("PACK_SHADOW_VERTEX");
             case PROGRAM -> program(builder);
             case SHADOW_PROGRAM -> program(builder).withDefine("PACK_SHADOW_PROGRAM");
         };
