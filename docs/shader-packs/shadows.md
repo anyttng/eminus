@@ -10,14 +10,6 @@ The translucent faces are drawn after Iris has copied the opaque shadow depth in
 
 Both shadow files take the same vertex hook. Your shadow sampling reads the map through your distortion, so the LOD has to be written through it too. Where `vertex.shadow` is `true`, `eminus_vertexPosition` returns `eminus_project(vertex.playerPos)` with the distortion your `shadow` vertex program applies to its own clip position ([The vertex hook](vertex-hook.md)). A pack whose shadow map is not distorted returns the projected position as it is.
 
-A pack written for version 3 carries the distortion in `eminus_shadow_vertex.glsl` instead, which Eminus reads only while `eminus_vertex.glsl` is absent. It is a vertex-stage source like `eminus_vertex.glsl` and defines
-
-```glsl
-vec4 eminus_shadowPosition(vec4 shadowClipPosition);
-```
-
-and no `main`. Eminus hands it each LOD vertex in shadow clip space (`shadowProjection * shadowModelView` applied) and writes what it returns to `gl_Position`.
-
 Faces are drawn whichever way they face, as Iris draws the near terrain into the shadow map. The exception is a few translucent faces Eminus builds one-sided, such as water against the seabed, which keep their back-face culling. The LOD reaches your shadow map only as far as your `shadowDistance` does. Iris's shadow map is a square of that half-width around the camera, so a pack whose shadow distance stays inside the render distance shows no LOD shadow at all.
 
 ## Shadow planes
