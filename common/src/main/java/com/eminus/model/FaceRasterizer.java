@@ -360,7 +360,7 @@ public final class FaceRasterizer {
             return null;
         }
 
-        int metadata = ModelMetadata.pack(layered, FaceMask.NONE, FaceMask.NONE, emission, flags);
+        int metadata = ModelMetadata.pack(layered, occluding & layered, FaceMask.NONE, emission, flags);
         return new BakedModel(overlayFaces, overlayTint, insets.clone(), slopes.clone(), bounds.clone(), metadata,
                 tintRow, layerMips, BakedModel.packShades(shades)).asLayer();
     }

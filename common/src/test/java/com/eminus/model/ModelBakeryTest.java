@@ -426,6 +426,7 @@ class ModelBakeryTest {
             int[] table = overlay.variants();
             assertTrue(overlay.layer());
             assertEquals(ModelMetadata.present(layer.metadata()), ModelMetadata.present(overlay.metadata()));
+            assertEquals(FaceMask.NORTH, ModelMetadata.occluding(overlay.metadata()));
             assertEquals(FaceMask.NONE, overlay.solidFaces());
             assertEquals(LIGHT_WEIGHT, table[0]);
             assertEquals(layer, bakery.model(table[1]));

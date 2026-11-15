@@ -343,8 +343,8 @@ public final class ModelBakery implements ModelSource {
         if (layered != FaceMask.NONE && overlayIds.get(weightedId) == NO_OVERLAY) {
             BakedModel overlay = first.overlay() == null ? BakedModel.emptyLayer(first) : first.overlay();
             int metadata = overlay.metadata();
-            int word = ModelMetadata.pack(layered, FaceMask.NONE, FaceMask.NONE, ModelMetadata.emission(metadata),
-                    metadata & ModelMetadata.FLAGS);
+            int word = ModelMetadata.pack(layered, ModelMetadata.occluding(first.metadata()) & layered,
+                    FaceMask.NONE, ModelMetadata.emission(metadata), metadata & ModelMetadata.FLAGS);
             overlayIds.put(weightedId, models.register(
                     stamped(overlay.withMetadata(word), packId).withVariants(overlayTable, FaceMask.NONE)));
         }
