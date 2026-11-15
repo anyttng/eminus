@@ -299,7 +299,7 @@ final class TreeTraversal {
             return;
         }
 
-        if (refines(node, ProjectedSize.of(box, camera.pixelsPerBlock()), camera) && givesWay(node, camera)) {
+        if (refines(node, ProjectedSize.of(box, camera.inViewPixelsPerBlock()), camera) && givesWay(node, camera)) {
             node.gaveWay(true);
             node.markDescended();
             outOfViewDescendedKeys.add(node.key());
