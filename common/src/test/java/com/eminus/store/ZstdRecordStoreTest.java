@@ -51,7 +51,7 @@ class ZstdRecordStoreTest {
         }
 
         try (SqliteCellStore store = open()) {
-            cells.forEach(store::write);
+            cells.forEach(cell -> CellWrites.write(store, cell));
             store.putDictionaryEntry(BLOCKS, 0, AIR);
             store.putColumn(COLUMN, LOWEST_LEVEL);
         }
