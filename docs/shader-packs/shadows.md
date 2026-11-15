@@ -2,7 +2,7 @@
 
 Part of the [Eminus shader-pack contract](../shader-pack-contract.md).
 
-`eminus_shadow.glsl` runs for the LOD's opaque and cutout faces in your shadow pass, and `eminus_shadow_translucent.glsl` for its translucent ones, with `fragment.translucent` set. Without the second file, translucent LOD faces cast no shadow, so an `eminus_shadow.glsl` written before version 6 never receives a translucent fragment.
+`eminus_shadow.glsl` runs for the LOD's opaque and cutout faces in your shadow pass, and `eminus_shadow_translucent.glsl` for its translucent ones, with `fragment.translucent` set. Without the second file, translucent LOD faces cast no shadow, and `eminus_shadow.glsl` never receives a translucent fragment.
 
 Both files' `fragment` carries the same fields as in the other two programs ([The fragment function](fragment.md)), with `viewPos` and `normal` in the shadow view's space. Where your `shadow` program reads its texture at a fixed mip level, read it through `eminus_colorLod` ([The texture at a chosen level](fragment.md#the-texture-at-a-chosen-level)). The body of your `shadow` fragment code moves over the way your terrain code did. `gl_ProjectionMatrix` and `gl_ModelViewMatrix` are the shadow pass's own, and everything Iris hands your `shadow` program is available.
 
