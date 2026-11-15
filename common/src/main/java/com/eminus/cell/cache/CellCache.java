@@ -62,40 +62,37 @@ public final class CellCache implements CellAccess {
     public void release(CellHandle handle) {
         WorkerPool.requireWorkerThread("Releasing a cell");
 
-        boolean submit = false;
-
         lock.lock();
         try {
             if (handle.release() > 0) {
                 return;
             }
 
-            if (handle.dirty()) {
-                submit = handle.claimQueue();
-            } else {
+            if (!handle.dirty()) {
                 handles.remove(handle.key());
                 released.park(handle);
+                return;
             }
         } finally {
             lock.unlock();
         }
 
-        if (submit) {
+        if (handle.claimQueue()) {
             saves.submit(handle);
         }
     }
 
     public void sweep() {
-        List<CellHandle> due = new ArrayList<>();
+        List<CellHandle> unsaved = new ArrayList<>();
         List<CellHandle> park = new ArrayList<>();
 
         lock.lock();
         try {
             for (CellHandle handle : handles.values()) {
-                if (handle.references() == 0 && !handle.dirty()) {
+                if (handle.dirty()) {
+                    unsaved.add(handle);
+                } else if (handle.references() == 0) {
                     park.add(handle);
-                } else if (handle.claimDue()) {
-                    due.add(handle);
                 }
             }
 
@@ -107,7 +104,11 @@ public final class CellCache implements CellAccess {
             lock.unlock();
         }
 
-        due.forEach(saves::submit);
+        for (CellHandle handle : unsaved) {
+            if (handle.claimDue()) {
+                saves.submit(handle);
+            }
+        }
     }
 
     public boolean flush() {

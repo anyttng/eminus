@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
 public interface CellStore extends BeamStore, AutoCloseable {
     @Nullable Cell read(long key);
 
-    void write(Cell cell);
+    void write(long key, int occupancy, byte[] record);
 
     void delete(long key);
 

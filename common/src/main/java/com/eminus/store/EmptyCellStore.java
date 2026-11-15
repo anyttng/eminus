@@ -18,7 +18,7 @@ public final class EmptyCellStore implements CellStore {
     }
 
     @Override
-    public void write(Cell cell) {
+    public void write(long key, int occupancy, byte[] record) {
     }
 
     @Override
