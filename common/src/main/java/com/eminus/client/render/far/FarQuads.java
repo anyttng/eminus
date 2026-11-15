@@ -91,6 +91,8 @@ final class FarQuads {
                 .withDefine("TRANSLUCENT_FLAG", ModelMetadata.TRANSLUCENT)
                 .withDefine("ONE_SIDED_FLAG", ModelMetadata.ONE_SIDED)
                 .withDefine("PRESENT_SHIFT", ModelMetadata.PRESENT_SHIFT)
+                .withDefine("OCCLUDING_SHIFT", ModelMetadata.OCCLUDING_SHIFT)
+                .withDefine("OPAQUE_FLAG", ModelMetadata.OPAQUE)
                 .withDefine("INWARD_FLAG", ModelMetadata.INWARD)
                 .withDefine("EMISSION_SHIFT", ModelMetadata.EMISSION_SHIFT)
                 .withDefine("EMISSION_BITS", Integer.bitCount(ModelMetadata.MAX_EMISSION))
