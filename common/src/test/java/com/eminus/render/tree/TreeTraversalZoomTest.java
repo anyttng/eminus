@@ -2,6 +2,7 @@ package com.eminus.render.tree;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
@@ -81,6 +82,58 @@ class TreeTraversalZoomTest {
         for (TreeNode child : traversal.requested()) {
             assertSame(aside, child.parent());
         }
+    }
+
+    @Test
+    void underAZoomANodeOutOfViewStaysListedThroughTheChildrenTheZoomBuilt() {
+        TreeNode root = meshedRoot(rootKey);
+        List<TreeNode> children = zoomRequestedChildren();
+        for (TreeNode child : children) {
+            child.meshed(TestMeshes.summary(child.key(), LEAF_OCCUPANCY));
+        }
+
+        RenderList list = listedWithOutOfView(FakeCameras.zoomed(turnedAway(), zoomedPixelsPerBlock()), WALK + 1);
+
+        assertEquals(children.stream().map(TreeNode::key).sorted().toList(),
+                list.meshes().stream().map(MeshSummary::key).sorted().toList());
+        assertTrue(traversal.outOfViewRequested().isEmpty());
+        assertEquals(List.of(root.mesh()), listedWithOutOfView(turnedAway(), WALK + 2).meshes());
+    }
+
+    @Test
+    void underAZoomANodeOutOfViewWithAChildMissingListsItselfAndRequestsNothing() {
+        TreeNode root = meshedRoot(rootKey);
+        List<TreeNode> children = zoomRequestedChildren();
+        children.getFirst().meshed(TestMeshes.summary(children.getFirst().key(), LEAF_OCCUPANCY));
+
+        RenderList list = listedWithOutOfView(FakeCameras.zoomed(turnedAway(), zoomedPixelsPerBlock()), WALK + 1);
+
+        assertEquals(List.of(root.mesh()), list.meshes());
+        assertTrue(traversal.requested().isEmpty());
+        assertTrue(traversal.outOfViewRequested().isEmpty());
+    }
+
+    private List<TreeNode> zoomRequestedChildren() {
+        CameraFrame set = FakeCameras.everything(BEHIND, INSIDE, INSIDE, FAR_CELLS, setPixelsPerBlock());
+        traversal.walk(nodes.roots(), FakeCameras.zoomed(set, zoomedPixelsPerBlock()), BUDGET, NO_OUT_OF_VIEW, WALK);
+        return List.copyOf(traversal.requested());
+    }
+
+    private static CameraFrame turnedAway() {
+        return FakeCameras.looking(CELL - BEHIND, INSIDE, INSIDE, 1.0F, 0.0F, 0.0F, FAR_CELLS, setPixelsPerBlock());
+    }
+
+    private static float setPixelsPerBlock() {
+        return (float) (FakeCameras.THRESHOLD_PIXELS * -BEHIND / CELL * HALF_THRESHOLD);
+    }
+
+    private static float zoomedPixelsPerBlock() {
+        return setPixelsPerBlock() * SPYGLASS_ZOOM;
+    }
+
+    private RenderList listedWithOutOfView(CameraFrame camera, long walk) {
+        traversal.walk(nodes.roots(), camera, BUDGET, BUDGET, walk);
+        return traversal.list(camera);
     }
 
     private static CameraFrame alongX() {
