@@ -31,6 +31,7 @@ public final class SaveImport {
     private static final int SIDE_CHUNKS = ImportTiles.TILE_CHUNKS + 2 * BORDER_CHUNKS;
     private static final int READ_CHUNKS = SIDE_CHUNKS * SIDE_CHUNKS;
     private static final long[] NO_TILES = new long[0];
+    private static final int[] NO_READS = new int[0];
     private static final long DIRTY_DELAY_NANOS = TimeUnit.SECONDS.toNanos(10);
     private static final long WAITING_NANOS = TimeUnit.SECONDS.toNanos(3);
     private static final int NEIGHBORS_KEPT = 4096;
@@ -42,6 +43,7 @@ public final class SaveImport {
     private final WorkService<SectionPyramid> service;
     private final long biomeZoomSeed;
     private final LongSet finished = new LongOpenHashSet();
+    private final LongSet settled = new LongOpenHashSet();
     private final AtomicInteger imported = new AtomicInteger();
     private final AtomicInteger notSaved = new AtomicInteger();
     private final AtomicInteger notFull = new AtomicInteger();
@@ -49,6 +51,10 @@ public final class SaveImport {
     private final AtomicInteger noNeighbors = new AtomicInteger();
     private final AtomicInteger upgraded = new AtomicInteger();
     private final AtomicInteger failed = new AtomicInteger();
+    private final AtomicInteger reads = new AtomicInteger();
+    private final AtomicInteger parsed = new AtomicInteger();
+    private final AtomicInteger coverageChecks = new AtomicInteger();
+    private final AtomicInteger fromSnapshot = new AtomicInteger();
     private final AtomicBoolean failureLogged = new AtomicBoolean();
 
     private final LongSet regions = new LongOpenHashSet();
@@ -85,12 +91,12 @@ public final class SaveImport {
     }
 
     public record Tally(int tiles, int imported, int notSaved, int notFull, int unlit, int noNeighbors, int upgraded,
-            int failed) {
+            int failed, int reads, int parsed, int coverageChecks, int fromSnapshot) {
     }
 
     public synchronized Tally tally() {
         return new Tally(tiles, imported.get(), notSaved.get(), notFull.get(), unlit.get(), noNeighbors.get(),
-                upgraded.get(), failed.get());
+                upgraded.get(), failed.get(), reads.get(), parsed.get(), coverageChecks.get(), fromSnapshot.get());
     }
 
     public synchronized void tick(int playerChunkX, int playerChunkZ, int radiusChunks, int clientViewChunks) {
@@ -160,6 +166,7 @@ public final class SaveImport {
                 try {
                     if (ingest.ingestColumn(column, pyramid)) {
                         imported.incrementAndGet();
+                        fromSnapshot.incrementAndGet();
                     }
                 } catch (RuntimeException failure) {
                     failed(failure);
@@ -274,7 +281,7 @@ public final class SaveImport {
     private void advance() {
         TileRun started = scan();
         if (started != null) {
-            started.pump();
+            started.begin();
         }
     }
 
@@ -311,7 +318,7 @@ public final class SaveImport {
     private synchronized @Nullable Candidate nextCandidate() {
         while (running && next < pending.length) {
             long tile = pending[next++];
-            if (!finished.contains(tile)) {
+            if (!finished.contains(tile) && !settled.contains(tile)) {
                 return new Candidate(tile, centerChunkX, centerChunkZ, viewChunks);
             }
         }
@@ -333,6 +340,7 @@ public final class SaveImport {
 
     private BitSet wanted(Candidate candidate) {
         BitSet wanted = new BitSet(ImportTiles.TILE_CHUNKS * ImportTiles.TILE_CHUNKS);
+        int checked = 0;
         int minChunkX = ChunkPos.getX(candidate.tile()) << ImportTiles.TILE_BITS;
         int minChunkZ = ChunkPos.getZ(candidate.tile()) << ImportTiles.TILE_BITS;
         for (int dz = 0; dz < ImportTiles.TILE_CHUNKS; dz++) {
@@ -341,11 +349,24 @@ public final class SaveImport {
                 int chunkZ = minChunkZ + dz;
                 boolean inView = Math.max(Math.abs(chunkX - candidate.centerChunkX()),
                         Math.abs(chunkZ - candidate.centerChunkZ())) <= candidate.viewChunks();
-                if (!inView && !coverage.covers(chunkX, chunkZ)) {
+                if (inView) {
+                    continue;
+                }
+
+                checked++;
+                if (!coverage.covers(chunkX, chunkZ)) {
                     wanted.set(dz * ImportTiles.TILE_CHUNKS + dx);
                 }
             }
         }
+
+        coverageChecks.addAndGet(checked);
+        if (checked == ImportTiles.TILE_CHUNKS * ImportTiles.TILE_CHUNKS && wanted.isEmpty()) {
+            synchronized (this) {
+                settled.add(candidate.tile());
+            }
+        }
+
 
         return wanted;
     }
@@ -367,7 +388,10 @@ public final class SaveImport {
         private final int minChunkZ;
         private final @Nullable CompoundTag[] tags = new CompoundTag[READ_CHUNKS];
         private final @Nullable SavedChunk[] chunks = new SavedChunk[READ_CHUNKS];
+        private final BitSet asked = new BitSet(READ_CHUNKS);
 
+        private int[] batch = NO_READS;
+        private boolean neighborsAsked;
         private int nextRead;
         private int inFlight;
         private int readsDone;
@@ -379,22 +403,52 @@ public final class SaveImport {
             this.minChunkZ = (ChunkPos.getZ(tile) << ImportTiles.TILE_BITS) - BORDER_CHUNKS;
         }
 
+        private void begin() {
+            int[] centers = new int[wanted.cardinality()];
+            int next = 0;
+            for (int column = wanted.nextSetBit(0); column >= 0; column = wanted.nextSetBit(column + 1)) {
+                centers[next++] = index(column % ImportTiles.TILE_CHUNKS + BORDER_CHUNKS,
+                        column / ImportTiles.TILE_CHUNKS + BORDER_CHUNKS);
+            }
+
+            ask(centers);
+        }
+
+        private void ask(int[] indices) {
+            synchronized (SaveImport.this) {
+                for (int index : indices) {
+                    asked.set(index);
+                }
+
+                batch = indices;
+                nextRead = 0;
+                readsDone = 0;
+            }
+
+            if (indices.length == 0) {
+                onWorker(this::parse);
+            } else {
+                pump();
+            }
+        }
+
         @SuppressWarnings("FutureReturnValueIgnored")
         private void pump() {
             List<Integer> reads = new ArrayList<>(READS_IN_FLIGHT);
             boolean allRead = false;
             synchronized (SaveImport.this) {
-                while (running && inFlight < READS_IN_FLIGHT && nextRead < READ_CHUNKS) {
-                    int index = nextRead++;
+                while (running && inFlight < READS_IN_FLIGHT && nextRead < batch.length) {
+                    int index = batch[nextRead++];
                     if (regions.contains(ImportTiles.regionOfChunk(chunkX(index), chunkZ(index)))) {
                         inFlight++;
                         reads.add(index);
                     } else {
-                        allRead = ++readsDone == READ_CHUNKS;
+                        allRead = ++readsDone == batch.length;
                     }
                 }
             }
 
+            SaveImport.this.reads.addAndGet(reads.size());
             for (int index : reads) {
                 source.read(chunkX(index), chunkZ(index))
                         .whenComplete((tag, failure) -> read(index, tag == null ? null : tag.orElse(null)));
@@ -410,7 +464,7 @@ public final class SaveImport {
             synchronized (SaveImport.this) {
                 tags[index] = tag;
                 inFlight--;
-                allRead = ++readsDone == READ_CHUNKS;
+                allRead = ++readsDone == batch.length;
             }
 
             if (allRead) {
@@ -431,15 +485,15 @@ public final class SaveImport {
                 return;
             }
 
-            List<Integer> saved = new ArrayList<>(READ_CHUNKS);
-            for (int index = 0; index < READ_CHUNKS; index++) {
+            List<Integer> saved = new ArrayList<>(batch.length);
+            for (int index : batch) {
                 if (tags[index] != null) {
                     saved.add(index);
                 }
             }
 
             if (saved.isEmpty()) {
-                ingest();
+                parsed();
                 return;
             }
 
@@ -450,15 +504,72 @@ public final class SaveImport {
                         CompoundTag tag = tags[index];
                         tags[index] = null;
                         chunks[index] = tag == null ? null : source.parse(tag);
+                        parsed.incrementAndGet();
                     } catch (RuntimeException failure) {
                         failed(failure);
                     } finally {
                         if (remaining.decrementAndGet() == 0) {
-                            ingest();
+                            parsed();
                         }
                     }
                 });
             }
+        }
+
+        private void parsed() {
+            if (stopped()) {
+                return;
+            }
+
+            if (neighborsAsked) {
+                ingest();
+                return;
+            }
+
+            neighborsAsked = true;
+            ask(missingNeighbors());
+        }
+
+        private int[] missingNeighbors() {
+            List<Integer> missing = new ArrayList<>();
+            synchronized (SaveImport.this) {
+                for (int column = wanted.nextSetBit(0); column >= 0; column = wanted.nextSetBit(column + 1)) {
+                    int x = column % ImportTiles.TILE_CHUNKS + BORDER_CHUNKS;
+                    int z = column / ImportTiles.TILE_CHUNKS + BORDER_CHUNKS;
+                    SavedChunk center = chunks[index(x, z)];
+                    if (center == null || !center.full() || !center.lit()) {
+                        continue;
+                    }
+
+                    for (int dz = -BORDER_CHUNKS; dz <= BORDER_CHUNKS; dz++) {
+                        for (int dx = -BORDER_CHUNKS; dx <= BORDER_CHUNKS; dx++) {
+                            int near = index(x + dx, z + dz);
+                            if (asked.get(near)) {
+                                continue;
+                            }
+
+                            asked.set(near);
+                            SavedChunk kept = neighbors.get(ChunkPos.pack(chunkX(near), chunkZ(near)));
+                            if (kept == null) {
+                                missing.add(near);
+                            } else {
+                                chunks[near] = kept;
+                            }
+                        }
+                    }
+                }
+            }
+
+            int[] indices = new int[missing.size()];
+            for (int next = 0; next < indices.length; next++) {
+                indices[next] = missing.get(next);
+            }
+
+            return indices;
+        }
+
+        private int index(int x, int z) {
+            return z * SIDE_CHUNKS + x;
         }
 
         private void ingest() {
