@@ -54,6 +54,10 @@ public final class EmptyCellStore implements CellStore {
     }
 
     @Override
+    public void leaveUnclean() {
+    }
+
+    @Override
     public void close() {
     }
 }

@@ -29,8 +29,6 @@ flat out uvec2 eminus_occlusion;
 #endif
 #ifdef PACK_VERTEX
 #include <eminus:far_pack_hook.glsl>
-#elif defined PACK_SHADOW_VERTEX
-vec4 eminus_shadowPosition(vec4 shadowClipPosition);
 #elif defined DH_PROGRAM
 uniform sampler2D EminusAtlas;
 uniform sampler2D EminusTintMask;
@@ -99,8 +97,6 @@ void eminus_vertex() {
     vec4 clipPosition = eminus_vertexPosition(hooked);
     position = hooked.playerPos;
     gl_Position = vertex.culled ? EMINUS_CULLED_POSITION : clipPosition;
-#elif defined PACK_SHADOW_VERTEX
-    gl_Position = vertex.culled ? EMINUS_CULLED_POSITION : eminus_shadowPosition(EminusProjView * vec4(position, 1.0));
 #elif !defined DH_PROGRAM
     gl_Position = vertex.culled ? EMINUS_CULLED_POSITION : EminusProjView * vec4(position, 1.0);
 #endif
@@ -135,7 +131,9 @@ void eminus_vertex() {
 #endif
 
 #ifdef DH_PROGRAM
-    eminus_culled = vertex.culled;
+    bool layer = texelFetch(EminusModelRecords, vertex.modelId * MODEL_TEXELS + LAYER_TEXEL).z > 0.0;
+    eminus_culled = vertex.culled
+            || (layer && texelFetch(EminusAtlas, vertex.atlasCell, EminusAtlasMeanLevel).a < LAYER_KEPT_ALPHA);
     _vert_position = vertex.position;
     _vert_normal = normal;
     _vert_tex_light_coord = lmcoord;

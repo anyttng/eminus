@@ -110,7 +110,7 @@ public final class CellCache implements CellAccess {
         due.forEach(saves::submit);
     }
 
-    public void flush() {
+    public boolean flush() {
         List<CellHandle> live;
 
         lock.lock();
@@ -121,6 +121,7 @@ public final class CellCache implements CellAccess {
         }
 
         live.forEach(handle -> handle.save(store));
+        return live.stream().noneMatch(CellHandle::dirty);
     }
 
     public int liveCount() {

@@ -48,7 +48,6 @@ public final class ContractPath implements PackPath {
     private final @Nullable PackFile translucent;
     private final @Nullable PackFile shadow;
     private final @Nullable PackFile shadowTranslucent;
-    private final @Nullable PackFile shadowVertex;
     private final @Nullable PackFile vertex;
     private final @Nullable PackFile beam;
     private final @Nullable ProgramSource packShadow;
@@ -58,13 +57,12 @@ public final class ContractPath implements PackPath {
     }
 
     private ContractPath(PackFile opaque, @Nullable PackFile translucent, @Nullable PackFile shadow,
-            @Nullable PackFile shadowTranslucent, @Nullable PackFile shadowVertex, @Nullable PackFile vertex,
-            @Nullable PackFile beam, @Nullable ProgramSource packShadow, ContractDeclarations declarations) {
+            @Nullable PackFile shadowTranslucent, @Nullable PackFile vertex, @Nullable PackFile beam,
+            @Nullable ProgramSource packShadow, ContractDeclarations declarations) {
         this.opaque = opaque;
         this.translucent = translucent;
         this.shadow = shadow;
         this.shadowTranslucent = shadowTranslucent;
-        this.shadowVertex = shadowVertex;
         this.vertex = vertex;
         this.beam = beam;
         this.packShadow = packShadow;
@@ -79,8 +77,7 @@ public final class ContractPath implements PackPath {
         return opaque == null ? null : new ContractPath(opaque,
                 read(sources, PackContract.TRANSLUCENT_FILE, folder), read(sources, PackContract.SHADOW_FILE, folder),
                 read(sources, PackContract.SHADOW_TRANSLUCENT_FILE, folder),
-                read(sources, PackContract.SHADOW_VERTEX_FILE, folder), read(sources, PackContract.VERTEX_FILE, folder),
-                read(sources, PackContract.BEAM_FILE, folder),
+                read(sources, PackContract.VERTEX_FILE, folder), read(sources, PackContract.BEAM_FILE, folder),
                 new ProgramFallbackResolver(programSet).resolveNullable(ProgramId.ShadowCutout),
                 ((DeclaredContract) pack).eminus$contractDeclarations());
     }
@@ -114,27 +111,19 @@ public final class ContractPath implements PackPath {
 
     @Override
     public @Nullable Source source(PackProgram.Kind kind) {
-        FarDraw.PackVertex stage = vertex == null ? FarDraw.PackVertex.OURS : FarDraw.PackVertex.HOOK;
         return switch (kind) {
-            case OPAQUE -> source(OPAQUE_PROGRAM, opaque, vertex, stage);
-            case TRANSLUCENT -> source(TRANSLUCENT_PROGRAM, translucent == null ? opaque : translucent, vertex, stage);
+            case OPAQUE -> source(OPAQUE_PROGRAM, opaque);
+            case TRANSLUCENT -> source(TRANSLUCENT_PROGRAM, translucent == null ? opaque : translucent);
             case SHADOW -> switch (ContractSources.shadowSource(shadow != null, packShadow != null)) {
-                case FILE -> shadowSource(SHADOW_PROGRAM, Objects.requireNonNull(shadow, CHOSEN));
+                case FILE -> source(SHADOW_PROGRAM, Objects.requireNonNull(shadow, CHOSEN));
                 case PACK_PROGRAM -> packShadowSource(Objects.requireNonNull(packShadow, CHOSEN));
                 case NONE -> null;
             };
             case SHADOW_TRANSLUCENT -> shadowTranslucent == null ? null
-                    : shadowSource(SHADOW_TRANSLUCENT_PROGRAM, shadowTranslucent);
-            case BEAM -> beam == null ? null
-                    : source(BEAM_PROGRAM, beam, vertex, stage, ContractSources::spliceBeam);
-            case BEAM_GLOW -> beam == null ? null
-                    : source(BEAM_GLOW_PROGRAM, beam, vertex, stage, ContractSources::spliceBeam);
+                    : source(SHADOW_TRANSLUCENT_PROGRAM, shadowTranslucent);
+            case BEAM -> beam == null ? null : source(BEAM_PROGRAM, beam, ContractSources::spliceBeam);
+            case BEAM_GLOW -> beam == null ? null : source(BEAM_GLOW_PROGRAM, beam, ContractSources::spliceBeam);
         };
-    }
-
-    private Source shadowSource(String programName, PackFile file) {
-        FarDraw.PackVertex stage = ContractSources.shadowStage(vertex != null, shadowVertex != null);
-        return source(programName, file, stage == FarDraw.PackVertex.HOOK ? vertex : shadowVertex, stage);
     }
 
     // Iris remaps depth for the shadow pass only under a name it reads as one: shadow, shadow_*, *_shadow.
@@ -144,7 +133,7 @@ public final class ContractPath implements PackPath {
                         PackPath.header(ours)),
                 ours -> ContractSources.spliceShadowVertex(stage(program, program.getVertexSource()),
                         PackPath.header(ours)),
-                FarDraw.PackVertex.SHADOW_PROGRAM, Cutout.PACK);
+                FarDraw.PackVertex.SHADOW_PROGRAM, Cutout.PACK, true);
     }
 
     private static String stage(ProgramSource program, Optional<String> stage) {
@@ -156,18 +145,17 @@ public final class ContractPath implements PackPath {
         return stage.orElseThrow();
     }
 
-    private Source source(String programName, PackFile file, @Nullable PackFile vertexFile,
-            FarDraw.PackVertex stage) {
-        return source(programName, file, vertexFile, stage, ContractSources::splice);
+    private Source source(String programName, PackFile file) {
+        return source(programName, file, ContractSources::splice);
     }
 
-    private Source source(String programName, PackFile file, @Nullable PackFile vertexFile,
-            FarDraw.PackVertex stage, BinaryOperator<String> splice) {
+    private Source source(String programName, PackFile file, BinaryOperator<String> splice) {
+        PackFile hook = vertex;
         return new Source(programName, file.path(),
                 ours -> splice.apply(file.source(), PackPath.header(ours)),
-                vertexFile == null ? null
-                        : ours -> ContractSources.spliceVertex(vertexFile.source(), PackPath.header(ours)),
-                stage, declarations.packCuts() ? Cutout.PACK : Cutout.IRIS);
+                hook == null ? null : ours -> ContractSources.spliceVertex(hook.source(), PackPath.header(ours)),
+                hook == null ? FarDraw.PackVertex.OURS : FarDraw.PackVertex.HOOK,
+                declarations.packCuts() ? Cutout.PACK : Cutout.IRIS, true);
     }
 
     private static String folder(Map<NamespacedId, String> dimensions, ShaderPackAccessor access,

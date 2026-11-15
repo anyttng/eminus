@@ -2,10 +2,8 @@ package com.eminus.ingest;
 
 import java.util.BitSet;
 import java.util.Collection;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.eminus.Eminus;
 import com.eminus.cell.ColumnCoverage;
@@ -23,13 +21,10 @@ import net.minecraft.core.QuartPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.minecraft.world.level.lighting.LayerLightEventListener;
-import net.minecraft.world.level.lighting.LevelLightEngine;
 
 import org.jspecify.annotations.Nullable;
 
@@ -48,8 +43,10 @@ public final class IngestService {
     private final LongOpenHashSet lightOnly = new LongOpenHashSet();
     private final LightDigests digests = new LightDigests();
     private final Queue<Long> stale = new ConcurrentLinkedQueue<>();
+    private final Object flight = new Object();
 
     private volatile boolean running = true;
+    private int inFlight;
 
     public IngestService(WorkService<SectionPyramid> service, StateTable states, Dictionary<String> biomes,
             CellMerger merger, ColumnCoverage coverage, CellChangeListener listener) {
@@ -77,6 +74,9 @@ public final class IngestService {
 
         retryDeferred(chunk.getLevel(), chunkPos.x(), chunkPos.z());
         ingestChunk(chunk, trigger);
+        if (trigger == IngestTrigger.UNLOAD) {
+            digests.forgetColumn(chunkPos.x(), chunkPos.z(), chunk.getMinSectionY(), chunk.getMaxSectionY());
+        }
     }
 
     public void submitBiomeChange(Level level, Collection<ChunkPos> changed) {
@@ -121,44 +121,54 @@ public final class IngestService {
     }
 
     private void ingestChunk(LevelChunk chunk, IngestTrigger trigger) {
-        LevelLightEngine light = chunk.getLevel().getLightEngine();
-        if (!ready(chunk, light)) {
+        LiveColumn column = new LiveColumn(chunk);
+        if (!ready(chunk, column)) {
             return;
         }
 
-        int chunkX = chunk.getPos().x();
-        int chunkZ = chunk.getPos().z();
-        boolean[] submitted = new boolean[chunk.getSections().length];
-        int count = pickSections(chunk, light, submitted);
-        if (trigger != IngestTrigger.UNLOAD && coverage.holds(chunkX, chunkZ)) {
+        boolean[] submitted = pickSections(column);
+        if (trigger != IngestTrigger.UNLOAD && coverage.holds(column.chunkX(), column.chunkZ())) {
             probeSkippedSections(chunk, submitted);
         }
 
+        ingestSections(column, submitted, trigger);
+    }
+
+    void ingestSections(IngestColumn column, boolean[] submitted, IngestTrigger trigger) {
+        int chunkX = column.chunkX();
+        int chunkZ = column.chunkZ();
+        int count = 0;
+        for (boolean picked : submitted) {
+            if (picked) {
+                count++;
+            }
+        }
+
         if (count == 0) {
-            service.enqueue(pyramid -> cover(chunkX, chunkZ));
+            service.enqueue(pyramid -> whileRunning(() -> cover(chunkX, chunkZ)));
             return;
         }
 
-        AtomicInteger remaining = new AtomicInteger(count);
+        WholeChunkIngest whole = new WholeChunkIngest(count);
         for (int index = 0; index < submitted.length; index++) {
             if (submitted[index]) {
-                submit(light, chunk, index, remaining, trigger);
+                submit(column, index, whole, trigger);
             }
         }
     }
 
-    private boolean ready(LevelChunk chunk, LevelLightEngine light) {
+    private boolean ready(LevelChunk chunk, LiveColumn column) {
         ChunkPos chunkPos = chunk.getPos();
         if (ChunkRefusals.refuses(chunk.getLevel(), chunkPos.x(), chunkPos.z())) {
             return false;
         }
 
-        if (!lightOn(light, chunkPos.x(), chunkPos.z())) {
+        if (!column.lightOn()) {
             Eminus.LOGGER.debug("Chunk {} has no light applied yet; it waits for its light trigger.", chunkPos);
             return false;
         }
 
-        if (!hasLightData(light, chunk, chunk.getSections().length)) {
+        if (!column.hasLightData()) {
             Eminus.LOGGER.debug("Chunk {} carries no light data; it is skipped.", chunkPos);
             return false;
         }
@@ -171,16 +181,13 @@ public final class IngestService {
         return true;
     }
 
-    private int pickSections(LevelChunk chunk, LevelLightEngine light, boolean[] submitted) {
-        int count = 0;
+    static boolean[] pickSections(IngestColumn column) {
+        boolean[] submitted = new boolean[column.sectionCount()];
         for (int index = 0; index < submitted.length; index++) {
-            submitted[index] = submits(light, chunk, index);
-            if (submitted[index]) {
-                count++;
-            }
+            submitted[index] = column.submits(index);
         }
 
-        return count;
+        return submitted;
     }
 
     private void probeSkippedSections(LevelChunk chunk, boolean[] submitted) {
@@ -193,11 +200,11 @@ public final class IngestService {
     }
 
     private void probeSkipped(int sectionX, int sectionY, int sectionZ) {
-        service.enqueue(pyramid -> {
-            if (running && merger.storesBeyondOpenSky(sectionX, sectionY, sectionZ)) {
+        service.enqueue(pyramid -> whileRunning(() -> {
+            if (merger.storesBeyondOpenSky(sectionX, sectionY, sectionZ)) {
                 stale.add(SectionPos.asLong(sectionX, sectionY, sectionZ));
             }
-        });
+        }));
     }
 
     public void markBlockChange(BlockPos pos, long now) {
@@ -243,9 +250,55 @@ public final class IngestService {
     }
 
     public void stop() {
-        running = false;
+        boolean interrupted = false;
+        synchronized (flight) {
+            running = false;
+            while (inFlight > 0) {
+                try {
+                    flight.wait();
+                } catch (InterruptedException shutdown) {
+                    interrupted = true;
+                }
+            }
+        }
+
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
+
         digests.clear();
         stale.clear();
+    }
+
+    private void whileRunning(Runnable work) {
+        if (!enter()) {
+            return;
+        }
+
+        try {
+            work.run();
+        } finally {
+            exit();
+        }
+    }
+
+    private boolean enter() {
+        synchronized (flight) {
+            if (running) {
+                inFlight++;
+            }
+
+            return running;
+        }
+    }
+
+    private void exit() {
+        synchronized (flight) {
+            inFlight--;
+            if (inFlight == 0) {
+                flight.notifyAll();
+            }
+        }
     }
 
     private void submitMarked(ClientLevel level, long sectionNode) {
@@ -264,8 +317,8 @@ public final class IngestService {
         int sectionX = SectionPos.x(sectionNode);
         int sectionZ = SectionPos.z(sectionNode);
         int index = chunk.getSectionIndexFromSectionY(SectionPos.y(sectionNode));
-        LevelLightEngine light = chunk.getLevel().getLightEngine();
-        if (index < 0 || index >= chunk.getSections().length || !lightOn(light, sectionX, sectionZ)
+        LiveColumn column = new LiveColumn(chunk);
+        if (index < 0 || index >= chunk.getSections().length || !column.lightOn()
                 || ChunkRefusals.refuses(chunk.getLevel(), sectionX, sectionZ)) {
             return;
         }
@@ -276,52 +329,46 @@ public final class IngestService {
         }
 
         // The light engine drops the layers of an air-only section whose 26 neighbors are air-only too, for good.
-        if (!chunk.getSections()[index].hasOnlyAir() && !skyPublished(light, sectionPos(chunk, index))) {
+        if (!column.section(index).hasOnlyAir() && !column.skyPublished(index)) {
             return;
         }
 
-        submit(light, chunk, index, null, trigger);
-        submitRunBelow(light, chunk, index);
+        submit(column, index, null, trigger);
+        submitRunBelow(column, index);
     }
 
-    private void submitRunBelow(LevelLightEngine light, LevelChunk chunk, int index) {
-        if (!hasSky(light)) {
+    private void submitRunBelow(LiveColumn column, int index) {
+        if (!column.hasSky()) {
             return;
         }
 
         for (int below = index - 1; below >= 0; below--) {
-            if (!chunk.getSections()[below].hasOnlyAir()
-                    || layer(light, LightLayer.SKY, sectionPos(chunk, below)) != null) {
+            if (!column.section(below).hasOnlyAir() || column.skyLayer(below) != null) {
                 return;
             }
 
-            submit(light, chunk, below, null, IngestTrigger.LIGHT);
+            submit(column, below, null, IngestTrigger.LIGHT);
         }
     }
 
-    private void submit(LevelLightEngine light, LevelChunk chunk, int index, @Nullable AtomicInteger remaining,
-            IngestTrigger trigger) {
-        LevelChunkSection section = chunk.getSections()[index];
-        SectionPos sectionPos = sectionPos(chunk, index);
-        int sectionX = sectionPos.x();
-        int sectionY = sectionPos.y();
-        int sectionZ = sectionPos.z();
-        DataLayer skyLight = Objects.requireNonNullElseGet(sky(light, sectionPos), () -> openSky(light));
-        DataLayer blockLight = layer(light, LightLayer.BLOCK, sectionPos);
+    private void submit(IngestColumn column, int index, @Nullable WholeChunkIngest whole, IngestTrigger trigger) {
+        LevelChunkSection section = column.section(index);
+        int sectionX = column.chunkX();
+        int sectionY = column.sectionY(index);
+        int sectionZ = column.chunkZ();
+        DataLayer skyLight = column.skyLight(index);
+        DataLayer blockLight = column.blockLight(index);
 
-        boolean differs = digests.record(sectionPos.asLong(), skyLight, blockLight);
+        boolean differs = digests.record(SectionPos.asLong(sectionX, sectionY, sectionZ), skyLight, blockLight);
         if (trigger == IngestTrigger.LIGHT && !differs) {
             return;
         }
 
-        BiomeWindow window = biomeWindow(chunk, sectionY);
+        BiomeWindow window = column.biomeWindow(index);
         boolean everyLevel = !coverage.covers(sectionX, sectionZ);
 
-        service.enqueue(pyramid -> {
-            if (!running) {
-                return;
-            }
-
+        service.enqueue(pyramid -> whileRunning(() -> {
+            boolean merged = false;
             try {
                 SectionConverter.convert(section, window, skyLight, blockLight, states, biomes, pyramid);
 
@@ -331,23 +378,65 @@ public final class IngestService {
                 } else {
                     merger.merge(pyramid, sectionX, sectionY, sectionZ);
                 }
+
+                merged = true;
             } finally {
-                if (remaining != null && remaining.decrementAndGet() == 0) {
+                if (whole != null && whole.sectionDone(merged)) {
                     cover(sectionX, sectionZ);
                 }
             }
-        });
+        }));
+    }
+
+    public boolean ingestColumn(IngestColumn column, SectionPyramid pyramid) {
+        if (!enter()) {
+            return false;
+        }
+
+        try {
+            return mergeColumn(column, pyramid);
+        } finally {
+            exit();
+        }
+    }
+
+    private boolean mergeColumn(IngestColumn column, SectionPyramid pyramid) {
+        if (coverage.covers(column.chunkX(), column.chunkZ())) {
+            return false;
+        }
+
+        for (int index = 0; index < column.sectionCount(); index++) {
+            if (!running) {
+                return false;
+            }
+
+            if (column.submits(index)) {
+                SectionConverter.convert(column.section(index), column.biomeWindow(index), column.skyLight(index),
+                        column.blockLight(index), states, biomes, pyramid);
+                PyramidDownsampler.build(pyramid, states, states);
+                merger.mergeEveryLevel(pyramid, column.chunkX(), column.sectionY(index), column.chunkZ());
+            }
+        }
+
+        cover(column.chunkX(), column.chunkZ());
+        return true;
     }
 
     private void cover(int chunkX, int chunkZ) {
-        if (running && coverage.cover(chunkX, chunkZ)) {
-            coverage.persist(chunkX, chunkZ);
+        if (coverage.cover(chunkX, chunkZ)) {
+            try {
+                coverage.persist(chunkX, chunkZ);
+            } catch (RuntimeException failure) {
+                Eminus.LOGGER.error("Could not store column {}, {} as covered; it is ingested again after a restart.",
+                        chunkX, chunkZ, failure);
+            }
+
             listener.covered(chunkX, chunkZ);
         }
     }
 
     @SuppressWarnings("NullAway")
-    private static BiomeWindow biomeWindow(LevelChunk chunk, int sectionY) {
+    static BiomeWindow biomeWindow(LevelChunk chunk, int sectionY) {
         Level level = chunk.getLevel();
         ChunkPos pos = chunk.getPos();
         LevelChunk[] around = new LevelChunk[NEIGHBOR_SIDE * NEIGHBOR_SIDE];
@@ -389,67 +478,6 @@ public final class IngestService {
 
     private static int neighborIndex(int dx, int dz) {
         return (dz + NEIGHBOR_REACH) * NEIGHBOR_SIDE + dx + NEIGHBOR_REACH;
-    }
-
-    private static boolean submits(LevelLightEngine light, LevelChunk chunk, int index) {
-        SectionPos sectionPos = sectionPos(chunk, index);
-        if (!chunk.getSections()[index].hasOnlyAir()) {
-            return skyPublished(light, sectionPos);
-        }
-
-        return SectionConverter.lightDiffersFromBlank(sky(light, sectionPos),
-                layer(light, LightLayer.BLOCK, sectionPos));
-    }
-
-    private static SectionPos sectionPos(LevelChunk chunk, int index) {
-        return SectionPos.of(chunk.getPos(), chunk.getSectionYFromSectionIndex(index));
-    }
-
-    private static boolean skyPublished(LevelLightEngine light, SectionPos sectionPos) {
-        return !hasSky(light) || layer(light, LightLayer.SKY, sectionPos) != null;
-    }
-
-    private static boolean hasSky(LevelLightEngine light) {
-        return light.getLayerListener(LightLayer.SKY) != LayerLightEventListener.DummyLightLayerEventListener.INSTANCE;
-    }
-
-    private static @Nullable DataLayer sky(LevelLightEngine light, SectionPos sectionPos) {
-        DataLayer own = layer(light, LightLayer.SKY, sectionPos);
-        if (own != null || !hasSky(light)) {
-            return own;
-        }
-
-        for (int sectionY = sectionPos.y() + 1; sectionY < light.getMaxLightSection(); sectionY++) {
-            DataLayer above = layer(light, LightLayer.SKY, SectionPos.of(sectionPos.x(), sectionY, sectionPos.z()));
-            if (above != null) {
-                return SectionConverter.repeatBottomRow(above);
-            }
-        }
-
-        return null;
-    }
-
-    private static DataLayer openSky(LevelLightEngine light) {
-        return hasSky(light) ? new DataLayer(SectionConverter.DEFAULT_SKY_LIGHT) : new DataLayer();
-    }
-
-    private static boolean lightOn(LevelLightEngine light, int chunkX, int chunkZ) {
-        return light.lightOnInColumn(SectionPos.getZeroNode(chunkX, chunkZ));
-    }
-
-    private static boolean hasLightData(LevelLightEngine light, LevelChunk chunk, int sectionCount) {
-        for (int index = 0; index < sectionCount; index++) {
-            SectionPos sectionPos = sectionPos(chunk, index);
-            if (layer(light, LightLayer.SKY, sectionPos) != null || layer(light, LightLayer.BLOCK, sectionPos) != null) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static @Nullable DataLayer layer(LevelLightEngine light, LightLayer layer, SectionPos sectionPos) {
-        return light.getLayerListener(layer).getDataLayerData(sectionPos);
     }
 
 }

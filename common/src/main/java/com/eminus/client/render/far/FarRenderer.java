@@ -106,7 +106,10 @@ public final class FarRenderer implements AutoCloseable {
     private volatile MeshService meshes;
     private RenderList renderList = RenderList.EMPTY;
     private @Nullable TreeBatch uploading;
+    private @Nullable TreeBatch awaited;
+    private int awaitedModels;
     private @Nullable GameFrame game;
+    private AlphaCuts cuts = AlphaCuts.OWN;
     private int uploaded;
     private long frames;
     private boolean framePending = true;
@@ -291,6 +294,10 @@ public final class FarRenderer implements AutoCloseable {
         framePending = true;
     }
 
+    public void cutWith(AlphaCuts drawn) {
+        cuts = drawn;
+    }
+
     private void drawMask() {
         mask.draw(target.depth(), target.color(), gpu.mainDepth(), farViewProjection, gameViewProjection);
     }
@@ -341,12 +348,21 @@ public final class FarRenderer implements AutoCloseable {
     }
 
     private void uploadBatch() {
+        models.publish();
         TreeBatch batch = tree.batches().peek();
-        if (batch != null) {
-            upload(batch);
+        if (batch == null) {
+            awaited = null;
+            return;
         }
 
-        models.publish();
+        if (batch != awaited) {
+            awaited = batch;
+            awaitedModels = models.baked();
+        }
+
+        if (models.covers(awaitedModels)) {
+            upload(batch);
+        }
     }
 
     private void project(GameFrame game, Texture main) {
@@ -408,7 +424,7 @@ public final class FarRenderer implements AutoCloseable {
         frame.write(farViewProjection, game.viewRotation(), runtime.frame().minBlockY(),
                 models.atlas(), nearSections.sections(), game.shade(), game.smoothLighting(), game.rgss(),
                 game.anisotropy(), CameraOrigin.of(game.eyeX(), game.eyeY(), game.eyeZ()), target.width(),
-                target.height());
+                target.height(), cuts);
         draw.frame(indirect.buffer(), commands.opaqueCount(), commands.translucentCount(), gpu.lightmap(),
                 FarQuads.atlasSampler(game.terrainFilter()), farProjection, game.viewRotation(),
                 FarDistance.cellsToBlocks(settings.farRenderCells()));
@@ -422,7 +438,7 @@ public final class FarRenderer implements AutoCloseable {
         }
 
         List<CellMesh> batchMeshes = batch.meshes();
-        uploaded = arena.accept(batchMeshes, uploaded);
+        uploaded = arena.accept(batchMeshes, uploaded, (key, kept) -> tree.refused(key, batch.request(key), kept));
         if (uploaded < batchMeshes.size()) {
             return;
         }

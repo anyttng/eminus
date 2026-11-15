@@ -3,10 +3,13 @@ package com.eminus.model;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import com.eminus.VanillaBootstrap;
 import com.eminus.cell.FaceMask;
@@ -177,15 +180,17 @@ class FaceRasterizerTest {
         BakedModel model = rasterizer.rasterize(quads, texels, FaceRasterizerTest::noTints);
 
         int face = Direction.SOUTH.get3DDataValue();
+        BakedModel layer = Objects.requireNonNull(model.overlay());
         for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
-            assertEquals(WHITE, model.argb(face, texel), "texel " + texel);
-            assertEquals(YELLOW, model.overlays().under(face, texel), "texel " + texel);
-            assertTrue(model.tinted(face, texel), "texel " + texel);
+            assertEquals(YELLOW, model.argb(face, texel), "texel " + texel);
+            assertFalse(model.tinted(face, texel), "texel " + texel);
+            assertEquals(WHITE, layer.argb(face, texel), "texel " + texel);
+            assertTrue(layer.tinted(face, texel), "texel " + texel);
         }
     }
 
     @Test
-    void aTintedCutoutLayerOverAnotherKeepsTheTexelsBelowIt() {
+    void aTintedCutoutLayerOverAnotherBakesIntoABaseFreeOfItAndAnOverlayOfItsOwn() {
         Sprite base = new LayerSprite(MipStrategy.MEAN);
         Sprite overlay = new LayerSprite(MipStrategy.CUTOUT);
         float[] south = {0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1};
@@ -195,18 +200,36 @@ class FaceRasterizerTest {
         BakedModel model = rasterizer.rasterize(quads, texels, FaceRasterizerTest::noTints);
 
         int face = Direction.SOUTH.get3DDataValue();
-        FaceOverlays overlays = model.overlays();
-        assertTrue(overlays.layered(face));
-        assertEquals(MipStrategy.CUTOUT, overlays.mip(face).strategy());
+        BakedModel layer = Objects.requireNonNull(model.overlay());
+        assertTrue(layer.layer());
+        assertFalse(model.layer());
+        assertEquals(FaceMask.SOUTH, ModelMetadata.present(layer.metadata()));
+        assertEquals(FaceMask.NONE, ModelMetadata.occluding(layer.metadata()));
+        assertEquals(MipStrategy.CUTOUT, layer.mips()[face].strategy());
         int whiteTexels = 0;
         for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
-            boolean white = model.argb(face, texel) == WHITE;
+            boolean white = layer.argb(face, texel) == WHITE;
             whiteTexels += white ? 1 : 0;
-            assertEquals(white ? YELLOW : 0, overlays.under(face, texel), "texel " + texel);
-            assertEquals(white, model.tinted(face, texel), "texel " + texel);
+            assertEquals(white ? WHITE : TRANSPARENT, layer.argb(face, texel), "texel " + texel);
+            assertEquals(white, layer.tinted(face, texel), "texel " + texel);
+            assertEquals(YELLOW, model.argb(face, texel), "texel " + texel);
+            assertFalse(model.tinted(face, texel), "texel " + texel);
         }
         assertEquals(BakedModel.FACE_TEXELS / 2, whiteTexels);
-        assertFalse(overlays.layered(Direction.NORTH.get3DDataValue()));
+        assertTrue((model.solidFaces() & 1 << face) != 0);
+
+        int[] layerFace = Arrays.copyOfRange(layer.faces(), face * BakedModel.FACE_TEXELS,
+                (face + 1) * BakedModel.FACE_TEXELS);
+        int[][] overlayLevels = FaceMips.colorLevels(layerFace, BakedModel.FACE_SIDE, layer.mips()[face], false);
+        int mean = overlayLevels[overlayLevels.length - 1][0];
+        assertTrue((mean & OPAQUE) != OPAQUE, "the overlay's last level keeps its own alpha");
+    }
+
+    @Test
+    void aFaceWithNoLayerOverItBakesNoOverlay() {
+        BakedModel model = rasterizer.rasterize(bottomBox(BAND_TOP), OPAQUE_WHITE, FaceRasterizerTest::noTints);
+
+        assertNull(model.overlay());
     }
 
     @Test

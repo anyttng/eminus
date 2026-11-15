@@ -26,10 +26,18 @@ public record AlphaCut(Compare compare, float reference) {
         return new AlphaCut(Compare.GEQUAL, reference);
     }
 
-    PipelineSpec.Builder define(PipelineSpec.Builder builder) {
+    static PipelineSpec.Builder compares(PipelineSpec.Builder builder) {
         for (Compare each : Compare.values()) {
             builder.withDefine(COMPARE_PREFIX + each.name(), each.code);
         }
+        return builder;
+    }
+
+    int code() {
+        return compare.code;
+    }
+
+    PipelineSpec.Builder define(PipelineSpec.Builder builder) {
         return builder.withDefine(TEST, compare.code);
     }
 }

@@ -2,21 +2,13 @@
 
 Part of the [Eminus shader-pack contract](../shader-pack-contract.md).
 
-`eminus_shadow.glsl` runs for the LOD's opaque and cutout faces in your shadow pass, and `eminus_shadow_translucent.glsl` for its translucent ones, with `fragment.translucent` set. Without the second file, translucent LOD faces cast no shadow, so an `eminus_shadow.glsl` written before version 6 never receives a translucent fragment.
+`eminus_shadow.glsl` runs for the LOD's opaque and cutout faces in your shadow pass, and `eminus_shadow_translucent.glsl` for its translucent ones, with `fragment.translucent` set. Without the second file, translucent LOD faces cast no shadow, and `eminus_shadow.glsl` never receives a translucent fragment.
 
 Both files' `fragment` carries the same fields as in the other two programs ([The fragment function](fragment.md)), with `viewPos` and `normal` in the shadow view's space. Where your `shadow` program reads its texture at a fixed mip level, read it through `eminus_colorLod` ([The texture at a chosen level](fragment.md#the-texture-at-a-chosen-level)). The body of your `shadow` fragment code moves over the way your terrain code did. `gl_ProjectionMatrix` and `gl_ModelViewMatrix` are the shadow pass's own, and everything Iris hands your `shadow` program is available.
 
 The translucent faces are drawn after Iris has copied the opaque shadow depth into `shadowtex1`, as the near field's translucent terrain is. `shadowtex1` therefore holds the opaque casters alone, near and LOD alike, and `shadowtex0` the translucent ones in front of them.
 
 Both shadow files take the same vertex hook. Your shadow sampling reads the map through your distortion, so the LOD has to be written through it too. Where `vertex.shadow` is `true`, `eminus_vertexPosition` returns `eminus_project(vertex.playerPos)` with the distortion your `shadow` vertex program applies to its own clip position ([The vertex hook](vertex-hook.md)). A pack whose shadow map is not distorted returns the projected position as it is.
-
-A pack written for version 3 carries the distortion in `eminus_shadow_vertex.glsl` instead, which Eminus reads only while `eminus_vertex.glsl` is absent. It is a vertex-stage source like `eminus_vertex.glsl` and defines
-
-```glsl
-vec4 eminus_shadowPosition(vec4 shadowClipPosition);
-```
-
-and no `main`. Eminus hands it each LOD vertex in shadow clip space (`shadowProjection * shadowModelView` applied) and writes what it returns to `gl_Position`.
 
 Faces are drawn whichever way they face, as Iris draws the near terrain into the shadow map. The exception is a few translucent faces Eminus builds one-sided, such as water against the seabed, which keep their back-face culling. The LOD reaches your shadow map only as far as your `shadowDistance` does. Iris's shadow map is a square of that half-width around the camera, so a pack whose shadow distance stays inside the render distance shows no LOD shadow at all.
 

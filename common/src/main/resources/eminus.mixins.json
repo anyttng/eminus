@@ -6,6 +6,7 @@
   "client": [
     "BeaconBlockEntityMixin",
     "BiomeManagerAccessor",
+    "ChunkMapMixin",
     "ClientChunkCacheMixin",
     "ClientLevelMixin",
     "ClientPacketListenerMixin",

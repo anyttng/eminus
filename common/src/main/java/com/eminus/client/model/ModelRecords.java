@@ -18,6 +18,7 @@ public final class ModelRecords implements AutoCloseable {
     public static final int TEXELS = 8;
     public static final int PACK_ID_TEXEL = 7;
     public static final int SHADES_TEXEL = PACK_ID_TEXEL;
+    public static final int LAYER_TEXEL = PACK_ID_TEXEL;
     public static final int BYTES = TEXELS * 4 * Float.BYTES;
     public static final Format TEXEL_FORMAT = Format.RGBA32_FLOAT;
 
@@ -27,21 +28,27 @@ public final class ModelRecords implements AutoCloseable {
     private final Gpu gpu;
     private final Buffer buffer;
     private final TexelView texels;
+    private final int capacity;
     private final ByteBuffer scratch = ByteBuffer.allocateDirect(BYTES).order(ByteOrder.nativeOrder());
 
-    private ModelRecords(Gpu gpu, Buffer buffer) {
+    private ModelRecords(Gpu gpu, Buffer buffer, int capacity) {
         this.gpu = gpu;
         this.buffer = buffer;
+        this.capacity = capacity;
         texels = gpu.texelView(buffer, TEXEL_FORMAT);
     }
 
     public static ModelRecords create(Gpu gpu, int capacity) {
         gpu.assertRenderThread();
-        return new ModelRecords(gpu, gpu.buffer(LABEL, USAGE, (long) capacity * BYTES));
+        return new ModelRecords(gpu, gpu.buffer(LABEL, USAGE, (long) capacity * BYTES), capacity);
     }
 
     public TexelView texels() {
         return texels;
+    }
+
+    public int capacity() {
+        return capacity;
     }
 
     public void write(int modelId, BakedModel model, int variantStart) {
@@ -70,7 +77,8 @@ public final class ModelRecords implements AutoCloseable {
             scratch.putFloat(slope);
         }
         scratch.putFloat(model.packId())
-                .putFloat(model.shades());
+                .putFloat(model.shades())
+                .putFloat(model.layer() ? 1.0F : 0.0F);
         while (scratch.hasRemaining()) {
             scratch.putFloat(0.0F);
         }

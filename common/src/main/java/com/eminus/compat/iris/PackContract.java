@@ -9,11 +9,10 @@ public final class PackContract {
     public static final String TRANSLUCENT_FILE = "eminus_translucent.glsl";
     public static final String SHADOW_FILE = "eminus_shadow.glsl";
     public static final String SHADOW_TRANSLUCENT_FILE = "eminus_shadow_translucent.glsl";
-    public static final String SHADOW_VERTEX_FILE = "eminus_shadow_vertex.glsl";
     public static final String VERTEX_FILE = "eminus_vertex.glsl";
     public static final String BEAM_FILE = "eminus_beaconbeam.glsl";
     public static final List<String> FILES = List.of(OPAQUE_FILE, TRANSLUCENT_FILE, SHADOW_FILE,
-            SHADOW_TRANSLUCENT_FILE, SHADOW_VERTEX_FILE, VERTEX_FILE, BEAM_FILE);
+            SHADOW_TRANSLUCENT_FILE, VERTEX_FILE, BEAM_FILE);
     public static final String PROPERTIES_FILE = "eminus.properties";
     public static final String MOVED_KEY = "moved";
     public static final String CUTOUT_KEY = "cutout";

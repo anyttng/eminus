@@ -10,6 +10,7 @@ uniform usamplerBuffer EminusModelVariants;
 #include <eminus:far_surface.glsl>
 #include <eminus:far_variant.glsl>
 #include <eminus:far_corners.glsl>
+#include <eminus:far_alpha.glsl>
 
 layout(location = 0) in vec2 faceUV;
 layout(location = 1) in vec4 vertexColor;
@@ -75,7 +76,12 @@ void main() {
 
     vec4 color = eminus_surface(cell, faceUV, tintColor) * vertexColor;
 #ifndef SOLID
-    if (color.a < ALPHA_CUTOUT) {
+#ifdef TRANSLUCENT_PASS
+    bool kept = eminus_alpha_kept(color.a, EminusTranslucentAlphaCompare, EminusTranslucentAlphaReference);
+#else
+    bool kept = eminus_alpha_kept(color.a, EminusOpaqueAlphaCompare, EminusOpaqueAlphaReference);
+#endif
+    if (!kept) {
         discard;
     }
 #endif

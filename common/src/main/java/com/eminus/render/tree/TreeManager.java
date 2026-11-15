@@ -46,6 +46,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private final AtomicReference<CameraFrame> frames = new AtomicReference<>();
     private final TreeBatches batches = new TreeBatches();
     private final FailedBuilds failed = new FailedBuilds();
+    private final RefusedMeshes refused = new RefusedMeshes();
     private final Matrix4f lastViewProjection = new Matrix4f();
     private final Thread thread = new Thread(this::serve, THREAD_NAME);
 
@@ -113,6 +114,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     @Override
     public void failed(long key, long request) {
         messages.add(new TreeMessage.CellFailed(key, request));
+    }
+
+    public void refused(long key, long request, boolean kept) {
+        messages.add(new TreeMessage.CellRefused(key, request, kept));
     }
 
     public void frame(CameraFrame frame) {
@@ -217,6 +222,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             }
             case TreeMessage.CellMeshed meshed -> applyMesh(meshed.mesh(), meshed.request());
             case TreeMessage.CellFailed failure -> applyFailure(failure.key(), failure.request());
+            case TreeMessage.CellRefused refusal -> applyRefusal(refusal.key(), refusal.request(), refusal.kept());
             case TreeMessage.ColumnCovered covered -> changes.covered(covered.chunkX(), covered.chunkZ(), camera);
             case TreeMessage.FrameReady ready -> applyFrame();
             case TreeMessage.Resize resize -> {
@@ -293,7 +299,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
 
         node.meshed(mesh.summary());
         pruneStaleChildren(node);
-        batch.add(mesh);
+        batch.add(mesh, request);
         treeChanged = true;
 
         if (!node.takeRebuild()) {
@@ -323,7 +329,31 @@ public final class TreeManager implements CellChangeListener, MeshListener {
 
         CellMesh empty = CellMesh.empty(key);
         node.meshed(empty.summary());
-        batch.add(empty);
+        batch.add(empty, request);
+        treeChanged = true;
+    }
+
+    private void applyRefusal(long key, long request, boolean kept) {
+        TreeNode node = nodes.get(key);
+        if (node == null || node.request() != request || node.building()) {
+            return;
+        }
+
+        if (!kept) {
+            node.refused();
+            treeChanged = true;
+        }
+
+        refused.add(node);
+    }
+
+    private void rebuildRefused(CameraFrame camera) {
+        for (TreeNode node : refused.take()) {
+            if (nodes.get(node.key()) == node && !node.building()) {
+                dispatch.build(node, dispatch.priority(node, camera), false);
+            }
+        }
+
         treeChanged = true;
     }
 
@@ -346,6 +376,10 @@ public final class TreeManager implements CellChangeListener, MeshListener {
         CameraFrame camera = acceptFrame(posted);
         if (failed.due(System.nanoTime())) {
             retryFailed();
+        }
+
+        if (!camera.pressure() && !refused.isEmpty()) {
+            rebuildRefused(camera);
         }
 
         boolean still = still(camera);

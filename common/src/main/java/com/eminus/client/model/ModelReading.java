@@ -136,7 +136,7 @@ public final class ModelReading {
         try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery,
                 LodChoice.ULTRA.presetQuality().orElseThrow().atlasFirstMip())) {
             summary[CELLS_FROM] = publisher.atlas().cellsPerSide();
-            publisher.publish();
+            publisher.publishAll();
             summary[UPLOADED] = publisher.published();
             summary[GROWTHS] = publisher.growths();
             summary[REUPLOADED] = publisher.reuploaded();
@@ -150,7 +150,7 @@ public final class ModelReading {
     private static void uploadLow(Gpu gpu, ModelBakery bakery, long[] summary) {
         try (ModelPublisher publisher = ModelPublisher.start(gpu, bakery,
                 LodChoice.LOW.presetQuality().orElseThrow().atlasFirstMip())) {
-            publisher.publish();
+            publisher.publishAll();
             summary[LOW_SIDE] = publisher.atlas().side();
             summary[LOW_CELL_SIDE] = publisher.atlas().cellSide();
             summary[LOW_BYTES] = publisher.atlas().bytes();

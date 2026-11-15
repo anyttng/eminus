@@ -24,6 +24,10 @@ layout(std140) uniform EminusFrame {
     int EminusAnisotropy;
     float EminusPixelX;
     float EminusPixelY;
+    int EminusOpaqueAlphaCompare;
+    float EminusOpaqueAlphaReference;
+    int EminusTranslucentAlphaCompare;
+    float EminusTranslucentAlphaReference;
 };
 
 #endif

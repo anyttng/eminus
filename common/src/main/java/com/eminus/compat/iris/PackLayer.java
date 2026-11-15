@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.function.ToIntFunction;
 
 import com.eminus.Eminus;
+import com.eminus.client.render.far.AlphaCuts;
 import com.eminus.client.render.far.FarDraw;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.client.render.far.FarShadow;
@@ -44,6 +45,7 @@ final class PackLayer {
     private final @Nullable PackPath path;
     private final @Nullable ProgramSet programSet;
     private final @Nullable ShaderProperties properties;
+    private final AlphaCuts overFrame;
 
     private @Nullable FarRenderer builtFor;
     private @Nullable PackProgram opaque;
@@ -71,6 +73,7 @@ final class PackLayer {
             path = null;
             programSet = null;
             properties = null;
+            overFrame = AlphaCuts.OWN;
             return;
         }
 
@@ -78,6 +81,12 @@ final class PackLayer {
         PackPath contract = ContractPath.detect(pack, dimension, programSet);
         path = contract != null ? contract : DhPath.detect(pack, pipeline, programSet);
         properties = ((ShaderPackAccessor) pack).eminus$shaderProperties();
+        overFrame = PackAlphaTest.overFrame(programSet);
+    }
+
+    static AlphaCuts overFrameCuts() {
+        return Iris.getPipelineManager().getPipelineNullable() instanceof IrisRenderingPipeline iris
+                ? of(iris).overFrame : AlphaCuts.OWN;
     }
 
     static @Nullable ToIntFunction<BlockState> packIds(@Nullable ToIntFunction<BlockState> rendered) {

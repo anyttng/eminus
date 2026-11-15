@@ -53,6 +53,10 @@ public final class ModelIndex {
         return bakery.pieceIds(modelId);
     }
 
+    public int overlayModelId(int modelId) {
+        return bakery.overlayModelId(modelId);
+    }
+
     public int oneSidedModelId(int modelId) {
         return bakery.oneSidedModelId(modelId);
     }

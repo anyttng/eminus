@@ -61,15 +61,25 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
 
     @Override
     public void emit(int u, int v, int width, int height, long data, int occlusion) {
-        int group = border ? QuadGroups.border(face) : QuadGroups.of(face, models.metadata(Quad.modelId(data)));
+        int modelId = Quad.modelId(data);
+        int group = border ? QuadGroups.border(face) : QuadGroups.of(face, models.metadata(modelId));
         long quad = placed(data, u, v, width, height);
+        add(group, quad, modelId, occlusion);
+
+        int overlayId = models.overlayModelId(modelId);
+        if (overlayId != MeshModels.NO_OVERLAY && Quad.fitsModelId(overlayId)
+                && (ModelMetadata.present(models.metadata(overlayId)) & 1 << face.get3DDataValue()) != 0) {
+            add(group, Quad.withModelId(quad, overlayId), overlayId, occlusion);
+        }
+    }
+
+    private void add(int group, long quad, int modelId, int occlusion) {
         MeshBuffer buffer = scratch.buffer();
         if (group == QuadGroups.TRANSLUCENT) {
             buffer.addTranslucent(quad,
-                    TranslucentOrder.of(quad, level, buffer.placementAt(Quad.colorIndex(data)), models), occlusion);
+                    TranslucentOrder.of(quad, level, buffer.placementAt(Quad.colorIndex(quad)), models), occlusion);
         } else {
-            buffer.add(group, quad, occlusion,
-                    (models.solidFaces(Quad.modelId(data)) & 1 << face.get3DDataValue()) != 0);
+            buffer.add(group, quad, occlusion, (models.solidFaces(modelId) & 1 << face.get3DDataValue()) != 0);
         }
     }
 
