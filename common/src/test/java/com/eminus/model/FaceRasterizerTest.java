@@ -204,7 +204,8 @@ class FaceRasterizerTest {
         assertTrue(layer.layer());
         assertFalse(model.layer());
         assertEquals(FaceMask.SOUTH, ModelMetadata.present(layer.metadata()));
-        assertEquals(FaceMask.NONE, ModelMetadata.occluding(layer.metadata()));
+        assertEquals(FaceMask.SOUTH, ModelMetadata.occluding(model.metadata()) & FaceMask.SOUTH);
+        assertEquals(FaceMask.SOUTH, ModelMetadata.occluding(layer.metadata()));
         assertEquals(MipStrategy.CUTOUT, layer.mips()[face].strategy());
         int whiteTexels = 0;
         for (int texel = 0; texel < BakedModel.FACE_TEXELS; texel++) {
