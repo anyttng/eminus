@@ -1,4 +1,4 @@
-# Eminus shader-pack contract, version 9
+# Eminus shader-pack contract
 
 Eminus draws the terrain past the render distance as a level-of-detail layer (LOD). Under an Iris shader pack that does not know Eminus, the LOD is drawn over the pack's finished frame in Eminus's own shading ([A pack without the contract](shader-packs/without-contract.md)). A pack that ships the contract below shades the LOD itself. Eminus runs the geometry, your code colors each pixel and writes it into your own buffers, so your lighting, fog and post-processing apply to the LOD the way they apply to near terrain.
 
@@ -61,9 +61,7 @@ A pack that lights and fogs terrain in its `gbuffers` programs is done here. Eve
 A `deferred` or `composite` pass that reads `depthtex0` sees nothing where only the LOD is: it treats those pixels as sky, so deferred lighting overwrites them and distance fog skips them. Wherever such a pass turns `depthtex0` into a position, call `eminus_viewPosition` instead, and take `eminusRenderDistance` as the far edge where it is not `0`:
 
 ```glsl
-#if EMINUS_CONTRACT_VERSION >= 5
-    vec4 position = eminus_viewPosition(texcoord, false);
-#endif
+vec4 position = eminus_viewPosition(texcoord, false);
 ```
 
 `position.xyz` is the view-space position of the near field where it drew and of the LOD where only the LOD did; `position.w` is `0.0` on sky. [Depth](shader-packs/depth.md) has the details, and the reconstruction for a pack that keeps its own.
