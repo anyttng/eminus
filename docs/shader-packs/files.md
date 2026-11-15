@@ -24,7 +24,18 @@ Every `.glsl` file except the two vertex files is a fragment-stage source in you
 - it declares its outputs under its own `/* RENDERTARGETS: … */` (or `DRAWBUFFERS`) directive;
 - it defines `void eminus_emitFragment(EminusFragment fragment)`, or `void eminus_emitBeam(EminusBeam beam)` in `eminus_beaconbeam.glsl`, and no `main`; Eminus supplies `main`.
 
-`blend.eminus_opaque`, `blend.eminus_translucent`, `blend.eminus_shadow` and `blend.eminus_shadow_translucent` in `shaders.properties` set the blending of the four programs as `blend.<program>` does for any other. Without one, the translucent program blends as the game's translucent terrain does, and the other three do not blend, as Iris's own shadow programs do not. Your own shadow program runs as `shadow_cutout_eminus` or `shadow_eminus`, so its key is `blend.shadow_cutout_eminus` or `blend.shadow_eminus`, not the one your pack sets for `shadow_cutout`. The beam file runs as two programs, `eminus_beaconbeam` and `eminus_beaconbeam_glow` ([Beacon beams](beacon-beams.md#when-the-beams-are-drawn)).
+`blend.eminus_opaque`, `blend.eminus_translucent`, `blend.eminus_shadow` and `blend.eminus_shadow_translucent` in `shaders.properties` set the blending of the four programs as `blend.<program>` does for any other. Since version 9, a program without its own key takes the key of the game program Iris runs for the same terrain.
+
+| Program | Game program |
+| --- | --- |
+| `eminus_opaque` | `gbuffers_terrain_cutout`, or `gbuffers_terrain` where your pack has no cutout program |
+| `eminus_translucent` | `gbuffers_water`, or `gbuffers_terrain` |
+| `eminus_shadow` | `shadow_cutout`, or `shadow` |
+| `eminus_shadow_translucent` | `shadow_water`, or `shadow` |
+
+A per-buffer key, `blend.<program>.<buffer>`, follows the same rule one buffer at a time, and applies only to a buffer your contract file writes. Set the `blend.eminus_` key wherever your contract file needs a blend other than the game program's.
+
+With neither key set, the translucent program blends as the game's translucent terrain does, and the other three do not blend, as Iris's own shadow programs do not. Your own shadow program runs as `shadow_cutout_eminus` or `shadow_eminus`. It takes the keys your pack sets for `shadow_cutout` or `shadow`, unless you set `blend.shadow_cutout_eminus` or `blend.shadow_eminus`. The beam file runs as two programs, `eminus_beaconbeam` and `eminus_beaconbeam_glow` ([Beacon beams](beacon-beams.md#when-the-beams-are-drawn)).
 
 ## Macros
 
