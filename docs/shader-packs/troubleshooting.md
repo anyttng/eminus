@@ -5,7 +5,7 @@ Part of the [Eminus shader-pack contract](../shader-pack-contract.md).
 A program that does not build leaves the rest as follows:
 
 - `eminus_opaque.glsl`, `eminus_translucent.glsl`, or `eminus_vertex.glsl` in those two programs: the LOD goes back to being drawn over the pack's finished frame.
-- `eminus_shadow.glsl`, `eminus_shadow_vertex.glsl`, [your own shadow program](shadows.md#your-own-shadow-program), or `eminus_vertex.glsl` in the shadow program alone: the opaque and translucent programs keep running, and the LOD casts no shadow.
+- `eminus_shadow.glsl`, [your own shadow program](shadows.md#your-own-shadow-program), or `eminus_vertex.glsl` in the shadow program alone: the opaque and translucent programs keep running, and the LOD casts no shadow.
 - `eminus_shadow_translucent.glsl`: every other program keeps running, and the LOD's translucent faces cast no shadow.
 - `eminus_beaconbeam.glsl`, or `eminus_vertex.glsl` in the beam programs: every other program keeps running, and no beacon beam is drawn past the render distance.
 

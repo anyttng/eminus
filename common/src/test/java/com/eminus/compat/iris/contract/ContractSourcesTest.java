@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
-import com.eminus.client.render.far.FarDraw;
 import com.eminus.compat.iris.PackContract;
 import com.eminus.compat.iris.PackSources;
 
@@ -23,11 +22,11 @@ class ContractSourcesTest {
             void eminus_emitFragment(EminusFragment fragment) {
             }
             """;
-    private static final String SHADOW_VERTEX = """
+    private static final String VERTEX = """
             #version 400 compatibility
 
-            vec4 eminus_shadowPosition(vec4 shadowClipPosition) {
-                return shadowClipPosition;
+            vec4 eminus_vertexPosition(inout EminusVertex vertex) {
+                return eminus_project(vertex.playerPos);
             }
             """;
 
@@ -47,21 +46,9 @@ class ContractSourcesTest {
         assertEquals(List.of("/eminus_opaque.glsl", "/world-1/eminus_opaque.glsl", "/eminus_translucent.glsl",
                 "/world-1/eminus_translucent.glsl", "/eminus_shadow.glsl", "/world-1/eminus_shadow.glsl",
                 "/eminus_shadow_translucent.glsl", "/world-1/eminus_shadow_translucent.glsl",
-                "/eminus_shadow_vertex.glsl", "/world-1/eminus_shadow_vertex.glsl", "/eminus_vertex.glsl",
-                "/world-1/eminus_vertex.glsl", "/eminus_beaconbeam.glsl", "/world-1/eminus_beaconbeam.glsl"),
+                "/eminus_vertex.glsl", "/world-1/eminus_vertex.glsl", "/eminus_beaconbeam.glsl",
+                "/world-1/eminus_beaconbeam.glsl"),
                 PackContract.paths(List.of(NETHER)));
-    }
-
-    @Test
-    void theVertexHookDrivesTheShadowProgramOverTheVersionThreeShadowHook() {
-        assertEquals(FarDraw.PackVertex.HOOK, ContractSources.shadowStage(true, true));
-        assertEquals(FarDraw.PackVertex.HOOK, ContractSources.shadowStage(true, false));
-    }
-
-    @Test
-    void theVersionThreeShadowHookDrivesTheShadowProgramWithoutTheVertexHook() {
-        assertEquals(FarDraw.PackVertex.SHADOW_HOOK, ContractSources.shadowStage(false, true));
-        assertEquals(FarDraw.PackVertex.OURS, ContractSources.shadowStage(false, false));
     }
 
     @Test
@@ -131,11 +118,11 @@ class ContractSourcesTest {
 
     @Test
     void theVertexSpliceKeepsOurOwnMainAndAddsNone() {
-        String ours = "void main() {\n    gl_Position = eminus_shadowPosition(vec4(0.0));\n}\n";
-        String spliced = ContractSources.spliceVertex(SHADOW_VERTEX, ours);
+        String ours = "void main() {\n    gl_Position = eminus_vertexPosition(hooked);\n}\n";
+        String spliced = ContractSources.spliceVertex(VERTEX, ours);
 
         assertTrue(spliced.startsWith("#version 400 compatibility"), spliced);
-        assertTrue(spliced.indexOf(ours) < spliced.indexOf("vec4 eminus_shadowPosition"), spliced);
+        assertTrue(spliced.indexOf(ours) < spliced.indexOf("vec4 eminus_vertexPosition"), spliced);
         assertFalse(spliced.contains(PackContract.FUNCTION), spliced);
     }
 }
