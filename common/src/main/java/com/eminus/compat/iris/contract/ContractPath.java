@@ -144,7 +144,7 @@ public final class ContractPath implements PackPath {
                         PackPath.header(ours)),
                 ours -> ContractSources.spliceShadowVertex(stage(program, program.getVertexSource()),
                         PackPath.header(ours)),
-                FarDraw.PackVertex.SHADOW_PROGRAM, Cutout.PACK);
+                FarDraw.PackVertex.SHADOW_PROGRAM, Cutout.PACK, true);
     }
 
     private static String stage(ProgramSource program, Optional<String> stage) {
@@ -167,7 +167,7 @@ public final class ContractPath implements PackPath {
                 ours -> splice.apply(file.source(), PackPath.header(ours)),
                 vertexFile == null ? null
                         : ours -> ContractSources.spliceVertex(vertexFile.source(), PackPath.header(ours)),
-                stage, declarations.packCuts() ? Cutout.PACK : Cutout.IRIS);
+                stage, declarations.packCuts() ? Cutout.PACK : Cutout.IRIS, true);
     }
 
     private static String folder(Map<NamespacedId, String> dimensions, ShaderPackAccessor access,

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
@@ -28,6 +29,7 @@ import com.google.common.primitives.Ints;
 
 import net.irisshaders.iris.gl.IrisRenderSystem;
 import net.irisshaders.iris.gl.blending.BlendModeOverride;
+import net.irisshaders.iris.gl.blending.BufferBlendInformation;
 import net.irisshaders.iris.gl.blending.BufferBlendOverride;
 import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
 import net.irisshaders.iris.gl.program.ProgramImages;
@@ -41,6 +43,7 @@ import net.irisshaders.iris.pipeline.transform.TransformPatcher;
 import net.irisshaders.iris.samplers.IrisSamplers;
 import net.irisshaders.iris.shaderpack.programs.ProgramSet;
 import net.irisshaders.iris.shaderpack.programs.ProgramSource;
+import net.irisshaders.iris.shaderpack.properties.ProgramDirectives;
 import net.irisshaders.iris.shaderpack.properties.ShaderProperties;
 import net.irisshaders.iris.uniforms.CommonUniforms;
 import net.irisshaders.iris.uniforms.builtin.BuiltinReplacementUniforms;
@@ -85,6 +88,7 @@ public final class PackProgram {
     private final ProgramUniforms uniforms;
     private final ProgramSamplers samplers;
     private final ProgramImages images;
+    private final @Nullable BlendModeOverride blendMode;
     private final List<BufferBlendOverride> bufferBlends;
     private final int modelView;
     private final int modelViewInverse;
@@ -110,7 +114,8 @@ public final class PackProgram {
     }
 
     private PackProgram(Foreign foreign, Pipeline pipeline, ProgramSource source, Object pass,
-            CustomUniforms customUniforms, ProgramUniforms uniforms, ProgramSamplers samplers, ProgramImages images) {
+            CustomUniforms customUniforms, ProgramUniforms uniforms, ProgramSamplers samplers, ProgramImages images,
+            PackBlend<BlendModeOverride, BufferBlendInformation> blend) {
         this.foreign = foreign;
         this.pipeline = pipeline;
         this.source = source;
@@ -119,7 +124,8 @@ public final class PackProgram {
         this.uniforms = uniforms;
         this.samplers = samplers;
         this.images = images;
-        this.bufferBlends = bufferBlends(source);
+        this.blendMode = blend.mode();
+        this.bufferBlends = bufferBlends(source.getDirectives().getDrawBuffers(), blend.buffers());
         int program = foreign.program(pipeline);
         modelView = GL20C.glGetUniformLocation(program, MODEL_VIEW);
         modelViewInverse = GL20C.glGetUniformLocation(program, MODEL_VIEW_INVERSE);
@@ -195,8 +201,10 @@ public final class PackProgram {
             }, kind.shadow(), false, true, false);
             Object pass = new Object();
             customUniforms.mapholderToPass(uniforms, pass);
+            Optional<ProgramSource> game = source.followsGameBlend() ? GameProgram.resolve(programSet, kind)
+                    : Optional.empty();
             return new PackProgram(foreign, pipeline, built[0], pass, customUniforms, uniforms.buildUniforms(),
-                    samplers.build(), images.build());
+                    samplers.build(), images.build(), blend(built[0], game));
         } catch (RuntimeException refused) {
             Eminus.LOGGER.error("Shader pack file {} did not bind to the pack: {}", source.file(), refused.toString());
             foreign.release(pipeline);
@@ -281,7 +289,9 @@ public final class PackProgram {
         zeroAttribute(dhPosition);
         IrisRenderSystem.bindTextureToUnit(GL11C.GL_TEXTURE_2D, IrisSamplers.LIGHTMAP_TEXTURE_UNIT,
                 foreign.texture(lightmap));
-        source.getDirectives().getBlendModeOverride().ifPresent(BlendModeOverride::apply);
+        if (blendMode != null) {
+            blendMode.apply();
+        }
         bufferBlends.forEach(BufferBlendOverride::apply);
     }
 
@@ -318,10 +328,19 @@ public final class PackProgram {
         }
     }
 
-    private static List<BufferBlendOverride> bufferBlends(ProgramSource source) {
+    private static PackBlend<BlendModeOverride, BufferBlendInformation> blend(ProgramSource own,
+            Optional<ProgramSource> game) {
+        ProgramDirectives directives = own.getDirectives();
+        return PackBlend.of(directives.getBlendModeOverride().orElse(null), directives.getBufferBlendOverrides(),
+                game.flatMap(program -> program.getDirectives().getBlendModeOverride()).orElse(null),
+                game.map(program -> program.getDirectives().getBufferBlendOverrides()).orElse(List.of()),
+                BufferBlendInformation::index);
+    }
+
+    private static List<BufferBlendOverride> bufferBlends(int[] drawBuffers,
+            List<BufferBlendInformation> informations) {
         List<BufferBlendOverride> overrides = new ArrayList<>();
-        int[] drawBuffers = source.getDirectives().getDrawBuffers();
-        source.getDirectives().getBufferBlendOverrides().forEach(information -> {
+        informations.forEach(information -> {
             int index = Ints.indexOf(drawBuffers, information.index());
             if (index >= 0) {
                 overrides.add(new BufferBlendOverride(index, information.blendMode()));

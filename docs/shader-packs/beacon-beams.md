@@ -41,6 +41,6 @@ Your `eminus_vertex.glsl` runs on the beam's vertices too ([The vertex hook](ver
 - **The beam:** right after the opaque LOD, before your `deferred` passes, into the buffers your `gbuffers` programs see and the LOD's depth. Your later passes find it through `eminus_viewPosition`, like the rest of the LOD.
 - **The glow:** right before the translucent LOD, before your `composite` passes. It writes no depth.
 
-`blend.eminus_beaconbeam` and `blend.eminus_beaconbeam_glow` in `shaders.properties` set their blending. Without them, the beam does not blend and the glow blends as the game's translucent beam does.
+`blend.eminus_beaconbeam` and `blend.eminus_beaconbeam_glow` in `shaders.properties` set their blending. Since version 9, a program without its own key takes your `blend.gbuffers_beaconbeam` key, as the other contract programs do ([Files and names](files.md)). With neither key set, the beam does not blend and the glow blends as the game's translucent beam does.
 
 The game casts no shadow from a beacon beam, and neither does the LOD.

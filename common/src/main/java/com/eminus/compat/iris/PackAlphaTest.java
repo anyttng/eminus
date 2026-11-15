@@ -8,7 +8,6 @@ import com.eminus.client.render.far.AlphaCuts;
 import net.irisshaders.iris.gl.blending.AlphaTest;
 import net.irisshaders.iris.gl.blending.AlphaTestFunction;
 import net.irisshaders.iris.pipeline.programs.ShaderKey;
-import net.irisshaders.iris.shaderpack.programs.ProgramFallbackResolver;
 import net.irisshaders.iris.shaderpack.programs.ProgramSet;
 import net.irisshaders.iris.shaderpack.programs.ProgramSource;
 
@@ -44,24 +43,14 @@ final class PackAlphaTest {
     }
 
     private static @Nullable AlphaCut irisCut(ProgramSet programSet, PackProgram.Kind kind) {
-        ShaderKey game = gameKey(kind);
-        Optional<ProgramSource> program = new ProgramFallbackResolver(programSet).resolve(game.getProgram());
+        ShaderKey game = GameProgram.key(kind);
+        Optional<ProgramSource> program = GameProgram.resolve(programSet, kind);
         boolean irisTests = program.flatMap(ProgramSource::getFragmentSource).map(IrisAlphaTestRule::applies)
                 .orElse(true);
         AlphaTest test = irisTests ? program.flatMap(source -> source.getDirectives().getAlphaTestOverride())
                 .orElse(game.getAlphaTest()) : AlphaTest.ALWAYS;
         return test.function() == AlphaTestFunction.ALWAYS ? null
                 : new AlphaCut(compare(test.function()), test.reference());
-    }
-
-    private static ShaderKey gameKey(PackProgram.Kind kind) {
-        return switch (kind) {
-            case OPAQUE -> ShaderKey.SODIUM_TERRAIN_CUTOUT;
-            case TRANSLUCENT -> ShaderKey.SODIUM_TERRAIN_TRANSLUCENT;
-            case SHADOW -> ShaderKey.SHADOW_SODIUM_TERRAIN_CUTOUT;
-            case SHADOW_TRANSLUCENT -> ShaderKey.SHADOW_SODIUM_TERRAIN_TRANSLUCENT;
-            case BEAM, BEAM_GLOW -> throw new IllegalArgumentException("A beam program cuts in its own pass");
-        };
     }
 
     private static AlphaCut.Compare compare(AlphaTestFunction function) {
