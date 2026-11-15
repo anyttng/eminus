@@ -4,9 +4,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
 
-import com.eminus.Eminus;
 import com.eminus.cell.Cell;
-import com.eminus.cell.CellKey;
 import com.eminus.store.CellRecord;
 import com.eminus.store.CellStore;
 import com.eminus.store.StoreException;
@@ -21,6 +19,7 @@ public final class CellHandle {
 
     private final long key;
     private final LongSupplier clock;
+    private final WriteLatch latch;
     private final ReentrantLock cellLock = new ReentrantLock();
     private final ReentrantLock saveLock = new ReentrantLock();
 
@@ -29,14 +28,14 @@ public final class CellHandle {
     private int references;
     private volatile boolean dirty;
     private long changes;
-    private long dirtySince;
+    private volatile long dirtySince;
     private boolean queued;
     private long retryAt = NO_RETRY;
-    private boolean failureLogged;
 
-    CellHandle(long key, LongSupplier clock) {
+    CellHandle(long key, LongSupplier clock, WriteLatch latch) {
         this.key = key;
         this.clock = clock;
+        this.latch = latch;
     }
 
     public long key() {
@@ -83,11 +82,17 @@ public final class CellHandle {
                 encoded = changes;
             }
 
+            if (!latch.claimWrite()) {
+                return;
+            }
+
             try {
                 writeEncoded(store, loaded);
                 saved(encoded);
+                latch.succeeded();
             } catch (StoreException failure) {
-                failed(failure);
+                failed();
+                latch.failed(key, failure);
             }
         } finally {
             unqueue();
@@ -112,7 +117,6 @@ public final class CellHandle {
 
     private synchronized void saved(long encoded) {
         retryAt = NO_RETRY;
-        failureLogged = false;
         if (changes == encoded) {
             dirty = false;
         } else {
@@ -120,13 +124,16 @@ public final class CellHandle {
         }
     }
 
-    private synchronized void failed(StoreException failure) {
+    private synchronized void failed() {
         retryAt = clock.getAsLong() + RETRY_MILLIS;
-        if (!failureLogged) {
-            failureLogged = true;
-            Eminus.LOGGER.error("Could not save the cell at level {} ({}, {}, {}); it stays dirty.",
-                    CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key), failure);
-        }
+    }
+
+    synchronized void discard() {
+        dirty = false;
+    }
+
+    long dirtySince() {
+        return dirtySince;
     }
 
     private synchronized void unqueue() {

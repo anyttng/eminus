@@ -14,6 +14,7 @@ public final class FakeCellStore implements CellStore {
     private final Map<Long, byte[]> records = new ConcurrentHashMap<>();
     private final AtomicInteger reads = new AtomicInteger();
     private final AtomicInteger writes = new AtomicInteger();
+    private final AtomicInteger writeAttempts = new AtomicInteger();
 
     private volatile CountDownLatch readGate;
     private volatile CountDownLatch readStarted;
@@ -47,6 +48,7 @@ public final class FakeCellStore implements CellStore {
 
     @Override
     public void write(long key, int occupancy, byte[] record) {
+        writeAttempts.incrementAndGet();
         if (refuseWrites) {
             throw new StoreException("The fake store refuses writes.", null);
         }
@@ -108,6 +110,10 @@ public final class FakeCellStore implements CellStore {
 
     public int writes() {
         return writes.get();
+    }
+
+    public int writeAttempts() {
+        return writeAttempts.get();
     }
 
     public void refuseWrites(boolean refuse) {
