@@ -19,7 +19,7 @@ The LOD does not write `depthtex0`: your `deferred` and `composite` code reconst
 vec4 eminus_viewPosition(vec2 texcoord, bool opaqueOnly);
 ```
 
-Since version 5. Eminus supplies it in every program of the pack that calls it, in any stage; a program that does not name it is compiled as you wrote it. Call it where Iris hands your program `depthtex0`: that is where the textures it reads are bound.
+Eminus supplies it in every program of the pack that calls it, in any stage; a program that does not name it is compiled as you wrote it. Call it where Iris hands your program `depthtex0`: that is where the textures it reads are bound.
 
 It returns the view-space position of the nearest surface at `texcoord`, with `w` at `1.0`:
 
