@@ -24,6 +24,7 @@ import com.eminus.cell.VoxelEntry;
 import com.eminus.cell.cache.CellCache;
 import com.eminus.cell.cache.CellHandle;
 import com.eminus.model.ModelMetadata;
+import com.eminus.store.CellWrites;
 import com.eminus.store.FakeCellStore;
 import com.eminus.work.ShutdownMode;
 import com.eminus.work.WorkService;
@@ -119,7 +120,7 @@ class MeshServiceTest {
                 ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
         Cell cell = Cell.blank(COARSE_KEY);
         cell.set(CUBE_AT, CUBE_AT, CUBE_AT, lit(STONE));
-        store.write(cell);
+        CellWrites.write(store, cell);
 
         harness.run(() -> service.build(MeshTask.fresh(COARSE_KEY), new MeshScratch()));
 
@@ -143,7 +144,7 @@ class MeshServiceTest {
                 ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
         Cell cell = Cell.blank(COARSE_KEY);
         cell.set(CUBE_AT, CUBE_AT, CUBE_AT, lit(STONE));
-        store.write(cell);
+        CellWrites.write(store, cell);
 
         harness.run(() -> service.build(MeshTask.fresh(COARSE_KEY), new MeshScratch()));
 
@@ -158,7 +159,7 @@ class MeshServiceTest {
         models.holds(WATER, WATER_FLUID, SOURCE_HEIGHT);
         Cell cell = Cell.blank(KEY);
         cell.set(FIRST_VOXEL, LAST_VOXEL, FIRST_VOXEL, lit(WATER));
-        store.write(cell);
+        CellWrites.write(store, cell);
 
         harness.run(() -> service.build(MeshTask.fresh(KEY), new MeshScratch()));
 
@@ -344,18 +345,18 @@ class MeshServiceTest {
     private void seedCube() {
         Cell cell = Cell.blank(KEY);
         cell.set(CUBE_AT, CUBE_AT, CUBE_AT, VoxelEntry.pack(STONE, BIOME, VoxelEntry.light(VoxelEntry.MAX_LIGHT, 0)));
-        store.write(cell);
+        CellWrites.write(store, cell);
     }
 
     private void seedGlassBetweenUnbakedStates() {
         Cell cell = Cell.blank(KEY);
         cell.set(FIRST_VOXEL, CUBE_AT, CUBE_AT, lit(GLASS));
         cell.set(FIRST_VOXEL + 1, CUBE_AT, CUBE_AT, lit(UNBAKED_ABOVE));
-        store.write(cell);
+        CellWrites.write(store, cell);
 
         Cell west = Cell.blank(CellKey.neighbor(KEY, Direction.WEST));
         west.set(LAST_VOXEL, CUBE_AT, CUBE_AT, lit(UNBAKED_BELOW));
-        store.write(west);
+        CellWrites.write(store, west);
     }
 
     private static long lit(int state) {

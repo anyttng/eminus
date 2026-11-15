@@ -100,7 +100,7 @@ class SqliteCellStoreTest {
     void anOlderStoreKeepsItsCellsAndDictionaryUnderTheCurrentVersion(int version) throws SQLException {
         long key = CellKey.pack(1, 2, 3, 4);
         try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            store.write(Cell.blank(key));
+            CellWrites.write(store, Cell.blank(key));
             store.putDictionaryEntry(BLOCKS, 0, "minecraft:air");
         }
 
@@ -215,7 +215,7 @@ class SqliteCellStoreTest {
         givenThePageSize(OLDER_PAGE_SIZE);
 
         try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            store.write(Cell.blank(CellKey.pack(1, 2, 3, 4)));
+            CellWrites.write(store, Cell.blank(CellKey.pack(1, 2, 3, 4)));
         }
         open(LOWEST_LEVEL).close();
 
@@ -240,7 +240,7 @@ class SqliteCellStoreTest {
             cell.set(level, 1, 2, STONE);
 
             try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-                store.write(cell);
+                CellWrites.write(store, cell);
             }
 
             try (SqliteCellStore store = open(LOWEST_LEVEL)) {
@@ -262,7 +262,7 @@ class SqliteCellStoreTest {
         try (SqliteCellStore store = open(LOWEST_LEVEL)) {
             assertNull(store.read(key));
 
-            store.write(Cell.blank(key));
+            CellWrites.write(store, Cell.blank(key));
             assertNotNull(store.read(key));
 
             store.delete(key);
@@ -275,7 +275,7 @@ class SqliteCellStoreTest {
         long key = CellKey.pack(2, 7, 0, -7);
 
         try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            store.write(Cell.blank(key));
+            CellWrites.write(store, Cell.blank(key));
         }
 
         execute("UPDATE cells SET data = x'0102030405060708' WHERE key = " + key);
@@ -295,9 +295,9 @@ class SqliteCellStoreTest {
             Cell tooFine = Cell.blank(CellKey.pack(lowest - 1, 0, 0, 0));
             Cell tooCoarse = Cell.blank(CellKey.pack(DetailLevel.MAX + 1, 0, 0, 0));
 
-            assertThrows(IllegalArgumentException.class, () -> store.write(tooFine));
-            assertThrows(IllegalArgumentException.class, () -> store.write(tooCoarse));
-            store.write(Cell.blank(CellKey.pack(lowest, 0, 0, 0)));
+            assertThrows(IllegalArgumentException.class, () -> CellWrites.write(store, tooFine));
+            assertThrows(IllegalArgumentException.class, () -> CellWrites.write(store, tooCoarse));
+            CellWrites.write(store, Cell.blank(CellKey.pack(lowest, 0, 0, 0)));
         }
     }
 
@@ -334,7 +334,7 @@ class SqliteCellStoreTest {
 
         try (SqliteCellStore store = open(LOWEST_LEVEL)) {
             for (int cell = 0; cell < SPARSE_CELLS; cell++) {
-                store.write(noisyCell(CellKey.pack(0, cell, 0, 0), random));
+                CellWrites.write(store, noisyCell(CellKey.pack(0, cell, 0, 0), random));
             }
         }
 
@@ -359,10 +359,10 @@ class SqliteCellStoreTest {
 
         try (SqliteCellStore store = open(LOWEST_LEVEL)) {
             for (int cell = 0; cell < SPARSE_CELLS; cell++) {
-                store.write(noisyCell(CellKey.pack(0, cell, 0, 0), random));
+                CellWrites.write(store, noisyCell(CellKey.pack(0, cell, 0, 0), random));
             }
             for (int level = raised; level <= DetailLevel.MAX; level++) {
-                store.write(Cell.blank(CellKey.pack(level, 0, 0, 0)));
+                CellWrites.write(store, Cell.blank(CellKey.pack(level, 0, 0, 0)));
             }
         }
 
@@ -496,13 +496,13 @@ class SqliteCellStoreTest {
 
         try (SqliteCellStore store = open(RAISED_LEVEL, GRACE_MILLIS)) {
             assertEquals(DetailLevel.MIN, store.heldLevel());
-            store.write(Cell.blank(cellAt(DetailLevel.MIN)));
+            CellWrites.write(store, Cell.blank(cellAt(DetailLevel.MIN)));
         }
 
         open(RAISED_LEVEL).close();
         try (SqliteCellStore store = open(DetailLevel.MAX, GRACE_MILLIS)) {
             assertEquals(RAISED_LEVEL, store.heldLevel());
-            assertThrows(IllegalArgumentException.class, () -> store.write(Cell.blank(cellAt(DetailLevel.MIN))));
+            assertThrows(IllegalArgumentException.class, () -> CellWrites.write(store, Cell.blank(cellAt(DetailLevel.MIN))));
         }
     }
 
@@ -513,7 +513,7 @@ class SqliteCellStoreTest {
 
         try (SqliteCellStore store = open(RAISED_LEVEL, GRACE_MILLIS)) {
             assertEquals(RAISED_LEVEL, store.heldLevel());
-            assertThrows(IllegalArgumentException.class, () -> store.write(Cell.blank(cellAt(DetailLevel.MIN))));
+            assertThrows(IllegalArgumentException.class, () -> CellWrites.write(store, Cell.blank(cellAt(DetailLevel.MIN))));
         }
     }
 
@@ -530,8 +530,8 @@ class SqliteCellStoreTest {
 
     private void givenCellsAtLevelZeroAndUp() {
         try (SqliteCellStore store = open(LOWEST_LEVEL)) {
-            store.write(Cell.blank(cellAt(DetailLevel.MIN)));
-            store.write(Cell.blank(cellAt(RAISED_LEVEL)));
+            CellWrites.write(store, Cell.blank(cellAt(DetailLevel.MIN)));
+            CellWrites.write(store, Cell.blank(cellAt(RAISED_LEVEL)));
             store.putColumn(COLUMN_A, LOWEST_LEVEL);
         }
     }
@@ -551,7 +551,7 @@ class SqliteCellStoreTest {
     private void givenCellsAtEveryLevel() {
         try (SqliteCellStore store = open(LOWEST_LEVEL)) {
             for (int level = DetailLevel.MIN; level <= DetailLevel.MAX; level++) {
-                store.write(Cell.blank(cellAt(level)));
+                CellWrites.write(store, Cell.blank(cellAt(level)));
             }
         }
     }
