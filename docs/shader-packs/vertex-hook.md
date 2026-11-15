@@ -8,7 +8,7 @@ Part of the [Eminus shader-pack contract](../shader-pack-contract.md).
 vec4 eminus_vertexPosition(inout EminusVertex vertex);
 ```
 
-and no `main`. Since version 4. Eminus calls it once per LOD vertex in every program built from your contract files and writes what it returns to `gl_Position`. Its body does what your terrain vertex code does once it has a position. It projects the position, then applies your jitter or your render scale, and in the shadow programs your shadow distortion.
+and no `main`. Eminus calls it once per LOD vertex in every program built from your contract files and writes what it returns to `gl_Position`. Its body does what your terrain vertex code does once it has a position. It projects the position, then applies your jitter or your render scale, and in the shadow programs your shadow distortion.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
@@ -54,7 +54,7 @@ vec4 eminus_vertexPosition(inout EminusVertex vertex) {
 
 ## Blocks your hook moves
 
-Eminus joins neighboring faces of one block into one larger face, with vertices at its corners alone. Where a smaller face meets the middle of a larger face's edge, your function moves the smaller face's corner by its value at that point. The larger face's edge stays a straight line between its own moved corners, so a gap opens between them. Eminus cannot read from your code which blocks it moves, so you name them: list their ids from your `block.properties` under the key `moved` in `shaders/eminus.properties`. Since version 6.
+Eminus joins neighboring faces of one block into one larger face, with vertices at its corners alone. Where a smaller face meets the middle of a larger face's edge, your function moves the smaller face's corner by its value at that point. The larger face's edge stays a straight line between its own moved corners, so a gap opens between them. Eminus cannot read from your code which blocks it moves, so you name them: list their ids from your `block.properties` under the key `moved` in `shaders/eminus.properties`.
 
 ```properties
 moved = \
