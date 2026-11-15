@@ -34,7 +34,8 @@ public interface PackPath {
     }
 
     record Source(String programName, String file, UnaryOperator<String> fragment,
-            @Nullable UnaryOperator<String> vertex, FarDraw.PackVertex vertexStage, Cutout cutout) {
+            @Nullable UnaryOperator<String> vertex, FarDraw.PackVertex vertexStage, Cutout cutout,
+            boolean followsGameBlend) {
     }
 
     enum Cutout {

@@ -7,9 +7,6 @@ import com.eminus.client.render.far.AlphaCuts;
 
 import net.irisshaders.iris.gl.blending.AlphaTest;
 import net.irisshaders.iris.gl.blending.AlphaTestFunction;
-import net.irisshaders.iris.gl.blending.AlphaTests;
-import net.irisshaders.iris.shaderpack.loading.ProgramId;
-import net.irisshaders.iris.shaderpack.programs.ProgramFallbackResolver;
 import net.irisshaders.iris.shaderpack.programs.ProgramSet;
 import net.irisshaders.iris.shaderpack.programs.ProgramSource;
 
@@ -45,27 +42,13 @@ final class PackAlphaTest {
     }
 
     private static @Nullable AlphaCut irisCut(ProgramSet programSet, PackProgram.Kind kind) {
-        GameProgram game = gameProgram(kind);
-        Optional<ProgramSource> program = new ProgramFallbackResolver(programSet).resolve(game.id());
+        Optional<ProgramSource> program = GameProgram.resolve(programSet, kind);
         boolean irisTests = program.flatMap(ProgramSource::getFragmentSource).map(IrisAlphaTestRule::applies)
                 .orElse(true);
         AlphaTest test = irisTests ? program.flatMap(source -> source.getDirectives().getAlphaTestOverride())
-                .orElse(game.alphaTest()) : AlphaTest.ALWAYS;
+                .orElse(GameProgram.alphaTest(kind)) : AlphaTest.ALWAYS;
         return test.function() == AlphaTestFunction.ALWAYS ? null
                 : new AlphaCut(compare(test.function()), test.reference());
-    }
-
-    private record GameProgram(ProgramId id, AlphaTest alphaTest) {
-    }
-
-    private static GameProgram gameProgram(PackProgram.Kind kind) {
-        return switch (kind) {
-            case OPAQUE -> new GameProgram(ProgramId.TerrainCutout, AlphaTests.ONE_TENTH_ALPHA);
-            case TRANSLUCENT -> new GameProgram(ProgramId.Water, AlphaTest.ALWAYS);
-            case SHADOW -> new GameProgram(ProgramId.ShadowCutout, AlphaTests.ONE_TENTH_ALPHA);
-            case SHADOW_TRANSLUCENT -> new GameProgram(ProgramId.ShadowWater, AlphaTest.ALWAYS);
-            case BEAM, BEAM_GLOW -> throw new IllegalArgumentException("A beam program cuts in its own pass");
-        };
     }
 
     private static AlphaCut.Compare compare(AlphaTestFunction function) {
