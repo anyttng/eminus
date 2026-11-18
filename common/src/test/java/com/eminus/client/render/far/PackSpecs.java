@@ -16,7 +16,7 @@ import com.eminus.render.backend.DepthConvention;
 
 public final class PackSpecs {
     private static final String CAPABILITIES = "capabilities";
-    private static final Capabilities ANY = new Capabilities("test", false, false, false, true, true, true,
+    private static final Capabilities ANY = new Capabilities("test", false, false, false, true, true, true, true,
             Long.MAX_VALUE, OptionalLong.empty(), OptionalLong.empty());
 
     public static List<PipelineSpec> all() {

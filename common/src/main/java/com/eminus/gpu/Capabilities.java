@@ -9,6 +9,7 @@ public record Capabilities(
         boolean lightmapHalfTexel,
         boolean drawIndirect,
         boolean multiDrawIndirect,
+        boolean drawParameters,
         boolean persistentMapping,
         long maxAllocationBytes,
         OptionalLong texelElements,

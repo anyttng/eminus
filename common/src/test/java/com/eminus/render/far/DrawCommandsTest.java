@@ -37,6 +37,9 @@ class DrawCommandsTest {
     private static final int FAR_SEGMENT = 9;
     private static final int UP_QUADS = 5;
     private static final int DOWN_QUADS = 7;
+    private static final int PIECES_BEFORE_UP = 40;
+    private static final int UP_PIECES = 90;
+    private static final int[] NO_PIECES = new int[0];
     private static final int WATER_QUADS = 2;
     private static final int WATER_START = 12;
     private static final int INDICES_PER_QUAD = 6;
@@ -392,10 +395,35 @@ class DrawCommandsTest {
         assertEquals(UP_QUADS + DOWN_QUADS, commands.quads());
     }
 
+    @Test
+    void aShadowWriteInPiecesCountsVoxelFacesFromTheMeshsFirstQuad() {
+        int[] groupStart = new int[QuadGroups.COUNT];
+        int[] groupCount = new int[QuadGroups.COUNT];
+        int[] pieceStart = new int[QuadGroups.COUNT];
+        int[] pieceCount = new int[QuadGroups.COUNT];
+        int up = Direction.UP.get3DDataValue();
+        groupStart[up] = DOWN_QUADS;
+        groupCount[up] = UP_QUADS;
+        pieceStart[up] = PIECES_BEFORE_UP;
+        pieceCount[up] = UP_PIECES;
+        MeshSlot slot = new MeshSlot(key, SEGMENT, DOWN_QUADS + UP_QUADS, NO_STREAM, NO_COLORS, groupStart,
+                groupCount, new int[QuadGroups.COUNT], pieceStart, pieceCount, NO_PIECES);
+
+        commands.writeShadow(List.of(mesh(key)), List.of(), NO_BORDERS, slots(slot), frame, EVERYWHERE,
+                EVERY_CASTER, true, INSIDE, FAR_ABOVE, INSIDE);
+
+        IntBuffer written = commands.buffer().asIntBuffer();
+        assertEquals(1, commands.opaqueCount());
+        assertEquals(UP_PIECES * INDICES_PER_QUAD, written.get(INDEX_COUNT));
+        assertEquals(PIECES_BEFORE_UP * DrawCommands.VERTICES_PER_QUAD, written.get(VERTEX_OFFSET));
+        assertEquals(slot.baseQuad(), written.get(FIRST_INSTANCE));
+        assertEquals(UP_PIECES * INDICES_PER_QUAD, commands.largestIndices());
+    }
+
     private void shadow(MeshSlots slots, List<MeshSummary> translucent, FrustumIntersection frustum,
             ShadowCasterVolume casters, double cameraX, double cameraY) {
-        commands.writeShadow(List.of(mesh(key)), translucent, NO_BORDERS, slots, frame, frustum, casters, cameraX,
-                cameraY, INSIDE);
+        commands.writeShadow(List.of(mesh(key)), translucent, NO_BORDERS, slots, frame, frustum, casters, false,
+                cameraX, cameraY, INSIDE);
     }
 
     private static ShadowCasterVolume casters(float lookX) {
@@ -414,7 +442,7 @@ class DrawCommandsTest {
         }
 
         write(slots(new MeshSlot(key, SEGMENT, QuadGroups.DIRECTIONAL_COUNT * UP_QUADS, NO_STREAM, NO_COLORS,
-                groupStart, groupCount, new int[QuadGroups.COUNT])), INSIDE);
+                groupStart, groupCount, new int[QuadGroups.COUNT], groupStart, groupCount, NO_PIECES)), INSIDE);
 
         assertEquals(QuadGroups.DIRECTIONAL_COUNT, commands.opaqueCount());
 
@@ -458,7 +486,7 @@ class DrawCommandsTest {
         groupStart[Direction.UP.get3DDataValue()] = DOWN_QUADS;
         groupCount[Direction.UP.get3DDataValue()] = UP_QUADS;
         return new MeshSlot(key, segment, DOWN_QUADS + UP_QUADS, NO_STREAM, NO_COLORS, groupStart, groupCount,
-                new int[QuadGroups.COUNT]);
+                new int[QuadGroups.COUNT], groupStart, groupCount, NO_PIECES);
     }
 
     private static MeshSlot solidUp(long key, int segment) {
@@ -473,7 +501,7 @@ class DrawCommandsTest {
         groupStart[QuadGroups.TRANSLUCENT] = WATER_START;
         groupCount[QuadGroups.TRANSLUCENT] = WATER_QUADS;
         return new MeshSlot(key, segment, WATER_START + WATER_QUADS, NO_STREAM, NO_COLORS, groupStart, groupCount,
-                new int[QuadGroups.COUNT]);
+                new int[QuadGroups.COUNT], groupStart, groupCount, NO_PIECES);
     }
 
     private static MeshSlot border(long key, int segment) {
@@ -482,7 +510,7 @@ class DrawCommandsTest {
         groupStart[QuadGroups.border(Direction.EAST)] = WATER_START;
         groupCount[QuadGroups.border(Direction.EAST)] = BORDER_QUADS;
         return new MeshSlot(key, segment, WATER_START + BORDER_QUADS, NO_STREAM, NO_COLORS, groupStart, groupCount,
-                new int[QuadGroups.COUNT]);
+                new int[QuadGroups.COUNT], groupStart, groupCount, NO_PIECES);
     }
 
     private static MeshSlot both(long key, int segment) {
@@ -492,7 +520,7 @@ class DrawCommandsTest {
         groupStart[QuadGroups.TRANSLUCENT] = WATER_START;
         groupCount[QuadGroups.TRANSLUCENT] = WATER_QUADS;
         return new MeshSlot(key, segment, WATER_START + WATER_QUADS, NO_STREAM, NO_COLORS, groupStart, groupCount,
-                new int[QuadGroups.COUNT]);
+                new int[QuadGroups.COUNT], groupStart, groupCount, NO_PIECES);
     }
 
     private static MeshSummary mesh(long key) {

@@ -160,6 +160,22 @@ vec2 eminus_slope(vec4 fifth, vec4 sixth, vec4 seventh, int face) {
     return seventh.zw;
 }
 
+#ifdef SHADOW_PIECES
+uint eminus_pieces_before(int meshSegment, int entry) {
+    int segmentEntries = QUADS_PER_SEGMENT / PIECE_ENTRY_QUADS;
+    int inSegment = entry % segmentEntries;
+    uvec4 texel = texelFetch(EminusMeshRecords, (meshSegment + entry / segmentEntries) * MESH_RECORD_TEXELS + 1
+                                     + inSegment / MESH_RECORD_INTS);
+    int component = inSegment % MESH_RECORD_INTS;
+    return component == 0 ? texel.x : (component == 1 ? texel.y : (component == 2 ? texel.z : texel.w));
+}
+
+int eminus_quad_pieces(uvec2 quad) {
+    return (int(eminus_field(quad, QUAD_WIDTH_SHIFT, QUAD_SIDE_BITS)) + 1)
+            * (int(eminus_field(quad, QUAD_HEIGHT_SHIFT, QUAD_SIDE_BITS)) + 1);
+}
+#endif
+
 bool eminus_front_only(int flags, int face) {
     if ((flags & ONE_SIDED_FLAG) != 0) {
         return true;
@@ -295,17 +311,53 @@ vec2 eminus_overlap_unit(EminusFace f, vec3 voxelBase, vec2 unit) {
 EminusQuadVertex eminus_quad_vertex(int vertexId) {
     EminusQuadVertex vertex;
 
-    int quadIndex = vertexId / EMINUS_CORNERS_PER_QUAD;
     int corner = vertexId % EMINUS_CORNERS_PER_QUAD;
     vec2 unit = vec2(corner == 1 || corner == 2 ? 1.0 : 0.0, corner >= 2 ? 1.0 : 0.0);
 
-    uvec4 mesh = texelFetch(EminusMeshRecords,quadIndex / QUADS_PER_SEGMENT);
+#ifdef SHADOW_PIECES
+    int piece = vertexId / EMINUS_CORNERS_PER_QUAD;
+    int meshSegment = gl_BaseInstanceARB / QUADS_PER_SEGMENT;
+    uvec4 mesh = texelFetch(EminusMeshRecords, meshSegment * MESH_RECORD_TEXELS);
+#else
+    int quadIndex = vertexId / EMINUS_CORNERS_PER_QUAD;
+    uvec4 mesh = texelFetch(EminusMeshRecords, quadIndex / QUADS_PER_SEGMENT * MESH_RECORD_TEXELS);
+#endif
     int level = int(eminus_field(mesh.xy, CELL_LEVEL_SHIFT, CELL_LEVEL_BITS));
     int cellX = int(eminus_field(mesh.xy, CELL_X_SHIFT, CELL_HORIZONTAL_BITS)) + MIN_HORIZONTAL;
     int cellZ = int(eminus_field(mesh.xy, CELL_Z_SHIFT, CELL_HORIZONTAL_BITS)) + MIN_HORIZONTAL;
     int cellY = int(eminus_field(mesh.xy, CELL_Y_SHIFT, CELL_VERTICAL_BITS)) + MIN_VERTICAL;
 
+    bool occluded = (mesh.w >> MESH_UNOCCLUDED_SHIFT) == 0u;
+    bool innerOccluded = ((mesh.w >> MESH_INNER_OCCLUDED_SHIFT) & 1u) != 0u;
+    int meshQuads = int(mesh.w & ((1u << MESH_INNER_OCCLUDED_SHIFT) - 1u));
+    int streamStart = int(mesh.z) + meshQuads;
+    int outerSlots = occluded ? (meshQuads + OCCLUSION_PER_SLOT - 1) / OCCLUSION_PER_SLOT : 0;
+    int occlusionSlots = innerOccluded ? 2 * outerSlots : outerSlots;
+
+#ifdef SHADOW_PIECES
+    int firstEntry = 0;
+    int lastEntry = (meshQuads + PIECE_ENTRY_QUADS - 1) / PIECE_ENTRY_QUADS - 1;
+    for (int step = 0; step < PIECE_SEARCH_STEPS && firstEntry < lastEntry; step++) {
+        int middle = (firstEntry + lastEntry + 1) / 2;
+        if (int(eminus_pieces_before(meshSegment, middle)) <= piece) {
+            firstEntry = middle;
+        } else {
+            lastEntry = middle - 1;
+        }
+    }
+
+    int quadIndex = int(mesh.z) + firstEntry * PIECE_ENTRY_QUADS;
+    int piecesBefore = int(eminus_pieces_before(meshSegment, firstEntry));
+    uvec2 quad = texelFetch(EminusQuads, quadIndex).xy;
+    for (int step = 1; step < PIECE_ENTRY_QUADS && piece >= piecesBefore + eminus_quad_pieces(quad); step++) {
+        piecesBefore += eminus_quad_pieces(quad);
+        quadIndex++;
+        quad = texelFetch(EminusQuads, quadIndex).xy;
+    }
+    int pieceInQuad = piece - piecesBefore;
+#else
     uvec2 quad = texelFetch(EminusQuads,quadIndex).xy;
+#endif
     int face = int(eminus_field(quad, QUAD_FACE_SHIFT, QUAD_FACE_BITS));
     ivec3 voxel = ivec3(eminus_field(quad, QUAD_X_SHIFT, QUAD_COORDINATE_BITS),
                         eminus_field(quad, QUAD_Y_SHIFT, QUAD_COORDINATE_BITS),
@@ -315,13 +367,15 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
     uint light = eminus_field(quad, QUAD_LIGHT_SHIFT, QUAD_LIGHT_BITS);
     int modelId = int(eminus_field(quad, QUAD_MODEL_SHIFT, QUAD_MODEL_BITS));
     int colorIndex = int(eminus_field(quad, QUAD_COLOR_SHIFT, QUAD_COLOR_BITS));
+#ifdef SHADOW_PIECES
+    int pieceAlong = pieceInQuad % width;
+    int pieceUp = pieceInQuad / width;
+    voxel += ivec3(face < 4 ? pieceAlong : 0, face < 2 ? 0 : pieceUp,
+                   (face < 4 ? 0 : pieceAlong) + (face < 2 ? pieceUp : 0));
+    width = 1;
+    height = 1;
+#endif
     int quadInMesh = quadIndex - int(mesh.z);
-    bool occluded = (mesh.w >> MESH_UNOCCLUDED_SHIFT) == 0u;
-    bool innerOccluded = ((mesh.w >> MESH_INNER_OCCLUDED_SHIFT) & 1u) != 0u;
-    int meshQuads = int(mesh.w & ((1u << MESH_INNER_OCCLUDED_SHIFT) - 1u));
-    int streamStart = int(mesh.z) + meshQuads;
-    int outerSlots = occluded ? (meshQuads + OCCLUSION_PER_SLOT - 1) / OCCLUSION_PER_SLOT : 0;
-    int occlusionSlots = innerOccluded ? 2 * outerSlots : outerSlots;
     vertex.occlusion = 0u;
     vertex.occlusionInner = 0.0;
     if (occluded) {
