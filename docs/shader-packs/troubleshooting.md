@@ -9,7 +9,7 @@ A program that does not build leaves the rest as follows:
 - `eminus_shadow_translucent.glsl`: every other program keeps running, and the LOD's translucent faces cast no shadow.
 - `eminus_beaconbeam.glsl`, or `eminus_vertex.glsl` in the beam programs: every other program keeps running, and no beacon beam is drawn past the render distance.
 
-Eminus builds the programs again whenever the far renderer starts: on a shader or resource reload, a change of dimension, or a change of the LOD Distance or Detail Distance setting. Fix the file and reload shaders.
+Fix the file and reload shaders.
 
 Each failure writes one line to the game log:
 
