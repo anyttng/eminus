@@ -103,7 +103,8 @@ public final class OpenGlGpu implements Gpu, Foreign {
 
         return new OpenGlGpu(new Capabilities(BACKEND, zeroToOne, GameHandles.depthReversed(),
                 GameHandles.lightmapHalfTexel(),
-                gl.GL_ARB_draw_indirect, gl.GL_ARB_multi_draw_indirect, gl.GL_ARB_buffer_storage, NO_ALLOCATION_LIMIT,
+                gl.GL_ARB_draw_indirect, gl.GL_ARB_multi_draw_indirect, gl.GL_ARB_shader_draw_parameters,
+                gl.GL_ARB_buffer_storage, NO_ALLOCATION_LIMIT,
                 DeviceQueries.openGlTexelElements(), DeviceQueries.openGlFreeBytes()));
     }
 

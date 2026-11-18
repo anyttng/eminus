@@ -178,7 +178,14 @@ public final class FarDraw {
         if (vertex.hook() && depth.zeroToOne()) {
             builder.withDefine("SHADOW_ZERO_TO_ONE");
         }
+        if (shadowPieces()) {
+            builder.withDefine("SHADOW_PIECES");
+        }
         return builder.build();
+    }
+
+    public boolean shadowPieces() {
+        return gpu.capabilities().drawParameters();
     }
 
     private PipelineSpec.Builder packShader(Location location, @Nullable AlphaCut cut) {

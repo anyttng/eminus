@@ -29,6 +29,17 @@ public final class PackSources {
         return header.toString();
     }
 
+    public static String withExtension(String source, String extension) {
+        String[] lines = source.split(LINE, -1);
+        for (int index = 0; index < lines.length; index++) {
+            if (lines[index].strip().startsWith(VERSION)) {
+                lines[index] += LINE + EXTENSION + " " + extension + " : require";
+                return String.join(LINE, lines);
+            }
+        }
+        throw new IllegalArgumentException("No " + VERSION + " directive opens the vertex stage");
+    }
+
     public static String insert(String packSource, String header, String main) {
         String[] lines = packSource.split(LINE, -1);
         int insertAt = afterDirectives(lines);

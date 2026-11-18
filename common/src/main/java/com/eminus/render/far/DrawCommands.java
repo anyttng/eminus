@@ -43,6 +43,7 @@ public final class DrawCommands {
     private int solidCount;
     private int translucentCount;
     private int quads;
+    private int largestQuads;
 
     public DrawCommands(int capacity) {
         if (capacity <= 0) {
@@ -76,6 +77,10 @@ public final class DrawCommands {
         return quads;
     }
 
+    public int largestIndices() {
+        return largestQuads * INDICES_PER_QUAD;
+    }
+
     public ByteBuffer buffer() {
         return bytes.clear().limit(count() * Pass.INDEXED_INDIRECT_BYTES);
     }
@@ -90,10 +95,46 @@ public final class DrawCommands {
 
     public void writeShadow(List<MeshSummary> opaque, List<MeshSummary> translucent, Long2IntFunction borderFaces,
             MeshSlots slots, CellFrame frame, FrustumIntersection frustum, ShadowCasterVolume casters,
-            double cameraX, double cameraY, double cameraZ) {
-        writeOpaque(opaque, borderFaces, slots, frame, frustum, casters, null, null, false, cameraX, cameraY,
-                cameraZ);
-        writeTranslucent(translucent, slots, frame, frustum, casters, null, cameraX, cameraY, cameraZ);
+            boolean pieces, double cameraX, double cameraY, double cameraZ) {
+        if (!pieces) {
+            writeOpaque(opaque, borderFaces, slots, frame, frustum, casters, null, null, false, cameraX, cameraY,
+                    cameraZ);
+            writeTranslucent(translucent, slots, frame, frustum, casters, null, cameraX, cameraY, cameraZ);
+            return;
+        }
+
+        clear();
+        for (MeshSummary mesh : opaque) {
+            MeshSlot slot = slots.slot(mesh.key());
+            if (slot != null && inView(slot, frame, frustum, cameraX, cameraY, cameraZ) && casts(casters)) {
+                writePieceGroups(slot, borderFaces.get(mesh.key()));
+            }
+        }
+        solidCount = 0;
+        for (MeshSummary mesh : translucent) {
+            MeshSlot slot = slots.slot(mesh.key());
+            if (slot != null && slot.groupCount(QuadGroups.TRANSLUCENT) > 0
+                    && inView(slot, frame, frustum, cameraX, cameraY, cameraZ) && casts(casters)) {
+                putPieces(slot, QuadGroups.TRANSLUCENT);
+                translucentCount++;
+            }
+        }
+    }
+
+    private void writePieceGroups(MeshSlot slot, int borderFaces) {
+        for (int group = 0; group < QuadGroups.COUNT; group++) {
+            if (group == QuadGroups.TRANSLUCENT || slot.groupCount(group) == 0
+                    || (QuadGroups.isBorder(group) && (borderFaces & 1 << QuadGroups.direction(group)) == 0)) {
+                continue;
+            }
+
+            putPieces(slot, group);
+            opaqueCount++;
+        }
+    }
+
+    private void putPieces(MeshSlot slot, int group) {
+        put(slot.pieceCount(group), slot.pieceStart(group), slot.baseQuad());
     }
 
     private void writeTranslucent(List<MeshSummary> translucent, MeshSlots slots, CellFrame frame,
@@ -135,6 +176,7 @@ public final class DrawCommands {
         opaqueCount = 0;
         translucentCount = 0;
         quads = 0;
+        largestQuads = 0;
     }
 
     private void appendRest() {
@@ -193,6 +235,10 @@ public final class DrawCommands {
     }
 
     private void put(int firstQuad, int quadCount) {
+        put(quadCount, firstQuad, FIRST_INSTANCE);
+    }
+
+    private void put(int quadCount, int firstQuad, int baseInstance) {
         if (count() == capacity) {
             grow();
         }
@@ -201,8 +247,9 @@ public final class DrawCommands {
                 .put(ONE_INSTANCE)
                 .put(FIRST_INDEX)
                 .put(firstQuad * VERTICES_PER_QUAD)
-                .put(FIRST_INSTANCE);
+                .put(baseInstance);
         quads += quadCount;
+        largestQuads = Math.max(largestQuads, quadCount);
     }
 
     private void grow() {
