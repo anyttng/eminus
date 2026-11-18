@@ -29,7 +29,7 @@ It returns the view-space position of the nearest surface at `texcoord`, with `w
 
 On a frame where `eminusRenderDistance` is `0` it reads the near field alone. Both kinds of position are in the one view space `gbufferModelViewInverse` takes to the world axes. The example pack's [`composite.fsh`](../example-pack/shaders/composite.fsh) fogs the near field and the LOD through it.
 
-The helper reads its own copies of those textures and matrices, so it works whether or not your program declares `depthtex0` and the others, and none of your declarations collides with it. Do not declare a name that begins with `eminus_view` in any program of the pack.
+Do not declare a name that begins with `eminus_view` in any program of the pack.
 
 ## By hand
 

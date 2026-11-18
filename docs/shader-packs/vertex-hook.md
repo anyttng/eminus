@@ -30,9 +30,9 @@ Eminus compiles this file as you wrote it, in the core profile of its `#version`
 - in the opaque and translucent programs, through the LOD's projection and the camera's rotation. Add your jitter or your render scale to `x` and `y` and leave `z` and `w` as they come: the LOD's depth follows the device's convention, not the -1..1 one;
 - in the shadow programs, through `shadowProjection * shadowModelView`, in the -1..1 range your `shadow` program writes, so your distortion applies to it as it does there.
 
-Your function may move `vertex.playerPos`. Eminus then derives `fragment.playerPos` and `fragment.viewPos` from the moved position, while the texture and the test against the near field keep the unmoved one. Move it the way your terrain vertex code moves a vertex, before you project it: plants on `top`, leaves and the water surface on every vertex, and in the shadow programs as well, so the shadows follow. Eminus moves nothing on its own.
+Your function may move `vertex.playerPos`. Eminus then derives `fragment.playerPos` and `fragment.viewPos` from the moved position, while the texture and the test against the near field keep the unmoved one. Move it the way your terrain vertex code moves a vertex, before you project it: plants on `top`, leaves and the water surface on every vertex, and in the shadow programs as well, so the shadows follow.
 
-Past `level` 0, and everywhere while the player has Eminus's LOD Animations setting off, the hook gets `blockId` `-1` and `top` and `blade` `false`. The fragment still gets the real `blockId`. Pick what you move by `blockId`, as your `gbuffers_terrain` picks it by `mc_Entity`, and your code moves nothing there. Past `level` 0 a block covers at most a few pixels, so a sway there would move a pixel or less. Eminus switches to finer detail once a piece of LOD looks larger than the Detail Distance setting's 16 to 256 pixels. Changing LOD Animations reloads the shader pack.
+Past `level` 0, and everywhere while the player has Eminus's LOD Animations setting off, the hook gets `blockId` `-1` and `top` and `blade` `false`. Pick what you move by `blockId`, as your `gbuffers_terrain` picks it by `mc_Entity`, and your code moves nothing there.
 
 A pack applies its own animation (here `animateVertex`, the function your terrain vertex code calls) and jitter:
 
@@ -54,7 +54,7 @@ vec4 eminus_vertexPosition(inout EminusVertex vertex) {
 
 ## Blocks your hook moves
 
-Eminus joins neighboring faces of one block into one larger face, with vertices at its corners alone. Where a smaller face meets the middle of a larger face's edge, your function moves the smaller face's corner by its value at that point. The larger face's edge stays a straight line between its own moved corners, so a gap opens between them. Eminus cannot read from your code which blocks it moves, so you name them: list their ids from your `block.properties` under the key `moved` in `shaders/eminus.properties`.
+Eminus cannot read from your code which blocks it moves, so you name them: list their ids from your `block.properties` under the key `moved` in `shaders/eminus.properties`.
 
 ```properties
 moved = \
@@ -69,9 +69,7 @@ moved = \
 - Eminus reads the file through Iris's properties preprocessor with your options applied, as Iris reads your `block.properties`. Wrap each id in the `#ifdef` your vertex code moves it under, and a player who turns the option off gets those faces joined again.
 - Ids are separated by spaces; anything that is not a block id is skipped with one line in the log.
 - A list that ends in `\` takes in the next line that is not blank, so write every other key, `cutout` included, above `moved`.
-- The faces of the named blocks stay one block wide and tall at `level` 0, the only level where your hook moves them. Past `level` 0, and everywhere while the player has LOD Animations off, they are joined as before.
-- The price is quads: every face of a named block at `level` 0 is one quad, where its neighbors of the same look would have shared one. Name only what your hook moves.
-- A block your hook moves without being named can also leave a hole in the LOD behind it, because Eminus skips the LOD hidden behind the faces of unnamed blocks.
-- Without the file, every face is joined as before.
+- Name only what your hook moves.
+- A block your hook moves without being named can leave a hole in the LOD behind it, because Eminus skips the LOD hidden behind the faces of unnamed blocks.
 
-Each pack load logs the list as `Shader pack declares moved blocks … in eminus.properties`. Changing the list (a pack switch, a changed option, LOD Animations turned on or off) rebuilds the LOD once.
+Each pack load logs the list as `Shader pack declares moved blocks … in eminus.properties`.

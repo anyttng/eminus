@@ -8,7 +8,7 @@ Eminus draws a beacon's beam past the render distance as a colored column. `emin
 void eminus_emitBeam(EminusBeam beam);
 ```
 
-The file follows the rules of every contract fragment file ([Files and names](files.md)). It opens with `#version`, may `#include` your files, declares its own `RENDERTARGETS` and defines no `main`. Write the buffers and values your `gbuffers_beaconbeam` writes, and a far beam meets the near one at the render distance with the same look.
+The file follows the rules of every contract fragment file ([Files and names](files.md)). Write the buffers and values your `gbuffers_beaconbeam` writes, and a far beam meets the near one at the render distance with the same look.
 
 ```glsl
 /* RENDERTARGETS: 0 */
@@ -18,8 +18,6 @@ void eminus_emitBeam(EminusBeam beam) {
     color = beam.color;
 }
 ```
-
-Without the file, Eminus draws no beam past the render distance inside your pack, so no beam stands unlit in your frame.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
@@ -32,9 +30,9 @@ Without the file, Eminus draws no beam past the render distance inside your pack
 | `playerPos` | `vec3` | Position relative to the camera on the world axes. |
 | `height` | `float` | Blocks above the beacon. |
 
-The beam carries no texture. `color` stays the same along each colored section.
+The beam carries no texture.
 
-Your `eminus_vertex.glsl` runs on the beam's vertices too ([The vertex hook](vertex-hook.md)). It gets `blockId` `-1`, `level` `0`, and `top`, `blade` and `shadow` `false`, so your jitter applies and nothing sways.
+Your `eminus_vertex.glsl` runs on the beam's vertices too ([The vertex hook](vertex-hook.md)).
 
 ## When the beams are drawn
 
@@ -42,5 +40,3 @@ Your `eminus_vertex.glsl` runs on the beam's vertices too ([The vertex hook](ver
 - **The glow:** right before the translucent LOD, before your `composite` passes. It writes no depth.
 
 `blend.eminus_beaconbeam` and `blend.eminus_beaconbeam_glow` in `shaders.properties` set their blending. A program without its own key takes your `blend.gbuffers_beaconbeam` key, as the other contract programs do ([Files and names](files.md)). With neither key set, the beam does not blend and the glow blends as the game's translucent beam does.
-
-The game casts no shadow from a beacon beam, and neither does the LOD.
