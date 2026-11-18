@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -34,6 +36,32 @@ class SettingsFileTest {
         SettingsFile.save(file, edited);
 
         assertEquals(edited, SettingsFile.load(file));
+    }
+
+    @Test
+    void aSaveLeavesTheSettingsFileAloneInItsFolder() throws IOException {
+        Path file = configDir.resolve(SettingsService.FILE_NAME);
+        Settings first = Settings.defaults().withFarRenderCells(24);
+        Settings second = Settings.defaults().withFarRenderCells(32);
+
+        SettingsFile.save(file, first);
+        SettingsFile.save(file, second);
+
+        assertEquals(List.of(file), filesIn(configDir));
+        assertEquals(second, SettingsFile.load(file));
+    }
+
+    @Test
+    void aTemporaryFileLeftByABrokenSaveDoesNotStopTheNextOne() throws IOException {
+        Path file = configDir.resolve(SettingsService.FILE_NAME);
+        Settings written = Settings.defaults().withFarRenderCells(24);
+        Files.writeString(configDir.resolve(SettingsService.FILE_NAME + ".tmp"), "{\n  \"far_rend",
+                StandardCharsets.UTF_8);
+
+        SettingsFile.save(file, written);
+
+        assertEquals(List.of(file), filesIn(configDir));
+        assertEquals(written, SettingsFile.load(file));
     }
 
     @Test
@@ -102,6 +130,13 @@ class SettingsFileTest {
 
         assertEquals(defaults.farRenderCells(), loaded.farRenderCells());
         assertEquals(defaults.workerThreads(), loaded.workerThreads());
+    }
+
+    @Test
+    void aNumberThatIsNotAnExactIntegerFallsBackToItsDefault() throws IOException {
+        assertEquals(Settings.DEFAULT_FAR_RENDER_CELLS, loadJson("{\"far_render_cells\": 3.7}").farRenderCells());
+        assertEquals(Settings.DEFAULT_FAR_RENDER_CELLS,
+                loadJson("{\"far_render_cells\": 4294967297}").farRenderCells());
     }
 
     @Test
@@ -295,6 +330,12 @@ class SettingsFileTest {
     @Test
     void aFileThatIsNotJsonFallsBackToEveryDefault() throws IOException {
         assertEquals(Settings.defaults(), loadJson("not json at all"));
+    }
+
+    private static List<Path> filesIn(Path folder) throws IOException {
+        try (Stream<Path> files = Files.list(folder)) {
+            return files.toList();
+        }
     }
 
     private Settings loadJson(String content) throws IOException {
