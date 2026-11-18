@@ -92,8 +92,6 @@ final class FarQuads {
                 .withDefine("TRANSLUCENT_FLAG", ModelMetadata.TRANSLUCENT)
                 .withDefine("ONE_SIDED_FLAG", ModelMetadata.ONE_SIDED)
                 .withDefine("PRESENT_SHIFT", ModelMetadata.PRESENT_SHIFT)
-                .withDefine("OCCLUDING_SHIFT", ModelMetadata.OCCLUDING_SHIFT)
-                .withDefine("OPAQUE_FLAG", ModelMetadata.OPAQUE)
                 .withDefine("INWARD_FLAG", ModelMetadata.INWARD)
                 .withDefine("EMISSION_SHIFT", ModelMetadata.EMISSION_SHIFT)
                 .withDefine("EMISSION_BITS", Integer.bitCount(ModelMetadata.MAX_EMISSION))
@@ -110,6 +108,7 @@ final class FarQuads {
                 .withDefine("SHADES_TEXEL", ModelRecords.SHADES_TEXEL)
                 .withDefine("UNMIPPED_TEXEL", ModelRecords.UNMIPPED_TEXEL)
                 .withDefine("LAYER_TEXEL", ModelRecords.LAYER_TEXEL)
+                .withDefine("OVERLAP_TEXEL", ModelRecords.OVERLAP_TEXEL)
                 .withDefine("LAYER_KEPT_ALPHA", OpaquePass.ALPHA_CUTOUT);
         AlphaCut.compares(builder);
         cellKeyLayout(builder);

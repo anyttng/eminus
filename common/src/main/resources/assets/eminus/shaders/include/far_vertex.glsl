@@ -401,9 +401,8 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
                 eminus_inset(first, second, face), drawnBottom, drawnTop, lowGap, highGap, blocks, fluid, inward,
                 fluid ? eminus_fluid_corners(corners, boundsMax.y) : vec4(0.0));
         vec3 voxelBase = vec3(origin - EminusCameraBlockPos) + EminusCameraOffset + (vec3(voxel) + offset) * blocks;
-        // A face that hides no neighbor can lie between two blocks, where a moved edge pokes out of their surface.
-        bool hidesNeighbor = (flags & OPAQUE_FLAG) != 0 || (flags >> OCCLUDING_SHIFT & 1 << face) != 0;
-        bool overlaps = (flags & TRANSLUCENT_FLAG) == 0 && hidesNeighbor;
+        int overlapFaces = int(texelFetch(EminusModelRecords, modelId * MODEL_TEXELS + OVERLAP_TEXEL).x);
+        bool overlaps = (overlapFaces & (1 << face)) != 0;
         vec2 placedUnit = overlaps ? eminus_overlap_unit(shape, voxelBase, unit) : unit;
         local += eminus_face_corner(shape, placedUnit, extent, vertex.occlusionPoint, vertex.occlusionInner);
         vertex.occlusionSize = vec2(width, height) * blocks;

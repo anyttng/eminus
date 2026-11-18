@@ -11,15 +11,17 @@ import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.gpu.buffer.TexelView;
 import com.eminus.model.BakedModel;
+import com.eminus.model.ModelMetadata;
 
 import net.minecraft.core.Direction;
 
 public final class ModelRecords implements AutoCloseable {
-    public static final int TEXELS = 8;
+    public static final int TEXELS = 9;
     public static final int PACK_ID_TEXEL = 7;
     public static final int SHADES_TEXEL = PACK_ID_TEXEL;
     public static final int UNMIPPED_TEXEL = PACK_ID_TEXEL;
     public static final int LAYER_TEXEL = PACK_ID_TEXEL;
+    public static final int OVERLAP_TEXEL = 8;
     public static final int BYTES = TEXELS * 4 * Float.BYTES;
     public static final Format TEXEL_FORMAT = Format.RGBA32_FLOAT;
 
@@ -80,7 +82,8 @@ public final class ModelRecords implements AutoCloseable {
         scratch.putFloat(model.packId())
                 .putFloat(model.shades())
                 .putFloat(model.unmippedFaces())
-                .putFloat(model.layer() ? 1.0F : 0.0F);
+                .putFloat(model.layer() ? 1.0F : 0.0F)
+                .putFloat(ModelMetadata.overlapping(model.metadata()));
         while (scratch.hasRemaining()) {
             scratch.putFloat(0.0F);
         }
