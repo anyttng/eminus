@@ -1,12 +1,17 @@
 package com.eminus.settings;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.function.Function;
 
 import com.eminus.Eminus;
@@ -109,6 +114,7 @@ public final class SettingsFile {
 
     private static final Gson GSON = new Gson();
     private static final String INDENT = "  ";
+    private static final String TEMPORARY_SUFFIX = ".tmp";
 
     public static Settings load(Path file) {
         Settings defaults = Settings.defaults();
@@ -175,15 +181,38 @@ public final class SettingsFile {
     }
 
     private static void write(Path file, List<String> entries) {
+        Path temporary = file.resolveSibling(file.getFileName() + TEMPORARY_SUFFIX);
         try {
             Path parent = file.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);
             }
 
-            Files.writeString(file, "{\n" + String.join(",\n", entries) + "\n}\n", StandardCharsets.UTF_8);
+            writeSynced(temporary, "{\n" + String.join(",\n", entries) + "\n}\n");
+            Files.move(temporary, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             Eminus.LOGGER.error("Could not write the settings file {}", file, e);
+            discard(temporary);
+        }
+    }
+
+    private static void writeSynced(Path file, String content) throws IOException {
+        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
+            ByteBuffer bytes = StandardCharsets.UTF_8.encode(content);
+            while (bytes.hasRemaining()) {
+                channel.write(bytes);
+            }
+
+            channel.force(true);
+        }
+    }
+
+    private static void discard(Path temporary) {
+        try {
+            Files.deleteIfExists(temporary);
+        } catch (IOException e) {
+            Eminus.LOGGER.warn("Could not remove the temporary settings file {}", temporary, e);
         }
     }
 
@@ -303,14 +332,24 @@ public final class SettingsFile {
 
     private static int bounded(JsonObject json, String key, int fallback, int min, int max) {
         JsonElement value = json.get(key);
-        if (value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber()) {
-            int number = value.getAsInt();
-            if (number >= min && number <= max) {
-                return number;
-            }
+        OptionalInt number = exactInt(value);
+        if (number.isPresent() && number.getAsInt() >= min && number.getAsInt() <= max) {
+            return number.getAsInt();
         }
 
         return fellBack(key, value, fallback);
+    }
+
+    private static OptionalInt exactInt(@Nullable JsonElement value) {
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
+            return OptionalInt.empty();
+        }
+
+        try {
+            return OptionalInt.of(value.getAsBigDecimal().intValueExact());
+        } catch (ArithmeticException | NumberFormatException e) {
+            return OptionalInt.empty();
+        }
     }
 
     private static <T> T keyed(JsonObject json, String key, T fallback, Function<String, Optional<T>> fromKey) {
