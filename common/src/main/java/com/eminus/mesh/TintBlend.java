@@ -99,13 +99,13 @@ public final class TintBlend {
                 int biome = voxels.biome(x, y, z);
                 int color = NO_COLOR;
 
-                if (biome != VoxelEntry.UNKNOWN_BIOME) {
-                    if (biome != lastBiome) {
-                        lastBiome = biome;
-                        lastPositional = tints.positional(biome);
-                        lastColor = lastPositional ? NO_COLOR : sample(row, biome, x, z);
-                    }
+                if (biome != VoxelEntry.UNKNOWN_BIOME && biome != lastBiome) {
+                    lastBiome = biome;
+                    lastPositional = tints.positional(biome);
+                    lastColor = lastPositional ? NO_COLOR : sample(row, biome, x, z);
+                }
 
+                if (biome != VoxelEntry.UNKNOWN_BIOME) {
                     color = lastPositional ? sample(row, biome, x, z) : lastColor;
                 }
 
