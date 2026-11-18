@@ -121,25 +121,29 @@ public final class FaceMips {
                 float alpha10 = scaled(level[y * side + x + 1], scale);
                 float alpha01 = scaled(level[(y + 1) * side + x], scale);
                 float alpha11 = scaled(level[(y + 1) * side + x + 1], scale);
-                float texelCoverage = 0.0F;
-
-                for (int subsampleY = 0; subsampleY < SUBSAMPLES; subsampleY++) {
-                    float fy = (subsampleY + SUBSAMPLE_CENTER) / SUBSAMPLES;
-                    for (int subsampleX = 0; subsampleX < SUBSAMPLES; subsampleX++) {
-                        float fx = (subsampleX + SUBSAMPLE_CENTER) / SUBSAMPLES;
-                        float alpha = alpha00 * (1.0F - fx) * (1.0F - fy) + alpha10 * fx * (1.0F - fy)
-                                + alpha01 * (1.0F - fx) * fy + alpha11 * fx * fy;
-                        if (alpha > reference) {
-                            texelCoverage++;
-                        }
-                    }
-                }
-
-                coverage += texelCoverage / SUBSAMPLE_CELLS;
+                coverage += coveredSubsamples(alpha00, alpha10, alpha01, alpha11, reference) / SUBSAMPLE_CELLS;
             }
         }
 
         return coverage / ((side - 1) * (side - 1));
+    }
+
+    private static int coveredSubsamples(float alpha00, float alpha10, float alpha01, float alpha11,
+            float reference) {
+        int covered = 0;
+        for (int subsampleY = 0; subsampleY < SUBSAMPLES; subsampleY++) {
+            float fy = (subsampleY + SUBSAMPLE_CENTER) / SUBSAMPLES;
+            for (int subsampleX = 0; subsampleX < SUBSAMPLES; subsampleX++) {
+                float fx = (subsampleX + SUBSAMPLE_CENTER) / SUBSAMPLES;
+                float alpha = alpha00 * (1.0F - fx) * (1.0F - fy) + alpha10 * fx * (1.0F - fy)
+                        + alpha01 * (1.0F - fx) * fy + alpha11 * fx * fy;
+                if (alpha > reference) {
+                    covered++;
+                }
+            }
+        }
+
+        return covered;
     }
 
     private static float scaled(int argb, float scale) {

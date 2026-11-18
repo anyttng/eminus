@@ -99,13 +99,12 @@ public final class CellCache implements CellAccess {
         lock.lock();
         try {
             for (CellHandle handle : handles.values()) {
-                if (!handle.dirty()) {
-                    if (handle.references() == 0) {
-                        park.add(handle);
-                    }
-                } else if (latched && handle.references() == 0) {
+                boolean dirty = handle.dirty();
+                if (!dirty && handle.references() == 0) {
+                    park.add(handle);
+                } else if (dirty && latched && handle.references() == 0) {
                     unheld.add(handle);
-                } else {
+                } else if (dirty) {
                     unsaved.add(handle);
                 }
             }

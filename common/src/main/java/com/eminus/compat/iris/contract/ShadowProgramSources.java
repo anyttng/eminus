@@ -195,12 +195,7 @@ final class ShadowProgramSources {
                 index = close < 0 ? source.length() : close + 2;
             } else {
                 lineStart = false;
-                int end = index + 1;
-                if (word(current)) {
-                    while (end < source.length() && word(source.charAt(end))) {
-                        end++;
-                    }
-                }
+                int end = word(current) ? wordEnd(source, index + 1) : index + 1;
                 tokens.add(new Token(index, end, source.substring(index, end)));
                 index = end;
             }
@@ -210,6 +205,14 @@ final class ShadowProgramSources {
 
     private static boolean word(char character) {
         return Character.isLetterOrDigit(character) || character == '_';
+    }
+
+    private static int wordEnd(String source, int from) {
+        int end = from;
+        while (end < source.length() && word(source.charAt(end))) {
+            end++;
+        }
+        return end;
     }
 
     private static int lineEnd(String source, int index) {
