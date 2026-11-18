@@ -78,6 +78,7 @@ public final class PackProgram {
     private static final boolean TRANSPOSE = false;
     private static final Pattern CORE_VERSION = Pattern.compile("#version\\s+(\\d+)\\s+compatibility");
     private static final String CORE_PROFILE = "#version $1 core";
+    private static final String DRAW_PARAMETERS = "GL_ARB_shader_draw_parameters";
     private static final String PATCHED = "patchDHTerrain returns every stage it was handed";
 
     private final Foreign foreign;
@@ -161,6 +162,12 @@ public final class PackProgram {
         Location location = new Location(Eminus.MODID, LOCATION_PREFIX + source.file() + suffix(step));
         ProgramSource[] built = new ProgramSource[1];
         PipelineSpec spec = spec(draw, programSet, source, kind, step, location);
+        boolean shadow = kind == Kind.SHADOW || kind == Kind.SHADOW_TRANSLUCENT;
+        boolean pieces = shadow && draw.shadowPieces();
+        if (kind == Kind.SHADOW && !pieces) {
+            Eminus.LOGGER.warn("The device lacks {}: LOD keeps its joined faces whole in the shadow pass, and a"
+                    + " shadow distortion opens gaps between them", DRAW_PARAMETERS);
+        }
         Pipeline pipeline = foreign.pipeline(spec,
                 FIRST_UNIT,
                 ours -> {
@@ -175,7 +182,7 @@ public final class PackProgram {
                     String vertex = splicedVertex == null ? ours.vertex()
                             : hook ? CORE_VERSION.matcher(splicedVertex).replaceFirst(CORE_PROFILE)
                                     : Objects.requireNonNull(patched.get(PatchShaderType.VERTEX), PATCHED);
-                    return new ShaderSources(vertex,
+                    return new ShaderSources(pieces ? PackSources.withExtension(vertex, DRAW_PARAMETERS) : vertex,
                             Objects.requireNonNull(patched.get(PatchShaderType.FRAGMENT), PATCHED));
                 });
         if (!pipeline.compiles()) {
