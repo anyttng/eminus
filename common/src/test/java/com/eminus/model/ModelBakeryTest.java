@@ -427,6 +427,8 @@ class ModelBakeryTest {
             assertTrue(overlay.layer());
             assertEquals(ModelMetadata.present(layer.metadata()), ModelMetadata.present(overlay.metadata()));
             assertEquals(FaceMask.NORTH, ModelMetadata.occluding(overlay.metadata()));
+            assertEquals(ModelMetadata.overlapping(bakery.model(bakery.modelId(stone)).metadata())
+                    & ModelMetadata.present(overlay.metadata()), ModelMetadata.overlapping(overlay.metadata()));
             assertEquals(FaceMask.NONE, overlay.solidFaces());
             assertEquals(LIGHT_WEIGHT, table[0]);
             assertEquals(layer, bakery.model(table[1]));
