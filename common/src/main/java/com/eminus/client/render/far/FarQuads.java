@@ -9,6 +9,7 @@ import com.eminus.mesh.FluidCorners;
 import com.eminus.mesh.MeshBuffer;
 import com.eminus.mesh.OcclusionWord;
 import com.eminus.mesh.Quad;
+import com.eminus.mesh.QuadPieces;
 import com.eminus.mesh.QuadOffset;
 import com.eminus.model.BakedModel;
 import com.eminus.model.ModelMetadata;
@@ -83,6 +84,10 @@ final class FarQuads {
         builder.withBinding(Binding.sampled(ATLAS))
                 .withBinding(Binding.sampled(TINT_MASK))
                 .withDefine("QUADS_PER_SEGMENT", ArenaAllocator.QUADS_PER_SEGMENT)
+                .withDefine("PIECE_ENTRY_QUADS", QuadPieces.QUADS_PER_ENTRY)
+                .withDefine("MESH_RECORD_TEXELS", MeshRecords.TEXELS)
+                .withDefine("MESH_RECORD_INTS", MeshRecords.TEXEL_INTS)
+                .withDefine("PIECE_SEARCH_STEPS", QuadPieces.SEARCH_STEPS)
                 .withDefine("VOXELS_PER_SIDE", DetailLevel.VOXELS_PER_SIDE)
                 .withDefine("MIN_HORIZONTAL", CellKey.MIN_HORIZONTAL)
                 .withDefine("MIN_VERTICAL", CellKey.MIN_VERTICAL)

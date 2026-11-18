@@ -10,12 +10,15 @@ import com.eminus.gpu.Gpu;
 import com.eminus.gpu.buffer.Buffer;
 import com.eminus.gpu.buffer.BufferUsage;
 import com.eminus.gpu.buffer.TexelView;
+import com.eminus.mesh.QuadPieces;
 import com.eminus.render.arena.ArenaAllocator;
 import com.eminus.render.arena.MeshSlot;
 
 public final class MeshRecords implements AutoCloseable {
-    public static final int TEXELS = 1;
-    public static final int BYTES = TEXELS * 4 * Integer.BYTES;
+    public static final int TEXEL_INTS = 4;
+    public static final int PIECE_ENTRIES = ArenaAllocator.QUADS_PER_SEGMENT / QuadPieces.QUADS_PER_ENTRY;
+    public static final int TEXELS = 1 + PIECE_ENTRIES / TEXEL_INTS;
+    public static final int BYTES = TEXELS * TEXEL_INTS * Integer.BYTES;
     public static final Format TEXEL_FORMAT = Format.RGBA32_UINT;
     public static final int UNOCCLUDED_SHIFT = Integer.SIZE - 1;
     public static final int INNER_OCCLUDED_SHIFT = UNOCCLUDED_SHIFT - 1;
@@ -74,6 +77,9 @@ public final class MeshRecords implements AutoCloseable {
                     .putInt((int) (mesh.key() >>> KEY_SHIFT))
                     .putInt(mesh.baseQuad())
                     .putInt(quads);
+            for (int entry = 0; entry < PIECE_ENTRIES; entry++) {
+                scratch.putInt(mesh.piecesBefore(segment * PIECE_ENTRIES + entry));
+            }
         }
 
         scratch.flip();

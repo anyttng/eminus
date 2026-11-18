@@ -34,6 +34,7 @@ public final class FarShadow implements AutoCloseable {
     private final Matrix4f projection = new Matrix4f();
     private final ShadowCasterVolume casters = new ShadowCasterVolume();
     private final Vector3f lightTravel = new Vector3f();
+    private final boolean pieces;
 
     private IndirectCommands indirect;
 
@@ -41,6 +42,7 @@ public final class FarShadow implements AutoCloseable {
         this.gpu = gpu;
         this.frame = frame;
         this.indirect = indirect;
+        this.pieces = gpu.capabilities().drawParameters();
     }
 
     static FarShadow create(Gpu gpu) {
@@ -51,8 +53,8 @@ public final class FarShadow implements AutoCloseable {
             MeshSlots slots, CellFrame cells, GameFrame game, ModelAtlas atlas, NearSections near,
             Matrix4fc cameraViewProjection, Matrix4fc shadowView, Matrix4fc shadowProjection) {
         project(cameraViewProjection, shadowView, shadowProjection);
-        commands.writeShadow(meshes, translucent, borderFaces, slots, cells, frustum, casters, game.eyeX(),
-                game.eyeY(), game.eyeZ());
+        commands.writeShadow(meshes, translucent, borderFaces, slots, cells, frustum, casters, pieces,
+                game.eyeX(), game.eyeY(), game.eyeZ());
         if (commands.count() == 0) {
             return false;
         }
@@ -102,10 +104,12 @@ public final class FarShadow implements AutoCloseable {
     }
 
     public void draw(Pass pass) {
+        pass.quadIndices(commands.largestIndices());
         pass.drawIndexedIndirect(indirect.buffer(), FIRST_COMMAND, commands.opaqueCount());
     }
 
     public void drawTranslucent(Pass pass) {
+        pass.quadIndices(commands.largestIndices());
         pass.drawIndexedIndirect(indirect.buffer(), commands.opaqueCount(), commands.translucentCount());
     }
 
