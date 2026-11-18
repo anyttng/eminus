@@ -113,37 +113,68 @@ def slimSqliteJdbc = tasks.register('slimSqliteJdbc') {
     }
 }
 
-// The Fabric build with its nested libraries lifted out, since the shell carries them; its metadata stops naming them.
-def fabricLoaderJar = tasks.register('fabricLoaderJar') {
-    def output = layout.buildDirectory.file("shell-parts/${fabricJarName}")
+def neoforgePath = "${jarJarDir}${neoforgeJarName}"
+def fabricPath = "${fabricNestedDir}${fabricJarName}"
+
+// The loader builds laid out at the paths the shell nests them under; the Fabric one with its nested libraries lifted
+// out, since the shell carries them, and its metadata no longer naming them.
+// Stored entries are the point: the shell deflates each nested jar as one stream. Nest the loader jars as built,
+// deflated entry by entry, and the shell packs nothing and ships heavier.
+def storedLoaderJars = tasks.register('storedLoaderJars') {
+    def outputDir = layout.buildDirectory.dir('shell-parts')
+    def neoforgeFile = neoforgeJar.flatMap { it.archiveFile }
     def libraryPaths = libraries.collect { it.path }
-    inputs.file(fabricFile)
+    inputs.files(neoforgeFile, fabricFile)
+    inputs.property('paths', [neoforgePath, fabricPath])
     inputs.property('libraryPaths', libraryPaths)
-    outputs.file(output)
+    outputs.dir(outputDir)
 
     doLast {
+        def root = outputDir.get().asFile
+        // A jar left from an earlier version would ride into the shell beside the current one.
+        root.deleteDir()
         def nested = []
-        new java.util.zip.ZipFile(fabricFile.get().asFile).withCloseable { zip ->
-            new java.util.zip.ZipOutputStream(output.get().asFile.newOutputStream()).withCloseable { out ->
-                zip.entries().each { entry ->
-                    if (entry.name.startsWith(fabricNestedDir)) {
-                        if (entry.name.endsWith('.jar')) {
-                            nested << entry.name
+        def rewrite = { File source, String path, Closure content ->
+            def target = new File(root, path)
+            target.parentFile.mkdirs()
+            new java.util.zip.ZipFile(source).withCloseable { zip ->
+                new java.util.zip.ZipOutputStream(target.newOutputStream()).withCloseable { out ->
+                    zip.entries().each { entry ->
+                        byte[] bytes = content(zip, entry)
+                        if (bytes == null) {
+                            return
                         }
-                        return
+                        def crc = new java.util.zip.CRC32()
+                        crc.update(bytes)
+                        def copy = new java.util.zip.ZipEntry(entry.name)
+                        copy.time = entry.time
+                        copy.method = java.util.zip.ZipEntry.STORED
+                        copy.size = bytes.length
+                        copy.compressedSize = bytes.length
+                        copy.crc = crc.value
+                        out.putNextEntry(copy)
+                        out.write(bytes)
+                        out.closeEntry()
                     }
-                    out.putNextEntry(new java.util.zip.ZipEntry(entry.name))
-                    if (entry.name == fabricMetadataPath) {
-                        def metadata = new groovy.json.JsonSlurper().parse(zip.getInputStream(entry))
-                        metadata.remove('jars')
-                        out << groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))
-                                .getBytes('UTF-8')
-                    } else {
-                        zip.getInputStream(entry).withCloseable { out << it }
-                    }
-                    out.closeEntry()
                 }
             }
+        }
+        def read = { zip, entry -> zip.getInputStream(entry).withCloseable { it.bytes } }
+
+        rewrite(neoforgeFile.get().asFile, neoforgePath, read)
+        rewrite(fabricFile.get().asFile, fabricPath) { zip, entry ->
+            if (entry.name.startsWith(fabricNestedDir)) {
+                if (entry.name.endsWith('.jar')) {
+                    nested << entry.name
+                }
+                return null
+            }
+            if (entry.name == fabricMetadataPath) {
+                def metadata = new groovy.json.JsonSlurper().parse(zip.getInputStream(entry))
+                metadata.remove('jars')
+                return groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)).getBytes('UTF-8')
+            }
+            read(zip, entry)
         }
         // A library the Fabric build nests and the shell does not name would reach neither loader.
         if (nested.toSet() != libraryPaths.toSet()) {
@@ -159,8 +190,6 @@ def fabricLoaderJar = tasks.register('fabricLoaderJar') {
 // that is eminus.
 def shellMetadata = tasks.register('shellMetadata') {
     def outputDir = layout.buildDirectory.dir('shell')
-    def neoforgePath = "${jarJarDir}${neoforgeJarName}"
-    def fabricPath = "${fabricNestedDir}${fabricJarName}"
     inputs.property('version', shellVersion)
     inputs.property('neoforgePath', neoforgePath)
     inputs.property('fabricPath', fabricPath)
@@ -242,8 +271,7 @@ tasks.register('modJar', Jar) {
     manifest.attributes('Automatic-Module-Name': shellId)
 
     from(shellMetadata)
-    from(neoforgeJar) { into jarJarDir }
-    from(fabricLoaderJar) { into fabricNestedDir }
+    from(storedLoaderJars)
     from(zipTree(fabricFile)) {
         include libraries.collect { it.path } - sqliteJdbcEntry
     }
