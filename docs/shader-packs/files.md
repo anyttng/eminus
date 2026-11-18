@@ -10,7 +10,7 @@ Part of the [Eminus shader-pack contract](../shader-pack-contract.md).
 | `eminus_translucent.glsl` | no | Translucent LOD faces (water, stained glass, ice). Without it, `eminus_opaque.glsl` runs for them too, with `fragment.translucent` set. |
 | `eminus_shadow.glsl` | no | Opaque and cutout LOD faces in your shadow pass. Without it, your own shadow program runs for them ([Your own shadow program](shadows.md#your-own-shadow-program)). |
 | `eminus_shadow_translucent.glsl` | no | Translucent LOD faces in your shadow pass. Used whenever the opaque LOD faces cast shadows, through `eminus_shadow.glsl` or your own shadow program. Without it, translucent LOD faces cast no shadow. |
-| `eminus_vertex.glsl` | no | The vertex stage's hook of every program built from your contract files: your vertex animation, your jitter, your render scale, your shadow-map distortion. Your own shadow program runs its own vertex stage instead. Without it, LOD positions reach your buffers as Eminus projects them. |
+| `eminus_vertex.glsl` | no | The vertex stage's hook of every program built from your contract files: your vertex animation, your jitter, your render scale, your shadow-map distortion. Without it, LOD positions reach your buffers as Eminus projects them. |
 | `eminus_beaconbeam.glsl` | no | Beacon beams past the render distance ([Beacon beams](beacon-beams.md)). Without it, no beam is drawn past the render distance inside your pack. |
 | `eminus.properties` | no | Not a program: the blocks your vertex hook moves ([Blocks your hook moves](vertex-hook.md#blocks-your-hook-moves)), and `cutout = pack` where your own code cuts the LOD ([Cutout](fragment.md#cutout)). Read from `shaders/` itself, never from a dimension folder. |
 

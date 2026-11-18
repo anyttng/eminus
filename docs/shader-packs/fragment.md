@@ -6,7 +6,7 @@ Part of the [Eminus shader-pack contract](../shader-pack-contract.md).
 void eminus_emitFragment(EminusFragment fragment);
 ```
 
-Eminus calls it once per LOD pixel that survives its own tests, after those tests have run. Pixels the near field draws are already discarded, and so are pixels that fail the alpha test ([Cutout](#cutout)). Your function never sees a pixel the near field owns.
+Eminus calls it once per LOD pixel that survives its own tests, after those tests have run. Pixels the near field draws are already discarded, and so are pixels that fail the alpha test ([Cutout](#cutout)).
 
 | Field | Type | Meaning |
 | --- | --- | --- |
@@ -24,10 +24,6 @@ Eminus calls it once per LOD pixel that survives its own tests, after those test
 | `blockId` | `int` | The block's id from your `block.properties`, the value `mc_Entity.x` carries in `gbuffers_terrain`; `-1` where your mapping names nothing. |
 | `translucent` | `bool` | `true` in the translucent program. |
 | `blade` | `bool` | `true` on a plant blade (`face >= 6`). |
-
-`blockId` follows Iris's own rules: a block takes the id of its state, and a fluid, the water in a waterlogged block included, takes the id of the fluid's own block. A pack that tells blocks apart by `mc_Entity.x` in its terrain fragment code therefore reads `fragment.blockId` in the same place.
-
-The LOD's geometry is built for one mapping. Loading a pack with this contract, leaving it, or switching to one whose `block.properties` maps differently rebuilds the LOD once, as Iris rebuilds the near terrain on the same switch.
 
 ## The texture at a chosen level
 
