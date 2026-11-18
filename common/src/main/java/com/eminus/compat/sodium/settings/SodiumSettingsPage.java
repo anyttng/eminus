@@ -213,11 +213,13 @@ public final class SodiumSettingsPage implements ConfigEntryPoint {
 
     private static @Nullable OptionPage ownPage() {
         for (ModOptions mod : ConfigManager.CONFIG.getModOptions()) {
-            if (Eminus.MODID.equals(mod.configId())) {
-                for (Page page : mod.pages()) {
-                    if (page instanceof OptionPage options) {
-                        return options;
-                    }
+            if (!Eminus.MODID.equals(mod.configId())) {
+                continue;
+            }
+
+            for (Page page : mod.pages()) {
+                if (page instanceof OptionPage options) {
+                    return options;
                 }
             }
         }

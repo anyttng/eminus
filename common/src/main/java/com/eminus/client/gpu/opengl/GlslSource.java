@@ -43,17 +43,18 @@ public final class GlslSource {
                 composed.append(raised(line, imported.highest)).append(LINE);
                 composed.append(VERTEX_INDEX_ALIAS).append(LINE);
                 for (PipelineSpec.Define define : defines) {
-                    composed.append(DEFINE).append(define.name());
-                    if (define.value() != null) {
-                        composed.append(' ').append(literal(define.value()));
-                    }
-                    composed.append(LINE);
+                    composed.append(defineLine(define)).append(LINE);
                 }
             }
         }
 
         composed.setLength(composed.length() - LINE.length());
         return composed.toString();
+    }
+
+    private static String defineLine(PipelineSpec.Define define) {
+        Number value = define.value();
+        return value == null ? DEFINE + define.name() : DEFINE + define.name() + ' ' + literal(value);
     }
 
     private static String expand(String line, Function<Location, Optional<String>> includes, int depth,

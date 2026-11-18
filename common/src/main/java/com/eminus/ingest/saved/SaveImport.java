@@ -162,16 +162,18 @@ public final class SaveImport {
         }
 
         for (SavedColumn column : ready) {
-            service.enqueue(pyramid -> {
-                try {
-                    if (ingest.ingestColumn(column, pyramid)) {
-                        imported.incrementAndGet();
-                        fromSnapshot.incrementAndGet();
-                    }
-                } catch (RuntimeException failure) {
-                    failed(failure);
-                }
-            });
+            service.enqueue(pyramid -> importSnapshotColumn(column, pyramid));
+        }
+    }
+
+    private void importSnapshotColumn(SavedColumn column, SectionPyramid pyramid) {
+        try {
+            if (ingest.ingestColumn(column, pyramid)) {
+                imported.incrementAndGet();
+                fromSnapshot.incrementAndGet();
+            }
+        } catch (RuntimeException failure) {
+            failed(failure);
         }
     }
 
@@ -499,20 +501,22 @@ public final class SaveImport {
 
             AtomicInteger remaining = new AtomicInteger(saved.size());
             for (int index : saved) {
-                service.enqueue(pyramid -> {
-                    try {
-                        CompoundTag tag = tags[index];
-                        tags[index] = null;
-                        chunks[index] = tag == null ? null : source.parse(tag);
-                        parsed.incrementAndGet();
-                    } catch (RuntimeException failure) {
-                        failed(failure);
-                    } finally {
-                        if (remaining.decrementAndGet() == 0) {
-                            parsed();
-                        }
-                    }
-                });
+                service.enqueue(pyramid -> parseChunk(index, remaining));
+            }
+        }
+
+        private void parseChunk(int index, AtomicInteger remaining) {
+            try {
+                CompoundTag tag = tags[index];
+                tags[index] = null;
+                chunks[index] = tag == null ? null : source.parse(tag);
+                parsed.incrementAndGet();
+            } catch (RuntimeException failure) {
+                failed(failure);
+            } finally {
+                if (remaining.decrementAndGet() == 0) {
+                    parsed();
+                }
             }
         }
 
@@ -593,19 +597,21 @@ public final class SaveImport {
 
             AtomicInteger remaining = new AtomicInteger(columns.size());
             for (SavedColumn column : columns) {
-                service.enqueue(pyramid -> {
-                    try {
-                        if (ingest.ingestColumn(column, pyramid)) {
-                            imported.incrementAndGet();
-                        }
-                    } catch (RuntimeException failure) {
-                        failed(failure);
-                    } finally {
-                        if (remaining.decrementAndGet() == 0) {
-                            finish();
-                        }
-                    }
-                });
+                service.enqueue(pyramid -> importColumn(column, pyramid, remaining));
+            }
+        }
+
+        private void importColumn(SavedColumn column, SectionPyramid pyramid, AtomicInteger remaining) {
+            try {
+                if (ingest.ingestColumn(column, pyramid)) {
+                    imported.incrementAndGet();
+                }
+            } catch (RuntimeException failure) {
+                failed(failure);
+            } finally {
+                if (remaining.decrementAndGet() == 0) {
+                    finish();
+                }
             }
         }
 
