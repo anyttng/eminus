@@ -51,6 +51,17 @@ public final class LiveColumn implements IngestColumn {
     }
 
     @Override
+    public boolean holdsBlocks() {
+        for (LevelChunkSection section : chunk.getSections()) {
+            if (!section.hasOnlyAir()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    @Override
     public LevelChunkSection section(int index) {
         return chunk.getSections()[index];
     }

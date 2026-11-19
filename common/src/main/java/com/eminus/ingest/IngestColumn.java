@@ -16,6 +16,8 @@ public interface IngestColumn {
 
     boolean submits(int index);
 
+    boolean holdsBlocks();
+
     LevelChunkSection section(int index);
 
     BiomeWindow biomeWindow(int index);
