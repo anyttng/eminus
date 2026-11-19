@@ -32,7 +32,10 @@ public final class FaceLightReading {
     public static final int UP_MAX_BLOCK_LIGHT = 6;
     public static final int SIDE_QUADS = 7;
     public static final int SIDE_BLOCK_LIT = 8;
-    public static final int WIDTH = 9;
+    public static final int QUADS = 9;
+    public static final int SKY_LIT = 10;
+    public static final int MAX_SKY_LIGHT = 11;
+    public static final int WIDTH = 12;
 
     private static final int TIMEOUT_SECONDS = 120;
 
@@ -94,6 +97,13 @@ public final class FaceLightReading {
             if (!box.overlaps(fromX, fromY, fromZ, fromX + spanX * voxelBlocks - 1,
                     fromY + spanY * voxelBlocks - 1, fromZ + spanZ * voxelBlocks - 1)) {
                 continue;
+            }
+
+            int skyLight = VoxelEntry.skyLightOf(Quad.light(quad));
+            row[QUADS]++;
+            row[MAX_SKY_LIGHT] = Math.max(row[MAX_SKY_LIGHT], skyLight);
+            if (skyLight > 0) {
+                row[SKY_LIT]++;
             }
 
             int blockLight = VoxelEntry.blockLightOf(Quad.light(quad));

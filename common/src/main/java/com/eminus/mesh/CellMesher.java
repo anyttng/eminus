@@ -16,6 +16,7 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
 
     private final MeshScratch scratch;
     private final MeshModels models;
+    private final QuadLight light;
 
     @SuppressWarnings("NullAway.Init")
     private Direction face;
@@ -24,9 +25,10 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
     private int level;
     private boolean coarse;
 
-    public CellMesher(MeshScratch scratch, MeshModels models) {
+    public CellMesher(MeshScratch scratch, MeshModels models, QuadLight light) {
         this.scratch = scratch;
         this.models = models;
+        this.light = light;
     }
 
     public @Nullable CellMesh mesh(long key, int occupancy, StateOpacity opacity, MeshOcclusion occlusion,
@@ -34,8 +36,9 @@ public final class CellMesher implements FacePasses.Sink, GreedyMerger.Emitter {
         level = CellKey.level(key);
         coarse = level > DetailLevel.MIN;
         FacePasses passes = new FacePasses(scratch, opacity, models, level, occlusion.corners(level),
-                occlusion.water(level), whenBaked, this);
-        BladePass bladePass = new BladePass(scratch, models, key, occlusion.corners(level), blades, whenBaked);
+                occlusion.water(level), light, whenBaked, this);
+        BladePass bladePass = new BladePass(scratch, models, key, occlusion.corners(level), blades, light,
+                whenBaked);
 
         if (!passes.run() || !bladePass.run()) {
             scratch.reset();
