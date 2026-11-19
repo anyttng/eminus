@@ -1465,7 +1465,7 @@ class CellMesherTest {
         scratch.voxels().loadBelow(around.get(Direction.DOWN));
         scratch.begin(FRAME, key, tints, NO_BLEND);
 
-        return new CellMesher(scratch, models)
+        return new CellMesher(scratch, models, QuadLight.UNDER_SKY)
                 .mesh(key, center.occupancy(), opacity, MeshOcclusion.EVERY_LEVEL, MeshBlades.BOTH,
                         () -> bakeRequests++);
     }
@@ -1487,7 +1487,7 @@ class CellMesherTest {
         long key = CellKey.pack(level, 0, 0, 0);
         scratch.begin(FRAME, key, tints, NO_BLEND);
 
-        return new CellMesher(scratch, models)
+        return new CellMesher(scratch, models, QuadLight.UNDER_SKY)
                 .mesh(key, center.occupancy(), opacity, MeshOcclusion.EVERY_LEVEL, MeshBlades.BOTH,
                         () -> bakeRequests++);
     }
