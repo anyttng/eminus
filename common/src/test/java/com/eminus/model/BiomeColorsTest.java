@@ -5,11 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.eminus.VanillaBootstrap;
 import com.eminus.model.port.TintSource;
 
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -28,6 +30,8 @@ class BiomeColorsTest {
     private static final int RGB_MASK = 0x00FF_FFFF;
     private static final int UNPOWERED = 0;
     private static final int FULL_POWER = 15;
+    private static final int SAMPLE_COLUMN = 0;
+    private static final int AWAY_X = 7;
 
     private static BlockState stone;
 
@@ -100,6 +104,48 @@ class BiomeColorsTest {
     @Test
     void noSourceMeansNoTint() {
         assertNull(colors.resolve(null, stone));
+    }
+
+    @Test
+    void aSourceThatThrowsResolvesUntinted() {
+        TintSource throwing = (state, biome, x, z) -> {
+            throw new IllegalStateException();
+        };
+
+        assertEquals(Tint.UNTINTED, colors.resolve(throwing, stone));
+    }
+
+    @Test
+    void aSourceThatThrowsAwayFromTheSampleColumnAnswersWhiteThere() {
+        BiomeColors positional = new BiomeColors(List.of(new FakeBiome(FIRST_BIOME, true)));
+        TintSource source = throwingAwayFromTheSampleColumn();
+        positional.assign(List.of(positional.sample(source, stone)));
+
+        assertEquals(WHITE & RGB_MASK, positional.colorAt(0, FIRST_BIOME, AWAY_X, SAMPLE_COLUMN));
+    }
+
+    @Test
+    void theFirstThrowOfASourceIsReportedOnceWithItsBlock() {
+        List<Block> reported = new ArrayList<>();
+        BiomeColors positional = new BiomeColors(List.of(new FakeBiome(FIRST_BIOME, true)),
+                (block, failure) -> reported.add(block));
+        TintSource source = throwingAwayFromTheSampleColumn();
+        positional.assign(List.of(positional.sample(source, stone)));
+
+        positional.colorAt(0, FIRST_BIOME, AWAY_X, SAMPLE_COLUMN);
+        positional.colorAt(0, FIRST_BIOME, AWAY_X, AWAY_X);
+
+        assertEquals(List.of(Blocks.STONE), reported);
+    }
+
+    private static TintSource throwingAwayFromTheSampleColumn() {
+        return (state, biome, x, z) -> {
+            if (x != SAMPLE_COLUMN) {
+                throw new IllegalStateException();
+            }
+
+            return SPRUCE;
+        };
     }
 
     private static TintSource varying(int resolver) {
