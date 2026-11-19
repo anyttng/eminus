@@ -109,6 +109,7 @@ final class FarQuads {
                 .withDefine("NEAR_TEXEL_BITS", NearSections.BITS_PER_TEXEL)
                 .withDefine("NEAR_TEXEL_SHIFT", NearSections.TEXEL_SHIFT)
                 .withDefine("MODEL_TEXELS", ModelRecords.TEXELS)
+                .withDefine("METADATA_HALF_BITS", ModelRecords.METADATA_HALF_BITS)
                 .withDefine("PACK_ID_TEXEL", ModelRecords.PACK_ID_TEXEL)
                 .withDefine("SHADES_TEXEL", ModelRecords.SHADES_TEXEL)
                 .withDefine("LAYER_TEXEL", ModelRecords.LAYER_TEXEL)
