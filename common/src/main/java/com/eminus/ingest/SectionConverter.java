@@ -12,7 +12,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.DataLayer;
-import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.PalettedContainer;
 
 import org.jspecify.annotations.Nullable;
 
@@ -26,7 +26,7 @@ public final class SectionConverter {
     private static final int NIBBLE_BITS = 4;
     private static final int ROW_BYTES = DataLayer.SIZE / SectionPyramid.SECTION_SIDE;
 
-    public static void convert(LevelChunkSection section, BiomeWindow window, DataLayer skyLight,
+    public static void convert(PalettedContainer<BlockState> blocks, BiomeWindow window, DataLayer skyLight,
             @Nullable DataLayer blockLight, StateTable states, Dictionary<String> biomes, SectionPyramid into) {
         into.reset();
 
@@ -36,7 +36,7 @@ public final class SectionConverter {
         for (int y = 0; y < SectionPyramid.SECTION_SIDE; y++) {
             for (int z = 0; z < SectionPyramid.SECTION_SIDE; z++) {
                 for (int x = 0; x < SectionPyramid.SECTION_SIDE; x++) {
-                    BlockState state = section.getBlockState(x, y, z);
+                    BlockState state = blocks.get(x, y, z);
                     int stateId = known.getInt(state);
                     if (stateId == SectionPyramid.ABSENT) {
                         stateId = states.idOf(state);
