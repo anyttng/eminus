@@ -68,11 +68,11 @@ vec4 position = eminus_viewPosition(texcoord, false);
 
 ### 3. Cast shadows from the LOD
 
-Nothing to add in most packs: without `eminus_shadow.glsl`, Eminus runs your own `shadow_cutout` program (or `shadow`, as Iris falls back) on the LOD's opaque faces, distortion included ([Your own shadow program](shader-packs/shadows.md#your-own-shadow-program)). Set your shadow planes to `-1.0` ([Shadow planes](shader-packs/shadows.md#shadow-planes)) so the shadow map reaches the LOD.
+Nothing to add in most packs: Eminus runs your own `shadow_cutout` and `shadow_water` programs (or `shadow`, as Iris falls back) on the LOD, distortion included ([Your own shadow program](shader-packs/shadows.md#your-own-shadow-program)). Set your shadow planes to `-1.0` ([Shadow planes](shader-packs/shadows.md#shadow-planes)) so the shadow map reaches the LOD.
 
 Add `eminus_shadow.glsl` beside `eminus_opaque.glsl` where your shadow program does not run on the LOD, where you want the LOD's shadows written differently, or where your vertex hook (step 4) animates blocks and their shadows should move with them. Put the body of your `shadow` fragment code in it. If your `shadow` vertex program distorts the shadow map, apply the same distortion in `eminus_vertex.glsl`.
 
-If your `shadow` program colors the shadow of stained glass or water, add `eminus_shadow_translucent.glsl` too, with the same body, and the LOD's translucent faces cast those shadows as well.
+`eminus_shadow_translucent.glsl` does the same for the LOD's translucent faces (water, stained glass, ice).
 
 ### 4. Move the LOD's vertices with your vertex code
 
