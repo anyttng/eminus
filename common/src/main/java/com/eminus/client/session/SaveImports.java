@@ -46,16 +46,17 @@ public final class SaveImports {
     @SuppressWarnings("ReferenceEquality")
     static void tick(Minecraft minecraft, EminusInstance instance, @Nullable DimensionRuntime runtime,
             @Nullable ClientLevel level) {
-        if (runtime != importedInto) {
+        Settings settings = SettingsService.get().settings();
+        DimensionRuntime importing = settings.ingestion() ? runtime : null;
+        if (importing != importedInto) {
             stop();
-            importedInto = runtime;
-            current = runtime == null || level == null ? null : open(minecraft, instance, runtime, level);
+            importedInto = importing;
+            current = importing == null || level == null ? null : open(minecraft, instance, importing, level);
         }
 
         SaveImport running = current;
         LocalPlayer player = minecraft.player;
-        Settings settings = SettingsService.get().settings();
-        if (running != null && player != null && settings.ingestion()) {
+        if (running != null && player != null) {
             ChunkPos at = player.chunkPosition();
             running.tick(at.x(), at.z(), FarDistance.cellsToChunks(settings.farRenderCells()),
                     Mth.clamp(minecraft.options.getEffectiveRenderDistance(), MIN_VIEW_CHUNKS, MAX_VIEW_CHUNKS));

@@ -119,6 +119,10 @@ public final class ClientSession {
             return;
         }
 
+        if (!updated.ingestion() && level != null) {
+            heldChunksPending = true;
+        }
+
         if (updated.lodQuality().storedLevel() != instance.lowestStoredLevel()) {
             restartSession();
             return;
