@@ -9,9 +9,14 @@ public final class IrisFarState {
     private static final Matrix4f PROJECTION = new Matrix4f();
     private static final Matrix4f PROJECTION_INVERSE = new Matrix4f();
     private static final Matrix4f PREVIOUS_PROJECTION = new Matrix4f();
+    private static final Matrix4f MERGED_PROJECTION = new Matrix4f();
+    private static final Matrix4f MERGED_PROJECTION_INVERSE = new Matrix4f();
+    private static final Matrix4f MERGED_PREVIOUS_PROJECTION = new Matrix4f();
 
     private static int depth = NO_TEXTURE;
     private static int opaqueDepth = NO_TEXTURE;
+    private static int mergedDepth = NO_TEXTURE;
+    private static int mergedOpaqueDepth = NO_TEXTURE;
     private static int renderDistance;
     private static float nearPlane;
     private static float farPlane;
@@ -33,9 +38,19 @@ public final class IrisFarState {
         distantHorizons = distantHorizonsNames;
     }
 
+    static void writeMerged(int mergedDepthTexture, int mergedOpaqueDepthTexture, Matrix4fc mergedProjection) {
+        mergedDepth = mergedDepthTexture;
+        mergedOpaqueDepth = mergedOpaqueDepthTexture;
+        MERGED_PREVIOUS_PROJECTION.set(MERGED_PROJECTION);
+        MERGED_PROJECTION.set(mergedProjection);
+        mergedProjection.invert(MERGED_PROJECTION_INVERSE);
+    }
+
     static void clear() {
         depth = NO_TEXTURE;
         opaqueDepth = NO_TEXTURE;
+        mergedDepth = NO_TEXTURE;
+        mergedOpaqueDepth = NO_TEXTURE;
         renderDistance = 0;
         distantHorizons = false;
     }
@@ -46,6 +61,26 @@ public final class IrisFarState {
 
     public static int opaqueDepth() {
         return opaqueDepth;
+    }
+
+    public static int mergedDepth() {
+        return mergedDepth;
+    }
+
+    public static int mergedOpaqueDepth() {
+        return mergedOpaqueDepth;
+    }
+
+    public static Matrix4fc mergedProjection() {
+        return MERGED_PROJECTION;
+    }
+
+    public static Matrix4fc mergedProjectionInverse() {
+        return MERGED_PROJECTION_INVERSE;
+    }
+
+    public static Matrix4fc mergedPreviousProjection() {
+        return MERGED_PREVIOUS_PROJECTION;
     }
 
     public static int renderDistance() {
