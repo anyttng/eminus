@@ -28,6 +28,7 @@ import com.eminus.work.WorkerHarness;
 
 import io.netty.buffer.Unpooled;
 
+import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -143,6 +144,37 @@ class IngestServiceTest {
 
         assertTrue(coverage.covers(CHUNK_X, CHUNK_Z));
         assertEquals(1, announced.get(), "a column covered in memory was never announced");
+    }
+
+    @Test
+    void anAllAirChunkWithoutLightLayersIsCoveredAndItsLaterLightUpdateIsHeld() {
+        ColumnCoverage coverage = new ColumnCoverage(LOWEST_STORED_LEVEL, (chunk, lowestLevel) -> { });
+        IngestService ingest = ingest(coverage);
+        SavedColumn column = IngestColumns.air(CHUNK_X, CHUNK_Z, MIN_SECTION_Y, SEED);
+
+        IngestColumns.submitWithoutLightData(ingest, column);
+        drain();
+
+        assertTrue(coverage.covers(CHUNK_X, CHUNK_Z), "an all-air chunk without light layers was left uncovered");
+        assertEquals(1, announced.get());
+
+        ingest.markLightUpdate(SectionPos.of(CHUNK_X, MIN_SECTION_Y, CHUNK_Z), clock.get());
+
+        assertEquals(1, ingest.pendingBlockChanges(), "the light update of the air chunk was dropped");
+    }
+
+    @Test
+    void aChunkHoldingBlocksWithoutLightDataIsSkipped() {
+        ColumnCoverage coverage = new ColumnCoverage(LOWEST_STORED_LEVEL, (chunk, lowestLevel) -> { });
+        IngestService ingest = ingest(coverage);
+        SavedColumn column = IngestColumns.stone(CHUNK_X, CHUNK_Z, MIN_SECTION_Y, SEED);
+
+        IngestColumns.submitWithoutLightData(ingest, column);
+        drain();
+
+        assertFalse(coverage.covers(CHUNK_X, CHUNK_Z), "a chunk holding blocks was covered with no light data");
+        assertEquals(0, announced.get());
+        assertTrue(access.opened.isEmpty(), "a chunk holding blocks was merged with no light data");
     }
 
     @Test

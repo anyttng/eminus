@@ -174,8 +174,8 @@ public final class IngestService {
             return false;
         }
 
-        if (!column.hasLightData()) {
-            Eminus.LOGGER.debug("Chunk {} carries no light data; it is skipped.", chunkPos);
+        if (awaitsLightData(column, column.hasLightData())) {
+            Eminus.LOGGER.debug("Chunk {} holds blocks and carries no light data; it is skipped.", chunkPos);
             return false;
         }
 
@@ -185,6 +185,10 @@ public final class IngestService {
         }
 
         return true;
+    }
+
+    static boolean awaitsLightData(IngestColumn column, boolean lightData) {
+        return !lightData && column.holdsBlocks();
     }
 
     static boolean[] pickSections(IngestColumn column) {
