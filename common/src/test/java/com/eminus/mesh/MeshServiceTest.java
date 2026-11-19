@@ -179,18 +179,25 @@ class MeshServiceTest {
         models.throwOnMetadata();
         seedCube();
         AtomicReference<long[]> failure = new AtomicReference<>();
-        MeshService failing = new MeshService(work, cache, ColumnCoverage.everything(), FRAME, models,
-                new FakeTints(), NO_BLEND, level -> opacity, MeshOcclusion.EVERY_LEVEL, MeshBlades.BOTH, new MeshListener() {
-                    @Override
-                    public void meshed(CellMesh mesh, long request) {
-                        delivered.set(mesh);
-                    }
+        MeshService failing = recordingFailures(failure);
 
-                    @Override
-                    public void failed(long key, long request) {
-                        failure.set(new long[] {key, request});
-                    }
-                }, URGENT_WEIGHT);
+        harness.run(() -> failing.build(MeshTask.carrying(KEY, null, 0, FAILED_REQUEST, MeshTask.LOWEST_PRIORITY, true),
+                new MeshScratch()));
+
+        assertNull(delivered.get());
+        assertArrayEquals(new long[] {KEY, FAILED_REQUEST}, failure.get());
+        assertEquals(0, cache.liveCount());
+        assertEquals(OPENED_CELLS, cache.parkedCount());
+    }
+
+    @Test
+    void aMeshThatEndsInAnErrorTellsTheListenerItFailedAndLeavesNoCellHeld() {
+        models.define(STONE, STONE_MODEL,
+                ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
+        models.errorOnMetadata();
+        seedCube();
+        AtomicReference<long[]> failure = new AtomicReference<>();
+        MeshService failing = recordingFailures(failure);
 
         harness.run(() -> failing.build(MeshTask.carrying(KEY, null, 0, FAILED_REQUEST, MeshTask.LOWEST_PRIORITY, true),
                 new MeshScratch()));
@@ -378,6 +385,21 @@ class MeshServiceTest {
             queued.stop(ShutdownMode.DISCARD);
             idle.shutdown();
         }
+    }
+
+    private MeshService recordingFailures(AtomicReference<long[]> failure) {
+        return new MeshService(work, cache, ColumnCoverage.everything(), FRAME, models, new FakeTints(), NO_BLEND,
+                level -> opacity, MeshOcclusion.EVERY_LEVEL, MeshBlades.BOTH, new MeshListener() {
+                    @Override
+                    public void meshed(CellMesh mesh, long request) {
+                        delivered.set(mesh);
+                    }
+
+                    @Override
+                    public void failed(long key, long request) {
+                        failure.set(new long[] {key, request});
+                    }
+                }, URGENT_WEIGHT);
     }
 
     private void awaitNoLiveCells() {
