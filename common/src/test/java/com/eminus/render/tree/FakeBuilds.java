@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.eminus.cell.cache.CellHandle;
 
@@ -17,10 +18,15 @@ final class FakeBuilds implements TreeBuilds {
     record Release(CellHandle handle, int references) {
     }
 
+    static final String STAGED_THROW = "A throw the test staged.";
+
     private static final long AWAIT_MILLIS = 10_000L;
 
     private final BlockingQueue<Call> calls = new LinkedBlockingQueue<>();
     private final BlockingQueue<Release> releases = new LinkedBlockingQueue<>();
+
+    private final AtomicBoolean buildThrows = new AtomicBoolean();
+    private final AtomicBoolean backlogThrows = new AtomicBoolean();
 
     private volatile int backlog;
     private volatile boolean urgent;
@@ -28,6 +34,10 @@ final class FakeBuilds implements TreeBuilds {
     @Override
     public void build(long key, @Nullable CellHandle handle, int references, long request, float priority,
             boolean fills) {
+        if (buildThrows.getAndSet(false)) {
+            throw new IllegalStateException(STAGED_THROW);
+        }
+
         calls.add(new Call(key, handle, references, request, priority, fills));
     }
 
@@ -38,6 +48,10 @@ final class FakeBuilds implements TreeBuilds {
 
     @Override
     public int backlog() {
+        if (backlogThrows.getAndSet(false)) {
+            throw new IllegalStateException(STAGED_THROW);
+        }
+
         return backlog;
     }
 
@@ -52,6 +66,14 @@ final class FakeBuilds implements TreeBuilds {
 
     void backlog(int queued) {
         backlog = queued;
+    }
+
+    void throwOnTheNextBuild() {
+        buildThrows.set(true);
+    }
+
+    void throwOnTheNextBacklog() {
+        backlogThrows.set(true);
     }
 
     Call take() {

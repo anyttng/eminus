@@ -1,8 +1,10 @@
 package com.eminus.render.tree;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -48,6 +50,7 @@ public final class TreeManager implements CellChangeListener, MeshListener {
     private final FailedBuilds failed = new FailedBuilds();
     private final RefusedMeshes refused = new RefusedMeshes();
     private final Matrix4f lastViewProjection = new Matrix4f();
+    private final Set<Class<? extends TreeMessage>> thrownKinds = new HashSet<>();
     private final Thread thread = new Thread(this::serve, THREAD_NAME);
 
     private TreeBatch batch = new TreeBatch();
@@ -206,10 +209,31 @@ public final class TreeManager implements CellChangeListener, MeshListener {
             }
 
             do {
-                apply(message);
-                publish();
+                try {
+                    apply(message);
+                    publish();
+                } catch (Throwable failure) {
+                    drop(message, failure);
+                }
             } while ((message = messages.poll()) != null);
         }
+    }
+
+    private void drop(TreeMessage message, Throwable failure) {
+        if (thrownKinds.add(message.getClass())) {
+            Eminus.LOGGER.error("Applying a {} message to the tree threw; the message is dropped, and further throws"
+                    + " of this kind are not logged.", message.getClass().getSimpleName(), failure);
+        }
+
+        switch (message) {
+            case TreeMessage.Snapshot snapshot -> snapshot.answer().completeExceptionally(failure);
+            case TreeMessage.Describe describe -> describe.answer().completeExceptionally(failure);
+            case TreeMessage.Churn churned -> churned.answer().completeExceptionally(failure);
+            default -> {
+            }
+        }
+
+        treeChanged = true;
     }
 
     private void apply(TreeMessage message) {
