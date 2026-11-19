@@ -1,7 +1,5 @@
 package com.eminus.mesh;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import com.eminus.Eminus;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
@@ -175,13 +173,14 @@ public final class MeshService {
     private @Nullable CellMesh mesh(MeshTask task, MeshScratch scratch, int occupancy) {
         scratch.begin(frame, task.key(), tints, blendRadius);
 
-        AtomicBoolean retried = new AtomicBoolean();
-        return new CellMesher(scratch, models).mesh(task.key(), occupancy, opacity.at(task.level()), occlusion, blades,
-                () -> {
-            if (retried.compareAndSet(false, true)) {
-                submit(task.retry());
-            }
-        });
+        BakeWait wait = new BakeWait(() -> submit(task.retry()));
+        CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy, opacity.at(task.level()),
+                occlusion, blades, wait);
+        if (mesh == null) {
+            wait.close(scratch.voxelModels().awaited());
+        }
+
+        return mesh;
     }
 
     private static int[][] neighbors() {

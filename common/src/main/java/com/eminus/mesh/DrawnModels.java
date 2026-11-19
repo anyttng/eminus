@@ -38,7 +38,7 @@ final class DrawnModels {
         }
 
         int state = VoxelEntry.state(entry);
-        int fluidModel = models.fluidModelId(state, whenBaked);
+        int fluidModel = scratch.voxelModels().fluid(models, state, whenBaked);
         return fluidModel == MeshModels.NO_FLUID ? at(state, atX, atY, atZ) : fluidModel;
     }
 
