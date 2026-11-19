@@ -6,6 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.eminus.VanillaBootstrap;
 
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.DoublePlantBlock;
+import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -17,15 +22,20 @@ class SeedOverridesTest {
     }
 
     @Test
-    void aDoorABedAndATallPlantSeedTheirOwnWay() {
-        assertTrue(SeedOverrides.overridden(Blocks.OAK_DOOR));
-        assertTrue(SeedOverrides.overridden(Blocks.WHITE_BED));
-        assertTrue(SeedOverrides.overridden(Blocks.TALL_GRASS));
+    void aDoorsTopABedsFootAndATallPlantsTopSeedTheirOwnWay() {
+        assertTrue(SeedOverrides.overridden(
+                Blocks.OAK_DOOR.defaultBlockState().setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER)));
+        assertTrue(SeedOverrides.overridden(
+                Blocks.WHITE_BED.defaultBlockState().setValue(BlockStateProperties.BED_PART, BedPart.FOOT)));
+        assertTrue(SeedOverrides.overridden(
+                Blocks.TALL_GRASS.defaultBlockState().setValue(DoublePlantBlock.HALF, DoubleBlockHalf.UPPER)));
     }
 
     @Test
-    void stoneAndGrassSeedFromTheirPosition() {
-        assertFalse(SeedOverrides.overridden(Blocks.STONE));
-        assertFalse(SeedOverrides.overridden(Blocks.GRASS_BLOCK));
+    void aDoorsBottomStoneAndAFlowerSeedFromTheirPosition() {
+        assertFalse(SeedOverrides.overridden(
+                Blocks.OAK_DOOR.defaultBlockState().setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER)));
+        assertFalse(SeedOverrides.overridden(Blocks.STONE.defaultBlockState()));
+        assertFalse(SeedOverrides.overridden(Blocks.POPPY.defaultBlockState()));
     }
 }

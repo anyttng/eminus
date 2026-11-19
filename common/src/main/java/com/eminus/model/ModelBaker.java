@@ -122,7 +122,7 @@ public final class ModelBaker implements StateBaker {
 
     private List<WeightedModel> variants(@Nullable BlockModel model, BlockState shape, BlockState state,
             boolean opaque) {
-        if (model == null || SeedOverrides.overridden(state.getBlock())) {
+        if (model == null || SeedOverrides.overridden(state)) {
             return List.of();
         }
 
