@@ -173,6 +173,14 @@ final class FakeModels implements MeshModels {
         return waiters.size();
     }
 
+    void bake(int stateId) {
+        unbaked.remove(stateId);
+    }
+
+    void publishBake() {
+        waiters.removeFirst().run();
+    }
+
     void publishBakes() {
         List<Runnable> due = List.copyOf(waiters);
         waiters.clear();

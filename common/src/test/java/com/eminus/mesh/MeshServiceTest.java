@@ -63,6 +63,10 @@ class MeshServiceTest {
     private static final int GLASS_MODEL = 8;
     private static final int UNBAKED_BELOW = 3;
     private static final int UNBAKED_ABOVE = 4;
+    private static final int FIRST_UNBAKED = 10;
+    private static final int FIRST_UNBAKED_MODEL = 20;
+    private static final int UNBAKED_STATES = 5;
+    private static final int UNBAKED_SPACING = 2;
     private static final int BIOME = 2;
     private static final int WATER = 5;
     private static final int WATER_MODEL = 9;
@@ -284,6 +288,51 @@ class MeshServiceTest {
             models.publishBakes();
 
             assertEquals(1, waiting.backlog());
+        } finally {
+            queued.stop(ShutdownMode.DISCARD);
+            idle.shutdown();
+        }
+    }
+
+    @Test
+    void aCellOfUnbakedStatesAsksForEveryModelAndIsBuiltTwice() {
+        Cell cell = Cell.blank(KEY);
+        for (int state = 0; state < UNBAKED_STATES; state++) {
+            models.define(FIRST_UNBAKED + state, FIRST_UNBAKED_MODEL + state,
+                    ModelMetadata.pack(FaceMask.ALL, FaceMask.ALL, FaceMask.ALL, 0, 0));
+            models.unbake(FIRST_UNBAKED + state);
+            cell.set(CUBE_AT + UNBAKED_SPACING * state, CUBE_AT, CUBE_AT, lit(FIRST_UNBAKED + state));
+        }
+
+        CellWrites.write(store, cell);
+
+        WorkerPool idle = WorkerPool.start(NO_WORKERS);
+        WorkService<MeshScratch> queued = idle.register(QUEUED_SERVICE, 1, WorkService.UNLIMITED, MeshScratch::new);
+        MeshService waiting = new MeshService(queued, cache, ColumnCoverage.everything(), FRAME, models,
+                new FakeTints(), NO_BLEND, level -> opacity, MeshOcclusion.EVERY_LEVEL, MeshBlades.BOTH, (mesh, request) -> delivered.set(mesh), URGENT_WEIGHT);
+
+        try {
+            harness.run(() -> waiting.build(MeshTask.fresh(KEY), new MeshScratch()));
+
+            assertNull(delivered.get());
+            assertEquals(UNBAKED_STATES, models.waiting());
+
+            for (int state = 0; state < UNBAKED_STATES; state++) {
+                models.bake(FIRST_UNBAKED + state);
+            }
+
+            for (int answered = 1; answered < UNBAKED_STATES; answered++) {
+                models.publishBake();
+                assertEquals(0, waiting.backlog());
+            }
+
+            models.publishBake();
+            assertEquals(1, waiting.backlog());
+
+            harness.run(() -> waiting.build(MeshTask.fresh(KEY).retry(), new MeshScratch()));
+
+            assertNotNull(delivered.get());
+            assertEquals(0, models.waiting());
         } finally {
             queued.stop(ShutdownMode.DISCARD);
             idle.shutdown();
