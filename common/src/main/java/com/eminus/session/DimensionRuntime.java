@@ -159,6 +159,7 @@ public final class DimensionRuntime {
         merger = new CellMerger(cells, frame, ingestLevel, forwarded);
         ingest = new IngestService(ingestService, states, biomes, merger, coverage, forwarded);
         beams = openBeams(saveService);
+        saveService.enqueue(scratch -> store.maintain());
     }
 
     private BeamSet openBeams(WorkService<Void> saveService) {
