@@ -205,15 +205,39 @@ public final class ModelBakery implements ModelSource {
                 return;
             }
 
-            List<Object> parts = request.parts();
-            if (parts == null) {
-                publish(request.state(), bake(request.state()));
-            } else {
-                publishParts(request, parts);
+            try {
+                publish(request);
+            } catch (Throwable failure) {
+                Eminus.LOGGER.error("Publishing the model of {} threw; the placeholder model stands in.",
+                        request.state(), failure);
+                publishPlaceholder(request);
             }
 
             answer(request);
         }
+    }
+
+    private void publish(Request request) {
+        List<Object> parts = request.parts();
+        if (parts == null) {
+            publish(request.state(), bake(request.state()));
+        } else {
+            publishParts(request, parts);
+        }
+    }
+
+    private void publishPlaceholder(Request request) {
+        int placeholderId = models.register(placeholder);
+        if (request.parts() != null) {
+            idByParts.put(request, placeholderId);
+            return;
+        }
+
+        BlockState state = request.state();
+        positionalStates.remove(state);
+        overlaidFluidStates.remove(state);
+        fluidIdByState.put(state, NO_FLUID);
+        idByState.put(state, placeholderId);
     }
 
     private BakedState bake(BlockState state) {

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.eminus.VanillaBootstrap;
@@ -151,6 +152,54 @@ class ModelBakeryTest {
 
             awaitBake(bakery, dirt);
             assertEquals(BakedModel.solid(WHITE), bakery.model(bakery.modelId(dirt)));
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void aThrowWhilePublishingAStateYieldsThePlaceholderAndLeavesTheThreadServing() throws InterruptedException {
+        ModelBakery bakery = TestBakery.start(state -> new BakedState(BakedModel.solid(WHITE), null),
+                new PackBlocks(state -> {
+                    if (state.equals(stone)) {
+                        throw new IllegalStateException("no pack id for " + state);
+                    }
+
+                    return DIRT_PACK_ID;
+                }, IntSet.of()));
+
+        try {
+            awaitBake(bakery, stone);
+            assertEquals(BakedModel.solid(ModelBakery.PLACEHOLDER_COLOR), bakery.model(bakery.modelId(stone)));
+            assertEquals(ModelBakery.NO_FLUID, bakery.fluidModelId(stone));
+
+            awaitBake(bakery, dirt);
+            assertEquals(BakedModel.solid(WHITE).withPackId(DIRT_PACK_ID), bakery.model(bakery.modelId(dirt)));
+        } finally {
+            bakery.stop();
+        }
+    }
+
+    @Test
+    void aThrowWhilePublishingPartsYieldsThePlaceholderAndLeavesTheThreadServing() throws InterruptedException {
+        AtomicBoolean throwing = new AtomicBoolean();
+        ModelBakery bakery = TestBakery.start(new PartBaker(), new PackBlocks(state -> {
+            if (throwing.get() && state.equals(stone)) {
+                throw new IllegalStateException("no pack id for " + state);
+            }
+
+            return STONE_PACK_ID;
+        }, IntSet.of()));
+
+        try {
+            awaitBake(bakery, stone);
+            throwing.set(true);
+
+            assertEquals(BakedModel.solid(ModelBakery.PLACEHOLDER_COLOR),
+                    bakery.model(awaitPositional(bakery, stone, POSITIONS[0])));
+
+            awaitBake(bakery, dirt);
+            assertNotEquals(ModelBakery.MISSING, bakery.modelId(dirt));
         } finally {
             bakery.stop();
         }
