@@ -6,10 +6,14 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
+import com.eminus.Eminus;
 import com.eminus.model.port.TintBiome;
 import com.eminus.model.port.TintSource;
 
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import org.jspecify.annotations.Nullable;
@@ -49,15 +53,27 @@ public final class BiomeColors {
         }
     }
 
+    @FunctionalInterface
+    public interface Report {
+        void threw(Block block, RuntimeException failure);
+    }
+
     private final Map<String, Integer> biomeIndex = new HashMap<>();
+    private final Set<TintSource> thrown = ConcurrentHashMap.newKeySet();
     private final List<TintBiome> biomes;
+    private final Report report;
 
     private volatile List<Colors> rows = List.of();
     private volatile Map<Colors, Integer> rowByColors = Map.of();
     private volatile int[] constants = new int[0];
 
     public BiomeColors(Collection<TintBiome> biomes) {
+        this(biomes, BiomeColors::log);
+    }
+
+    public BiomeColors(Collection<TintBiome> biomes, Report report) {
         this.biomes = biomes.stream().sorted(Comparator.comparing(TintBiome::name)).toList();
+        this.report = report;
         for (int index = 0; index < this.biomes.size(); index++) {
             biomeIndex.put(this.biomes.get(index).name(), index);
         }
@@ -65,11 +81,26 @@ public final class BiomeColors {
 
     public Colors sample(TintSource tint, BlockState state) {
         int[] values = new int[biomes.size()];
-        for (int index = 0; index < values.length; index++) {
-            values[index] = tint.color(state, biomes.get(index), SAMPLE_COLUMN, SAMPLE_COLUMN) & RGB_MASK;
+        try {
+            for (int index = 0; index < values.length; index++) {
+                values[index] = tint.color(state, biomes.get(index), SAMPLE_COLUMN, SAMPLE_COLUMN) & RGB_MASK;
+            }
+        } catch (RuntimeException failure) {
+            threw(tint, state, failure);
+            Arrays.fill(values, WHITE);
         }
 
         return new Colors(values, tint, state);
+    }
+
+    private void threw(TintSource tint, BlockState state, RuntimeException failure) {
+        if (thrown.add(tint)) {
+            report.threw(state.getBlock(), failure);
+        }
+    }
+
+    private static void log(Block block, RuntimeException failure) {
+        Eminus.LOGGER.warn("The tint of {} threw, so the block draws untinted.", block, failure);
     }
 
     public @Nullable Tint resolve(@Nullable TintSource tint, BlockState state) {
@@ -130,7 +161,12 @@ public final class BiomeColors {
             return colors.values()[biomeIndex];
         }
 
-        return colors.source().color(colors.state(), biome, blockX, blockZ) & RGB_MASK;
+        try {
+            return colors.source().color(colors.state(), biome, blockX, blockZ) & RGB_MASK;
+        } catch (RuntimeException failure) {
+            threw(colors.source(), colors.state(), failure);
+            return WHITE;
+        }
     }
 
     public int biomeCount() {

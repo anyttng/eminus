@@ -81,6 +81,23 @@ class TintSweepTest {
     }
 
     @Test
+    void aSourceThatThrowsTakesNoRowAndTheOthersKeepTheirs() {
+        TintSource spruce = (state, biome, x, z) -> SPRUCE;
+        TintSource throwing = (state, biome, x, z) -> {
+            throw new IllegalStateException();
+        };
+        Map<Block, TintSource> byBlock = Map.of(blocks.get(0), spruce, blocks.get(1), throwing);
+
+        BiomeColors colors = colors();
+        TintSweep.sweep(states(blocks.subList(0, 2)), tints(byBlock), TintSweepTest::noFluidTints, OWN_SHAPE,
+                colors);
+
+        assertEquals(1, colors.rowCount());
+        assertEquals(Tint.row(0), colors.resolve(spruce, blocks.get(0).defaultBlockState()));
+        assertEquals(Tint.UNTINTED, colors.resolve(throwing, blocks.get(1).defaultBlockState()));
+    }
+
+    @Test
     void theSameStatesSweptInAnotherOrderGiveTheSameRows() {
         Map<Block, TintSource> byBlock = new HashMap<>();
         List<TintSource> sources = new ArrayList<>();
