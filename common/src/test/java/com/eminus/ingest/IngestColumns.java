@@ -30,14 +30,33 @@ public final class IngestColumns {
     }
 
     public static SavedColumn stone(int chunkX, int chunkZ, int minSectionY, long biomeZoomSeed) {
-        SavedChunk center = stoneChunk(chunkX, chunkZ, minSectionY);
-        SavedChunk[] around = new SavedChunk[SavedColumn.NEIGHBOR_SIDE * SavedColumn.NEIGHBOR_SIDE];
-        around[SavedColumn.neighborIndex(0, 0)] = center;
-        return new SavedColumn(center, around, false, biomeZoomSeed);
+        return alone(stoneChunk(chunkX, chunkZ, minSectionY), biomeZoomSeed);
+    }
+
+    public static SavedColumn air(int chunkX, int chunkZ, int minSectionY, long biomeZoomSeed) {
+        LevelChunkSection[] sections = new LevelChunkSection[SECTIONS];
+        for (int index = 0; index < SECTIONS; index++) {
+            sections[index] = section(Blocks.AIR.defaultBlockState());
+        }
+
+        return alone(new SavedChunk(chunkX, chunkZ, minSectionY, sections, new DataLayer[LIGHT_SECTIONS],
+                new DataLayer[LIGHT_SECTIONS], true, true, true, false), biomeZoomSeed);
     }
 
     public static void submit(IngestService ingest, IngestColumn column) {
         ingest.ingestSections(column, IngestService.pickSections(column), IngestTrigger.PACKET);
+    }
+
+    public static void submitWithoutLightData(IngestService ingest, IngestColumn column) {
+        if (!IngestService.awaitsLightData(column, false)) {
+            submit(ingest, column);
+        }
+    }
+
+    private static SavedColumn alone(SavedChunk center, long biomeZoomSeed) {
+        SavedChunk[] around = new SavedChunk[SavedColumn.NEIGHBOR_SIDE * SavedColumn.NEIGHBOR_SIDE];
+        around[SavedColumn.neighborIndex(0, 0)] = center;
+        return new SavedColumn(center, around, false, biomeZoomSeed);
     }
 
     private static LevelChunkSection section(BlockState state) {
