@@ -70,6 +70,7 @@ public final class FarRenderer implements AutoCloseable {
     public static final String ATLAS_FIRST_MIP_PROPERTY = "eminus.atlas.firstMip";
 
     private final Gpu gpu;
+    private final DepthConvention depth;
     private final int levelHeight;
     private final DimensionRuntime runtime;
     private final ClientBakery baking;
@@ -109,6 +110,7 @@ public final class FarRenderer implements AutoCloseable {
     private @Nullable TreeBatch awaited;
     private int awaitedModels;
     private @Nullable GameFrame game;
+    private @Nullable MergedDepthPass merge;
     private final AlphaCuts own = AlphaCuts.own(GameFrames.leafCutout());
     private AlphaCuts cuts = own;
     private int uploaded;
@@ -123,6 +125,7 @@ public final class FarRenderer implements AutoCloseable {
             NearSectionTable nearSections, OpaquePass opaque, TranslucentPass translucent, CompositePass composite,
             FarOverlays overlays, IndirectCommands indirect, int levelHeight, int nodeCapacity) {
         this.gpu = gpu;
+        this.depth = depth;
         this.levelHeight = levelHeight;
         this.runtime = runtime;
         this.baking = baking;
@@ -247,6 +250,25 @@ public final class FarRenderer implements AutoCloseable {
 
         drawMask();
         return draw;
+    }
+
+    public void mergeOpaqueDepth(Matrix4fc gameInverse, Matrix4fc farInverse, float handDepth) {
+        mergePass().draw(target.mergedOpaqueDepth(), gpu.mainDepth(), target.opaqueDepth(), gameInverse,
+                farInverse, handDepth);
+    }
+
+    public void mergeDepth(Matrix4fc gameInverse, Matrix4fc farInverse, float handDepth) {
+        mergePass().draw(target.mergedDepth(), gpu.mainDepth(), target.depth(), gameInverse, farInverse,
+                handDepth);
+    }
+
+    private MergedDepthPass mergePass() {
+        MergedDepthPass pass = merge;
+        if (pass == null) {
+            pass = MergedDepthPass.create(gpu, depth);
+            merge = pass;
+        }
+        return pass;
     }
 
     public void buildOcclusion() {
@@ -516,6 +538,9 @@ public final class FarRenderer implements AutoCloseable {
         occlusion.close();
         overlays.close();
         composite.close();
+        if (merge != null) {
+            merge.close();
+        }
         opaque.close();
         mask.close();
         nearSections.close();

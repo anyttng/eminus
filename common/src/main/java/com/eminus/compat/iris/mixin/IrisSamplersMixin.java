@@ -41,6 +41,10 @@ public class IrisSamplersMixin {
                 PackContract.DEPTH_SAMPLER, PackContract.VIEW_FAR_DEPTH);
         samplers.addDynamicSampler(TextureType.TEXTURE_2D, IrisFarState::opaqueDepth, TEXTURE_SAMPLER,
                 PackContract.OPAQUE_DEPTH_SAMPLER, PackContract.VIEW_FAR_OPAQUE_DEPTH);
+        samplers.addDynamicSampler(TextureType.TEXTURE_2D, IrisFarState::mergedDepth, TEXTURE_SAMPLER,
+                PackContract.MERGED_DEPTH_SAMPLER);
+        samplers.addDynamicSampler(TextureType.TEXTURE_2D, IrisFarState::mergedOpaqueDepth, TEXTURE_SAMPLER,
+                PackContract.MERGED_OPAQUE_DEPTH_SAMPLER);
     }
 
     @ModifyArg(method = { WORLD_DEPTH_SAMPLERS, COMPOSITE_SAMPLERS },
