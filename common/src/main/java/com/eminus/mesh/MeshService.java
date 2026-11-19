@@ -16,6 +16,8 @@ public final class MeshService {
     private static final int STEPS_PER_AXIS = 3;
     private static final int[][] NEIGHBORS = neighbors();
     private static final int LAST = DetailLevel.VOXELS_PER_SIDE - 1;
+    private static final String FAILED_BUILD =
+            "Meshing cell {} at level {} ({}, {}, {}) threw, so the tree asks for it again: {}";
 
     private final WorkService<MeshScratch> work;
     private final CellAccess cells;
@@ -115,15 +117,25 @@ public final class MeshService {
                 listener.meshed(coverage.missingColumns(task.key()) ? masked.lackingColumns() : masked,
                         task.request());
             }
-        } catch (RuntimeException failure) {
-            long key = task.key();
-            Eminus.LOGGER.warn("Meshing cell {} at level {} ({}, {}, {}) threw, so the tree asks for it again: {}",
-                    key, CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key), failure.toString());
-            listener.failed(key, task.request());
+        } catch (Throwable failure) {
+            fail(task, failure);
         } finally {
             release(handles);
             releaseCarried(held, task.references());
         }
+    }
+
+    private void fail(MeshTask task, Throwable failure) {
+        long key = task.key();
+        if (failure instanceof Error) {
+            Eminus.LOGGER.warn(FAILED_BUILD, key, CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key),
+                    failure.toString(), failure);
+        } else {
+            Eminus.LOGGER.warn(FAILED_BUILD, key, CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key),
+                    failure.toString());
+        }
+
+        listener.failed(key, task.request());
     }
 
     private int loadCell(CellHandle handle, MeshScratch scratch, long key, long[] grandchildren) {
