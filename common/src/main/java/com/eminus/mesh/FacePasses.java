@@ -56,6 +56,7 @@ public final class FacePasses {
     private FacePlane positiveFaces;
     private boolean shaped;
     private int shape;
+    private boolean missing;
 
     public FacePasses(MeshScratch scratch, StateOpacity opacity, MeshModels models, int level, CornerRule cornerRule,
             boolean water, Runnable whenBaked, Sink sink) {
@@ -71,6 +72,7 @@ public final class FacePasses {
     }
 
     public boolean run() {
+        missing = false;
         for (Direction.Axis along : Direction.Axis.values()) {
             axis = along;
             low.towards = Direction.get(Direction.AxisDirection.NEGATIVE, along);
@@ -79,16 +81,15 @@ public final class FacePasses {
 
             for (plane = 0; plane < SIDE; plane++) {
                 clearPlanes();
+                fill();
 
-                if (!fill()) {
-                    return false;
+                if (!missing) {
+                    flush();
                 }
-
-                flush();
             }
         }
 
-        return true;
+        return !missing;
     }
 
     private void clearPlanes() {
@@ -119,7 +120,7 @@ public final class FacePasses {
         }
     }
 
-    private boolean fill() {
+    private void fill() {
         RowMasks masks = scratch.masks();
 
         for (int atV = 0; atV < SIDE; atV++) {
@@ -132,16 +133,23 @@ public final class FacePasses {
                 enter(atU, atV);
                 int modelId = drawnModels.at(stateId, x, y, z);
                 if (modelId == MeshModels.MISSING) {
-                    return false;
+                    askSides(row);
+                    missing = true;
+                    continue;
                 }
 
-                if (!blockFaces(row, modelId) || !fluidFaces()) {
-                    return false;
-                }
+                boolean block = blockFaces(row, modelId);
+                boolean fluid = fluidFaces();
+                missing |= !block || !fluid;
             }
         }
+    }
 
-        return true;
+    private void askSides(int row) {
+        if (!scratch.masks().opaque(row, plane)) {
+            drawnModels.facing(low.facing, low.x, low.y, low.z);
+            drawnModels.facing(high.facing, high.x, high.y, high.z);
+        }
     }
 
     private void enter(int atU, int atV) {
@@ -169,6 +177,7 @@ public final class FacePasses {
 
         int drawnId = drawnModels.drawn(modelId, x, y, z);
         if (drawnId == MeshModels.MISSING) {
+            askSides(row);
             return false;
         }
 
@@ -197,7 +206,7 @@ public final class FacePasses {
     }
 
     private boolean fluidFaces() {
-        int fluidModel = models.fluidModelId(stateId, whenBaked);
+        int fluidModel = scratch.voxelModels().fluid(models, stateId, whenBaked);
         if (fluidModel == MeshModels.MISSING) {
             return false;
         }
