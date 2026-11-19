@@ -134,6 +134,20 @@ class CellMesherLightTest {
     }
 
     @Test
+    void aFaceTowardsABlankVoxelCarriesSkyLightOnlyWhereTheDimensionHasIt() {
+        defineBlocks();
+        for (int level = DetailLevel.MIN; level <= COARSE_LEVEL; level++) {
+            Cell cell = blank(level);
+            cell.set(CENTER, CENTER, CENTER, VoxelEntry.pack(STONE, BIOME, NO_LIGHT));
+
+            assertEquals(VoxelEntry.light(FULL_SKY, 0),
+                    lightAt(mesh(cell, level, null, QuadLight.UNDER_SKY), Direction.UP, STONE_MODEL));
+            assertEquals(NO_LIGHT,
+                    lightAt(mesh(cell, level, null, QuadLight.WITHOUT_SKY), Direction.UP, STONE_MODEL));
+        }
+    }
+
+    @Test
     void aFluidFaceOnTheCutKeepsTheLightOfTheColumnNeverIngested() {
         defineBlocks();
         Cell cell = blank(DetailLevel.MIN);
@@ -175,6 +189,10 @@ class CellMesherLightTest {
     }
 
     private CellMesh mesh(Cell cell, int level, @Nullable ColumnCoverage coverage) {
+        return mesh(cell, level, coverage, QuadLight.UNDER_SKY);
+    }
+
+    private CellMesh mesh(Cell cell, int level, @Nullable ColumnCoverage coverage, QuadLight light) {
         MeshScratch scratch = new MeshScratch();
         scratch.voxels().load(cell);
         for (Direction face : Direction.values()) {
@@ -187,7 +205,7 @@ class CellMesherLightTest {
         }
 
         scratch.begin(FRAME, key, tints, NO_BLEND);
-        CellMesh mesh = new CellMesher(scratch, models).mesh(key, cell.occupancy(), OPACITY, MeshOcclusion.EVERY_LEVEL,
+        CellMesh mesh = new CellMesher(scratch, models, light).mesh(key, cell.occupancy(), OPACITY, MeshOcclusion.EVERY_LEVEL,
                 MeshBlades.BOTH, () -> { });
         assertNotNull(mesh);
         return mesh;

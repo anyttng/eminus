@@ -63,7 +63,11 @@ public final class VoxelEntry {
     }
 
     public static int skyLight(long entry) {
-        return (light(entry) >>> SKY_LIGHT_SHIFT) & NIBBLE_MASK;
+        return skyLightOf(light(entry));
+    }
+
+    public static int skyLightOf(int light) {
+        return (light >>> SKY_LIGHT_SHIFT) & NIBBLE_MASK;
     }
 
     public static int blockLight(long entry) {

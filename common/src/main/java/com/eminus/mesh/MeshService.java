@@ -29,13 +29,14 @@ public final class MeshService {
     private final MeshOpacity opacity;
     private final MeshOcclusion occlusion;
     private final MeshBlades blades;
+    private final QuadLight light;
     private final MeshListener listener;
     private final int urgentWeight;
     private final MeshQueue queue = new MeshQueue();
 
     public MeshService(WorkService<MeshScratch> work, CellAccess cells, ColumnCoverage coverage, CellFrame frame,
             MeshModels models, BiomeTints tints, int blendRadius, MeshOpacity opacity, MeshOcclusion occlusion,
-            MeshBlades blades, MeshListener listener, int urgentWeight) {
+            MeshBlades blades, QuadLight light, MeshListener listener, int urgentWeight) {
         this.work = work;
         this.urgentWeight = urgentWeight;
         this.cells = cells;
@@ -47,6 +48,7 @@ public final class MeshService {
         this.opacity = opacity;
         this.occlusion = occlusion;
         this.blades = blades;
+        this.light = light;
         this.listener = listener;
     }
 
@@ -186,7 +188,7 @@ public final class MeshService {
         scratch.begin(frame, task.key(), tints, blendRadius);
 
         BakeWait wait = new BakeWait(() -> submit(task.retry()));
-        CellMesh mesh = new CellMesher(scratch, models).mesh(task.key(), occupancy, opacity.at(task.level()),
+        CellMesh mesh = new CellMesher(scratch, models, light).mesh(task.key(), occupancy, opacity.at(task.level()),
                 occlusion, blades, wait);
         if (mesh == null) {
             wait.close(scratch.voxelModels().awaited());
