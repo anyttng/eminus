@@ -42,7 +42,7 @@ class SaveImportDirectTest {
     private static final int LOWEST_STORED_LEVEL = 0;
     private static final int MIN_BLOCK_Y = -64;
     private static final int MIN_SECTION_Y = -4;
-    private static final int RADIUS_CHUNKS = 64;
+    private static final int RADIUS_SHORT_OF_FAR_CHUNK = 16;
     private static final int VIEW_CHUNKS = 2;
     private static final int FAR_CHUNK = 40;
     private static final long SEED = 0x5EED_1234_ABCDL;
@@ -95,7 +95,7 @@ class SaveImportDirectTest {
     private SaveImport importer(ColumnCoverage coverage) {
         WorkService<SectionPyramid> service = harness.register("import", SectionPyramid::new);
         SaveImport importer = new SaveImport(new EmptySave(), ingest(service, coverage), coverage, service, SEED);
-        importer.tick(0, 0, RADIUS_CHUNKS, VIEW_CHUNKS);
+        importer.tick(0, 0, RADIUS_SHORT_OF_FAR_CHUNK, VIEW_CHUNKS);
         return importer;
     }
 
