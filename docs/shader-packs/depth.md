@@ -38,3 +38,25 @@ A pack that keeps its own reconstruction reads the LOD depth itself. Both depth 
 Where the near field drew, `eminusDepthTex0` holds that surface's depth in the LOD's projection, so read `depthtex0` first and fall back to the LOD depth only where `depthtex0` holds nothing. On a frame where `eminusRenderDistance` is `0` the depth textures carry no LOD: test it before reading them.
 
 A pack that already supports Distant Horizons makes the same change where it reads `dhDepthTex`, `dhProjectionInverse` and `dhRenderDistance`.
+
+## Merged depth
+
+A pass that needs one depth in one projection reads the near field and the LOD from one texture:
+
+| Name | Type | Meaning |
+| --- | --- | --- |
+| `eminusMergedDepthTex0` | `sampler2D` | Near-field and LOD depth after the translucent faces. |
+| `eminusMergedDepthTex1` | `sampler2D` | Near-field and LOD depth after the opaque faces only. |
+| `eminusMergedProjection` | `mat4` | The projection of both textures. Its far plane is 48 000 blocks. |
+| `eminusMergedProjectionInverse` | `mat4` | Its inverse. |
+| `eminusMergedPreviousProjection` | `mat4` | The merged projection of the previous frame. |
+
+Read them where the pass reads `depthtex0`, `depthtex1`, `gbufferProjection`, `gbufferProjectionInverse` and `gbufferPreviousProjection`. Sky reads `1.0`, as in `depthtex0`.
+
+In a `deferred` pass read `eminusMergedDepthTex1`. `eminusMergedDepthTex0` holds the current frame from your first `composite` pass on.
+
+A hand pixel holds `0.0`. Test for that value where your pass tells the hand apart by its depth.
+
+The merged depth steps by about 0.3 blocks at 500 blocks, 1.2 at 1000, 4.6 at 2000 and 18 at 4000. A pass that marches along depth or reprojects terrain past the render distance reads `eminusDepthTex0` and `eminusDepthTex1` there.
+
+On a frame where `eminusRenderDistance` is `0` the merged textures hold nothing. Read `depthtex0` and `depthtex1` on that frame.
