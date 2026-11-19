@@ -1,6 +1,7 @@
 package com.eminus.cell.cache;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
@@ -18,11 +19,17 @@ public final class CellCache implements CellAccess {
     private final ReentrantLock lock = new ReentrantLock();
     private final Long2ObjectOpenHashMap<CellHandle> handles = new Long2ObjectOpenHashMap<>();
     private final ReleasedCells released = new ReleasedCells();
+    private final WriteLatch latch;
 
     public CellCache(CellStore store, CellSaver saves, LongSupplier clock) {
+        this(store, saves, clock, new WriteFailureLog());
+    }
+
+    public CellCache(CellStore store, CellSaver saves, LongSupplier clock, WriteLatch.Report report) {
         this.store = store;
         this.saves = saves;
         this.clock = clock;
+        this.latch = new WriteLatch(clock, report);
     }
 
     @Override
@@ -38,7 +45,7 @@ public final class CellCache implements CellAccess {
             if (handle == null) {
                 handle = released.take(key);
                 if (handle == null) {
-                    handle = new CellHandle(key, clock);
+                    handle = new CellHandle(key, clock, latch);
                     load = true;
                 }
 
@@ -62,40 +69,43 @@ public final class CellCache implements CellAccess {
     public void release(CellHandle handle) {
         WorkerPool.requireWorkerThread("Releasing a cell");
 
-        boolean submit = false;
-
         lock.lock();
         try {
             if (handle.release() > 0) {
                 return;
             }
 
-            if (handle.dirty()) {
-                submit = handle.claimQueue();
-            } else {
+            if (!handle.dirty()) {
                 handles.remove(handle.key());
                 released.park(handle);
+                return;
             }
         } finally {
             lock.unlock();
         }
 
-        if (submit) {
+        if (!latch.latched() && handle.claimQueue()) {
             saves.submit(handle);
         }
     }
 
     public void sweep() {
-        List<CellHandle> due = new ArrayList<>();
+        boolean latched = latch.latched();
+        List<CellHandle> unsaved = new ArrayList<>();
+        List<CellHandle> unheld = new ArrayList<>();
         List<CellHandle> park = new ArrayList<>();
+        List<CellHandle> dropped = List.of();
 
         lock.lock();
         try {
             for (CellHandle handle : handles.values()) {
-                if (handle.references() == 0 && !handle.dirty()) {
+                boolean dirty = handle.dirty();
+                if (!dirty && handle.references() == 0) {
                     park.add(handle);
-                } else if (handle.claimDue()) {
-                    due.add(handle);
+                } else if (dirty && latched && handle.references() == 0) {
+                    unheld.add(handle);
+                } else if (dirty) {
+                    unsaved.add(handle);
                 }
             }
 
@@ -103,11 +113,48 @@ public final class CellCache implements CellAccess {
                 handles.remove(handle.key());
                 released.park(handle);
             }
+
+            if (unheld.size() > WriteLatch.MAX_HELD_DIRTY) {
+                unheld.sort(Comparator.comparingLong(CellHandle::dirtySince));
+                dropped = unheld.subList(0, unheld.size() - WriteLatch.MAX_HELD_DIRTY);
+                for (CellHandle handle : dropped) {
+                    handles.remove(handle.key());
+                }
+            }
         } finally {
             lock.unlock();
         }
 
-        due.forEach(saves::submit);
+        if (!dropped.isEmpty()) {
+            dropped.forEach(CellHandle::discard);
+            latch.dropped(dropped.size());
+        }
+
+        unsaved.addAll(unheld.subList(dropped.size(), unheld.size()));
+        if (latched) {
+            submitProbe(unsaved);
+            return;
+        }
+
+        boolean recovered = latch.takeRecovered();
+        for (CellHandle handle : unsaved) {
+            if (recovered ? handle.claimQueue() : handle.claimDue()) {
+                saves.submit(handle);
+            }
+        }
+    }
+
+    private void submitProbe(List<CellHandle> unsaved) {
+        if (!latch.probeDue()) {
+            return;
+        }
+
+        for (CellHandle handle : unsaved) {
+            if (handle.claimQueue()) {
+                saves.submit(handle);
+                return;
+            }
+        }
     }
 
     public boolean flush() {
@@ -120,8 +167,9 @@ public final class CellCache implements CellAccess {
             lock.unlock();
         }
 
+        latch.probeNow();
         live.forEach(handle -> handle.save(store));
-        return live.stream().noneMatch(CellHandle::dirty);
+        return latch.flushed() && live.stream().noneMatch(CellHandle::dirty);
     }
 
     public int liveCount() {

@@ -75,16 +75,17 @@ public final class SurfaceReading {
                 for (int x = Math.max(fromX, minX); x < Math.min(toX, minX + side); x++) {
                     for (int z = Math.max(fromZ, minZ); z < Math.min(toZ, minZ + side); z++) {
                         int column = (x - minX) * side + (z - minZ);
-                        float known = tops[level][column];
-                        if (Float.isNaN(known) || top > known) {
-                            tops[level][column] = top;
-                        }
+                        tops[level][column] = higher(tops[level][column], top);
                     }
                 }
             }
         }
 
         return tops;
+    }
+
+    private static float higher(float known, float top) {
+        return Float.isNaN(known) || top > known ? top : known;
     }
 
     private static float upFaceHeight(CellMesh mesh, long quad, ModelBakery bakery, int level) {

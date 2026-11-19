@@ -51,6 +51,7 @@ public final class ContractPath implements PackPath {
     private final @Nullable PackFile vertex;
     private final @Nullable PackFile beam;
     private final @Nullable ProgramSource packShadow;
+    private final @Nullable ProgramSource packShadowTranslucent;
     private final ContractDeclarations declarations;
 
     private record PackFile(String path, String source) {
@@ -58,7 +59,8 @@ public final class ContractPath implements PackPath {
 
     private ContractPath(PackFile opaque, @Nullable PackFile translucent, @Nullable PackFile shadow,
             @Nullable PackFile shadowTranslucent, @Nullable PackFile vertex, @Nullable PackFile beam,
-            @Nullable ProgramSource packShadow, ContractDeclarations declarations) {
+            @Nullable ProgramSource packShadow, @Nullable ProgramSource packShadowTranslucent,
+            ContractDeclarations declarations) {
         this.opaque = opaque;
         this.translucent = translucent;
         this.shadow = shadow;
@@ -66,6 +68,7 @@ public final class ContractPath implements PackPath {
         this.vertex = vertex;
         this.beam = beam;
         this.packShadow = packShadow;
+        this.packShadowTranslucent = packShadowTranslucent;
         this.declarations = declarations;
     }
 
@@ -74,11 +77,16 @@ public final class ContractPath implements PackPath {
         String folder = folder(pack.getDimensionMap(), access, dimension);
         Function<AbsolutePackPath, String> sources = access.eminus$sourceProvider();
         PackFile opaque = read(sources, PackContract.OPAQUE_FILE, folder);
-        return opaque == null ? null : new ContractPath(opaque,
+        if (opaque == null) {
+            return null;
+        }
+
+        ProgramFallbackResolver programs = new ProgramFallbackResolver(programSet);
+        return new ContractPath(opaque,
                 read(sources, PackContract.TRANSLUCENT_FILE, folder), read(sources, PackContract.SHADOW_FILE, folder),
                 read(sources, PackContract.SHADOW_TRANSLUCENT_FILE, folder),
                 read(sources, PackContract.VERTEX_FILE, folder), read(sources, PackContract.BEAM_FILE, folder),
-                new ProgramFallbackResolver(programSet).resolveNullable(ProgramId.ShadowCutout),
+                programs.resolveNullable(ProgramId.ShadowCutout), programs.resolveNullable(ProgramId.ShadowWater),
                 ((DeclaredContract) pack).eminus$contractDeclarations());
     }
 
@@ -114,15 +122,20 @@ public final class ContractPath implements PackPath {
         return switch (kind) {
             case OPAQUE -> source(OPAQUE_PROGRAM, opaque);
             case TRANSLUCENT -> source(TRANSLUCENT_PROGRAM, translucent == null ? opaque : translucent);
-            case SHADOW -> switch (ContractSources.shadowSource(shadow != null, packShadow != null)) {
-                case FILE -> source(SHADOW_PROGRAM, Objects.requireNonNull(shadow, CHOSEN));
-                case PACK_PROGRAM -> packShadowSource(Objects.requireNonNull(packShadow, CHOSEN));
-                case NONE -> null;
-            };
-            case SHADOW_TRANSLUCENT -> shadowTranslucent == null ? null
-                    : source(SHADOW_TRANSLUCENT_PROGRAM, shadowTranslucent);
+            case SHADOW -> shadowSource(SHADOW_PROGRAM, shadow, packShadow);
+            case SHADOW_TRANSLUCENT -> shadowSource(SHADOW_TRANSLUCENT_PROGRAM, shadowTranslucent,
+                    packShadowTranslucent);
             case BEAM -> beam == null ? null : source(BEAM_PROGRAM, beam, ContractSources::spliceBeam);
             case BEAM_GLOW -> beam == null ? null : source(BEAM_GLOW_PROGRAM, beam, ContractSources::spliceBeam);
+        };
+    }
+
+    private @Nullable Source shadowSource(String programName, @Nullable PackFile file,
+            @Nullable ProgramSource packProgram) {
+        return switch (ContractSources.shadowSource(file != null, packProgram != null)) {
+            case FILE -> source(programName, Objects.requireNonNull(file, CHOSEN));
+            case PACK_PROGRAM -> packShadowSource(Objects.requireNonNull(packProgram, CHOSEN));
+            case NONE -> null;
         };
     }
 

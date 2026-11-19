@@ -26,6 +26,7 @@ import com.eminus.ingest.IngestColumns;
 import com.eminus.ingest.SectionPyramid;
 import com.eminus.ingest.saved.SavedColumn;
 import com.eminus.store.CellStore;
+import com.eminus.store.CellWrites;
 import com.eminus.store.SqliteCellStore;
 import com.eminus.work.WorkService;
 import com.eminus.work.WorkerHarness;
@@ -115,7 +116,7 @@ class DimensionRuntimeTest {
     @Test
     void aRuntimeRaisedWithinTheGraceCoversColumnsFromTheLevelItsStoreStillHolds() {
         try (CellStore finest = SqliteCellStore.open(folder, LOWEST_STORED_LEVEL, NO_GRACE_MILLIS, clock::get)) {
-            finest.write(Cell.blank(KEY));
+            CellWrites.write(finest, Cell.blank(KEY));
         }
 
         openRuntime(RAISED_STORED_LEVEL);
@@ -165,7 +166,7 @@ class DimensionRuntimeTest {
         runtime.close();
 
         try (CellStore leftOpen = SqliteCellStore.open(folder, LOWEST_STORED_LEVEL, NO_GRACE_MILLIS, clock::get)) {
-            leftOpen.write(Cell.blank(coarser));
+            CellWrites.write(leftOpen, Cell.blank(coarser));
 
             openRuntime(LOWEST_STORED_LEVEL, ingest);
             ingestTheColumn(ingest);

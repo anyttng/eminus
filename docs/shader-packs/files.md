@@ -9,8 +9,8 @@ Part of the [Eminus shader-pack contract](../shader-pack-contract.md).
 | `eminus_opaque.glsl` | yes | Opaque and cutout LOD faces. Its presence turns the contract on. |
 | `eminus_translucent.glsl` | no | Translucent LOD faces (water, stained glass, ice). Without it, `eminus_opaque.glsl` runs for them too, with `fragment.translucent` set. |
 | `eminus_shadow.glsl` | no | Opaque and cutout LOD faces in your shadow pass. Without it, your own shadow program runs for them ([Your own shadow program](shadows.md#your-own-shadow-program)). |
-| `eminus_shadow_translucent.glsl` | no | Translucent LOD faces in your shadow pass. Used whenever the opaque LOD faces cast shadows, through `eminus_shadow.glsl` or your own shadow program. Without it, translucent LOD faces cast no shadow. |
-| `eminus_vertex.glsl` | no | The vertex stage's hook of every program built from your contract files: your vertex animation, your jitter, your render scale, your shadow-map distortion. Your own shadow program runs its own vertex stage instead. Without it, LOD positions reach your buffers as Eminus projects them. |
+| `eminus_shadow_translucent.glsl` | no | Translucent LOD faces in your shadow pass. Without it, your own shadow program runs for them ([Your own shadow program](shadows.md#your-own-shadow-program)). |
+| `eminus_vertex.glsl` | no | The vertex stage's hook of every program built from your contract files: your vertex animation, your jitter, your render scale, your shadow-map distortion. Without it, LOD positions reach your buffers as Eminus projects them. |
 | `eminus_beaconbeam.glsl` | no | Beacon beams past the render distance ([Beacon beams](beacon-beams.md)). Without it, no beam is drawn past the render distance inside your pack. |
 | `eminus.properties` | no | Not a program: the blocks your vertex hook moves ([Blocks your hook moves](vertex-hook.md#blocks-your-hook-moves)), and `cutout = pack` where your own code cuts the LOD ([Cutout](fragment.md#cutout)). Read from `shaders/` itself, never from a dimension folder. |
 
@@ -34,7 +34,7 @@ Every `.glsl` file except `eminus_vertex.glsl` is a fragment-stage source in you
 
 A per-buffer key, `blend.<program>.<buffer>`, follows the same rule one buffer at a time, and applies only to a buffer your contract file writes. Set the `blend.eminus_` key wherever your contract file needs a blend other than the game program's.
 
-With neither key set, the translucent program blends as the game's translucent terrain does, and the other three do not blend, as Iris's own shadow programs do not. Your own shadow program runs as `shadow_cutout_eminus` or `shadow_eminus`. It takes the keys your pack sets for `shadow_cutout` or `shadow`, unless you set `blend.shadow_cutout_eminus` or `blend.shadow_eminus`. The beam file runs as two programs, `eminus_beaconbeam` and `eminus_beaconbeam_glow` ([Beacon beams](beacon-beams.md#when-the-beams-are-drawn)).
+With neither key set, the translucent program blends as the game's translucent terrain does, and the other three do not blend, as Iris's own shadow programs do not. Your own shadow program runs under its name with `_eminus` added, such as `shadow_cutout_eminus` or `shadow_water_eminus`. It takes the keys your pack sets for the program itself, unless you set a `blend.` key for the `_eminus` name. The beam file runs as two programs, `eminus_beaconbeam` and `eminus_beaconbeam_glow` ([Beacon beams](beacon-beams.md#when-the-beams-are-drawn)).
 
 ## Macros
 

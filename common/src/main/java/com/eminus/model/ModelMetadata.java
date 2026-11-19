@@ -43,6 +43,14 @@ public final class ModelMetadata {
         return word >>> OCCLUDABLE_SHIFT & FaceMask.ALL;
     }
 
+    public static int overlapping(int word) {
+        if (has(word, TRANSLUCENT)) {
+            return FaceMask.NONE;
+        }
+
+        return has(word, OPAQUE) ? FaceMask.ALL : occluding(word);
+    }
+
     public static int emission(int word) {
         return word >>> EMISSION_SHIFT & MAX_EMISSION;
     }

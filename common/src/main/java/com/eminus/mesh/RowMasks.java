@@ -44,11 +44,16 @@ public final class RowMasks {
 
                 if (opacity.opacity(state) >= StateTable.FULL_OPACITY) {
                     opaqueBits |= bit;
-                } else if (opacity.coversGround(entry, voxelBlocks)) {
-                    opaqueBits |= bit;
-                    if (axis != Direction.Axis.Y) {
-                        coverBits |= bit;
-                    }
+                    continue;
+                }
+
+                if (!opacity.coversGround(entry, voxelBlocks)) {
+                    continue;
+                }
+
+                opaqueBits |= bit;
+                if (axis != Direction.Axis.Y) {
+                    coverBits |= bit;
                 }
             }
 

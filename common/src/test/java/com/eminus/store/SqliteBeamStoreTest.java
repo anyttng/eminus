@@ -83,7 +83,7 @@ class SqliteBeamStoreTest {
         Cell cell = Cell.blank(CELL);
         cell.set(1, 2, 3, STONE);
         try (SqliteCellStore store = open()) {
-            store.write(cell);
+            CellWrites.write(store, cell);
         }
         execute("DROP TABLE beams");
 

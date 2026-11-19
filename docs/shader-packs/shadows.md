@@ -2,7 +2,7 @@
 
 Part of the [Eminus shader-pack contract](../shader-pack-contract.md).
 
-`eminus_shadow.glsl` runs for the LOD's opaque and cutout faces in your shadow pass, and `eminus_shadow_translucent.glsl` for its translucent ones, with `fragment.translucent` set. Without the second file, translucent LOD faces cast no shadow, and `eminus_shadow.glsl` never receives a translucent fragment.
+`eminus_shadow.glsl` runs for the LOD's opaque and cutout faces in your shadow pass, and `eminus_shadow_translucent.glsl` for its translucent ones, with `fragment.translucent` set. Without either file, your own shadow program runs for those faces ([Your own shadow program](#your-own-shadow-program)). `eminus_shadow.glsl` never receives a translucent fragment.
 
 Both files' `fragment` carries the same fields as in the other two programs ([The fragment function](fragment.md)), with `viewPos` and `normal` in the shadow view's space. Where your `shadow` program reads its texture at a fixed mip level, read it through `eminus_colorLod` ([The texture at a chosen level](fragment.md#the-texture-at-a-chosen-level)). The body of your `shadow` fragment code moves over the way your terrain code did. `gl_ProjectionMatrix` and `gl_ModelViewMatrix` are the shadow pass's own, and everything Iris hands your `shadow` program is available.
 
@@ -10,7 +10,7 @@ The translucent faces are drawn after Iris has copied the opaque shadow depth in
 
 Both shadow files take the same vertex hook. Your shadow sampling reads the map through your distortion, so the LOD has to be written through it too. Where `vertex.shadow` is `true`, `eminus_vertexPosition` returns `eminus_project(vertex.playerPos)` with the distortion your `shadow` vertex program applies to its own clip position ([The vertex hook](vertex-hook.md)). A pack whose shadow map is not distorted returns the projected position as it is.
 
-Faces are drawn whichever way they face, as Iris draws the near terrain into the shadow map. The exception is a few translucent faces Eminus builds one-sided, such as water against the seabed, which keep their back-face culling. The LOD reaches your shadow map only as far as your `shadowDistance` does. Iris's shadow map is a square of that half-width around the camera, so a pack whose shadow distance stays inside the render distance shows no LOD shadow at all.
+The LOD reaches your shadow map only as far as your `shadowDistance` does. Iris's shadow map is a square of that half-width around the camera, so a pack whose shadow distance stays inside the render distance shows no LOD shadow at all.
 
 ## Shadow planes
 
@@ -21,11 +21,9 @@ const float shadowNearPlane = -1.0;
 const float shadowFarPlane = -1.0;
 ```
 
-Iris then spans the depth over the render distance, and while the LOD casts shadows Eminus extends that span to the LOD's render distance.
-
 ## Your own shadow program
 
-Without `eminus_shadow.glsl`, Eminus draws the LOD's opaque and cutout faces through the program Iris would use for cutout terrain in your shadow pass: `shadow_cutout`, or `shadow` where the pack has no `shadow_cutout`. Both stages are yours, so your distortion, your alpha test and whatever you write to `shadowcolor0` apply to the LOD as they do to near terrain.
+Without `eminus_shadow.glsl`, Eminus draws the LOD's opaque and cutout faces through the program Iris would use for cutout terrain in your shadow pass: `shadow_cutout`, or `shadow` where the pack has no `shadow_cutout`. Without `eminus_shadow_translucent.glsl`, the translucent faces go through `shadow_water`, or `shadow` where the pack has no `shadow_water`. Both stages are yours, so your distortion, your alpha test and whatever you write to `shadowcolor0` apply to the LOD as they do to near terrain.
 
 Your vertex stage runs here, not `eminus_vertex.glsl`. Its `mc_Entity.x` carries the real block id at every `level` and with LOD Animations off: the limits of [The vertex hook](vertex-hook.md) do not apply to it.
 
@@ -43,7 +41,7 @@ Eminus fills the inputs your vertex stage reads from each LOD vertex:
 
 Where your fragment stage samples its texture (`gtexture`, `tex`, `texture` or `gcolor`), Eminus replaces the lookup with one into the LOD's own textures, tinted and repeated block by block, at the coordinates you pass. This holds for `texture`, `texture2D`, `textureLod`, `texture2DLod`, `textureGrad`, `texture2DGrad` and `texture2DGradARB`.
 
-Eminus does not run the program, and the LOD casts no shadow, when it:
+Eminus does not run a program, and the faces it would draw cast no shadow, when it:
 
 - samples that texture in its vertex stage, or names it anywhere other than in its `uniform` declaration and as the first argument of one of the lookups above (passed into a function of your own, `textureSize`, `texelFetch`);
 - declares one of the inputs above together with another name in one declaration;
@@ -51,7 +49,7 @@ Eminus does not run the program, and the LOD casts no shadow, when it:
 - has no `main`, or more than one;
 - carries a geometry or tessellation stage.
 
-The game log then carries one line naming the program and the reason. Ship `eminus_shadow.glsl` for such a pack.
+The game log then carries one line naming the program and the reason. Ship the contract file for those faces in such a pack.
 
 ## When the shadows are drawn
 

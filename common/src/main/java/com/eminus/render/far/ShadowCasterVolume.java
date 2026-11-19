@@ -73,15 +73,21 @@ public final class ShadowCasterVolume {
 
             int next = (side + 1) % SIDES;
             if (bounds(side, lightTravel) != bounds(next, lightTravel)) {
-                edges[side].cross(lightTravel, normal);
-                if (normal.lengthSquared() > PARALLEL) {
-                    if (normal.dot(forward) < 0.0F) {
-                        normal.negate();
-                    }
-                    add(normal, -normal.dot(apex));
-                }
+                addEdgePlane(side, lightTravel);
             }
         }
+    }
+
+    private void addEdgePlane(int side, Vector3fc lightTravel) {
+        edges[side].cross(lightTravel, normal);
+        if (!(normal.lengthSquared() > PARALLEL)) {
+            return;
+        }
+
+        if (normal.dot(forward) < 0.0F) {
+            normal.negate();
+        }
+        add(normal, -normal.dot(apex));
     }
 
     public boolean testAab(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {

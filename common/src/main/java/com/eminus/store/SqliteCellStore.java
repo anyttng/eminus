@@ -156,7 +156,7 @@ public final class SqliteCellStore implements CellStore {
     }
 
     @Override
-    public synchronized @Nullable Cell read(long key) {
+    public @Nullable Cell read(long key) {
         byte[] record = selectRecord(key);
         if (record == null) {
             return null;
@@ -173,17 +173,18 @@ public final class SqliteCellStore implements CellStore {
     }
 
     @Override
-    public synchronized void write(Cell cell) {
-        long key = cell.key();
+    public void write(long key, int occupancy, byte[] record) {
         checkLevel(key);
 
-        try {
-            upsertCell.setLong(1, key);
-            upsertCell.setInt(2, cell.occupancy());
-            upsertCell.setBytes(3, CellRecord.encode(cell));
-            upsertCell.executeUpdate();
-        } catch (SQLException failure) {
-            throw new StoreException("Could not write cell " + key + " to " + file, failure);
+        synchronized (this) {
+            try {
+                upsertCell.setLong(1, key);
+                upsertCell.setInt(2, occupancy);
+                upsertCell.setBytes(3, record);
+                upsertCell.executeUpdate();
+            } catch (SQLException failure) {
+                throw new StoreException("Could not write cell " + key + " to " + file, failure);
+            }
         }
     }
 
@@ -317,7 +318,7 @@ public final class SqliteCellStore implements CellStore {
         }
     }
 
-    private byte @Nullable [] selectRecord(long key) {
+    private synchronized byte @Nullable [] selectRecord(long key) {
         try {
             selectCell.setLong(1, key);
             try (ResultSet rows = selectCell.executeQuery()) {

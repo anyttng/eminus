@@ -15,10 +15,12 @@ import com.eminus.ingest.SectionPyramid;
 import com.eminus.work.WorkService;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.world.level.ChunkPos;
 
 import org.jspecify.annotations.Nullable;
@@ -62,6 +64,8 @@ public final class SaveImport {
     private final Long2ObjectLinkedOpenHashMap<SavedChunk> neighbors = new Long2ObjectLinkedOpenHashMap<>();
     private final Long2ObjectLinkedOpenHashMap<Waiting> waiting = new Long2ObjectLinkedOpenHashMap<>();
     private final LongSet refused = new LongOpenHashSet();
+    private final Long2ObjectOpenHashMap<BitSet> heldBack = new Long2ObjectOpenHashMap<>();
+    private boolean viewMoved;
     private long dirtySinceNanos;
     private boolean dirtyOverdue;
     private long[] pending = NO_TILES;
@@ -100,6 +104,8 @@ public final class SaveImport {
     }
 
     public synchronized void tick(int playerChunkX, int playerChunkZ, int radiusChunks, int clientViewChunks) {
+        boolean moved = playerChunkX != centerChunkX || playerChunkZ != centerChunkZ
+                || clientViewChunks != viewChunks;
         centerChunkX = playerChunkX;
         centerChunkZ = playerChunkZ;
         viewChunks = clientViewChunks;
@@ -108,12 +114,14 @@ public final class SaveImport {
             return;
         }
 
+        viewMoved |= moved && !heldBack.isEmpty();
         expireWaiting();
         if (planned && region == plannedRegion && radiusChunks == plannedRadiusChunks) {
-            replayDirty(radiusChunks);
+            replay(radiusChunks);
             return;
         }
 
+        viewMoved = false;
         planned = true;
         planning = true;
         plannedRegion = region;
@@ -162,21 +170,23 @@ public final class SaveImport {
         }
 
         for (SavedColumn column : ready) {
-            service.enqueue(pyramid -> {
-                try {
-                    if (ingest.ingestColumn(column, pyramid)) {
-                        imported.incrementAndGet();
-                        fromSnapshot.incrementAndGet();
-                    }
-                } catch (RuntimeException failure) {
-                    failed(failure);
-                }
-            });
+            service.enqueue(pyramid -> importSnapshotColumn(column, pyramid));
+        }
+    }
+
+    private void importSnapshotColumn(SavedColumn column, SectionPyramid pyramid) {
+        try {
+            if (ingest.ingestColumn(column, pyramid)) {
+                imported.incrementAndGet();
+                fromSnapshot.incrementAndGet();
+            }
+        } catch (RuntimeException failure) {
+            failed(failure);
         }
     }
 
     private boolean inView(int chunkX, int chunkZ) {
-        return Math.max(Math.abs(chunkX - centerChunkX), Math.abs(chunkZ - centerChunkZ)) <= viewChunks;
+        return ChunkTrackingView.isInViewDistance(centerChunkX, centerChunkZ, viewChunks, chunkX, chunkZ);
     }
 
     private @Nullable SavedColumn whole(long position) {
@@ -225,19 +235,33 @@ public final class SaveImport {
         }
     }
 
-    private void replayDirty(int radiusChunks) {
+    private void replay(int radiusChunks) {
         boolean idle = !planning && !scanning && current == null && next >= pending.length;
-        boolean due = dirtyOverdue || System.nanoTime() - dirtySinceNanos >= DIRTY_DELAY_NANOS;
-        if (dirty.isEmpty() || !idle || !due) {
+        if (!idle) {
             return;
         }
 
-        dirtyOverdue = false;
-        finished.removeAll(dirty);
-        pending = ImportTiles.nearestFirst(dirty, centerChunkX, centerChunkZ, radiusChunks);
+        boolean due = dirtyOverdue || System.nanoTime() - dirtySinceNanos >= DIRTY_DELAY_NANOS;
+        if (!dirty.isEmpty() && due) {
+            dirtyOverdue = false;
+            forgetDirty();
+            pending = ImportTiles.nearestFirst(dirty, centerChunkX, centerChunkZ, radiusChunks);
+            dirty.clear();
+        } else if (viewMoved) {
+            viewMoved = false;
+            pending = ImportTiles.nearestFirst(heldBack.keySet(), centerChunkX, centerChunkZ, radiusChunks);        } else {
+            return;
+        }
+
         next = 0;
-        dirty.clear();
         service.enqueue(pyramid -> advance());
+    }
+
+    private void forgetDirty() {
+        finished.removeAll(dirty);
+        for (long tile : dirty) {
+            heldBack.remove(tile);
+        }
     }
 
     public synchronized void stop() {
@@ -263,7 +287,7 @@ public final class SaveImport {
         LongSet known;
         synchronized (this) {
             regions.addAll(listed);
-            finished.removeAll(dirty);
+            forgetDirty();
             dirty.clear();
             known = new LongOpenHashSet(regions);
         }
@@ -318,8 +342,9 @@ public final class SaveImport {
     private synchronized @Nullable Candidate nextCandidate() {
         while (running && next < pending.length) {
             long tile = pending[next++];
-            if (!finished.contains(tile) && !settled.contains(tile)) {
-                return new Candidate(tile, centerChunkX, centerChunkZ, viewChunks);
+            BitSet held = heldBack.get(tile);
+            if (!settled.contains(tile) && (held != null || !finished.contains(tile))) {
+                return new Candidate(tile, centerChunkX, centerChunkZ, viewChunks, held);
             }
         }
 
@@ -340,38 +365,52 @@ public final class SaveImport {
 
     private BitSet wanted(Candidate candidate) {
         BitSet wanted = new BitSet(ImportTiles.TILE_CHUNKS * ImportTiles.TILE_CHUNKS);
+        BitSet held = new BitSet(ImportTiles.TILE_CHUNKS * ImportTiles.TILE_CHUNKS);
+        BitSet asked = candidate.heldBack();
         int checked = 0;
         int minChunkX = ChunkPos.getX(candidate.tile()) << ImportTiles.TILE_BITS;
         int minChunkZ = ChunkPos.getZ(candidate.tile()) << ImportTiles.TILE_BITS;
         for (int dz = 0; dz < ImportTiles.TILE_CHUNKS; dz++) {
             for (int dx = 0; dx < ImportTiles.TILE_CHUNKS; dx++) {
+                int column = dz * ImportTiles.TILE_CHUNKS + dx;
+                if (asked != null && !asked.get(column)) {
+                    continue;
+                }
+
                 int chunkX = minChunkX + dx;
                 int chunkZ = minChunkZ + dz;
-                boolean inView = Math.max(Math.abs(chunkX - candidate.centerChunkX()),
-                        Math.abs(chunkZ - candidate.centerChunkZ())) <= candidate.viewChunks();
+                boolean inView = ChunkTrackingView.isInViewDistance(candidate.centerChunkX(),
+                        candidate.centerChunkZ(), candidate.viewChunks(), chunkX, chunkZ);
                 if (inView) {
+                    held.set(column);
                     continue;
                 }
 
                 checked++;
                 if (!coverage.covers(chunkX, chunkZ)) {
-                    wanted.set(dz * ImportTiles.TILE_CHUNKS + dx);
+                    wanted.set(column);
                 }
             }
         }
 
         coverageChecks.addAndGet(checked);
-        if (checked == ImportTiles.TILE_CHUNKS * ImportTiles.TILE_CHUNKS && wanted.isEmpty()) {
-            synchronized (this) {
+        synchronized (this) {
+            if (held.isEmpty()) {
+                heldBack.remove(candidate.tile());
+            } else {
+                heldBack.put(candidate.tile(), held);
+            }
+
+            if (checked == ImportTiles.TILE_CHUNKS * ImportTiles.TILE_CHUNKS && wanted.isEmpty()) {
                 settled.add(candidate.tile());
             }
         }
 
-
         return wanted;
     }
 
-    private record Candidate(long tile, int centerChunkX, int centerChunkZ, int viewChunks) {
+    private record Candidate(long tile, int centerChunkX, int centerChunkZ, int viewChunks,
+            @Nullable BitSet heldBack) {
     }
 
     private void failed(RuntimeException failure) {
@@ -499,20 +538,22 @@ public final class SaveImport {
 
             AtomicInteger remaining = new AtomicInteger(saved.size());
             for (int index : saved) {
-                service.enqueue(pyramid -> {
-                    try {
-                        CompoundTag tag = tags[index];
-                        tags[index] = null;
-                        chunks[index] = tag == null ? null : source.parse(tag);
-                        parsed.incrementAndGet();
-                    } catch (RuntimeException failure) {
-                        failed(failure);
-                    } finally {
-                        if (remaining.decrementAndGet() == 0) {
-                            parsed();
-                        }
-                    }
-                });
+                service.enqueue(pyramid -> parseChunk(index, remaining));
+            }
+        }
+
+        private void parseChunk(int index, AtomicInteger remaining) {
+            try {
+                CompoundTag tag = tags[index];
+                tags[index] = null;
+                chunks[index] = tag == null ? null : source.parse(tag);
+                parsed.incrementAndGet();
+            } catch (RuntimeException failure) {
+                failed(failure);
+            } finally {
+                if (remaining.decrementAndGet() == 0) {
+                    parsed();
+                }
             }
         }
 
@@ -593,19 +634,21 @@ public final class SaveImport {
 
             AtomicInteger remaining = new AtomicInteger(columns.size());
             for (SavedColumn column : columns) {
-                service.enqueue(pyramid -> {
-                    try {
-                        if (ingest.ingestColumn(column, pyramid)) {
-                            imported.incrementAndGet();
-                        }
-                    } catch (RuntimeException failure) {
-                        failed(failure);
-                    } finally {
-                        if (remaining.decrementAndGet() == 0) {
-                            finish();
-                        }
-                    }
-                });
+                service.enqueue(pyramid -> importColumn(column, pyramid, remaining));
+            }
+        }
+
+        private void importColumn(SavedColumn column, SectionPyramid pyramid, AtomicInteger remaining) {
+            try {
+                if (ingest.ingestColumn(column, pyramid)) {
+                    imported.incrementAndGet();
+                }
+            } catch (RuntimeException failure) {
+                failed(failure);
+            } finally {
+                if (remaining.decrementAndGet() == 0) {
+                    finish();
+                }
             }
         }
 

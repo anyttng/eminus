@@ -11,12 +11,15 @@ import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.Dictionary;
 
 public final class FakeCellStore implements CellStore {
-    private final Map<Long, Cell> cells = new ConcurrentHashMap<>();
+    private final Map<Long, byte[]> records = new ConcurrentHashMap<>();
     private final AtomicInteger reads = new AtomicInteger();
     private final AtomicInteger writes = new AtomicInteger();
+    private final AtomicInteger writeAttempts = new AtomicInteger();
 
     private volatile CountDownLatch readGate;
     private volatile CountDownLatch readStarted;
+    private volatile CountDownLatch writeGate;
+    private volatile CountDownLatch writeStarted;
     private volatile boolean refuseWrites;
     private volatile Throwable readFailure;
 
@@ -39,22 +42,30 @@ public final class FakeCellStore implements CellStore {
             throw broken;
         }
 
-        return cells.get(key);
+        byte[] record = records.get(key);
+        return record == null ? null : CellRecord.decode(key, record);
     }
 
     @Override
-    public void write(Cell cell) {
+    public void write(long key, int occupancy, byte[] record) {
+        writeAttempts.incrementAndGet();
         if (refuseWrites) {
             throw new StoreException("The fake store refuses writes.", null);
         }
 
+        CountDownLatch gate = writeGate;
+        if (gate != null) {
+            writeStarted.countDown();
+            awaitQuietly(gate);
+        }
+
         writes.incrementAndGet();
-        cells.put(cell.key(), cell);
+        records.put(key, record);
     }
 
     @Override
     public void delete(long key) {
-        cells.remove(key);
+        records.remove(key);
     }
 
     @Override
@@ -101,6 +112,10 @@ public final class FakeCellStore implements CellStore {
         return writes.get();
     }
 
+    public int writeAttempts() {
+        return writeAttempts.get();
+    }
+
     public void refuseWrites(boolean refuse) {
         refuseWrites = refuse;
     }
@@ -121,6 +136,21 @@ public final class FakeCellStore implements CellStore {
     public void releaseReads() {
         CountDownLatch gate = readGate;
         readGate = null;
+        gate.countDown();
+    }
+
+    public void holdWrites() {
+        writeStarted = new CountDownLatch(1);
+        writeGate = new CountDownLatch(1);
+    }
+
+    public boolean awaitWriteStarted(long millis) {
+        return await(writeStarted, millis);
+    }
+
+    public void releaseWrites() {
+        CountDownLatch gate = writeGate;
+        writeGate = null;
         gate.countDown();
     }
 

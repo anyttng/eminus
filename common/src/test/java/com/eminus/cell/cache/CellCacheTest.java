@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import com.eminus.cell.Cell;
 import com.eminus.cell.CellKey;
 import com.eminus.cell.VoxelEntry;
+import com.eminus.store.CellWrites;
 import com.eminus.store.FakeCellStore;
 import com.eminus.store.SqliteCellStore;
 import com.eminus.store.StoreException;
@@ -179,7 +180,7 @@ class CellCacheTest {
     void aReadTheStoreRefusesLeavesTheStoredRecordWhole() {
         Cell stored = Cell.blank(KEY);
         stored.set(KEPT_VOXEL, KEPT_VOXEL, KEPT_VOXEL, STONE);
-        store.write(stored);
+        CellWrites.write(store, stored);
         store.failReads(new StoreException("The fake store refuses reads.", null));
 
         try {
@@ -234,7 +235,7 @@ class CellCacheTest {
     @Test
     void aDamagedRecordOpensBlankAndIsRewritten(@TempDir Path folder) throws SQLException {
         try (SqliteCellStore sqlite = openSqlite(folder)) {
-            sqlite.write(Cell.blank(KEY));
+            CellWrites.write(sqlite, Cell.blank(KEY));
         }
 
         try (Connection connection = rawConnection(folder); Statement statement = connection.createStatement()) {
