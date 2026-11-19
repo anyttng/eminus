@@ -159,8 +159,8 @@ public final class ImportCompareReading {
         private final SectionPyramid saved = new SectionPyramid();
 
         private void build(IngestColumn column, int index, SectionPyramid into) {
-            SectionConverter.convert(column.section(index), column.biomeWindow(index), column.skyLight(index),
-                    column.blockLight(index), states, biomes, into);
+            SectionConverter.convert(column.section(index).getStates(), column.biomeWindow(index),
+                    column.skyLight(index), column.blockLight(index), states, biomes, into);
             PyramidDownsampler.build(into, states, states);
         }
     }
