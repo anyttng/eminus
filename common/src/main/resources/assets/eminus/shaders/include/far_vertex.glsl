@@ -400,7 +400,7 @@ EminusQuadVertex eminus_quad_vertex(int vertexId) {
     vec3 boundsMin = vec3(second.z, second.w, third.x);
     vec3 boundsMax = vec3(third.y, third.z, third.w);
 
-    int flags = floatBitsToInt(fourth.x);
+    int flags = int(uint(fourth.x) | uint(fourth.y) << uint(METADATA_HALF_BITS));
     bool fluid = (flags & FLUID_FLAG) != 0;
     bool inward = (flags & INWARD_FLAG) != 0;
     uint placement = 0u;
