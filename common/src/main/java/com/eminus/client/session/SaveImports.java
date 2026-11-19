@@ -15,6 +15,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.storage.SerializableChunkData;
 
@@ -22,6 +23,9 @@ import org.jspecify.annotations.Nullable;
 
 public final class SaveImports {
     public static final String OFF_PROPERTY = "eminus.import.off";
+
+    private static final int MIN_VIEW_CHUNKS = 2;
+    private static final int MAX_VIEW_CHUNKS = 32;
 
     private static volatile @Nullable SaveImport current;
     private static volatile @Nullable ServerLevel savedLevel;
@@ -54,7 +58,7 @@ public final class SaveImports {
         if (running != null && player != null && settings.ingestion()) {
             ChunkPos at = player.chunkPosition();
             running.tick(at.x(), at.z(), FarDistance.cellsToChunks(settings.farRenderCells()),
-                    minecraft.options.getEffectiveRenderDistance() + ClientSession.CLIENT_EXTRA_CHUNKS);
+                    Mth.clamp(minecraft.options.getEffectiveRenderDistance(), MIN_VIEW_CHUNKS, MAX_VIEW_CHUNKS));
         }
     }
 
