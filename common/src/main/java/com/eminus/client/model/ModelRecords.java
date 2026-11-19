@@ -23,6 +23,10 @@ public final class ModelRecords implements AutoCloseable {
     public static final int LAYER_TEXEL = PACK_ID_TEXEL;
     public static final int OVERLAP_TEXEL = 8;
     public static final int BYTES = TEXELS * 4 * Float.BYTES;
+    public static final int METADATA_HALF_BITS = 16;
+    static final int METADATA_LOW_FLOAT = 12;
+    static final int METADATA_HIGH_FLOAT = 13;
+    private static final int METADATA_HALF_MASK = (1 << METADATA_HALF_BITS) - 1;
     public static final Format TEXEL_FORMAT = Format.RGBA32_FLOAT;
 
     private static final String LABEL = "eminus-model-records";
@@ -56,10 +60,18 @@ public final class ModelRecords implements AutoCloseable {
 
     public void write(int modelId, BakedModel model, int variantStart) {
         gpu.assertRenderThread();
+        scratch.clear();
+        encode(scratch, model, variantStart);
+        scratch.flip();
+
+        gpu.write(buffer, (long) modelId * BYTES, scratch);
+    }
+
+    static void encode(ByteBuffer scratch, BakedModel model, int variantStart) {
         float[] insets = model.insets();
         float[] bounds = model.bounds();
+        int metadata = model.metadata();
 
-        scratch.clear();
         scratch.putFloat(insets[Direction.DOWN.get3DDataValue()])
                 .putFloat(insets[Direction.UP.get3DDataValue()])
                 .putFloat(insets[Direction.NORTH.get3DDataValue()])
@@ -72,8 +84,8 @@ public final class ModelRecords implements AutoCloseable {
                 .putFloat(bounds[BakedModel.MAX_X])
                 .putFloat(bounds[BakedModel.MAX_Y])
                 .putFloat(bounds[BakedModel.MAX_Z])
-                .putFloat(Float.intBitsToFloat(model.metadata()))
-                .putFloat(Float.intBitsToFloat(model.tintRow()))
+                .putFloat(metadata & METADATA_HALF_MASK)
+                .putFloat(metadata >>> METADATA_HALF_BITS)
                 .putFloat(variantStart)
                 .putFloat(model.variantCount());
         for (float slope : model.slopes()) {
@@ -83,13 +95,10 @@ public final class ModelRecords implements AutoCloseable {
                 .putFloat(model.shades())
                 .putFloat(model.unmippedFaces())
                 .putFloat(model.layer() ? 1.0F : 0.0F)
-                .putFloat(ModelMetadata.overlapping(model.metadata()));
+                .putFloat(ModelMetadata.overlapping(metadata));
         while (scratch.hasRemaining()) {
             scratch.putFloat(0.0F);
         }
-        scratch.flip();
-
-        gpu.write(buffer, (long) modelId * BYTES, scratch);
     }
 
     @Override
