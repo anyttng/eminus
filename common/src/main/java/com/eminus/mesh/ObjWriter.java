@@ -56,8 +56,10 @@ public final class ObjWriter {
     private record Placed(int offset, int corners, float bottom, float top) {
         Placed(int level, boolean fluid, int placement) {
             this(QuadPlacement.offset(level, fluid, placement), QuadPlacement.corners(level, fluid, placement),
-                    QuadPlacement.lowGap(level, placement) / (float) DetailLevel.blocksPerVoxel(level),
-                    QuadPlacement.highGap(level, placement) / (float) DetailLevel.blocksPerVoxel(level));
+                    FacePlacement.low(FacePlacement.FLOOR, QuadPlacement.lowGap(level, placement),
+                            DetailLevel.blocksPerVoxel(level)),
+                    FacePlacement.high(FacePlacement.CEILING, QuadPlacement.highGap(level, placement),
+                            DetailLevel.blocksPerVoxel(level)));
         }
     }
 
@@ -88,7 +90,7 @@ public final class ObjWriter {
 
             boolean onTop = normal == Direction.Axis.Y ? positive : step[1] == 1;
             float rise = normal == Direction.Axis.Y ? 1 : height;
-            corner[Y] = onTop ? origin[Y] + rise - placed.top() : origin[Y] + placed.bottom();
+            corner[Y] = onTop ? origin[Y] + rise - 1 + placed.top() : origin[Y] + placed.bottom();
             if (onTop && placed.corners() != FluidCorners.FLAT) {
                 corner[Y] = origin[Y] + rise - 1 + FluidCorners.height(placed.corners(), corner[X] > origin[X],
                         corner[Z] > origin[Z]);
@@ -105,7 +107,7 @@ public final class ObjWriter {
         float near = blade == 0 ? origin[X] : origin[X] + 1;
         float far = blade == 0 ? origin[X] + 1 : origin[X];
         float bottom = origin[Y] + placed.bottom();
-        float top = origin[Y] + height - placed.top();
+        float top = origin[Y] + height - 1 + placed.top();
 
         corner(out, near, bottom, origin[Z]);
         corner(out, far, bottom, origin[Z] + 1);
