@@ -21,7 +21,7 @@ public class RenderSectionManagerMixin {
     private static final String SEARCH_DISTANCE =
             "Lnet/caffeinemc/mods/sodium/client/render/chunk/RenderSectionManager;getSearchDistance()F";
 
-    @Inject(method = "<init>", at = @At("RETURN"))
+    @Inject(method = "<init>*", at = @At("RETURN"))
     private void eminus$resetDrawnSections(CallbackInfo callback) {
         SodiumDrawnSections.reset();
     }
