@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 
 import com.eminus.cell.Cell;
@@ -59,6 +60,8 @@ class SqliteCellStoreTest {
     private static final String COUNT_META_TABLE =
             "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'meta'";
     private static final String COUNT_META_ROWS = "SELECT count(*) FROM meta";
+    private static final String COUNT_CELLS = "SELECT count(*) FROM cells";
+    private static final int CELLS_AT_LEVEL_ZERO_AND_UP = 2;
     private static final long NO_GRACE_MILLIS = 0L;
     private static final long GRACE_MILLIS = 2L * 60L * 60L * 1000L;
     private static final long MINUTE_MILLIS = 60L * 1000L;
@@ -369,6 +372,7 @@ class SqliteCellStoreTest {
         long grown = Files.size(file());
 
         try (SqliteCellStore store = open(raised)) {
+            store.maintain();
             for (int cell = 0; cell < SPARSE_CELLS; cell++) {
                 assertNull(store.read(CellKey.pack(0, cell, 0, 0)));
             }
@@ -380,7 +384,7 @@ class SqliteCellStoreTest {
         assertTrue(grown > SPARSE_GROWN_BYTES, "the store never grew: " + grown + " bytes");
         assertTrue(Files.size(file()) < SPARSE_VACUUMED_BYTES,
                 "the store was not vacuumed: " + Files.size(file()) + " bytes");
-        assertEquals(DetailLevel.MAX - raised + 1, readInt("SELECT count(*) FROM cells"));
+        assertEquals(DetailLevel.MAX - raised + 1, readInt(COUNT_CELLS));
     }
 
     @Test
@@ -388,6 +392,10 @@ class SqliteCellStoreTest {
         try (SqliteCellStore store = open(LOWEST_LEVEL)) {
             store.putColumn(COLUMN_A, LOWEST_LEVEL);
             store.putColumn(COLUMN_B, COARSER_LEVEL);
+        }
+
+        try (SqliteCellStore store = open(RAISED_LEVEL)) {
+            store.maintain();
         }
 
         assertEquals(Map.of(COLUMN_A, RAISED_LEVEL, COLUMN_B, COARSER_LEVEL), columnsAt(RAISED_LEVEL));
@@ -432,6 +440,7 @@ class SqliteCellStoreTest {
 
         Map<Long, Integer> columns = new HashMap<>();
         try (SqliteCellStore store = open(RAISED_LEVEL, GRACE_MILLIS)) {
+            store.maintain();
             assertNull(store.read(cellAt(DetailLevel.MIN)));
             assertNotNull(store.read(cellAt(RAISED_LEVEL)));
             store.readColumns((chunk, lowestLevel, current) -> columns.put(chunk, lowestLevel));
@@ -468,6 +477,7 @@ class SqliteCellStoreTest {
 
         playAt(from + 1, GRACE_MILLIS);
         try (SqliteCellStore store = open(from + 1, GRACE_MILLIS)) {
+            store.maintain();
             assertNull(store.read(cellAt(from)));
             assertNotNull(store.read(cellAt(from + 1)));
         }
@@ -499,7 +509,10 @@ class SqliteCellStoreTest {
             CellWrites.write(store, Cell.blank(cellAt(DetailLevel.MIN)));
         }
 
-        open(RAISED_LEVEL).close();
+        try (SqliteCellStore store = open(RAISED_LEVEL)) {
+            store.maintain();
+        }
+
         try (SqliteCellStore store = open(DetailLevel.MAX, GRACE_MILLIS)) {
             assertEquals(RAISED_LEVEL, store.heldLevel());
             assertThrows(IllegalArgumentException.class, () -> CellWrites.write(store, Cell.blank(cellAt(DetailLevel.MIN))));
@@ -514,6 +527,59 @@ class SqliteCellStoreTest {
         try (SqliteCellStore store = open(RAISED_LEVEL, GRACE_MILLIS)) {
             assertEquals(RAISED_LEVEL, store.heldLevel());
             assertThrows(IllegalArgumentException.class, () -> CellWrites.write(store, Cell.blank(cellAt(DetailLevel.MIN))));
+        }
+    }
+
+    @Test
+    void anOpenWithADropDueLeavesTheCellsBelowInTheFileAndHoldsTheRaisedLevel() throws SQLException {
+        givenCellsAtLevelZeroAndUp();
+
+        try (SqliteCellStore store = open(RAISED_LEVEL)) {
+            assertEquals(RAISED_LEVEL, store.heldLevel());
+            assertEquals(CELLS_AT_LEVEL_ZERO_AND_UP, readInt(COUNT_CELLS));
+        }
+    }
+
+    @Test
+    void aDropLeftUndoneIsStillDueAtTheNextOpen() throws SQLException {
+        givenCellsAtLevelZeroAndUp();
+        playAt(RAISED_LEVEL, GRACE_MILLIS);
+        open(RAISED_LEVEL, GRACE_MILLIS).close();
+
+        try (SqliteCellStore store = open(RAISED_LEVEL, GRACE_MILLIS)) {
+            assertEquals(RAISED_LEVEL, store.heldLevel());
+            store.maintain();
+            assertNull(store.read(cellAt(DetailLevel.MIN)));
+        }
+
+        assertEquals(0, readInt(COUNT_META_ROWS));
+    }
+
+    @Test
+    void readsAndWritesIssuedDuringTheMaintenanceCompleteWithNoStoreError() throws Exception {
+        givenThePageSize(SPARSE_PAGE_SIZE);
+        Random random = new Random(20261119L);
+
+        try (SqliteCellStore store = open(LOWEST_LEVEL)) {
+            for (int cell = 0; cell < SPARSE_CELLS; cell++) {
+                CellWrites.write(store, noisyCell(CellKey.pack(0, cell, 0, 0), random));
+            }
+
+            CellWrites.write(store, Cell.blank(cellAt(RAISED_LEVEL)));
+        }
+
+        try (SqliteCellStore store = open(RAISED_LEVEL)) {
+            int writes = 1;
+            CellWrites.write(store, Cell.blank(CellKey.pack(RAISED_LEVEL, writes, 0, 0)));
+            CompletableFuture<Void> maintenance = CompletableFuture.runAsync(store::maintain);
+            while (!maintenance.isDone()) {
+                CellWrites.write(store, Cell.blank(CellKey.pack(RAISED_LEVEL, ++writes, 0, 0)));
+                assertNotNull(store.read(cellAt(RAISED_LEVEL)));
+            }
+
+            maintenance.get();
+            assertNotNull(store.read(CellKey.pack(RAISED_LEVEL, writes, 0, 0)));
+            assertNull(store.read(CellKey.pack(0, 0, 0, 0)));
         }
     }
 
