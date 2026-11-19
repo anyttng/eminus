@@ -17,6 +17,8 @@ public final class FarTarget implements AutoCloseable {
     private static final String FRONT_DEPTH_LABEL = "eminus-far-front-depth";
     private static final String SECOND_DEPTH_LABEL = "eminus-far-second-depth";
     private static final String OCCLUDER_DEPTH_LABEL = "eminus-far-occluder-depth";
+    private static final String MERGED_OPAQUE_DEPTH_LABEL = "eminus-merged-opaque-depth";
+    private static final String MERGED_DEPTH_LABEL = "eminus-merged-depth";
     public static final Format COLOR_FORMAT = Format.RGBA8_UNORM;
     private static final Set<TextureUsage> USAGE = EnumSet.of(TextureUsage.ATTACHMENT, TextureUsage.SAMPLED);
     private static final Set<TextureUsage> DEPTH_USAGE = EnumSet.of(TextureUsage.ATTACHMENT, TextureUsage.SAMPLED,
@@ -32,6 +34,8 @@ public final class FarTarget implements AutoCloseable {
     private Texture secondDepth;
     private @Nullable Texture opaqueDepth;
     private @Nullable Texture occluderDepth;
+    private @Nullable Texture mergedOpaqueDepth;
+    private @Nullable Texture mergedDepth;
 
     private FarTarget(Gpu gpu, Format depthFormat, int width, int height) {
         this.gpu = gpu;
@@ -82,6 +86,21 @@ public final class FarTarget implements AutoCloseable {
         return occluderDepth;
     }
 
+    public Texture mergedOpaqueDepth() {
+        if (mergedOpaqueDepth == null) {
+            mergedOpaqueDepth = gpu.texture(MERGED_OPAQUE_DEPTH_LABEL, USAGE, MergedDepthPass.FORMAT, width(),
+                    height(), MIPS);
+        }
+        return mergedOpaqueDepth;
+    }
+
+    public Texture mergedDepth() {
+        if (mergedDepth == null) {
+            mergedDepth = gpu.texture(MERGED_DEPTH_LABEL, USAGE, MergedDepthPass.FORMAT, width(), height(), MIPS);
+        }
+        return mergedDepth;
+    }
+
     public void resize(int width, int height) {
         gpu.assertRenderThread();
         if (width == width() && height == height()) {
@@ -116,6 +135,14 @@ public final class FarTarget implements AutoCloseable {
         if (occluderDepth != null) {
             occluderDepth.close();
             occluderDepth = null;
+        }
+        if (mergedOpaqueDepth != null) {
+            mergedOpaqueDepth.close();
+            mergedOpaqueDepth = null;
+        }
+        if (mergedDepth != null) {
+            mergedDepth.close();
+            mergedDepth = null;
         }
     }
 }

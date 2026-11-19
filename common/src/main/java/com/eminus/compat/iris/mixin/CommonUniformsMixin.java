@@ -33,6 +33,12 @@ public class CommonUniformsMixin {
                 .uniformMatrix(UniformUpdateFrequency.PER_FRAME, PackContract.VIEW_FAR_PROJECTION_INVERSE,
                         IrisFarState::projectionInverse)
                 .uniform1i(UniformUpdateFrequency.PER_FRAME, PackContract.VIEW_FAR_DISTANCE,
-                        IrisFarState::renderDistance);
+                        IrisFarState::renderDistance)
+                .uniformMatrix(UniformUpdateFrequency.PER_FRAME, PackContract.MERGED_PROJECTION,
+                        IrisFarState::mergedProjection)
+                .uniformMatrix(UniformUpdateFrequency.PER_FRAME, PackContract.MERGED_PROJECTION_INVERSE,
+                        IrisFarState::mergedProjectionInverse)
+                .uniformMatrix(UniformUpdateFrequency.PER_FRAME, PackContract.MERGED_PREVIOUS_PROJECTION,
+                        IrisFarState::mergedPreviousProjection);
     }
 }
