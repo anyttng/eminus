@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.eminus.Eminus;
 import com.google.gson.Gson;
@@ -141,8 +142,10 @@ public final class SettingsFile {
                 bool(json, FADE_KEY, defaults.fade()),
                 keyed(json, SHADER_PACK_LOD_KEY, defaults.shaderPackLod(), ShaderPackLod::fromKey),
                 bool(json, LOD_ANIMATIONS_KEY, defaults.lodAnimations()));
-        if (holdsStoredLevelOnly(json) || holdsFormerMinimal(json) || holdsFormerGrassToggle(json)) {
-            save(file, loaded);
+        List<Entry> entries = entries(loaded);
+        if (holdsStoredLevelOnly(json) || holdsFormerMinimal(json) || holdsFormerGrassToggle(json)
+                || lacksAKeyAlone(json, entries)) {
+            write(file, entries);
         }
 
         return loaded;
@@ -152,35 +155,50 @@ public final class SettingsFile {
         write(file, entries(settings));
     }
 
-    private static List<String> entries(Settings settings) {
-        List<String> entries = new ArrayList<>();
-        entries.add(entry(INGESTION_KEY, new JsonPrimitive(settings.ingestion()), null));
-        LodQuality custom = settings.customLod();
-        entries.add(entry(LOD_QUALITY_KEY, new JsonPrimitive(settings.lodChoice().key()), LOD_QUALITY_COMMENT));
-        entries.add(entry(LOD_NEAREST_VOXEL_KEY, new JsonPrimitive(LodQuality.voxelBlocks(custom.storedLevel())),
-                LOD_CUSTOM_COMMENT));
-        entries.add(entry(LOD_SEE_THROUGH_LEAVES_KEY, new JsonPrimitive(custom.leaves() == LeafMode.SEE_THROUGH),
-                null));
-        entries.add(entry(LOD_GRASS_AND_FLOWERS_KEY, new JsonPrimitive(custom.grassAndFlowers().key()), null));
-        entries.add(entry(LOD_TEXTURES_KEY,
-                new JsonPrimitive(custom.fullTextures() ? TEXTURES_FULL : TEXTURES_HALF), null));
-        entries.add(entry(LOD_CORNER_OCCLUSION_KEY, new JsonPrimitive(custom.cornerOcclusion().key()), null));
+    private static boolean lacksAKeyAlone(JsonObject json, List<Entry> entries) {
+        boolean lacksAKey = false;
+        for (Entry entry : entries) {
+            JsonElement stored = json.get(entry.key());
+            if (stored == null) {
+                lacksAKey = true;
+            } else if (!stored.equals(entry.value())) {
+                return false;
+            }
+        }
 
-        entries.add(entry(FAR_RENDER_CELLS_KEY, new JsonPrimitive(settings.farRenderCells()),
+        return lacksAKey;
+    }
+
+    private static List<Entry> entries(Settings settings) {
+        List<Entry> entries = new ArrayList<>();
+        entries.add(new Entry(INGESTION_KEY, new JsonPrimitive(settings.ingestion()), null));
+        LodQuality custom = settings.customLod();
+        entries.add(new Entry(LOD_QUALITY_KEY, new JsonPrimitive(settings.lodChoice().key()), LOD_QUALITY_COMMENT));
+        entries.add(new Entry(LOD_NEAREST_VOXEL_KEY, new JsonPrimitive(LodQuality.voxelBlocks(custom.storedLevel())),
+                LOD_CUSTOM_COMMENT));
+        entries.add(new Entry(LOD_SEE_THROUGH_LEAVES_KEY, new JsonPrimitive(custom.leaves() == LeafMode.SEE_THROUGH),
+                null));
+        entries.add(new Entry(LOD_GRASS_AND_FLOWERS_KEY, new JsonPrimitive(custom.grassAndFlowers().key()), null));
+        entries.add(new Entry(LOD_TEXTURES_KEY,
+                new JsonPrimitive(custom.fullTextures() ? TEXTURES_FULL : TEXTURES_HALF), null));
+        entries.add(new Entry(LOD_CORNER_OCCLUSION_KEY, new JsonPrimitive(custom.cornerOcclusion().key()), null));
+
+        entries.add(new Entry(FAR_RENDER_CELLS_KEY, new JsonPrimitive(settings.farRenderCells()),
                 FAR_RENDER_CELLS_COMMENT));
-        entries.add(entry(WORKER_THREADS_KEY, new JsonPrimitive(settings.workerThreads()),
+        entries.add(new Entry(WORKER_THREADS_KEY, new JsonPrimitive(settings.workerThreads()),
                 WORKER_THREADS_COMMENT));
-        entries.add(entry(DETAIL_DISTANCE_KEY, new JsonPrimitive(settings.detailDistance().key()),
+        entries.add(new Entry(DETAIL_DISTANCE_KEY, new JsonPrimitive(settings.detailDistance().key()),
                 DETAIL_DISTANCE_COMMENT));
-        entries.add(entry(FOG_KEY, new JsonPrimitive(settings.fog()), FOG_COMMENT));
-        entries.add(entry(FADE_KEY, new JsonPrimitive(settings.fade()), FADE_COMMENT));
-        entries.add(entry(SHADER_PACK_LOD_KEY, new JsonPrimitive(settings.shaderPackLod().key()),
+        entries.add(new Entry(FOG_KEY, new JsonPrimitive(settings.fog()), FOG_COMMENT));
+        entries.add(new Entry(FADE_KEY, new JsonPrimitive(settings.fade()), FADE_COMMENT));
+        entries.add(new Entry(SHADER_PACK_LOD_KEY, new JsonPrimitive(settings.shaderPackLod().key()),
                 SHADER_PACK_LOD_COMMENT));
-        entries.add(entry(LOD_ANIMATIONS_KEY, new JsonPrimitive(settings.lodAnimations()), LOD_ANIMATIONS_COMMENT));
+        entries.add(new Entry(LOD_ANIMATIONS_KEY, new JsonPrimitive(settings.lodAnimations()),
+                LOD_ANIMATIONS_COMMENT));
         return entries;
     }
 
-    private static void write(Path file, List<String> entries) {
+    private static void write(Path file, List<Entry> entries) {
         Path temporary = file.resolveSibling(file.getFileName() + TEMPORARY_SUFFIX);
         try {
             Path parent = file.getParent();
@@ -188,7 +206,7 @@ public final class SettingsFile {
                 Files.createDirectories(parent);
             }
 
-            writeSynced(temporary, "{\n" + String.join(",\n", entries) + "\n}\n");
+            writeSynced(temporary, entries.stream().map(Entry::text).collect(Collectors.joining(",\n", "{\n", "\n}\n")));
             Files.move(temporary, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             Eminus.LOGGER.error("Could not write the settings file {}", file, e);
@@ -216,17 +234,19 @@ public final class SettingsFile {
         }
     }
 
-    private static String entry(String key, JsonPrimitive value, @Nullable String comment) {
-        StringBuilder line = new StringBuilder();
-        if (comment != null) {
-            comment.lines().forEach(text -> line.append(INDENT).append("// ").append(text).append('\n'));
-        }
+    private record Entry(String key, JsonPrimitive value, @Nullable String comment) {
+        String text() {
+            StringBuilder line = new StringBuilder();
+            if (comment != null) {
+                comment.lines().forEach(text -> line.append(INDENT).append("// ").append(text).append('\n'));
+            }
 
-        return line.append(INDENT)
-                .append(GSON.toJson(new JsonPrimitive(key)))
-                .append(": ")
-                .append(GSON.toJson(value))
-                .toString();
+            return line.append(INDENT)
+                    .append(GSON.toJson(new JsonPrimitive(key)))
+                    .append(": ")
+                    .append(GSON.toJson(value))
+                    .toString();
+        }
     }
 
     private static @Nullable JsonObject read(Path file) {
