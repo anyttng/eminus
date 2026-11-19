@@ -10,6 +10,7 @@ import com.eminus.mesh.MeshListener;
 import com.eminus.mesh.MeshModels;
 import com.eminus.mesh.MeshOcclusion;
 import com.eminus.mesh.MeshService;
+import com.eminus.mesh.QuadLight;
 import com.eminus.model.ModelIndex;
 import com.eminus.platform.Platforms;
 import com.eminus.session.DimensionRuntime;
@@ -19,6 +20,7 @@ import com.eminus.settings.GrassAndFlowers;
 import com.eminus.settings.SettingsService;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 
 public final class MeshWiring {
     public static MeshService service(Minecraft client, DimensionRuntime runtime, EminusInstance instance,
@@ -27,11 +29,16 @@ public final class MeshWiring {
                 models(runtime, baking), new BakeryTints(baking.colors(), runtime.biomes()),
                 client.options.biomeBlendRadius().get(), baking.opacity(runtime.states()),
                 occlusion(SettingsService.get().settings().lodQuality().cornerOcclusion()),
-                blades(baking.grassAndFlowers()), listener, EminusInstance.URGENT_BUILD_WEIGHT);
+                blades(baking.grassAndFlowers()), light(client), listener, EminusInstance.URGENT_BUILD_WEIGHT);
     }
 
     public static MeshBlades blades(GrassAndFlowers grassAndFlowers) {
         return grassAndFlowers == GrassAndFlowers.SIMPLIFIED ? MeshBlades.ONE : MeshBlades.BOTH;
+    }
+
+    public static QuadLight light(Minecraft client) {
+        ClientLevel level = client.level;
+        return QuadLight.in(level == null || level.dimensionType().hasSkyLight());
     }
 
     public static MeshModels models(DimensionRuntime runtime, ClientBakery baking) {

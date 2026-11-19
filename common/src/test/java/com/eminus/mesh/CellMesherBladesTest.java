@@ -97,7 +97,7 @@ class CellMesherBladesTest {
         }
 
         scratch.begin(FRAME, key, tints, NO_BLEND);
-        CellMesh mesh = new CellMesher(scratch, models).mesh(key, cell.occupancy(), OPACITY,
+        CellMesh mesh = new CellMesher(scratch, models, QuadLight.UNDER_SKY).mesh(key, cell.occupancy(), OPACITY,
                 MeshOcclusion.EVERY_LEVEL, blades, () -> { });
         assertNotNull(mesh);
         return mesh;
