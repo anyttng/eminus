@@ -20,6 +20,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.world.level.ChunkPos;
 
 import org.jspecify.annotations.Nullable;
@@ -185,7 +186,7 @@ public final class SaveImport {
     }
 
     private boolean inView(int chunkX, int chunkZ) {
-        return Math.max(Math.abs(chunkX - centerChunkX), Math.abs(chunkZ - centerChunkZ)) <= viewChunks;
+        return ChunkTrackingView.isInViewDistance(centerChunkX, centerChunkZ, viewChunks, chunkX, chunkZ);
     }
 
     private @Nullable SavedColumn whole(long position) {
@@ -378,8 +379,8 @@ public final class SaveImport {
 
                 int chunkX = minChunkX + dx;
                 int chunkZ = minChunkZ + dz;
-                boolean inView = Math.max(Math.abs(chunkX - candidate.centerChunkX()),
-                        Math.abs(chunkZ - candidate.centerChunkZ())) <= candidate.viewChunks();
+                boolean inView = ChunkTrackingView.isInViewDistance(candidate.centerChunkX(),
+                        candidate.centerChunkZ(), candidate.viewChunks(), chunkX, chunkZ);
                 if (inView) {
                     held.set(column);
                     continue;

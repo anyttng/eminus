@@ -50,6 +50,9 @@ class SaveImportViewTest {
     private static final int OTHER_REGION_CHUNK_X = -8;
     private static final int HELD_CHUNK_X = 42;
     private static final int OUTSIDE_CHUNK = 34;
+    private static final int DISC_VIEW_CHUNKS = 4;
+    private static final int RING_CHUNK = 44;
+    private static final int LIVE_CHUNK_Z = 43;
     private static final int VIEW_SIDE = 2 * VIEW_CHUNKS + 1;
     private static final int COLUMNS_OUTSIDE_THE_VIEW = REGION_MIN_CHUNK * REGION_MIN_CHUNK - VIEW_SIDE * VIEW_SIDE;
     private static final long SEED = 0x5EED_1234_ABCDL;
@@ -127,6 +130,33 @@ class SaveImportViewTest {
         importer.stop();
     }
 
+    @Test
+    void aColumnOnTheRingTheLivePathNeverTakesIsReadStandingStill() throws InterruptedException {
+        SaveImport importer = importer((chunkX, chunkZ) -> chunkX == RING_CHUNK && chunkZ == RING_CHUNK);
+
+        boolean read = until(() -> {
+            importer.tick(PLAYER_CHUNK, PLAYER_CHUNK, RADIUS_CHUNKS, DISC_VIEW_CHUNKS);
+            return importer.tally().reads() > 0;
+        }, AWAIT_MILLIS);
+
+        assertTrue(read, "the column sent without its eight neighbors was never read");
+        assertEquals(1, importer.tally().notSaved());
+        importer.stop();
+    }
+
+    @Test
+    void aColumnTheLivePathTakesIsNotReadStandingStill() throws InterruptedException {
+        SaveImport importer = importer((chunkX, chunkZ) -> chunkX == RING_CHUNK && chunkZ == LIVE_CHUNK_Z);
+
+        until(() -> {
+            importer.tick(PLAYER_CHUNK, PLAYER_CHUNK, RADIUS_CHUNKS, DISC_VIEW_CHUNKS);
+            return false;
+        }, SETTLE_MILLIS);
+
+        assertEquals(0, importer.tally().reads());
+        importer.stop();
+    }
+
     private static void scanWithTheColumnInView(SaveImport importer) throws InterruptedException {
         importer.tick(PLAYER_CHUNK, PLAYER_CHUNK, RADIUS_CHUNKS, VIEW_CHUNKS);
         assertTrue(until(() -> importer.tally().coverageChecks() >= COLUMNS_OUTSIDE_THE_VIEW, AWAIT_MILLIS),
@@ -147,13 +177,20 @@ class SaveImportViewTest {
         return false;
     }
 
+    private interface Uncovered {
+        boolean at(int chunkX, int chunkZ);
+    }
+
     private SaveImport importer(boolean oneOutsideTheView) {
+        return importer((chunkX, chunkZ) -> (chunkX == HELD_CHUNK_X && chunkZ == PLAYER_CHUNK)
+                || (oneOutsideTheView && chunkX == OUTSIDE_CHUNK && chunkZ == OUTSIDE_CHUNK));
+    }
+
+    private SaveImport importer(Uncovered uncovered) {
         ColumnCoverage coverage = new ColumnCoverage(DetailLevel.MIN, (chunk, lowestLevel) -> { });
         for (int chunkZ = 0; chunkZ < 2 * REGION_MIN_CHUNK; chunkZ++) {
             for (int chunkX = 0; chunkX < 2 * REGION_MIN_CHUNK; chunkX++) {
-                boolean held = chunkX == HELD_CHUNK_X && chunkZ == PLAYER_CHUNK;
-                boolean outside = oneOutsideTheView && chunkX == OUTSIDE_CHUNK && chunkZ == OUTSIDE_CHUNK;
-                if (!held && !outside) {
+                if (!uncovered.at(chunkX, chunkZ)) {
                     coverage.cover(chunkX, chunkZ);
                 }
             }

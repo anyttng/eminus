@@ -43,6 +43,7 @@ public final class IngestService {
     private final LongOpenHashSet lightOnly = new LongOpenHashSet();
     private final LightDigests digests = new LightDigests();
     private final Queue<Long> stale = new ConcurrentLinkedQueue<>();
+    private final Queue<Long> imported = new ConcurrentLinkedQueue<>();
     private final Object flight = new Object();
 
     private volatile boolean running = true;
@@ -244,9 +245,24 @@ public final class IngestService {
             markChanged(sectionNode, now);
         }
 
+        for (Long column = imported.poll(); column != null; column = imported.poll()) {
+            markHeldColumn(level, SectionPos.x(column), SectionPos.z(column), now);
+        }
+
         debounce.drain(now, sectionNode -> submitMarked(level, sectionNode));
         deferred.removeIf(
                 column -> level.getChunkSource().getChunkNow(SectionPos.x(column), SectionPos.z(column)) == null);
+    }
+
+    private void markHeldColumn(ClientLevel level, int chunkX, int chunkZ, long now) {
+        LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
+        if (chunk == null) {
+            return;
+        }
+
+        for (int index = 0; index < chunk.getSections().length; index++) {
+            markChanged(SectionPos.asLong(chunkX, chunk.getSectionYFromSectionIndex(index), chunkZ), now);
+        }
     }
 
     public void stop() {
@@ -268,6 +284,7 @@ public final class IngestService {
 
         digests.clear();
         stale.clear();
+        imported.clear();
     }
 
     private void whileRunning(Runnable work) {
@@ -419,6 +436,7 @@ public final class IngestService {
         }
 
         cover(column.chunkX(), column.chunkZ());
+        imported.add(column(column.chunkX(), column.chunkZ()));
         return true;
     }
 
