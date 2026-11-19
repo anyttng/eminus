@@ -15,6 +15,8 @@ import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.DetailLevel;
 import com.eminus.cell.Dictionary;
 
+import com.uber.nullaway.annotations.Initializer;
+
 import org.jspecify.annotations.Nullable;
 import org.sqlite.SQLiteConfig;
 import org.sqlite.SQLiteDataSource;
@@ -69,16 +71,16 @@ public final class SqliteCellStore implements CellStore {
     private final LongSupplier clock;
     private final long openedAt;
     private final Connection connection;
-    private final PreparedStatement selectCell;
-    private final PreparedStatement upsertCell;
-    private final PreparedStatement deleteCell;
-    private final PreparedStatement upsertDictionary;
-    private final PreparedStatement selectDictionary;
-    private final PreparedStatement insertColumn;
-    private final PreparedStatement selectColumns;
-    private final PreparedStatement upsertBeam;
-    private final PreparedStatement deleteBeam;
-    private final PreparedStatement selectBeams;
+    private PreparedStatement selectCell;
+    private PreparedStatement upsertCell;
+    private PreparedStatement deleteCell;
+    private PreparedStatement upsertDictionary;
+    private PreparedStatement selectDictionary;
+    private PreparedStatement insertColumn;
+    private PreparedStatement selectColumns;
+    private PreparedStatement upsertBeam;
+    private PreparedStatement deleteBeam;
+    private PreparedStatement selectBeams;
 
     private boolean closed;
     private boolean unclean;
@@ -107,7 +109,6 @@ public final class SqliteCellStore implements CellStore {
 
             int heldLevel = settleHeldLevel(connection, lowestStoredLevel, dropGraceMillis, file);
             outdateColumnsLeftOpen(connection, file);
-            vacuumWhenSparse(connection);
             SqliteCellStore store = new SqliteCellStore(file, heldLevel, heldLevel < lowestStoredLevel, upgraded,
                     clock, connection);
             writeMeta(connection, OPEN_KEY, OPEN);
@@ -135,6 +136,11 @@ public final class SqliteCellStore implements CellStore {
         this.clock = clock;
         this.openedAt = clock.getAsLong();
         this.connection = connection;
+        prepareStatements();
+    }
+
+    @Initializer
+    private void prepareStatements() throws SQLException {
         selectCell = connection.prepareStatement(SELECT_CELL);
         upsertCell = connection.prepareStatement(UPSERT_CELL);
         deleteCell = connection.prepareStatement(DELETE_CELL);
@@ -145,6 +151,19 @@ public final class SqliteCellStore implements CellStore {
         upsertBeam = connection.prepareStatement(UPSERT_BEAM);
         deleteBeam = connection.prepareStatement(DELETE_BEAM);
         selectBeams = connection.prepareStatement(SELECT_BEAMS);
+    }
+
+    private void closeStatements() throws SQLException {
+        selectCell.close();
+        upsertCell.close();
+        deleteCell.close();
+        upsertDictionary.close();
+        selectDictionary.close();
+        insertColumn.close();
+        selectColumns.close();
+        upsertBeam.close();
+        deleteBeam.close();
+        selectBeams.close();
     }
 
     public int heldLevel() {
@@ -280,6 +299,27 @@ public final class SqliteCellStore implements CellStore {
     }
 
     @Override
+    public synchronized void maintain() {
+        if (closed) {
+            return;
+        }
+
+        try {
+            if (!keepsCellsBelow) {
+                dropBelowLevel(connection, heldLevel, file);
+                deleteMeta(connection, RAISED_LEVEL_KEY);
+                deleteMeta(connection, PLAYED_MILLIS_KEY);
+            }
+
+            if (sparse(connection)) {
+                vacuumBetweenStatements();
+            }
+        } catch (SQLException failure) {
+            throw new StoreException("Could not maintain the cell store " + file, failure);
+        }
+    }
+
+    @Override
     public synchronized void leaveUnclean() {
         unclean = true;
     }
@@ -300,17 +340,11 @@ public final class SqliteCellStore implements CellStore {
                 deleteMeta(connection, OPEN_KEY);
             }
 
-            selectCell.close();
-            upsertCell.close();
-            deleteCell.close();
-            upsertDictionary.close();
-            selectDictionary.close();
-            insertColumn.close();
-            selectColumns.close();
-            upsertBeam.close();
-            deleteBeam.close();
-            selectBeams.close();
-            vacuumWhenSparse(connection);
+            closeStatements();
+            if (sparse(connection)) {
+                vacuum(connection);
+            }
+
             connection.close();
         } catch (SQLException failure) {
             closeQuietly(connection);
@@ -340,22 +374,23 @@ public final class SqliteCellStore implements CellStore {
     private static int settleHeldLevel(Connection connection, int lowestStoredLevel, long dropGraceMillis, Path file)
             throws SQLException {
         int held = lowestLevelHeld(connection, lowestStoredLevel);
-        if (held < lowestStoredLevel) {
-            long played = playedAt(connection, lowestStoredLevel);
-            if (played < dropGraceMillis) {
-                writeMeta(connection, RAISED_LEVEL_KEY, lowestStoredLevel);
-                writeMeta(connection, PLAYED_MILLIS_KEY, played);
-                Eminus.LOGGER.info("Kept the cells from level {} below level {} in {}, still written by ingest: {} of"
-                        + " {} minutes played at it", held, lowestStoredLevel, file, played / MILLIS_PER_MINUTE,
-                        dropGraceMillis / MILLIS_PER_MINUTE);
-                return held;
-            }
+        if (held >= lowestStoredLevel) {
+            deleteMeta(connection, RAISED_LEVEL_KEY);
+            deleteMeta(connection, PLAYED_MILLIS_KEY);
+            return lowestStoredLevel;
         }
 
-        deleteMeta(connection, RAISED_LEVEL_KEY);
-        deleteMeta(connection, PLAYED_MILLIS_KEY);
-        dropBelowLevel(connection, lowestStoredLevel, file);
-        return lowestStoredLevel;
+        long played = playedAt(connection, lowestStoredLevel);
+        if (played >= dropGraceMillis) {
+            return lowestStoredLevel;
+        }
+
+        writeMeta(connection, RAISED_LEVEL_KEY, lowestStoredLevel);
+        writeMeta(connection, PLAYED_MILLIS_KEY, played);
+        Eminus.LOGGER.info("Kept the cells from level {} below level {} in {}, still written by ingest: {} of"
+                + " {} minutes played at it", held, lowestStoredLevel, file, played / MILLIS_PER_MINUTE,
+                dropGraceMillis / MILLIS_PER_MINUTE);
+        return held;
     }
 
     private static void outdateColumnsLeftOpen(Connection connection, Path file) throws SQLException {
@@ -448,14 +483,24 @@ public final class SqliteCellStore implements CellStore {
         }
     }
 
-    private static void vacuumWhenSparse(Connection connection) throws SQLException {
-        try (Statement statement = connection.createStatement()) {
-            try (ResultSet rows = statement.executeQuery(READ_FREE_PAGES)) {
-                if (!rows.next() || rows.getInt(1) <= VACUUM_FREE_PAGES) {
-                    return;
-                }
-            }
+    private void vacuumBetweenStatements() throws SQLException {
+        closeStatements();
+        try {
+            vacuum(connection);
+        } finally {
+            prepareStatements();
+        }
+    }
 
+    private static boolean sparse(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement();
+                ResultSet rows = statement.executeQuery(READ_FREE_PAGES)) {
+            return rows.next() && rows.getInt(1) > VACUUM_FREE_PAGES;
+        }
+    }
+
+    private static void vacuum(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
             statement.execute(VACUUM);
         }
     }

@@ -97,6 +97,10 @@ public final class FakeCellStore implements CellStore {
     }
 
     @Override
+    public void maintain() {
+    }
+
+    @Override
     public void leaveUnclean() {
     }
 
