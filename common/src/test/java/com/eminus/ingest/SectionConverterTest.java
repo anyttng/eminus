@@ -14,13 +14,12 @@ import com.eminus.cell.VoxelEntry;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.QuartPos;
-import net.minecraft.util.CrudeIncrementalIntIdentityHashBiMap;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeResolver;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.DataLayer;
-import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.Strategy;
 
@@ -49,7 +48,7 @@ class SectionConverterTest {
         StateTable states = new StateTable(new Dictionary<>((id, value) -> { }));
         Dictionary<String> biomes = new Dictionary<>((id, value) -> { });
 
-        SectionConverter.convert(airSection(loaded), window, null, null, states, biomes, pyramid);
+        SectionConverter.convert(airBlocks(), window, null, null, states, biomes, pyramid);
 
         long[] level = pyramid.level(DetailLevel.MIN);
         int kept = 0;
@@ -145,12 +144,8 @@ class SectionConverterTest {
         }
     }
 
-    private static LevelChunkSection airSection(Holder<Biome> biome) {
-        CrudeIncrementalIntIdentityHashBiMap<Holder<Biome>> biomeIds = CrudeIncrementalIntIdentityHashBiMap.create(1);
-        biomeIds.add(biome);
-        return new LevelChunkSection(
-                new PalettedContainer<>(Blocks.AIR.defaultBlockState(),
-                        Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY)),
-                new PalettedContainer<>(biome, Strategy.createForBiomes(biomeIds)));
+    private static PalettedContainer<BlockState> airBlocks() {
+        return new PalettedContainer<>(Blocks.AIR.defaultBlockState(),
+                Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY));
     }
 }
