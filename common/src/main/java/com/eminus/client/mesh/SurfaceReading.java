@@ -10,6 +10,7 @@ import com.eminus.cell.DetailLevel;
 import com.eminus.client.model.ClientBakery;
 import com.eminus.client.session.ClientSession;
 import com.eminus.mesh.CellMesh;
+import com.eminus.mesh.FacePlacement;
 import com.eminus.mesh.FluidCorners;
 import com.eminus.mesh.Quad;
 import com.eminus.mesh.QuadOffset;
@@ -93,10 +94,11 @@ public final class SurfaceReading {
         float[] bounds = model.bounds();
         int placement = mesh.placement(quad);
         int voxelBlocks = DetailLevel.blocksPerVoxel(level);
-        float below = voxelBlocks - QuadPlacement.highGap(level, placement);
+        int highGap = QuadPlacement.highGap(level, placement);
 
         if (ModelMetadata.has(model.metadata(), ModelMetadata.FLUID)) {
-            return below - 1.0F + fluidTop(QuadPlacement.corners(level, true, placement), bounds[BakedModel.MAX_Y]);
+            float surface = fluidTop(QuadPlacement.corners(level, true, placement), bounds[BakedModel.MAX_Y]);
+            return FacePlacement.high(surface, highGap, voxelBlocks) * voxelBlocks;
         }
 
         float widthFrom = bounds[BakedModel.MIN_X];
@@ -109,7 +111,8 @@ public final class SurfaceReading {
                 + Math.min(alongWidth * widthFrom, alongWidth * widthTo)
                 + Math.min(alongHeight * heightFrom, alongHeight * heightTo);
 
-        return below - inset + QuadOffset.y(QuadPlacement.offset(level, false, placement));
+        return FacePlacement.high(FacePlacement.CEILING - inset, highGap, voxelBlocks) * voxelBlocks
+                + QuadOffset.y(QuadPlacement.offset(level, false, placement));
     }
 
     private static float fluidTop(int corners, float flatHeight) {
