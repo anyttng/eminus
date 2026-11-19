@@ -9,6 +9,7 @@ import com.eminus.client.render.far.FarDraw;
 import com.eminus.client.render.far.FarRenderer;
 import com.eminus.client.render.far.FarShadow;
 import com.eminus.client.render.far.FarTarget;
+import com.eminus.client.render.far.MergedDepthPass;
 import com.eminus.compat.iris.contract.ContractPath;
 import com.eminus.compat.iris.dh.DhPath;
 import com.eminus.compat.iris.mixin.ShaderPackAccessor;
@@ -18,6 +19,7 @@ import com.eminus.settings.FarDistance;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
 import net.irisshaders.iris.helpers.MatrixUtils;
+import net.irisshaders.iris.pathways.HandRenderer;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.pipeline.WorldRenderingPhase;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
@@ -26,6 +28,7 @@ import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
 import net.irisshaders.iris.shaderpack.programs.ProgramSet;
 import net.irisshaders.iris.shaderpack.properties.ShaderProperties;
 import net.irisshaders.iris.shadows.ShadowRenderer;
+import net.irisshaders.iris.uniforms.CapturedRenderingState;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.block.state.BlockState;
@@ -38,6 +41,7 @@ import org.jspecify.annotations.Nullable;
 
 final class PackLayer {
     private static final int NO_REACH = 0;
+    private static final float HAND_DEPTH = 0.5F + HandRenderer.DEPTH * 0.5F;
 
     private static @Nullable PackLayer current;
 
@@ -66,6 +70,9 @@ final class PackLayer {
     private @Nullable FarDraw drawn;
     private @Nullable FarShadow shadowDrawn;
     private FarDraw.@Nullable PackVertex opaqueVertex;
+    private final Matrix4f gameInverse = new Matrix4f();
+    private final Matrix4f mergedProjection = new Matrix4f();
+    private boolean mergePending;
 
     private PackLayer(IrisRenderingPipeline pipeline, @Nullable ShaderPack pack, NamespacedId dimension) {
         this.pipeline = pipeline;
@@ -131,6 +138,9 @@ final class PackLayer {
             layer.drawOpaque(renderer);
         } else if (layer.path != null && layer.path.translucentSlot() == slot) {
             layer.drawTranslucent();
+        }
+        if (slot == PackSlot.BEFORE_COMPOSITES) {
+            layer.mergeDepth(renderer);
         }
     }
 
@@ -400,7 +410,26 @@ final class PackLayer {
             beam.drawBeams(draw, beamFramebuffer);
         }
         foreign.copyDepth(target.color(), target.depth(), target.opaqueDepth());
+        mergeOpaqueDepth(renderer, foreign, target);
         drawn = draw;
+    }
+
+    private void mergeOpaqueDepth(FarRenderer renderer, Foreign foreign, FarTarget target) {
+        Matrix4fc game = CapturedRenderingState.INSTANCE.getGbufferProjection();
+        renderer.mergeOpaqueDepth(game.invert(gameInverse), IrisFarState.projectionInverse(), HAND_DEPTH);
+        IrisFarState.writeMerged(foreign.texture(target.mergedDepth()), foreign.texture(target.mergedOpaqueDepth()),
+                MergedDepthPass.projection(game, mergedProjection));
+        mergePending = true;
+    }
+
+    private void mergeDepth(FarRenderer renderer) {
+        if (!mergePending) {
+            return;
+        }
+
+        mergePending = false;
+        renderer.mergeDepth(CapturedRenderingState.INSTANCE.getGbufferProjection().invert(gameInverse),
+                IrisFarState.projectionInverse(), HAND_DEPTH);
     }
 
     private void drawTranslucent() {

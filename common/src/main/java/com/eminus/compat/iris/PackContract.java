@@ -29,6 +29,11 @@ public final class PackContract {
     public static final String RENDER_DISTANCE = "eminusRenderDistance";
     public static final List<String> UNIFORMS = List.of(PROJECTION, PROJECTION_INVERSE, PREVIOUS_PROJECTION,
             RENDER_DISTANCE);
+    public static final String MERGED_DEPTH_SAMPLER = "eminusMergedDepthTex0";
+    public static final String MERGED_OPAQUE_DEPTH_SAMPLER = "eminusMergedDepthTex1";
+    public static final String MERGED_PROJECTION = "eminusMergedProjection";
+    public static final String MERGED_PROJECTION_INVERSE = "eminusMergedProjectionInverse";
+    public static final String MERGED_PREVIOUS_PROJECTION = "eminusMergedPreviousProjection";
     public static final String VIEW_POSITION = "eminus_viewPosition";
     public static final String VIEW_POINT = "eminus_viewPoint";
     public static final String VIEW_NEAR_DEPTH = "eminus_viewNearDepth0";
