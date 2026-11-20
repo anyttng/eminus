@@ -75,15 +75,21 @@ vec4 eminus_surface(ivec2 atlasCell, vec2 faceUV, vec3 tint) {
 
     vec2 point = faceUV - 0.5 * longAxis + 0.5 * stride;
     vec4 color = vec4(0.0);
+#ifndef DEPTH_ALPHA
     float mask = 0.0;
+#endif
     for (int index = 0; index < samples; index++) {
         vec2 uv = cellLow + fract(point) * cell;
         color += eminus_sample(EminusAtlas, uv, gradLong, gradShort, texel, cellLow, cell);
+#ifndef DEPTH_ALPHA
         mask += eminus_sample(EminusTintMask, uv, gradLong, gradShort, texel, cellLow, cell).r;
+#endif
         point += stride;
     }
 
     color /= float(samples);
+#ifndef DEPTH_ALPHA
     color.rgb *= mix(vec3(1.0), tint, mask / float(samples));
+#endif
     return color;
 }
