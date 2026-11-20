@@ -4,7 +4,9 @@
 #include <eminus:far_frame.glsl>
 
 uniform sampler2D EminusAtlas;
+#ifndef DEPTH_ALPHA
 uniform sampler2D EminusTintMask;
+#endif
 uniform usamplerBuffer EminusModelVariants;
 
 #include <eminus:far_surface.glsl>
@@ -49,7 +51,9 @@ void main() {
     fragColor = vec4(0.0);
     return;
 #endif
+#ifndef DEPTH_ALPHA
     vec2 occlusionFootprint = fwidth(occlusionPoint.xy);
+#endif
 #ifdef NEAR_SECTIONS
     if (eminus_in_near_section(nearPoint)) {
         discard;
@@ -86,6 +90,9 @@ void main() {
     }
 #endif
 
+#ifdef DEPTH_ALPHA
+    fragColor = vec4(0.0);
+#else
     color.rgb *= eminus_corner_occlusion(occlusionWord.x, occlusionPoint.xy, occlusionSize, occlusionWord.y != 0u,
             occlusionFootprint, occlusionPoint.z);
 
@@ -93,5 +100,6 @@ void main() {
     fragColor = vec4(color.rgb, 1.0);
 #else
     fragColor = color;
+#endif
 #endif
 }

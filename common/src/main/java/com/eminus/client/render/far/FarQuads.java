@@ -53,23 +53,31 @@ final class FarQuads {
     private static final String NEXT_LONG_MODULO = "VARIANT_NEXT_LONG_MODULO";
 
     static PipelineSpec.Builder pipeline(Location location, Capabilities capabilities, VariantDraw variantDraw) {
-        return pipeline(location, SHADER, capabilities, variantDraw, true)
+        return pipeline(location, SHADER, capabilities, variantDraw, true, true)
                 .withBinding(Binding.sampled(LIGHTMAP));
     }
 
     static PipelineSpec.Builder pipeline(Location location, Location shader, float alphaCutout,
             Capabilities capabilities, VariantDraw variantDraw) {
-        return pipeline(location, shader, capabilities, variantDraw, true).withDefine("ALPHA_CUTOUT", alphaCutout);
+        return pipeline(location, shader, capabilities, variantDraw, true, true)
+                .withDefine("ALPHA_CUTOUT", alphaCutout);
     }
 
     static PipelineSpec.Builder solidPipeline(Location location, Capabilities capabilities, VariantDraw variantDraw) {
-        return pipeline(location, SHADER, capabilities, variantDraw, false)
+        return pipeline(location, SHADER, capabilities, variantDraw, false, true)
                 .withBinding(Binding.sampled(LIGHTMAP))
                 .withDefine("SOLID");
     }
 
+    static PipelineSpec.Builder alphaDepthPipeline(Location location, Capabilities capabilities,
+            VariantDraw variantDraw) {
+        return pipeline(location, SHADER, capabilities, variantDraw, true, false)
+                .withBinding(Binding.sampled(LIGHTMAP))
+                .withDefine("DEPTH_ALPHA");
+    }
+
     private static PipelineSpec.Builder pipeline(Location location, Location shader, Capabilities capabilities,
-            VariantDraw variantDraw, boolean nearSections) {
+            VariantDraw variantDraw, boolean nearSections, boolean tintMask) {
         PipelineSpec.Builder builder = PipelineSpec.builder(location, shader, shader)
                 .withBinding(Binding.uniform(FarFrame.BLOCK.name()))
                 .withBinding(Binding.texel(QUADS, GeometryArena.QUAD_FORMAT))
@@ -80,9 +88,12 @@ final class FarQuads {
             builder.withBinding(Binding.texel(NEAR_SECTIONS, NearSectionTable.TEXEL_FORMAT));
         }
 
-        builder.withBinding(Binding.sampled(ATLAS))
-                .withBinding(Binding.sampled(TINT_MASK))
-                .withDefine("QUADS_PER_SEGMENT", ArenaAllocator.QUADS_PER_SEGMENT)
+        builder.withBinding(Binding.sampled(ATLAS));
+        if (tintMask) {
+            builder.withBinding(Binding.sampled(TINT_MASK));
+        }
+
+        builder.withDefine("QUADS_PER_SEGMENT", ArenaAllocator.QUADS_PER_SEGMENT)
                 .withDefine("PIECE_ENTRY_QUADS", QuadPieces.QUADS_PER_ENTRY)
                 .withDefine("MESH_RECORD_TEXELS", MeshRecords.TEXELS)
                 .withDefine("MESH_RECORD_INTS", MeshRecords.TEXEL_INTS)
@@ -215,6 +226,12 @@ final class FarQuads {
 
     static void bind(Pass pass, GeometryArena arena, ModelPublisher models, @Nullable Texture lightmap, Sampler atlas,
             Buffer frame, @Nullable TexelView nearSections) {
+        bindUntinted(pass, arena, models, lightmap, atlas, frame, nearSections);
+        pass.bind(TINT_MASK, models.atlas().tintMask(), atlas);
+    }
+
+    static void bindUntinted(Pass pass, GeometryArena arena, ModelPublisher models, @Nullable Texture lightmap,
+            Sampler atlas, Buffer frame, @Nullable TexelView nearSections) {
         pass.bind(FarFrame.BLOCK.name(), frame);
         pass.bind(QUADS, arena.quads());
         pass.bind(MESH_RECORDS, arena.records().texels());
@@ -224,7 +241,6 @@ final class FarQuads {
             pass.bind(NEAR_SECTIONS, nearSections);
         }
         pass.bind(ATLAS, models.atlas().color(), atlas);
-        pass.bind(TINT_MASK, models.atlas().tintMask(), atlas);
         if (lightmap != null) {
             pass.bind(LIGHTMAP, lightmap, Sampler.LINEAR);
         }
