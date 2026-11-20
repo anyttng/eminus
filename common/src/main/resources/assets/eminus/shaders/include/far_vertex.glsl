@@ -268,8 +268,15 @@ vec2 eminus_pixels(vec4 clip) {
     return clip.xy / clip.w / vec2(EminusPixelX, EminusPixelY);
 }
 
+bvec2 eminus_overlap_edges(int face, vec3 corner, vec3 alongWidth, vec3 alongHeight) {
+    bool widthBeforeNormal = face < 2 || face >= 4;
+    bool heightBeforeNormal = face < 2;
+    return bvec2(widthBeforeNormal || dot(alongWidth, corner) < 0.0,
+                 heightBeforeNormal || dot(alongHeight, corner) < 0.0);
+}
+
 // A merged face's corner can sit on a larger face's edge, and the rasterizer leaves a crack along that edge unless
-// every edge reaches a fraction of a pixel past its neighbor's.
+// an edge reaches a fraction of a pixel past its neighbor's.
 vec2 eminus_overlap_unit(EminusFace f, vec3 voxelBase, vec2 unit) {
     if (EminusPixelX == 0.0) {
         return unit;
@@ -302,7 +309,8 @@ vec2 eminus_overlap_unit(EminusFace f, vec3 voxelBase, vec2 unit) {
     vec2 voxels = min(EMINUS_OVERLAP_PIXELS * vec2(length(heightPixels), length(widthPixels)) / area,
                       vec2(EMINUS_MAX_OVERLAP_VOXELS));
     vec2 outward = vec2(unit.x > EMINUS_HALF_VOXEL ? 1.0 : -1.0, unit.y > EMINUS_HALF_VOXEL ? 1.0 : -1.0);
-    return unit + outward * voxels * f.blocks / vec2(widthBlocks, heightBlocks);
+    vec2 reach = vec2(eminus_overlap_edges(f.face, corner, alongWidth, alongHeight));
+    return unit + outward * reach * voxels * f.blocks / vec2(widthBlocks, heightBlocks);
 }
 
 EminusQuadVertex eminus_quad_vertex(int vertexId) {
