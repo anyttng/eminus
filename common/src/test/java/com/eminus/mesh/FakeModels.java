@@ -54,6 +54,7 @@ final class FakeModels implements MeshModels {
     private int requests;
     private int nextDerived = FIRST_DERIVED_MODEL;
     private boolean throwOnMetadata;
+    private boolean errorOnMetadata;
 
     void define(int stateId, int modelId, int metadata) {
         ids.put(stateId, modelId);
@@ -155,6 +156,10 @@ final class FakeModels implements MeshModels {
         throwOnMetadata = true;
     }
 
+    void errorOnMetadata() {
+        errorOnMetadata = true;
+    }
+
     int requests() {
         return requests;
     }
@@ -171,6 +176,14 @@ final class FakeModels implements MeshModels {
 
     int waiting() {
         return waiters.size();
+    }
+
+    void bake(int stateId) {
+        unbaked.remove(stateId);
+    }
+
+    void publishBake() {
+        waiters.removeFirst().run();
     }
 
     void publishBakes() {
@@ -252,6 +265,10 @@ final class FakeModels implements MeshModels {
     public int metadata(int modelId) {
         if (throwOnMetadata) {
             throw new IllegalStateException("The fake model table refuses to answer.");
+        }
+
+        if (errorOnMetadata) {
+            throw new LinkageError("The fake model table fails to link.");
         }
 
         return words.getOrDefault(modelId, 0);

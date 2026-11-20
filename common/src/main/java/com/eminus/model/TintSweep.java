@@ -58,13 +58,7 @@ public final class TintSweep {
 
     private static void count(Map<BiomeColors.Colors, Set<Block>> users, BiomeColors colors,
             TintSource tint, BlockState state, Block block) {
-        BiomeColors.Colors sampled;
-        try {
-            sampled = colors.sample(tint, state);
-        } catch (RuntimeException failure) {
-            return;
-        }
-
+        BiomeColors.Colors sampled = colors.sample(tint, state);
         if (sampled.values().length > 0 && !sampled.blank()) {
             users.computeIfAbsent(sampled, set -> new HashSet<>()).add(block);
         }

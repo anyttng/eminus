@@ -15,6 +15,24 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class SettingsFileTest {
+    private static final String STORED_SETTINGS = """
+            {
+              "ingestion": true,
+              "lod_quality": "high",
+              "lod_nearest_voxel": 1,
+              "lod_see_through_leaves": false,
+              "lod_grass_and_flowers": "simplified",
+              "lod_textures": "full",
+              "lod_corner_occlusion": "finest_level",
+              "far_render_cells": 24,
+              "worker_threads": 3,
+              "detail_distance": "low",
+              "fog": %s,
+              "fade": true,
+              "shader_pack_lod": "default"%s
+            }
+            """;
+
     @TempDir
     Path configDir;
 
@@ -330,6 +348,42 @@ class SettingsFileTest {
     @Test
     void aFileThatIsNotJsonFallsBackToEveryDefault() throws IOException {
         assertEquals(Settings.defaults(), loadJson("not json at all"));
+    }
+
+    @Test
+    void aFileWithoutOneKeyIsWrittenAgainWithIt() throws IOException {
+        Path file = configDir.resolve(SettingsService.FILE_NAME);
+
+        Settings loaded = loadJson(STORED_SETTINGS.formatted("true", ""));
+        String content = Files.readString(file, StandardCharsets.UTF_8);
+
+        assertEquals(Settings.DEFAULT_LOD_ANIMATIONS, loaded.lodAnimations());
+        assertEquals(24, loaded.farRenderCells());
+        assertTrue(content.contains("// Whether a shader pack that ships the Eminus contract may sway"), content);
+        assertTrue(content.contains("\"" + SettingsFile.LOD_ANIMATIONS_KEY + "\": "
+                + Settings.DEFAULT_LOD_ANIMATIONS), content);
+        assertEquals(loaded, SettingsFile.load(file));
+    }
+
+    @Test
+    void aFileWithABadValueIsLeftAsItWas() throws IOException {
+        String written = STORED_SETTINGS.formatted("\"sideways\"", ",\n  \"lod_animations\": false");
+
+        Settings loaded = loadJson(written);
+
+        assertEquals(Settings.DEFAULT_FOG, loaded.fog());
+        assertEquals(written, Files.readString(configDir.resolve(SettingsService.FILE_NAME), StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void aFileWithABadValueAndAMissingKeyIsLeftAsItWas() throws IOException {
+        String written = STORED_SETTINGS.formatted("\"sideways\"", "");
+
+        Settings loaded = loadJson(written);
+
+        assertEquals(Settings.DEFAULT_FOG, loaded.fog());
+        assertEquals(Settings.DEFAULT_LOD_ANIMATIONS, loaded.lodAnimations());
+        assertEquals(written, Files.readString(configDir.resolve(SettingsService.FILE_NAME), StandardCharsets.UTF_8));
     }
 
     private static List<Path> filesIn(Path folder) throws IOException {

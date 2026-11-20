@@ -100,6 +100,17 @@ public final class SavedColumn implements IngestColumn {
     }
 
     @Override
+    public boolean holdsBlocks() {
+        for (int index = 0; index < sectionCount(); index++) {
+            if (center.holdsBlocks(sectionY(index))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    @Override
     public LevelChunkSection section(int index) {
         return Objects.requireNonNull(center.section(index), SUBMITTED);
     }

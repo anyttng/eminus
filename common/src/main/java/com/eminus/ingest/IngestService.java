@@ -22,15 +22,18 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.PalettedContainer;
 
 import org.jspecify.annotations.Nullable;
 
 public final class IngestService {
     private static final int NEIGHBOR_REACH = 1;
     private static final int NEIGHBOR_SIDE = 2 * NEIGHBOR_REACH + 1;
+    private static final int SINGLE_VALUE_BITS = 0;
 
     private final WorkService<SectionPyramid> service;
     private final StateTable states;
@@ -169,8 +172,8 @@ public final class IngestService {
             return false;
         }
 
-        if (!column.hasLightData()) {
-            Eminus.LOGGER.debug("Chunk {} carries no light data; it is skipped.", chunkPos);
+        if (awaitsLightData(column, column.hasLightData())) {
+            Eminus.LOGGER.debug("Chunk {} holds blocks and carries no light data; it is skipped.", chunkPos);
             return false;
         }
 
@@ -180,6 +183,10 @@ public final class IngestService {
         }
 
         return true;
+    }
+
+    static boolean awaitsLightData(IngestColumn column, boolean lightData) {
+        return !lightData && column.holdsBlocks();
     }
 
     static boolean[] pickSections(IngestColumn column) {
@@ -369,7 +376,6 @@ public final class IngestService {
     }
 
     private void submit(IngestColumn column, int index, @Nullable WholeChunkIngest whole, IngestTrigger trigger) {
-        LevelChunkSection section = column.section(index);
         int sectionX = column.chunkX();
         int sectionY = column.sectionY(index);
         int sectionZ = column.chunkZ();
@@ -383,11 +389,12 @@ public final class IngestService {
 
         BiomeWindow window = column.biomeWindow(index);
         boolean everyLevel = !coverage.covers(sectionX, sectionZ);
+        PalettedContainer<BlockState> blocks = snapshot(column.section(index).getStates());
 
         service.enqueue(pyramid -> whileRunning(() -> {
             boolean merged = false;
             try {
-                SectionConverter.convert(section, window, skyLight, blockLight, states, biomes, pyramid);
+                SectionConverter.convert(blocks, window, skyLight, blockLight, states, biomes, pyramid);
 
                 PyramidDownsampler.build(pyramid, states, states);
                 if (everyLevel) {
@@ -403,6 +410,10 @@ public final class IngestService {
                 }
             }
         }));
+    }
+
+    private static PalettedContainer<BlockState> snapshot(PalettedContainer<BlockState> live) {
+        return live.bitsPerEntry() == SINGLE_VALUE_BITS ? live.recreate() : live.copy();
     }
 
     public boolean ingestColumn(IngestColumn column, SectionPyramid pyramid) {
@@ -428,8 +439,8 @@ public final class IngestService {
             }
 
             if (column.submits(index)) {
-                SectionConverter.convert(column.section(index), column.biomeWindow(index), column.skyLight(index),
-                        column.blockLight(index), states, biomes, pyramid);
+                SectionConverter.convert(column.section(index).getStates(), column.biomeWindow(index),
+                        column.skyLight(index), column.blockLight(index), states, biomes, pyramid);
                 PyramidDownsampler.build(pyramid, states, states);
                 merger.mergeEveryLevel(pyramid, column.chunkX(), column.sectionY(index), column.chunkZ());
             }

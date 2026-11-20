@@ -1,7 +1,5 @@
 package com.eminus.mesh;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import com.eminus.Eminus;
 import com.eminus.cell.CellFrame;
 import com.eminus.cell.CellKey;
@@ -18,6 +16,8 @@ public final class MeshService {
     private static final int STEPS_PER_AXIS = 3;
     private static final int[][] NEIGHBORS = neighbors();
     private static final int LAST = DetailLevel.VOXELS_PER_SIDE - 1;
+    private static final String FAILED_BUILD =
+            "Meshing cell {} at level {} ({}, {}, {}) threw, so the tree asks for it again: {}";
 
     private final WorkService<MeshScratch> work;
     private final CellAccess cells;
@@ -29,13 +29,14 @@ public final class MeshService {
     private final MeshOpacity opacity;
     private final MeshOcclusion occlusion;
     private final MeshBlades blades;
+    private final QuadLight light;
     private final MeshListener listener;
     private final int urgentWeight;
     private final MeshQueue queue = new MeshQueue();
 
     public MeshService(WorkService<MeshScratch> work, CellAccess cells, ColumnCoverage coverage, CellFrame frame,
             MeshModels models, BiomeTints tints, int blendRadius, MeshOpacity opacity, MeshOcclusion occlusion,
-            MeshBlades blades, MeshListener listener, int urgentWeight) {
+            MeshBlades blades, QuadLight light, MeshListener listener, int urgentWeight) {
         this.work = work;
         this.urgentWeight = urgentWeight;
         this.cells = cells;
@@ -47,6 +48,7 @@ public final class MeshService {
         this.opacity = opacity;
         this.occlusion = occlusion;
         this.blades = blades;
+        this.light = light;
         this.listener = listener;
     }
 
@@ -117,15 +119,25 @@ public final class MeshService {
                 listener.meshed(coverage.missingColumns(task.key()) ? masked.lackingColumns() : masked,
                         task.request());
             }
-        } catch (RuntimeException failure) {
-            long key = task.key();
-            Eminus.LOGGER.warn("Meshing cell {} at level {} ({}, {}, {}) threw, so the tree asks for it again: {}",
-                    key, CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key), failure.toString());
-            listener.failed(key, task.request());
+        } catch (Throwable failure) {
+            fail(task, failure);
         } finally {
             release(handles);
             releaseCarried(held, task.references());
         }
+    }
+
+    private void fail(MeshTask task, Throwable failure) {
+        long key = task.key();
+        if (failure instanceof Error) {
+            Eminus.LOGGER.warn(FAILED_BUILD, key, CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key),
+                    failure.toString(), failure);
+        } else {
+            Eminus.LOGGER.warn(FAILED_BUILD, key, CellKey.level(key), CellKey.x(key), CellKey.y(key), CellKey.z(key),
+                    failure.toString());
+        }
+
+        listener.failed(key, task.request());
     }
 
     private int loadCell(CellHandle handle, MeshScratch scratch, long key, long[] grandchildren) {
@@ -175,13 +187,14 @@ public final class MeshService {
     private @Nullable CellMesh mesh(MeshTask task, MeshScratch scratch, int occupancy) {
         scratch.begin(frame, task.key(), tints, blendRadius);
 
-        AtomicBoolean retried = new AtomicBoolean();
-        return new CellMesher(scratch, models).mesh(task.key(), occupancy, opacity.at(task.level()), occlusion, blades,
-                () -> {
-            if (retried.compareAndSet(false, true)) {
-                submit(task.retry());
-            }
-        });
+        BakeWait wait = new BakeWait(() -> submit(task.retry()));
+        CellMesh mesh = new CellMesher(scratch, models, light).mesh(task.key(), occupancy, opacity.at(task.level()),
+                occlusion, blades, wait);
+        if (mesh == null) {
+            wait.close(scratch.voxelModels().awaited());
+        }
+
+        return mesh;
     }
 
     private static int[][] neighbors() {

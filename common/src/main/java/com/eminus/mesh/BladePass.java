@@ -21,12 +21,14 @@ public final class BladePass {
     private final int originY;
     private final int originZ;
     private final FaceOcclusion occlusion;
+    private final QuadLight light;
 
     public BladePass(MeshScratch scratch, MeshModels models, long key, CornerRule corners, MeshBlades blades,
-            Runnable whenBaked) {
+            QuadLight light, Runnable whenBaked) {
         this.scratch = scratch;
         this.models = models;
         this.blades = blades;
+        this.light = light;
         this.whenBaked = whenBaked;
         originX = CellKey.x(key) * SIDE;
         originY = CellKey.y(key) * SIDE;
@@ -121,6 +123,6 @@ public final class BladePass {
 
     private long data(long entry, int metadata, int modelId, int x, int y, int z) {
         int colorIndex = QuadTint.of(scratch, models, entry, modelId, x, y, z);
-        return Quad.data(QuadLight.of(entry, metadata), modelId, colorIndex);
+        return Quad.data(light.of(entry, metadata), modelId, colorIndex);
     }
 }

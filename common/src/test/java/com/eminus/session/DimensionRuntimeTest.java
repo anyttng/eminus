@@ -3,6 +3,7 @@ package com.eminus.session;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -62,6 +63,9 @@ class DimensionRuntimeTest {
     private static final long BIOME_ZOOM_SEED = 0x5EED_1234_ABCDL;
     private static final int STORED_LEVELS = DetailLevel.MAX - LOWEST_STORED_LEVEL + 1;
     private static final String INGEST_SERVICE = "ingest";
+    private static final String SAVE_SERVICE = "save";
+    private static final String DROP_GRACE_PROPERTY = "eminus.store.dropGraceHours";
+    private static final String NO_GRACE_HOURS = "0";
     private static final long POLL_MILLIS = 1L;
 
     @TempDir
@@ -130,6 +134,29 @@ class DimensionRuntimeTest {
         }
 
         assertEquals(Map.of(ColumnCoverage.pack(CHUNK_X, CHUNK_Z), LOWEST_STORED_LEVEL), columns);
+    }
+
+    @Test
+    void aRuntimeOpenedPastTheGraceDropsTheCellsBelowOnASaveWorker() {
+        try (CellStore finest = SqliteCellStore.open(folder, LOWEST_STORED_LEVEL, NO_GRACE_MILLIS, clock::get)) {
+            CellWrites.write(finest, Cell.blank(KEY));
+        }
+
+        WorkService<Void> save = harness.register(SAVE_SERVICE, () -> null);
+        String grace = System.setProperty(DROP_GRACE_PROPERTY, NO_GRACE_HOURS);
+        try {
+            openRuntime(RAISED_STORED_LEVEL, save,
+                    parked.register(INGEST_SERVICE, 1, WorkService.UNLIMITED, SectionPyramid::new));
+        } finally {
+            restoreProperty(DROP_GRACE_PROPERTY, grace);
+        }
+
+        CountDownLatch maintained = new CountDownLatch(1);
+        save.enqueue(scratch -> maintained.countDown());
+        WorkerHarness.await(maintained);
+        runtime.close();
+
+        assertNull(storedCell(KEY), "the cell below the raised level was still in the store");
     }
 
     @Test
@@ -222,11 +249,23 @@ class DimensionRuntimeTest {
     }
 
     private void openRuntime(int lowestStoredLevel, WorkService<SectionPyramid> ingest) {
+        openRuntime(lowestStoredLevel, parked.register(SAVE_SERVICE, 1, WorkService.UNLIMITED, () -> null), ingest);
+    }
+
+    private void openRuntime(int lowestStoredLevel, WorkService<Void> save, WorkService<SectionPyramid> ingest) {
         runtime = new DimensionRuntime(
                 new WorldIdentity(WORLD, SEED, DIMENSION), folder, new CellFrame(MIN_BLOCK_Y), lowestStoredLevel);
         runtime.createFolder();
         runtime.openStore(clock::get);
-        runtime.openCells(parked.register("save", 1, WorkService.UNLIMITED, () -> null), ingest, clock::get);
+        runtime.openCells(save, ingest, clock::get);
+    }
+
+    private static void restoreProperty(String name, @Nullable String value) {
+        if (value == null) {
+            System.clearProperty(name);
+        } else {
+            System.setProperty(name, value);
+        }
     }
 
     private HeldMerge holdTheFirstChange() {

@@ -30,6 +30,7 @@ public final class FacePasses {
     private final Sink sink;
     private final @Nullable FluidCorners corners;
     private final FaceOcclusion occlusion;
+    private final QuadLight light;
     private final int voxelBlocks;
     private final FaceSide low = new FaceSide(FIRST_PLANE);
     private final FaceSide high = new FaceSide(LAST_PLANE);
@@ -56,21 +57,24 @@ public final class FacePasses {
     private FacePlane positiveFaces;
     private boolean shaped;
     private int shape;
+    private boolean missing;
 
     public FacePasses(MeshScratch scratch, StateOpacity opacity, MeshModels models, int level, CornerRule cornerRule,
-            boolean water, Runnable whenBaked, Sink sink) {
+            boolean water, QuadLight light, Runnable whenBaked, Sink sink) {
         this.scratch = scratch;
         this.opacity = opacity;
         this.models = models;
         drawnModels = new DrawnModels(scratch, models, whenBaked);
         this.whenBaked = whenBaked;
         this.sink = sink;
+        this.light = light;
         corners = level == FluidCorners.LEVEL ? new FluidCorners(scratch.voxels(), models) : null;
         occlusion = new FaceOcclusion(scratch.voxels(), models, level, cornerRule, water);
         voxelBlocks = DetailLevel.blocksPerVoxel(level);
     }
 
     public boolean run() {
+        missing = false;
         for (Direction.Axis along : Direction.Axis.values()) {
             axis = along;
             low.towards = Direction.get(Direction.AxisDirection.NEGATIVE, along);
@@ -79,16 +83,15 @@ public final class FacePasses {
 
             for (plane = 0; plane < SIDE; plane++) {
                 clearPlanes();
+                fill();
 
-                if (!fill()) {
-                    return false;
+                if (!missing) {
+                    flush();
                 }
-
-                flush();
             }
         }
 
-        return true;
+        return !missing;
     }
 
     private void clearPlanes() {
@@ -119,7 +122,7 @@ public final class FacePasses {
         }
     }
 
-    private boolean fill() {
+    private void fill() {
         RowMasks masks = scratch.masks();
 
         for (int atV = 0; atV < SIDE; atV++) {
@@ -132,16 +135,23 @@ public final class FacePasses {
                 enter(atU, atV);
                 int modelId = drawnModels.at(stateId, x, y, z);
                 if (modelId == MeshModels.MISSING) {
-                    return false;
+                    askSides(row);
+                    missing = true;
+                    continue;
                 }
 
-                if (!blockFaces(row, modelId) || !fluidFaces()) {
-                    return false;
-                }
+                boolean block = blockFaces(row, modelId);
+                boolean fluid = fluidFaces();
+                missing |= !block || !fluid;
             }
         }
+    }
 
-        return true;
+    private void askSides(int row) {
+        if (!scratch.masks().opaque(row, plane)) {
+            drawnModels.facing(low.facing, low.x, low.y, low.z);
+            drawnModels.facing(high.facing, high.x, high.y, high.z);
+        }
     }
 
     private void enter(int atU, int atV) {
@@ -169,6 +179,7 @@ public final class FacePasses {
 
         int drawnId = drawnModels.drawn(modelId, x, y, z);
         if (drawnId == MeshModels.MISSING) {
+            askSides(row);
             return false;
         }
 
@@ -197,7 +208,7 @@ public final class FacePasses {
     }
 
     private boolean fluidFaces() {
-        int fluidModel = models.fluidModelId(stateId, whenBaked);
+        int fluidModel = scratch.voxelModels().fluid(models, stateId, whenBaked);
         if (fluidModel == MeshModels.MISSING) {
             return false;
         }
@@ -310,7 +321,7 @@ public final class FacePasses {
         long lit = borderLit(side);
         if (liquid) {
             if (shown(side, FaceMask.NONE)) {
-                quads.set(u, v, fluidData(QuadLight.of(lit, metadata), sided(drawn, side), shape()),
+                quads.set(u, v, fluidData(light.of(lit, metadata), sided(drawn, side), shape()),
                         fluidOccluded(side));
             }
 
@@ -356,7 +367,7 @@ public final class FacePasses {
         }
 
         int inward = models.inwardModelId(seabed, drawn);
-        long quad = fluidData(QuadLight.of(drawnModels.seabedLight(), models.metadata(inward)), inward, shape());
+        long quad = fluidData(light.of(drawnModels.seabedLight(), models.metadata(inward)), inward, shape());
         if (lowCut) {
             scratch.positiveInwardPlane().set(u, v, quad, OcclusionWord.NONE);
         }
@@ -447,7 +458,7 @@ public final class FacePasses {
 
     private long data(long facing, int quadMetadata, int modelId) {
         int colorIndex = QuadTint.of(scratch, models, owner, modelId, x, y, z);
-        return Quad.data(QuadLight.of(facing, quadMetadata), modelId, colorIndex);
+        return Quad.data(light.of(facing, quadMetadata), modelId, colorIndex);
     }
 
     private long fluidData(int light, int modelId, int surface) {
@@ -457,11 +468,11 @@ public final class FacePasses {
 
     private int fluidLight(FaceSide side) {
         if (cut(side)) {
-            return QuadLight.of(side.facing, metadata);
+            return light.of(side.facing, metadata);
         }
 
         long other = side.towards == Direction.DOWN ? side.facing : scratch.voxels().entry(x, y + 1, z);
-        return QuadLight.ofFluid(owner, other, metadata);
+        return light.ofFluid(owner, other, metadata);
     }
 
     private static boolean covered(long owner, long facing, Direction face) {

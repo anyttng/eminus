@@ -16,6 +16,7 @@ import com.eminus.cell.CellFrame;
 import com.eminus.cell.ColumnCoverage;
 import com.eminus.cell.Dictionary;
 import com.eminus.cell.StateTable;
+import com.eminus.cell.VoxelEntry;
 import com.eminus.cell.cache.CellAccess;
 import com.eminus.cell.cache.CellCache;
 import com.eminus.cell.cache.CellHandle;
@@ -24,6 +25,16 @@ import com.eminus.store.FakeCellStore;
 import com.eminus.store.StoreException;
 import com.eminus.work.WorkService;
 import com.eminus.work.WorkerHarness;
+
+import io.netty.buffer.Unpooled;
+
+import net.minecraft.core.SectionPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.PalettedContainer;
+import net.minecraft.world.level.chunk.Strategy;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -42,6 +53,7 @@ class IngestServiceTest {
     private static final long SEED = 0x5EED_1234_ABCDL;
     private static final long POLL_MILLIS = 1L;
     private static final long STILL_WAITING_MILLIS = 200L;
+    private static final int FIRST_VOXEL = 0;
 
     private final WorkerHarness harness = new WorkerHarness(WORKERS);
     private final WorkService<SectionPyramid> service = harness.register("ingest", SectionPyramid::new);
@@ -50,6 +62,7 @@ class IngestServiceTest {
     private final CellFrame frame = new CellFrame(MIN_BLOCK_Y);
     private final RefusingCells access = new RefusingCells();
     private final AtomicInteger announced = new AtomicInteger();
+    private final StateTable states = new StateTable(new Dictionary<>((id, value) -> { }));
 
     private volatile @Nullable HeldCover heldCover;
 
@@ -90,6 +103,36 @@ class IngestServiceTest {
     }
 
     @Test
+    void aSectionReadAgainFromABufferAfterTheEnqueueConvertsToTheBlocksItHeldAtTheEnqueue() {
+        IngestService ingest = ingest(new ColumnCoverage(LOWEST_STORED_LEVEL, (chunk, lowestLevel) -> { }));
+        SavedColumn column = IngestColumns.stone(CHUNK_X, CHUNK_Z, MIN_SECTION_Y, SEED);
+        CountDownLatch letGo = new CountDownLatch(1);
+        service.enqueue(pyramid -> WorkerHarness.await(letGo));
+
+        ingest.ingestSections(column, IngestService.pickSections(column), IngestTrigger.PACKET);
+        FriendlyByteBuf resent = new FriendlyByteBuf(Unpooled.buffer());
+        new PalettedContainer<>(Blocks.DIRT.defaultBlockState(),
+                Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY)).write(resent);
+        column.section(IngestColumns.BOTTOM).getStates().read(resent);
+        letGo.countDown();
+        drain();
+
+        long bottomCell = cellOf(IngestColumns.BOTTOM);
+        BlockState stored = harness.call(() -> {
+            CellHandle handle = cells.open(bottomCell);
+            try {
+                return states.state(VoxelEntry.state(handle.withCell(
+                        cell -> cell.get(FIRST_VOXEL, FIRST_VOXEL, FIRST_VOXEL))));
+            } finally {
+                cells.release(handle);
+            }
+        });
+
+        assertEquals(Blocks.STONE.defaultBlockState(), stored,
+                "the job converted the blocks the section was given after it was enqueued");
+    }
+
+    @Test
     void aColumnWhosePersistThrowsIsStillAnnounced() {
         ColumnCoverage coverage = new ColumnCoverage(LOWEST_STORED_LEVEL, (chunk, lowestLevel) -> {
             throw new StoreException("The fake store refuses columns.", null);
@@ -102,6 +145,37 @@ class IngestServiceTest {
 
         assertTrue(coverage.covers(CHUNK_X, CHUNK_Z));
         assertEquals(1, announced.get(), "a column covered in memory was never announced");
+    }
+
+    @Test
+    void anAllAirChunkWithoutLightLayersIsCoveredAndItsLaterLightUpdateIsHeld() {
+        ColumnCoverage coverage = new ColumnCoverage(LOWEST_STORED_LEVEL, (chunk, lowestLevel) -> { });
+        IngestService ingest = ingest(coverage);
+        SavedColumn column = IngestColumns.air(CHUNK_X, CHUNK_Z, MIN_SECTION_Y, SEED);
+
+        IngestColumns.submitWithoutLightData(ingest, column);
+        drain();
+
+        assertTrue(coverage.covers(CHUNK_X, CHUNK_Z), "an all-air chunk without light layers was left uncovered");
+        assertEquals(1, announced.get());
+
+        ingest.markLightUpdate(SectionPos.of(CHUNK_X, MIN_SECTION_Y, CHUNK_Z), clock.get());
+
+        assertEquals(1, ingest.pendingBlockChanges(), "the light update of the air chunk was dropped");
+    }
+
+    @Test
+    void aChunkHoldingBlocksWithoutLightDataIsSkipped() {
+        ColumnCoverage coverage = new ColumnCoverage(LOWEST_STORED_LEVEL, (chunk, lowestLevel) -> { });
+        IngestService ingest = ingest(coverage);
+        SavedColumn column = IngestColumns.stone(CHUNK_X, CHUNK_Z, MIN_SECTION_Y, SEED);
+
+        IngestColumns.submitWithoutLightData(ingest, column);
+        drain();
+
+        assertFalse(coverage.covers(CHUNK_X, CHUNK_Z), "a chunk holding blocks was covered with no light data");
+        assertEquals(0, announced.get());
+        assertTrue(access.opened.isEmpty(), "a chunk holding blocks was merged with no light data");
     }
 
     @Test
@@ -139,8 +213,8 @@ class IngestServiceTest {
     private IngestService ingest(ColumnCoverage coverage) {
         CellMerger merger = new CellMerger(access, frame, LOWEST_STORED_LEVEL,
                 (handle, faceMask, edgeMask, occupancy, sequence) -> cells.release(handle));
-        return new IngestService(service, new StateTable(new Dictionary<>((id, value) -> { })),
-                new Dictionary<>((id, value) -> { }), merger, coverage, new Announcements());
+        return new IngestService(service, states, new Dictionary<>((id, value) -> { }), merger, coverage,
+                new Announcements());
     }
 
     private void drain() {
