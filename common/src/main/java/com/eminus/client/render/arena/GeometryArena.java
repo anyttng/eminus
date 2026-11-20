@@ -144,6 +144,7 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
             warnAboutRefusals();
         }
 
+        decommitEmptied();
         compactIfFits();
         updatePressure();
         return index;
@@ -291,11 +292,11 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
         }
 
         MeshSlot placed = MeshSlot.of(mesh, segment);
-        if (pages != null && sparseQuads != null) {
-            ArenaPages.PageRun run = pages.place(segment, ArenaAllocator.segmentsFor(mesh.slotCount()));
-            if (!run.isEmpty()) {
-                sparseQuads.commit(pageBytes(pages, run.first()), pageBytes(pages, run.count()));
-            }
+        ArenaPages paged = pages;
+        SparseBuffer sparse = sparseQuads;
+        if (paged != null && sparse != null) {
+            paged.place(segment, ArenaAllocator.segmentsFor(mesh.slotCount()),
+                    (first, count) -> sparse.commit(pageBytes(paged, first), pageBytes(paged, count)));
         }
         held.put(mesh.key(), placed);
         records.write(placed);
@@ -336,11 +337,17 @@ public final class GeometryArena implements MeshSlots, AutoCloseable {
     }
 
     private void unpage(MeshSlot released) {
-        if (pages != null && sparseQuads != null) {
-            ArenaPages.PageRun run = pages.free(released.segment(), ArenaAllocator.segmentsFor(released.slots()));
-            if (!run.isEmpty()) {
-                sparseQuads.decommit(pageBytes(pages, run.first()), pageBytes(pages, run.count()));
-            }
+        if (pages != null) {
+            pages.free(released.segment(), ArenaAllocator.segmentsFor(released.slots()));
+        }
+    }
+
+    private void decommitEmptied() {
+        ArenaPages paged = pages;
+        SparseBuffer sparse = sparseQuads;
+        if (paged != null && sparse != null) {
+            paged.drainEmptied(
+                    (first, count) -> sparse.decommit(pageBytes(paged, first), pageBytes(paged, count)));
         }
     }
 
