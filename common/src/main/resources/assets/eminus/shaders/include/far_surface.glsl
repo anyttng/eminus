@@ -60,7 +60,9 @@ vec4 eminus_level_zero_surface(ivec2 atlasCell, vec2 faceUV, vec3 tint) {
     vec2 cellLow = vec2(atlasCell) * cell;
     vec2 uv = cellLow + fract(faceUV) * cell;
     vec4 color = eminus_level(EminusAtlas, uv, 0.0, texel, cellLow, cell);
+#ifndef DEPTH_ALPHA
     color.rgb *= mix(vec3(1.0), tint, eminus_level(EminusTintMask, uv, 0.0, texel, cellLow, cell).r);
+#endif
     return color;
 }
 
