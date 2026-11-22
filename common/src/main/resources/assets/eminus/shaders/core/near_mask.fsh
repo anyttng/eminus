@@ -18,5 +18,5 @@ void main() {
     }
 
     vec2 uv = (vec2(texel) + 0.5) / vec2(textureSize(GameDepth, 0));
-    gl_FragDepth = far_mask_depth(GameToFar, uv, game, DepthBias);
+    gl_FragDepth = far_mask_depth(GameToFar, uv, game, DepthBias, NEAREST);
 }

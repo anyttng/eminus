@@ -49,6 +49,10 @@ void main() {
     }
 
     float gameZ = far_reproject(Reproject, screenUV, depth);
+    if (!far_finite(gameZ) || !far_finite(position)) {
+        discard;
+    }
+
     float distance = length(position);
     float fog = distance <= FogReach
             ? linear_fog_value(distance, GameFogStart, GameFogEnd)

@@ -41,8 +41,17 @@ float far_reproject(mat4 toTarget, vec2 uv, float depth) {
     return far_window_z(clip.z / clip.w);
 }
 
-float far_mask_depth(mat4 gameToFar, vec2 uv, float game, float bias) {
-    return clamp(far_reproject(gameToFar, uv, CLOSER(game, bias)), 0.0, 1.0);
+bool far_finite(float value) {
+    return !(isnan(value) || isinf(value));
+}
+
+bool far_finite(vec3 value) {
+    return !(any(isnan(value)) || any(isinf(value)));
+}
+
+float far_mask_depth(mat4 gameToFar, vec2 uv, float game, float bias, float nearest) {
+    float reprojected = far_reproject(gameToFar, uv, CLOSER(game, bias));
+    return far_finite(reprojected) ? clamp(reprojected, 0.0, 1.0) : nearest;
 }
 
 #endif
